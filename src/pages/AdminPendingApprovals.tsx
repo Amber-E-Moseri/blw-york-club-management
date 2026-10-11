@@ -80,7 +80,7 @@ export const AdminPendingApprovals: React.FC<Props> = ({ user }) => {
   if (!canApprove) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
-        <p className="text-sm text-gray-400">Access denied.</p>
+        <p className="text-sm text-gray-400 dark:text-slate-400">Access denied.</p>
       </div>
     );
   }
@@ -88,7 +88,7 @@ export const AdminPendingApprovals: React.FC<Props> = ({ user }) => {
   return (
     <div className="max-w-3xl mx-auto space-y-5">
       <div>
-        <p className="text-xs text-gray-400 dark:text-slate-500 mb-1">People / Approvals</p>
+        <p className="text-xs text-gray-400 dark:text-slate-400 mb-1">People / Approvals</p>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Pending Approvals</h1>
         <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
           New members waiting for access to BLW York Hub
@@ -96,7 +96,7 @@ export const AdminPendingApprovals: React.FC<Props> = ({ user }) => {
       </div>
 
       {error && (
-        <div className="bg-york-50 border border-york-200 text-york-700 rounded-lg px-4 py-3 text-sm">{error}</div>
+        <div className="bg-york-50 dark:bg-york-900/30 border border-york-200 dark:border-york-800 text-york-700 dark:text-york-300 rounded-lg px-4 py-3 text-sm">{error}</div>
       )}
       {notice && (
         <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 text-sm">{notice}</div>
@@ -112,7 +112,7 @@ export const AdminPendingApprovals: React.FC<Props> = ({ user }) => {
           <div className="text-center py-16 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg">
             <CheckCircle2 className="w-10 h-10 mx-auto mb-3 text-green-400" aria-hidden="true" />
             <p className="text-base font-semibold text-gray-700 dark:text-slate-300">No pending requests</p>
-            <p className="text-sm text-gray-400 dark:text-slate-500 mt-1">All accounts are up to date</p>
+            <p className="text-sm text-gray-400 dark:text-slate-400 mt-1">All accounts are up to date</p>
           </div>
         )}
 
@@ -130,9 +130,9 @@ export const AdminPendingApprovals: React.FC<Props> = ({ user }) => {
                 </div>
                 <p className="text-sm text-gray-500 dark:text-slate-400">{p.email}</p>
                 {p.student_number && (
-                  <p className="text-xs text-gray-400 dark:text-slate-500 font-mono mt-0.5">#{p.student_number}</p>
+                  <p className="text-xs text-gray-400 dark:text-slate-400 font-mono mt-0.5">#{p.student_number}</p>
                 )}
-                <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
+                <p className="text-xs text-gray-400 dark:text-slate-400 mt-0.5">
                   Applied {new Date(p.joined_at).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </p>
               </div>

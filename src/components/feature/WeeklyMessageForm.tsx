@@ -114,7 +114,7 @@ export const WeeklyMessageForm: React.FC<Props> = ({
       <form onSubmit={handleSubmit} className="space-y-4 p-1">
         {canSetOrgScope && (
           <div>
-            <span className="block text-sm font-medium text-gray-700 mb-1.5">Audience</span>
+            <span className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5">Audience</span>
             <div className="flex gap-3">
               {(['org', 'personal'] as MessageScope[]).map((s) => (
                 <label
@@ -122,8 +122,8 @@ export const WeeklyMessageForm: React.FC<Props> = ({
                   className={cn(
                     'flex items-center gap-2 cursor-pointer px-4 py-2 rounded-md border text-sm font-medium transition-colors',
                     form.scope === s
-                      ? 'border-york-600 bg-york-50 text-york-700'
-                      : 'border-gray-200 text-gray-600 hover:border-gray-300',
+                      ? 'border-york-600 bg-york-50 dark:bg-york-900/30 text-york-700 dark:text-york-300'
+                      : 'border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:border-gray-300',
                   )}
                 >
                   <input
@@ -179,7 +179,7 @@ export const WeeklyMessageForm: React.FC<Props> = ({
               error={errors.week_start}
               required
             />
-            <p className="text-xs text-gray-400 mt-1">Week: {weekLabel}</p>
+            <p className="text-xs text-gray-400 dark:text-slate-400 mt-1">Week: {weekLabel}</p>
           </div>
           <Input
             label="Week End"
@@ -190,21 +190,21 @@ export const WeeklyMessageForm: React.FC<Props> = ({
         </div>
 
         {!isEditing && (
-          <div className="border border-gray-200 rounded-lg p-4 space-y-3">
+          <div className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 space-y-3">
             <label className="flex items-center gap-2.5 cursor-pointer">
               <input
                 type="checkbox"
                 checked={form.is_recurring}
                 onChange={(e) => set('is_recurring', e.target.checked)}
-                className="w-4 h-4 rounded border-gray-300 text-york-600"
+                className="w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-york-600 dark:text-york-400"
               />
-              <span className="text-sm font-medium text-gray-700">Bulk schedule (repeat this message)</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-slate-300">Bulk schedule (repeat this message)</span>
             </label>
 
             {form.is_recurring && (
               <div className="grid grid-cols-2 gap-3 pl-6">
                 <div>
-                  <span className="block text-xs font-medium text-gray-600 mb-1">Repeat every</span>
+                  <span className="block text-xs font-medium text-gray-600 dark:text-slate-300 mb-1">Repeat every</span>
                   <div className="flex gap-2">
                     {(['weekly', 'biweekly'] as RecurrenceType[]).map((r) => (
                       <label
@@ -212,8 +212,8 @@ export const WeeklyMessageForm: React.FC<Props> = ({
                         className={cn(
                           'flex-1 text-center cursor-pointer px-3 py-1.5 rounded border text-xs font-medium transition-colors',
                           form.recurrence_type === r
-                            ? 'border-york-600 bg-york-50 text-york-700'
-                            : 'border-gray-200 text-gray-500 hover:border-gray-300',
+                            ? 'border-york-600 bg-york-50 dark:bg-york-900/30 text-york-700 dark:text-york-300'
+                            : 'border-gray-200 dark:border-slate-700 text-gray-500 dark:text-slate-400 hover:border-gray-300',
                         )}
                       >
                         <input

@@ -38,7 +38,7 @@ export const ConfessionCard: React.FC<Props> = ({
             {c.scheduled_date}
           </Badge>
           {(c.declaration_count ?? 0) > 0 && (
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-gray-400 dark:text-slate-400">
               {c.declaration_count} declared
             </span>
           )}

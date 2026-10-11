@@ -14,7 +14,7 @@ export const ActivityFeed: React.FC<{ items: ActivityItem[] }> = ({ items }) => 
   const navigate = useNavigate();
 
   if (items.length === 0) {
-    return <p className="text-small text-gray-400">No recent activity yet.</p>;
+    return <p className="text-small text-gray-400 dark:text-slate-400">No recent activity yet.</p>;
   }
 
   return (
@@ -24,9 +24,9 @@ export const ActivityFeed: React.FC<{ items: ActivityItem[] }> = ({ items }) => 
           key={item.id}
           type="button"
           onClick={() => item.href && navigate(item.href)}
-          className="flex w-full items-start gap-3 rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-left transition-colors hover:bg-york-50 dark:hover:bg-slate-700"
+          className="flex w-full items-start gap-3 rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-left transition-colors hover:bg-york-50 dark:hover:bg-york-900/40 dark:hover:bg-slate-700"
         >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-york-100 dark:bg-slate-700 text-tiny font-bold text-york-700 dark:text-york-400">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-york-100 dark:bg-york-900/40 dark:bg-slate-700 text-tiny font-bold text-york-700 dark:text-york-400">
             {ICONS[item.type]}
           </span>
           <span className="min-w-0 flex-1">

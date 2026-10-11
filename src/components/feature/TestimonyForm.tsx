@@ -135,7 +135,7 @@ export const TestimonyForm: React.FC<Props> = ({ isOpen, onClose, onSave, testim
       <div className="space-y-5">
         {/* Entry type */}
         <div>
-          <label className="block text-sm font-bold text-gray-800 mb-2">Type</label>
+          <label className="block text-sm font-bold text-gray-800 dark:text-slate-200 mb-2">Type</label>
           <div className="grid grid-cols-2 gap-2">
             {ENTRY_TYPES.map((et) => (
               <button
@@ -144,12 +144,12 @@ export const TestimonyForm: React.FC<Props> = ({ isOpen, onClose, onSave, testim
                 onClick={() => set('entry_type', et.value)}
                 className={`flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all ${
                   form.entry_type === et.value
-                    ? 'border-york-600 bg-york-50'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-york-600 bg-york-50 dark:bg-york-900/30'
+                    : 'border-gray-200 dark:border-slate-700 hover:border-gray-300'
                 }`}
               >
-                <et.icon className="w-6 h-6 text-york-600" aria-hidden="true" />
-                <span className="text-sm font-semibold text-gray-800">{et.label}</span>
+                <et.icon className="w-6 h-6 text-york-600 dark:text-york-400" aria-hidden="true" />
+                <span className="text-sm font-semibold text-gray-800 dark:text-slate-200">{et.label}</span>
                 <span className="text-xs text-gray-400">{et.desc}</span>
               </button>
             ))}
@@ -168,8 +168,8 @@ export const TestimonyForm: React.FC<Props> = ({ isOpen, onClose, onSave, testim
 
         {/* Category */}
         <div>
-          <label className="block text-sm font-bold text-gray-800 mb-2">
-            Category <span className="text-york-600">*</span>
+          <label className="block text-sm font-bold text-gray-800 dark:text-slate-200 mb-2">
+            Category <span className="text-york-600 dark:text-york-400">*</span>
           </label>
           <div className="flex flex-wrap gap-2">
             {CATEGORIES.map((cat) => (
@@ -180,7 +180,7 @@ export const TestimonyForm: React.FC<Props> = ({ isOpen, onClose, onSave, testim
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
                   form.category === cat.value
                     ? 'bg-york-600 text-white border-york-600'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-york-600 hover:text-york-600'
+                    : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-york-600 hover:text-york-600'
                 }`}
               >
                 <cat.icon className="w-4 h-4 inline mr-1.5 -mt-0.5" aria-hidden="true" />{cat.label}
@@ -205,10 +205,10 @@ export const TestimonyForm: React.FC<Props> = ({ isOpen, onClose, onSave, testim
 
         {/* Image upload */}
         <div>
-          <label className="block text-sm font-bold text-gray-800 mb-2">Image (optional)</label>
+          <label className="block text-sm font-bold text-gray-800 dark:text-slate-200 mb-2">Image (optional)</label>
           {imagePreview ? (
             <div className="relative">
-              <img src={imagePreview} alt="Preview" className="w-full max-h-48 object-cover rounded-lg border border-gray-200" />
+              <img src={imagePreview} alt="Preview" className="w-full max-h-48 object-cover rounded-lg border border-gray-200 dark:border-slate-700" />
               <button
                 type="button"
                 onClick={() => { setImageFile(null); setImagePreview(null); set('image_url', undefined); }}
@@ -221,10 +221,10 @@ export const TestimonyForm: React.FC<Props> = ({ isOpen, onClose, onSave, testim
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              className="w-full border-2 border-dashed border-gray-300 rounded-lg py-6 text-center hover:border-york-400 transition-colors"
+              className="w-full border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-lg py-6 text-center hover:border-york-400 transition-colors"
             >
               <Camera className="w-6 h-6" aria-hidden="true" />
-              <p className="text-sm text-gray-500 mt-1">Click to upload an image</p>
+              <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">Click to upload an image</p>
               <p className="text-xs text-gray-400">Max 5 MB · JPG, PNG, WebP</p>
             </button>
           )}
@@ -236,25 +236,25 @@ export const TestimonyForm: React.FC<Props> = ({ isOpen, onClose, onSave, testim
             className="hidden"
           />
           {errors.image_url && <p className="text-xs text-york-500 mt-1">{errors.image_url}</p>}
-          {uploadingImage && <p className="text-xs text-gray-400 mt-1">Uploading image…</p>}
+          {uploadingImage && <p className="text-xs text-gray-400 dark:text-slate-400 mt-1">Uploading image…</p>}
         </div>
 
         {/* Visibility */}
         <div>
-          <label className="block text-sm font-bold text-gray-800 mb-2">Who can see this?</label>
+          <label className="block text-sm font-bold text-gray-800 dark:text-slate-200 mb-2">Who can see this?</label>
           <div className="space-y-2">
             {VISIBILITY.map((v) => (
-              <label key={v.value} className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
+              <label key={v.value} className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer transition-colors">
                 <input
                   type="radio"
                   name="visibility"
                   value={v.value}
                   checked={form.visibility === v.value}
                   onChange={() => set('visibility', v.value)}
-                  className="mt-0.5 text-york-600 focus:ring-york-600"
+                  className="mt-0.5 text-york-600 dark:text-york-400 focus:ring-york-600"
                 />
                 <div>
-                  <p className="text-sm font-semibold text-gray-800"><v.icon className="w-4 h-4 inline mr-1.5 -mt-0.5 text-york-600" aria-hidden="true" />{v.label}</p>
+                  <p className="text-sm font-semibold text-gray-800 dark:text-slate-200"><v.icon className="w-4 h-4 inline mr-1.5 -mt-0.5 text-york-600" aria-hidden="true" />{v.label}</p>
                   <p className="text-xs text-gray-400">{v.desc}</p>
                 </div>
               </label>

@@ -44,7 +44,7 @@ export const DriveLinkInput: React.FC<DriveLinkInputProps> = ({
   return (
     <div className={`space-y-2 ${className}`}>
       {label && (
-        <label className="block text-sm font-semibold text-gray-900">{label}</label>
+        <label className="block text-sm font-semibold text-gray-900 dark:text-slate-100">{label}</label>
       )}
 
       {/* Show preview when we have valid metadata; show input otherwise */}
@@ -62,11 +62,11 @@ export const DriveLinkInput: React.FC<DriveLinkInputProps> = ({
             onChange={handleChange}
             placeholder={placeholder}
             className={`w-full px-3 py-2.5 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-york-600 focus:border-transparent transition-all ${
-              error ? 'border-york-400 bg-york-50' : 'border-gray-200'
+              error ? 'border-york-400 bg-york-50 dark:bg-york-900/30' : 'border-gray-200 dark:border-slate-700'
             }`}
           />
           {error && (
-            <p className="text-xs text-york-600"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{error}</p>
+            <p className="text-xs text-york-600 dark:text-york-400"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{error}</p>
           )}
         </>
       )}
@@ -82,7 +82,7 @@ export const DriveLinkInput: React.FC<DriveLinkInputProps> = ({
         </button>
       )}
 
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-gray-400 dark:text-slate-400">
         Supports Google Docs, Sheets, Slides, PDFs, and Drive folders.
         Make sure sharing is set to "Anyone with the link."
       </p>

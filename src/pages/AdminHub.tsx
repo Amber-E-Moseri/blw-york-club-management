@@ -138,7 +138,7 @@ export const AdminHub: React.FC<Props> = ({ user }) => {
   if (!isAdmin) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
-        <p className="text-sm text-york-600 font-medium">Access denied.</p>
+        <p className="text-sm text-york-600 dark:text-york-400 font-medium">Access denied.</p>
       </div>
     );
   }
@@ -148,7 +148,7 @@ export const AdminHub: React.FC<Props> = ({ user }) => {
       <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
         <div className="border-t-4 border-york-600 px-5 py-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs font-semibold text-york-600 uppercase tracking-wider">Administration</p>
+            <p className="text-xs font-semibold text-york-600 dark:text-york-400 uppercase tracking-wider">Administration</p>
             <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100 mt-1">Operations Dashboard</h1>
             <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
               Review the work that needs attention, then jump into the right tool.
@@ -166,7 +166,7 @@ export const AdminHub: React.FC<Props> = ({ user }) => {
       </div>
 
       {error && (
-        <div className="rounded-xl border border-york-200 bg-york-50 dark:bg-york-900/20 p-4 text-sm text-york-700 dark:text-york-300">
+        <div className="rounded-xl border border-york-200 dark:border-york-800 bg-york-50 dark:bg-york-900/20 p-4 text-sm text-york-700 dark:text-york-300">
           {error}
         </div>
       )}
@@ -192,7 +192,7 @@ export const AdminHub: React.FC<Props> = ({ user }) => {
                 )}
               </div>
               <p className="mt-3 text-sm font-semibold text-gray-900 dark:text-slate-100">{item.label}</p>
-              <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
+              <p className="text-xs text-gray-400 dark:text-slate-400 mt-0.5">
                 {item.value > 0 ? 'Needs review' : 'No action needed'}
               </p>
             </button>
@@ -224,7 +224,7 @@ export const AdminHub: React.FC<Props> = ({ user }) => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{item.label}</p>
-                      <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5 line-clamp-1">{item.desc}</p>
+                      <p className="text-xs text-gray-400 dark:text-slate-400 mt-0.5 line-clamp-1">{item.desc}</p>
                     </div>
                     <ChevronRight className="w-4 h-4 text-gray-300 dark:text-slate-600 shrink-0" />
                   </button>

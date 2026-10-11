@@ -36,7 +36,7 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-100 dark:bg-slate-800 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
 
         {/* Logo */}
@@ -44,7 +44,7 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="BLW York" className="w-14 h-14 object-contain" />
             <div>
-              <p className="text-lg font-bold text-gray-900">BLW York Hub</p>
+              <p className="text-lg font-bold text-gray-900 dark:text-slate-100">BLW York Hub</p>
               <p className="text-sm text-gray-400">York University</p>
             </div>
           </div>
@@ -56,13 +56,13 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
           </div>
         )}
 
-        <div className="bg-white rounded-lg shadow-md p-8">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-8">
 
           {/* Sign-up success */}
           {mode === 'done' && (
             <div className="text-center space-y-4">
               <img src="/logo.png" alt="" className="w-14 h-14 mx-auto" />
-              <h2 className="text-xl font-bold text-gray-900">Application submitted!</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Application submitted!</h2>
               <p className="text-sm text-gray-500">
                 Your account is pending approval by a leader. You'll be able to log in once you're approved.
               </p>
@@ -78,13 +78,13 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
                 <Input label="Email" type="email" value={email} onChange={setEmail} placeholder="you@yorku.ca" autoComplete="email" />
                 <Input label="Password" type="password" value={password} onChange={setPassword} placeholder="••••••••" autoComplete="current-password" />
                 {(error || localError) && (
-                  <p className="text-xs text-york-600" role="alert">{error || localError}</p>
+                  <p className="text-xs text-york-600 dark:text-york-400" role="alert">{error || localError}</p>
                 )}
                 <Button fullWidth loading={loading} type="submit">Sign In</Button>
               </form>
-              <p className="text-center text-sm text-gray-500 mt-5">
+              <p className="text-center text-sm text-gray-500 dark:text-slate-400 mt-5">
                 New to BLW York?{' '}
-                <button type="button" onClick={() => { setMode('signup'); setLocalError(''); }} className="text-york-600 font-semibold hover:underline">
+                <button type="button" onClick={() => { setMode('signup'); setLocalError(''); }} className="text-york-600 dark:text-york-400 font-semibold hover:underline">
                   Request access
                 </button>
               </p>
@@ -102,13 +102,13 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
                 <Input label="Password" type="password" value={password} onChange={setPassword} placeholder="Min. 6 characters" autoComplete="new-password" />
                 <Input label="Confirm Password" type="password" value={confirm} onChange={setConfirm} placeholder="••••••••" autoComplete="new-password" />
                 {(error || localError) && (
-                  <p className="text-xs text-york-600" role="alert">{error || localError}</p>
+                  <p className="text-xs text-york-600 dark:text-york-400" role="alert">{error || localError}</p>
                 )}
                 <Button fullWidth loading={loading} type="submit">Submit Request</Button>
               </form>
-              <p className="text-center text-sm text-gray-500 mt-5">
+              <p className="text-center text-sm text-gray-500 dark:text-slate-400 mt-5">
                 Already have an account?{' '}
-                <button type="button" onClick={() => { setMode('signin'); setLocalError(''); }} className="text-york-600 font-semibold hover:underline">
+                <button type="button" onClick={() => { setMode('signin'); setLocalError(''); }} className="text-york-600 dark:text-york-400 font-semibold hover:underline">
                   Sign in
                 </button>
               </p>

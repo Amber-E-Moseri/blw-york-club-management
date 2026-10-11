@@ -58,7 +58,7 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
             <Input label="Title" value={title} onChange={setTitle} />
             <Input label="Message" type="textarea" value={body} onChange={setBody} />
             {postError && (
-              <div className="rounded-md border border-york-200 bg-york-50 px-4 py-3 text-sm text-york-700" role="alert">
+              <div className="rounded-md border border-york-200 dark:border-york-800 bg-york-50 dark:bg-york-900/30 px-4 py-3 text-sm text-york-700 dark:text-york-300" role="alert">
                 {postError}
               </div>
             )}
@@ -67,9 +67,9 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
         )}
 
         {loading ? (
-          <p className="text-small text-gray-400">Loading…</p>
+          <p className="text-small text-gray-400 dark:text-slate-400">Loading…</p>
         ) : (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-6">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700 px-6">
             {items.map((a) => <AnnouncementCard key={a.id} announcement={a} />)}
           </div>
         )}

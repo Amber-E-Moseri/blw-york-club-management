@@ -27,7 +27,7 @@ const GrowthCard: React.FC<GrowthCardProps> = ({ icon, iconBg, title, subtitle, 
       {icon}
     </div>
     <div className="flex-1 min-w-0">
-      <p className="font-semibold text-gray-900 dark:text-white text-sm">{title}</p>
+      <p className="font-semibold text-gray-900 dark:text-slate-100 dark:text-white text-sm">{title}</p>
       {subtitle && (
         <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{subtitle}</p>
       )}
@@ -37,7 +37,7 @@ const GrowthCard: React.FC<GrowthCardProps> = ({ icon, iconBg, title, subtitle, 
         {badge}
       </span>
     )}
-    <ChevronRight className="w-4 h-4 text-gray-400 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+    <ChevronRight className="w-4 h-4 text-gray-400 dark:text-slate-400 shrink-0 group-hover:translate-x-0.5 transition-transform" />
   </Link>
 );
 
@@ -59,7 +59,7 @@ export const Growth: React.FC<GrowthProps> = ({ user }) => {
       {/* Header */}
       <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
         <div className="border-t-4 border-york-600 px-5 py-5">
-          <p className="text-xs font-semibold text-york-600 uppercase tracking-wider">Spiritual</p>
+          <p className="text-xs font-semibold text-york-600 dark:text-york-400 uppercase tracking-wider">Spiritual</p>
           <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100 mt-1">Growth</h1>
           <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
             Your discipleship journey in one place.
@@ -140,7 +140,7 @@ export const Growth: React.FC<GrowthProps> = ({ user }) => {
 
 const StatChip: React.FC<{ label: string; value: number }> = ({ label, value }) => (
   <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm px-4 py-3">
-    <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">{label}</p>
+    <p className="text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider">{label}</p>
     <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-0.5">{value}</p>
   </div>
 );

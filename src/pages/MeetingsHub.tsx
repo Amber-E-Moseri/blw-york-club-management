@@ -73,7 +73,7 @@ export const MeetingsHub: React.FC<Props> = ({ user }) => {
       <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
         <div className="border-t-4 border-york-600 px-5 py-5 flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <p className="text-xs font-semibold text-york-600 uppercase tracking-wider">Ministry</p>
+            <p className="text-xs font-semibold text-york-600 dark:text-york-400 uppercase tracking-wider">Ministry</p>
             <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100 mt-1">Meetings</h1>
             <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
               Confirm attendance and stay aligned with every gathering.
@@ -128,7 +128,7 @@ export const MeetingsHub: React.FC<Props> = ({ user }) => {
       </div>
 
       {error && (
-        <div className="bg-york-50 border border-york-200 text-york-700 rounded-lg px-4 py-3 text-sm">{error}</div>
+        <div className="bg-york-50 dark:bg-york-900/30 border border-york-200 dark:border-york-800 text-york-700 dark:text-york-300 rounded-lg px-4 py-3 text-sm">{error}</div>
       )}
 
       {loading && (
@@ -185,7 +185,7 @@ export const MeetingsHub: React.FC<Props> = ({ user }) => {
 
 const StatChip: React.FC<{ label: string; value: number }> = ({ label, value }) => (
   <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm px-4 py-3">
-    <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">{label}</p>
+    <p className="text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider">{label}</p>
     <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-0.5">{value}</p>
   </div>
 );

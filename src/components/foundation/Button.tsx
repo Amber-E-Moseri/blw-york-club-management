@@ -20,7 +20,7 @@ const variantStyles: Record<NonNullable<ButtonProps['variant']>, string> = {
   primary:
     'bg-york-600 text-white hover:bg-york-700 active:bg-york-800 focus:ring-york-600 shadow-sm hover:shadow-md',
   secondary:
-    'bg-york-50 text-york-600 border border-york-600 hover:bg-york-100 active:bg-york-200 focus:ring-york-600',
+    'bg-york-50 dark:bg-york-900/30 text-york-600 dark:text-york-400 border border-york-600 hover:bg-york-100 active:bg-york-200 focus:ring-york-600',
   danger:
     'bg-york-600 text-white hover:bg-york-700 active:bg-york-800 focus:ring-york-600 shadow-sm hover:shadow-md',
   success:
@@ -28,9 +28,9 @@ const variantStyles: Record<NonNullable<ButtonProps['variant']>, string> = {
   warning:
     'bg-orange-500 text-white hover:bg-orange-600 active:bg-orange-700 focus:ring-orange-500 shadow-sm hover:shadow-md',
   ghost:
-    'bg-transparent text-york-600 hover:bg-york-50 active:bg-york-100 focus:ring-york-600 dark:hover:bg-slate-800',
+    'bg-transparent text-york-600 dark:text-york-400 hover:bg-york-50 dark:hover:bg-york-900/40 active:bg-york-100 focus:ring-york-600',
   disabled:
-    'bg-gray-200 text-gray-400 cursor-not-allowed',
+    'bg-gray-200 dark:bg-slate-700 text-gray-400 dark:text-slate-400 cursor-not-allowed',
 };
 
 const sizeStyles: Record<NonNullable<ButtonProps['size']>, string> = {

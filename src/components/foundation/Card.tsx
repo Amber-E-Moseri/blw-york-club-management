@@ -76,7 +76,7 @@ export const Card: React.FC<CardProps> = ({
     >
       {/* Header */}
       {(title || headerAction) && (
-        <div className="px-5 pt-5 pb-3 border-b border-gray-100">
+        <div className="px-5 pt-5 pb-3 border-b border-gray-100 dark:border-slate-800">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               {title && (
@@ -85,7 +85,7 @@ export const Card: React.FC<CardProps> = ({
                 </h3>
               )}
               {subtitle && (
-                <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">{subtitle}</p>
               )}
             </div>
             {headerAction && (
@@ -102,7 +102,7 @@ export const Card: React.FC<CardProps> = ({
 
       {/* Footer */}
       {footer && (
-        <div className="px-5 pb-4 pt-3 border-t border-gray-100">
+        <div className="px-5 pb-4 pt-3 border-t border-gray-100 dark:border-slate-800">
           {footer}
         </div>
       )}

@@ -68,7 +68,7 @@ export const TestimonyCard: React.FC<Props> = ({
           <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${
             t.entry_type === 'prophecy'
               ? 'bg-purple-100 text-purple-700'
-              : 'bg-york-100 text-york-700'
+              : 'bg-york-100 dark:bg-york-900/40 text-york-700 dark:text-york-300'
           }`}>
             {t.entry_type === 'prophecy' ? 'Prophecy' : 'Testimony'}
           </span>
@@ -79,7 +79,7 @@ export const TestimonyCard: React.FC<Props> = ({
             </span>
           </Badge>
           {VisIcon && (
-            <span className="text-gray-400 dark:text-slate-500" title={`Visibility: ${t.visibility}`}>
+            <span className="text-gray-400 dark:text-slate-400" title={`Visibility: ${t.visibility}`}>
               <VisIcon className="w-3.5 h-3.5" />
             </span>
           )}
@@ -93,7 +93,7 @@ export const TestimonyCard: React.FC<Props> = ({
           {t.is_mine && onEdit && (
             <button
               onClick={() => onEdit(t)}
-              className="p-1.5 rounded text-gray-400 hover:text-york-600 hover:bg-york-50 transition-colors"
+              className="p-1.5 rounded text-gray-400 dark:text-slate-400 hover:text-york-600 hover:bg-york-50 dark:hover:bg-york-900/40 transition-colors"
               title="Edit"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -104,7 +104,7 @@ export const TestimonyCard: React.FC<Props> = ({
           {t.is_mine && onArchive && t.status === 'approved' && (
             <button
               onClick={() => window.confirm('Archive this entry?') && onArchive(t.id)}
-              className="p-1.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              className="p-1.5 rounded text-gray-400 dark:text-slate-400 hover:text-gray-600 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
               title="Archive"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -115,7 +115,7 @@ export const TestimonyCard: React.FC<Props> = ({
           {t.is_mine && onDelete && (
             <button
               onClick={() => window.confirm('Delete this entry?') && onDelete(t.id)}
-              className="p-1.5 rounded text-gray-400 hover:text-york-600 hover:bg-york-50 transition-colors"
+              className="p-1.5 rounded text-gray-400 dark:text-slate-400 hover:text-york-600 hover:bg-york-50 dark:hover:bg-york-900/40 transition-colors"
               title="Delete"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -143,7 +143,7 @@ export const TestimonyCard: React.FC<Props> = ({
       {t.body.length > 240 && (
         <button
           onClick={() => setExpanded((v) => !v)}
-          className="text-xs text-york-600 hover:underline font-medium"
+          className="text-xs text-york-600 dark:text-york-400 hover:underline font-medium"
         >
           {expanded ? 'Show less' : 'Read more'}
         </button>
@@ -160,8 +160,8 @@ export const TestimonyCard: React.FC<Props> = ({
               onClick={() => onReact?.(t.id, r.type)}
               className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-all ${
                 active
-                  ? 'bg-york-50 text-york-700 font-semibold'
-                  : 'text-gray-500 hover:bg-gray-100'
+                  ? 'bg-york-50 dark:bg-york-900/30 text-york-700 dark:text-york-300 font-semibold'
+                  : 'text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700'
               }`}
               title={r.label}
               disabled={!onReact}
@@ -173,7 +173,7 @@ export const TestimonyCard: React.FC<Props> = ({
         })}
         <button
           onClick={() => setShowComments((v) => !v)}
-          className="flex items-center gap-1 px-2 py-1 rounded-full text-xs text-gray-500 hover:bg-gray-100 transition-colors ml-auto"
+          className="flex items-center gap-1 px-2 py-1 rounded-full text-xs text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors ml-auto"
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -184,7 +184,7 @@ export const TestimonyCard: React.FC<Props> = ({
 
       {/* Admin moderation */}
       {showAdminActions && t.status === 'pending' && (
-        <div className="flex gap-2 pt-2 border-t border-gray-100">
+        <div className="flex gap-2 pt-2 border-t border-gray-100 dark:border-slate-800">
           <button
             onClick={() => onApprove?.(t.id)}
             className="flex-1 py-1.5 text-xs font-semibold text-white bg-green-500 hover:bg-green-600 rounded-md transition-colors"
@@ -203,7 +203,7 @@ export const TestimonyCard: React.FC<Props> = ({
       {/* Footer */}
       <div className="flex items-center justify-between pt-1 border-t border-gray-100 dark:border-slate-700">
         <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">{t.author_name}</p>
-        <p className="text-xs text-gray-400 dark:text-slate-500">{formatRelativeTime(t.created_at)}</p>
+        <p className="text-xs text-gray-400 dark:text-slate-400">{formatRelativeTime(t.created_at)}</p>
       </div>
 
       {/* Comments section */}

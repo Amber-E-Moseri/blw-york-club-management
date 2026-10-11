@@ -13,12 +13,12 @@ const variantStyles: Record<NonNullable<BadgeProps['variant']>, string> = {
   success: 'bg-green-500 text-white',
   warning: 'bg-orange-500 text-white',
   error:   'bg-york-600 text-white',
-  light:   'bg-york-50 text-york-700',
+  light:   'bg-york-50 dark:bg-york-900/30 text-york-700 dark:text-york-300',
   info:    'bg-blue-500 text-white',
   // legacy aliases
   red:     'bg-york-100 text-york-700',
   green:   'bg-green-100 text-green-700',
-  gray:    'bg-gray-200 text-gray-600',
+  gray:    'bg-gray-200 text-gray-600 dark:text-slate-300',
   blue:    'bg-blue-100 text-blue-700',
 };
 

@@ -96,7 +96,7 @@ export const EmailPreferences: React.FC<Props> = () => {
         {/* Header */}
         <div>
           <h1 className="text-h1">Email Preferences</h1>
-          <p className="text-small text-gray-400 mt-1">Choose which emails you want to receive.</p>
+          <p className="text-small text-gray-400 dark:text-slate-400 mt-1">Choose which emails you want to receive.</p>
         </div>
 
         {/* Global toggle */}
@@ -106,10 +106,10 @@ export const EmailPreferences: React.FC<Props> = () => {
               type="checkbox"
               checked={globalEnabled}
               onChange={handleGlobalToggle}
-              className="w-5 h-5 rounded border-gray-300 text-york-600 focus:ring-york-500"
+              className="w-5 h-5 rounded border-gray-300 dark:border-slate-600 text-york-600 dark:text-york-400 focus:ring-york-500"
             />
             <div>
-              <p className="text-sm font-semibold text-gray-900">I want to receive emails from BLW York Hub</p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">I want to receive emails from BLW York Hub</p>
               <p className="text-xs text-gray-400">When unchecked, all notification emails are paused.</p>
             </div>
           </label>

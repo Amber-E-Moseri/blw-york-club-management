@@ -110,13 +110,13 @@ export const Meetings: React.FC<Props> = ({ user }) => {
       </div>
 
       {error && (
-        <div className="bg-york-50 border border-york-200 text-york-700 rounded-lg px-4 py-3 text-sm">{error}</div>
+        <div className="bg-york-50 dark:bg-york-900/30 border border-york-200 dark:border-york-800 text-york-700 dark:text-york-300 rounded-lg px-4 py-3 text-sm">{error}</div>
       )}
 
       {loading && (
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-40 bg-gray-100 rounded-lg animate-pulse" />
+            <div key={i} className="h-40 bg-gray-100 dark:bg-slate-800 rounded-lg animate-pulse" />
           ))}
         </div>
       )}
@@ -138,7 +138,7 @@ export const Meetings: React.FC<Props> = ({ user }) => {
 
       {!loading && Object.entries(grouped).map(([month, items]) => (
         <div key={month} className="space-y-3">
-          <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider">
+          <h2 className="text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
             {monthLabel(month)}
           </h2>
           {items.map((m) => (

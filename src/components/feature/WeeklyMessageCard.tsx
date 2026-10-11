@@ -27,7 +27,7 @@ export const WeeklyMessageCard: React.FC<Props> = ({
   <div
     className={cn(
       'bg-white border rounded-lg transition-shadow hover:shadow-sm dark:bg-slate-800 dark:border-slate-700',
-      m.scope === 'org' ? 'border-york-200' : 'border-gray-200',
+      m.scope === 'org' ? 'border-york-200 dark:border-york-800' : 'border-gray-200',
       compact ? 'p-4' : 'p-5',
     )}
   >
@@ -36,14 +36,14 @@ export const WeeklyMessageCard: React.FC<Props> = ({
         <Badge variant={m.scope === 'org' ? 'primary' : 'light'} size="small">
           {m.scope === 'org' ? 'Org' : 'Personal'}
         </Badge>
-        <span className="text-xs text-gray-400">{formatWeekRange(m.week_start, m.week_end)}</span>
+        <span className="text-xs text-gray-400 dark:text-slate-400">{formatWeekRange(m.week_start, m.week_end)}</span>
       </div>
       {canEdit && (
         <div className="flex gap-1 shrink-0">
           {onEdit && (
             <button
               onClick={() => onEdit(m)}
-              className="p-1.5 rounded text-gray-400 hover:text-york-600 hover:bg-york-50 transition-colors"
+              className="p-1.5 rounded text-gray-400 dark:text-slate-400 hover:text-york-600 hover:bg-york-50 dark:hover:bg-york-900/40 transition-colors"
               title="Edit"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -54,7 +54,7 @@ export const WeeklyMessageCard: React.FC<Props> = ({
           {onDelete && (
             <button
               onClick={() => window.confirm('Delete this message?') && onDelete(m.id)}
-              className="p-1.5 rounded text-gray-400 hover:text-york-600 hover:bg-york-50 transition-colors"
+              className="p-1.5 rounded text-gray-400 dark:text-slate-400 hover:text-york-600 hover:bg-york-50 dark:hover:bg-york-900/40 transition-colors"
               title="Delete"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -66,11 +66,11 @@ export const WeeklyMessageCard: React.FC<Props> = ({
       )}
     </div>
 
-    <h3 className={cn('font-bold text-gray-900 mt-2', compact ? 'text-sm' : 'text-base')}>
+    <h3 className={cn('font-bold text-gray-900 dark:text-slate-100 mt-2', compact ? 'text-sm' : 'text-base')}>
       {m.title}
     </h3>
 
-    <p className={cn('text-gray-600 leading-relaxed mt-1 whitespace-pre-wrap', compact ? 'text-xs line-clamp-3' : 'text-sm')}>
+    <p className={cn('text-gray-600 dark:text-slate-300 leading-relaxed mt-1 whitespace-pre-wrap', compact ? 'text-xs line-clamp-3' : 'text-sm')}>
       {m.body}
     </p>
 
@@ -89,7 +89,7 @@ export const WeeklyMessageCard: React.FC<Props> = ({
     )}
 
     {!compact && (
-      <p className="mt-3 text-xs text-gray-400">
+      <p className="mt-3 text-xs text-gray-400 dark:text-slate-400">
         By {m.author_name}
       </p>
     )}

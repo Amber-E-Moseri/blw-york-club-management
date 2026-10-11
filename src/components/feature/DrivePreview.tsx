@@ -39,12 +39,12 @@ export const DrivePreview: React.FC<DrivePreviewProps> = ({
   const label = RESOURCE_LABELS[metadata.resource_type] ?? 'Drive Link';
 
   return (
-    <div className={`border border-gray-200 rounded-lg overflow-hidden bg-white ${className}`}>
+    <div className={`border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800 ${className}`}>
       {/* Header row */}
       <div className="flex items-center gap-3 px-3 py-2.5">
-        <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-50 text-york-600 flex-shrink-0" aria-hidden><Icon className="w-4.5 h-4.5" /></span>
+        <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-50 text-york-600 dark:text-york-400 flex-shrink-0" aria-hidden><Icon className="w-4.5 h-4.5" /></span>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-gray-900 truncate">{metadata.title}</p>
+          <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">{metadata.title}</p>
           <p className="text-xs text-gray-500">{label}</p>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
@@ -52,7 +52,7 @@ export const DrivePreview: React.FC<DrivePreviewProps> = ({
             href={metadata.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-2.5 py-1 text-xs font-medium text-york-600 border border-york-200 rounded hover:bg-york-50 transition-colors"
+            className="px-2.5 py-1 text-xs font-medium text-york-600 dark:text-york-400 border border-york-200 dark:border-york-800 rounded hover:bg-york-50 dark:hover:bg-york-900/40 transition-colors"
           >
             Open
           </a>
@@ -60,7 +60,7 @@ export const DrivePreview: React.FC<DrivePreviewProps> = ({
             <button
               onClick={onRemove}
               aria-label="Remove link"
-              className="p-1 text-gray-400 hover:text-york-500 transition-colors"
+              className="p-1 text-gray-400 dark:text-slate-400 hover:text-york-500 transition-colors"
             >
               <X className="w-4 h-4" aria-hidden="true" />
             </button>
@@ -70,7 +70,7 @@ export const DrivePreview: React.FC<DrivePreviewProps> = ({
 
       {/* Embed preview (optional, for docs/sheets/PDFs) */}
       {showEmbed && metadata.embed_url && metadata.resource_type !== 'folder' && (
-        <div className="border-t border-gray-100">
+        <div className="border-t border-gray-100 dark:border-slate-800">
           <iframe
             src={metadata.embed_url}
             title={metadata.title}

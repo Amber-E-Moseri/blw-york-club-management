@@ -44,7 +44,7 @@ export const BookWidget: React.FC = () => {
         )}
 
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-gray-900 text-sm leading-tight">{book.title}</h3>
+          <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm leading-tight">{book.title}</h3>
           <p className="text-xs text-gray-500 mt-0.5">by {book.author}</p>
           {book.description && (
             <p className="text-xs text-gray-600 mt-2 line-clamp-2">{book.description}</p>
@@ -62,7 +62,7 @@ export const BookWidget: React.FC = () => {
               Open in Drive
             </a>
             {daysLeft > 0 && (
-              <span className="text-xs text-gray-400">{daysLeft}d left</span>
+              <span className="text-xs text-gray-400 dark:text-slate-400">{daysLeft}d left</span>
             )}
           </div>
         </div>

@@ -35,18 +35,18 @@ export const Profile: React.FC<ProfileProps> = ({ user }) => {
           </div>
           <dl className="space-y-3 text-small">
             <div className="flex gap-2">
-              <dt className="font-semibold text-gray-400 w-28 shrink-0">Email</dt>
+              <dt className="font-semibold text-gray-400 dark:text-slate-400 w-28 shrink-0">Email</dt>
               <dd className="text-gray-900">{user.email}</dd>
             </div>
             <div className="flex gap-2">
-              <dt className="font-semibold text-gray-400 w-28 shrink-0">Member since</dt>
+              <dt className="font-semibold text-gray-400 dark:text-slate-400 w-28 shrink-0">Member since</dt>
               <dd className="text-gray-900">
                 {user.createdAt.toLocaleDateString('en-CA', { year: 'numeric', month: 'long' })}
               </dd>
             </div>
             {user.cellId && (
               <div className="flex gap-2">
-                <dt className="font-semibold text-gray-400 w-28 shrink-0">Cell</dt>
+                <dt className="font-semibold text-gray-400 dark:text-slate-400 w-28 shrink-0">Cell</dt>
                 <dd className="text-gray-900">{user.cellId}</dd>
               </div>
             )}

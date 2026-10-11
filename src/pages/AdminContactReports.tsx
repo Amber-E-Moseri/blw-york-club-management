@@ -44,7 +44,7 @@ export const AdminContactReports: React.FC<Props> = ({ user }) => {
   if (!isAdmin) {
     return (
       <div className="flex min-h-[360px] items-center justify-center">
-        <p className="text-small text-gray-400">Access denied.</p>
+        <p className="text-small text-gray-400 dark:text-slate-400">Access denied.</p>
       </div>
     );
   }
@@ -53,7 +53,7 @@ export const AdminContactReports: React.FC<Props> = ({ user }) => {
     <div className="mx-auto max-w-7xl space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-small font-bold uppercase text-york-600">Reports</p>
+          <p className="text-small font-bold uppercase text-york-600 dark:text-york-400">Reports</p>
           <h1 className="text-h1">Contact Activity</h1>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
@@ -64,10 +64,10 @@ export const AdminContactReports: React.FC<Props> = ({ user }) => {
         </div>
       </div>
 
-      {error && <div className="rounded-md border border-york-200 bg-york-50 p-4 text-small text-york-700">{error}</div>}
+      {error && <div className="rounded-md border border-york-200 dark:border-york-800 bg-york-50 dark:bg-york-900/30 p-4 text-small text-york-700 dark:text-york-300">{error}</div>}
 
       {loading || !report ? (
-        <Card><p className="text-small text-gray-400">Loading...</p></Card>
+        <Card><p className="text-small text-gray-400 dark:text-slate-400">Loading...</p></Card>
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-4">

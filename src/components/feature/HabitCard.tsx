@@ -45,7 +45,7 @@ export const HabitCard: React.FC<Props> = ({ habit: h, onCheckIn }) => {
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-york-50 text-york-600 dark:bg-slate-800" aria-hidden="true"><HabitIcon value={t.icon} className="w-5 h-5" /></span>
+          <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-york-50 dark:bg-york-900/30 text-york-600 dark:text-york-400 dark:bg-slate-800" aria-hidden="true"><HabitIcon value={t.icon} className="w-5 h-5" /></span>
           <div>
             <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100">{t.name}</h3>
             {t.description && (
@@ -73,8 +73,8 @@ export const HabitCard: React.FC<Props> = ({ habit: h, onCheckIn }) => {
                   'w-7 h-7 rounded-full border-2 flex items-center justify-center text-white text-[10px] font-bold',
                   status === 'done' ? statusClasses.done
                     : status === 'skipped' ? statusClasses.skipped
-                    : isPast ? 'border-gray-200 bg-gray-100'
-                    : isToday(dateStr) ? 'border-york-300 bg-york-50'
+                    : isPast ? 'border-gray-200 dark:border-slate-700 bg-gray-100 dark:bg-slate-800'
+                    : isToday(dateStr) ? 'border-york-300 bg-york-50 dark:bg-york-900/30'
                     : 'border-gray-100 bg-gray-50',
                 )}
                 title={`${dateStr}: ${status}`}
@@ -84,7 +84,7 @@ export const HabitCard: React.FC<Props> = ({ habit: h, onCheckIn }) => {
               </div>
               <span className={cn(
                 'text-[9px] font-medium',
-                isToday(dateStr) ? 'text-york-600' : 'text-gray-400',
+                isToday(dateStr) ? 'text-york-600 dark:text-york-400' : 'text-gray-400 dark:text-slate-400',
               )}>
                 {getDayLabel(dateStr)}
               </span>
@@ -95,11 +95,11 @@ export const HabitCard: React.FC<Props> = ({ habit: h, onCheckIn }) => {
 
       {/* Completion rate bar */}
       <div className="space-y-1">
-        <div className="flex justify-between text-xs text-gray-400">
+        <div className="flex justify-between text-xs text-gray-400 dark:text-slate-400">
           <span>Last 7 days</span>
           <span className="font-medium text-gray-600">{pct}%</span>
         </div>
-        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+        <div className="h-1.5 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
           <div
             className={cn('h-full rounded-full transition-all duration-500', pct >= 70 ? 'bg-green-500' : pct >= 40 ? 'bg-amber-400' : 'bg-york-400')}
             style={{ width: `${pct}%` }}

@@ -54,7 +54,7 @@ export const Header: React.FC<HeaderProps> = ({
           aria-controls="mobile-nav-drawer"
           className={cn(
             'md:hidden flex items-center justify-center w-11 h-11 rounded-md shrink-0',
-            'text-gray-600 hover:bg-york-50 hover:text-york-600 dark:text-slate-300 dark:hover:bg-slate-800',
+            'text-gray-600 hover:bg-york-50 dark:hover:bg-york-900/40 hover:text-york-600 dark:text-slate-300 dark:hover:bg-slate-800',
             'focus:outline-none focus:ring-2 focus:ring-york-600 transition-colors duration-150',
           )}
         >
@@ -73,7 +73,7 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Logo + Title */}
       <div className="flex items-center gap-2.5">
         <img src="/logo.png" alt="BLW York" className="w-8 h-8 rounded-md shrink-0" />
-        <span className="text-lg font-bold text-york-600 leading-tight hidden sm:block">
+        <span className="text-lg font-bold text-york-600 dark:text-york-400 leading-tight hidden sm:block">
           BLW York Hub
         </span>
         <span className="text-lg font-bold text-york-600 sm:hidden">BLW York</span>
@@ -122,7 +122,7 @@ export const Header: React.FC<HeaderProps> = ({
               aria-label="User menu"
               className={cn(
                 'flex items-center gap-2 px-3 py-1.5 rounded-md',
-                'hover:bg-york-50 transition-colors duration-150 dark:hover:bg-slate-800',
+                'hover:bg-york-50 dark:hover:bg-york-900/40 transition-colors duration-150 dark:hover:bg-slate-800',
                 'focus:outline-none focus:ring-2 focus:ring-york-600',
               )}
             >
@@ -136,7 +136,7 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
               </div>
               <svg
-                className={cn('w-4 h-4 text-gray-400 transition-transform duration-150', menuOpen && 'rotate-180')}
+                className={cn('w-4 h-4 text-gray-400 dark:text-slate-400 transition-transform duration-150', menuOpen && 'rotate-180')}
                 fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -166,7 +166,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <div className="border-t border-gray-100 mt-1 dark:border-slate-700">
                   <button
                     type="button"
-                    className="w-full text-left px-4 py-2 text-sm text-york-600 font-semibold hover:bg-york-50 transition-colors"
+                    className="w-full text-left px-4 py-2 text-sm text-york-600 dark:text-york-400 font-semibold hover:bg-york-50 dark:hover:bg-york-900/40 transition-colors"
                     onClick={() => { setMenuOpen(false); onLogout?.(); }}
                   >
                     Sign out

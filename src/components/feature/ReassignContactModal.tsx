@@ -63,17 +63,17 @@ export const ReassignContactModal: React.FC<Props> = ({
     >
       <div className="space-y-4">
         {currentUser && (
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-slate-400">
             Currently assigned to: <span className="font-semibold text-gray-700">{currentUser.full_name}</span>
           </p>
         )}
 
         <div>
-          <label className="block text-sm font-bold text-gray-800 mb-1.5">
-            Assign to <span className="text-york-600">*</span>
+          <label className="block text-sm font-bold text-gray-800 dark:text-slate-200 mb-1.5">
+            Assign to <span className="text-york-600 dark:text-york-400">*</span>
           </label>
           <select
-            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-york-600"
+            className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-york-600"
             value={assigneeId}
             onChange={(e) => setAssigneeId(e.target.value)}
           >
@@ -94,7 +94,7 @@ export const ReassignContactModal: React.FC<Props> = ({
         />
 
         {error && (
-          <p className="text-sm text-york-600"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{error}</p>
+          <p className="text-sm text-york-600 dark:text-york-400"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{error}</p>
         )}
       </div>
     </Modal>

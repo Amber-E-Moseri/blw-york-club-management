@@ -85,7 +85,7 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
   if (!canAdmin) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
-        <p className="text-small text-gray-400">Access denied.</p>
+        <p className="text-small text-gray-400 dark:text-slate-400">Access denied.</p>
       </div>
     );
   }
@@ -204,7 +204,7 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
       <div className="mx-auto max-w-5xl">
         <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-small font-bold uppercase text-york-600">Coordinator</p>
+            <p className="text-small font-bold uppercase text-york-600 dark:text-york-400">Coordinator</p>
             <h1 className="text-h1">Daily Bread Upload</h1>
           </div>
           <Button variant="ghost" onClick={() => navigate('/devotionals')} className="w-fit">
@@ -213,14 +213,14 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
         </div>
 
         {error && (
-          <div className="mb-4 rounded-md border border-york-200 bg-york-50 p-4 text-small text-york-700">
+          <div className="mb-4 rounded-md border border-york-200 dark:border-york-800 bg-york-50 dark:bg-york-900/30 p-4 text-small text-york-700 dark:text-york-300">
             {error}
           </div>
         )}
 
         {step === 'upload' && (
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
-            <section className="rounded-lg border-2 border-dashed border-gray-300 bg-white p-8 text-center">
+            <section className="rounded-lg border-2 border-dashed border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 p-8 text-center">
               <label
                 className="flex min-h-[260px] cursor-pointer flex-col items-center justify-center gap-3 rounded-md bg-gray-100 p-6"
                 onDragOver={(event) => event.preventDefault()}
@@ -229,7 +229,7 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
                   handleFile(event.dataTransfer.files.item(0));
                 }}
               >
-                <span className="text-h2 text-gray-900">Upload monthly PDF</span>
+                <span className="text-h2 text-gray-900 dark:text-slate-100">Upload monthly PDF</span>
                 <span className="text-small text-gray-500">Drag and drop or click to choose a file.</span>
                 <input
                   type="file"
@@ -269,17 +269,17 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
 
         {step === 'review' && (
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
-            <section className="rounded-lg border border-gray-200 bg-white shadow-sm">
+            <section className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
               <div className="border-b border-gray-100 px-5 py-4">
                 <h2 className="text-h3">Detected Structure</h2>
-                <p className="text-small text-gray-400">
+                <p className="text-small text-gray-400 dark:text-slate-400">
                   {MONTHS[month - 1]} {year} has {totalDays} days. Adjust ranges or titles before processing.
                 </p>
               </div>
               <div className="grid grid-cols-1 gap-3 p-5 md:grid-cols-2">
                 {ranges.map((range) => (
-                  <div key={range.day} className="rounded-md border border-gray-200 p-3">
-                    <p className="mb-2 text-small font-bold text-gray-900">Day {range.day}</p>
+                  <div key={range.day} className="rounded-md border border-gray-200 dark:border-slate-700 p-3">
+                    <p className="mb-2 text-small font-bold text-gray-900 dark:text-slate-100">Day {range.day}</p>
                     <div className="grid grid-cols-[100px_1fr] gap-2">
                       <Input
                         label="Pages"
@@ -324,11 +324,11 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
         {step === 'processing' && (
           <div className="card mx-auto max-w-xl">
             <h2 className="text-h3">Processing devotional</h2>
-            <p className="mt-2 text-small text-gray-500">{progress?.message ?? 'Preparing upload...'}</p>
+            <p className="mt-2 text-small text-gray-500 dark:text-slate-400">{progress?.message ?? 'Preparing upload...'}</p>
             <div className="mt-4 h-3 overflow-hidden rounded-full bg-gray-200">
               <div className="h-full bg-york-600 transition-all duration-300" style={{ width: `${progressPct}%` }} />
             </div>
-            <p className="mt-2 text-tiny text-gray-400">{progressPct}% complete</p>
+            <p className="mt-2 text-tiny text-gray-400 dark:text-slate-400">{progressPct}% complete</p>
           </div>
         )}
 
@@ -336,7 +336,7 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
           <div className="card mx-auto max-w-xl text-center">
             <p className="text-h2 text-success">Uploaded</p>
             <h2 className="mt-2 text-h3">{successSummary}</h2>
-            <p className="mt-2 text-small text-gray-500">
+            <p className="mt-2 text-small text-gray-500 dark:text-slate-400">
               Members see Day 1 on {format(new Date(year, month - 1, 1), 'MMMM d, yyyy')}.
             </p>
             <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">

@@ -158,7 +158,7 @@ const QuickAddContent: React.FC<QuickAddContentProps> = ({ user, onClose }) => {
               className={
                 tab === t
                   ? 'flex-1 py-1.5 text-sm font-semibold rounded-lg bg-white dark:bg-slate-600 text-york-600 dark:text-york-300 shadow-sm'
-                  : 'flex-1 py-1.5 text-sm font-medium rounded-lg text-gray-500 dark:text-slate-400 hover:text-gray-700'
+                  : 'flex-1 py-1.5 text-sm font-medium rounded-lg text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
               }
             >
               {t === 'contact' ? 'Log Contact' : 'Schedule Meeting'}
@@ -168,7 +168,7 @@ const QuickAddContent: React.FC<QuickAddContentProps> = ({ user, onClose }) => {
       )}
 
       {error && (
-        <p className="text-xs text-york-600 bg-york-50 dark:bg-york-900/20 rounded-lg px-3 py-2">
+        <p className="text-xs text-york-600 dark:text-york-400 bg-york-50 dark:bg-york-900/20 rounded-lg px-3 py-2">
           {error}
         </p>
       )}
@@ -178,14 +178,14 @@ const QuickAddContent: React.FC<QuickAddContentProps> = ({ user, onClose }) => {
         <div className="space-y-3">
           <div>
             <label className="block text-xs font-semibold text-gray-600 dark:text-slate-300 mb-1">
-              Name <span className="text-york-600">*</span>
+              Name <span className="text-york-600 dark:text-york-400">*</span>
             </label>
             <input
               type="text"
               value={contactName}
               onChange={(e) => setContactName(e.target.value)}
               placeholder="Contact name"
-              className="w-full rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-york-600"
+              className="w-full rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-gray-900 dark:text-slate-100 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-york-600"
             />
           </div>
           <div>
@@ -196,7 +196,7 @@ const QuickAddContent: React.FC<QuickAddContentProps> = ({ user, onClose }) => {
               type="date"
               value={contactDate}
               onChange={(e) => setContactDate(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-york-600"
+              className="w-full rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-gray-900 dark:text-slate-100 dark:text-white focus:outline-none focus:ring-2 focus:ring-york-600"
             />
           </div>
           {tags.length > 0 && (
@@ -207,7 +207,7 @@ const QuickAddContent: React.FC<QuickAddContentProps> = ({ user, onClose }) => {
               <select
                 value={contactTag}
                 onChange={(e) => setContactTag(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-york-600"
+                className="w-full rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-gray-900 dark:text-slate-100 dark:text-white focus:outline-none focus:ring-2 focus:ring-york-600"
               >
                 <option value="">No tag</option>
                 {tags.map((tag) => (
@@ -239,14 +239,14 @@ const QuickAddContent: React.FC<QuickAddContentProps> = ({ user, onClose }) => {
         <div className="space-y-3">
           <div>
             <label className="block text-xs font-semibold text-gray-600 dark:text-slate-300 mb-1">
-              Title <span className="text-york-600">*</span>
+              Title <span className="text-york-600 dark:text-york-400">*</span>
             </label>
             <input
               type="text"
               value={meetingTitle}
               onChange={(e) => setMeetingTitle(e.target.value)}
               placeholder="Meeting title"
-              className="w-full rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-york-600"
+              className="w-full rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-gray-900 dark:text-slate-100 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-york-600"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -256,7 +256,7 @@ const QuickAddContent: React.FC<QuickAddContentProps> = ({ user, onClose }) => {
                 type="date"
                 value={meetingDate}
                 onChange={(e) => setMeetingDate(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-york-600"
+                className="w-full rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-gray-900 dark:text-slate-100 dark:text-white focus:outline-none focus:ring-2 focus:ring-york-600"
               />
             </div>
             <div>
@@ -265,7 +265,7 @@ const QuickAddContent: React.FC<QuickAddContentProps> = ({ user, onClose }) => {
                 type="time"
                 value={meetingTime}
                 onChange={(e) => setMeetingTime(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-york-600"
+                className="w-full rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-gray-900 dark:text-slate-100 dark:text-white focus:outline-none focus:ring-2 focus:ring-york-600"
               />
             </div>
           </div>
@@ -274,7 +274,7 @@ const QuickAddContent: React.FC<QuickAddContentProps> = ({ user, onClose }) => {
             <select
               value={meetingCategory}
               onChange={(e) => { setMeetingCategory(e.target.value as typeof meetingCategory); setError(null); }}
-              className="w-full rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-york-600"
+              className="w-full rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-gray-900 dark:text-slate-100 dark:text-white focus:outline-none focus:ring-2 focus:ring-york-600"
             >
               <option value="cell">Cell</option>
               <option value="general">General</option>
@@ -325,13 +325,13 @@ const CellSelect: React.FC<{
 }> = ({ label, value, onChange, cells, helpText }) => (
   <div>
     <label className="block text-xs font-semibold text-gray-600 dark:text-slate-300 mb-1">
-      {label} <span className="text-york-600">*</span>
+      {label} <span className="text-york-600 dark:text-york-400">*</span>
     </label>
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
       disabled={cells.length === 0}
-      className="w-full rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-york-600 disabled:opacity-60"
+      className="w-full rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-gray-900 dark:text-slate-100 dark:text-white focus:outline-none focus:ring-2 focus:ring-york-600 disabled:opacity-60"
       aria-describedby={helpText ? `${label.toLowerCase()}-cell-help` : undefined}
     >
       {cells.length === 0 ? (

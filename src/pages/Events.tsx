@@ -27,7 +27,7 @@ export const Events: React.FC<Props> = ({ user }) => {
       <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
         <div className="border-t-4 border-york-600 px-5 py-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-xs font-semibold text-york-600 uppercase tracking-wider">Calendar</p>
+            <p className="text-xs font-semibold text-york-600 dark:text-york-400 uppercase tracking-wider">Calendar</p>
             <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100 mt-1">Events & services</h1>
             <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
               Everything the community needs to know, in one rhythm.
@@ -74,7 +74,7 @@ export const Events: React.FC<Props> = ({ user }) => {
       </div>
 
       {error && (
-        <div className="rounded-xl border border-york-200 bg-york-50 p-4 text-sm text-york-700">
+        <div className="rounded-xl border border-york-200 dark:border-york-800 bg-york-50 dark:bg-york-900/30 p-4 text-sm text-york-700 dark:text-york-300">
           {error}
         </div>
       )}
@@ -94,7 +94,7 @@ export const Events: React.FC<Props> = ({ user }) => {
             <button
               type="button"
               onClick={() => setFilter('All')}
-              className="mt-3 text-sm text-york-600 hover:text-york-700 font-medium"
+              className="mt-3 text-sm text-york-600 dark:text-york-400 hover:text-york-700 font-medium"
             >
               Clear filter
             </button>
@@ -125,7 +125,7 @@ export const Events: React.FC<Props> = ({ user }) => {
 
 const StatChip: React.FC<{ label: string; value: number }> = ({ label, value }) => (
   <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm px-4 py-3">
-    <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">{label}</p>
+    <p className="text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider">{label}</p>
     <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-0.5">{value}</p>
   </div>
 );
@@ -196,7 +196,7 @@ const EventFormModal: React.FC<{
     <Modal isOpen={isOpen} onClose={close} title="Add Event" size="medium">
       <form onSubmit={save} className="space-y-4">
         {error && (
-          <div className="rounded-lg border border-york-200 bg-york-50 px-3 py-2 text-sm text-york-700">
+          <div className="rounded-lg border border-york-200 dark:border-york-800 bg-york-50 dark:bg-york-900/30 px-3 py-2 text-sm text-york-700 dark:text-york-300">
             {error}
           </div>
         )}
@@ -211,14 +211,14 @@ const EventFormModal: React.FC<{
         <Input label="Location" value={location} onChange={setLocation} />
 
         <div>
-          <label className="block text-sm font-bold text-gray-800 mb-1.5" htmlFor="event-category">
+          <label className="block text-sm font-bold text-gray-800 dark:text-slate-200 mb-1.5" htmlFor="event-category">
             Category
           </label>
           <select
             id="event-category"
             value={category}
             onChange={(e) => setCategory(e.target.value as EventCategory)}
-            className="w-full rounded-md border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-york-600 focus:border-york-600 dark:bg-slate-900 dark:text-slate-100"
+            className="w-full rounded-md border border-gray-200 dark:border-slate-700 bg-white px-4 py-3 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-york-600 focus:border-york-600 dark:bg-slate-900 dark:text-slate-100"
           >
             {CATEGORIES.map((cat) => (
               <option key={cat} value={cat}>{cat}</option>

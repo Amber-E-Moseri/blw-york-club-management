@@ -88,7 +88,7 @@ export const Members: React.FC<Props> = ({ user }) => {
   if (level < 1) {
     return (
       <div className="flex-1 p-8 flex items-center justify-center">
-        <p className="text-sm text-york-600 font-medium">Leaders only — access denied.</p>
+        <p className="text-sm text-york-600 dark:text-york-400 font-medium">Leaders only — access denied.</p>
       </div>
     );
   }
@@ -102,7 +102,7 @@ export const Members: React.FC<Props> = ({ user }) => {
       {/* Header */}
       <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
         <div className="border-t-4 border-york-600 px-5 py-5">
-          <p className="text-xs font-semibold text-york-600 uppercase tracking-wider">Community</p>
+          <p className="text-xs font-semibold text-york-600 dark:text-york-400 uppercase tracking-wider">Community</p>
           <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100 mt-1">People</h1>
           <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
             Your ministry directory — members, leaders, and cells.
@@ -120,7 +120,7 @@ export const Members: React.FC<Props> = ({ user }) => {
       )}
 
       {error && (
-        <div className="rounded-xl border border-york-200 bg-york-50 dark:bg-york-900/20 p-4 text-sm text-york-700 dark:text-york-300">
+        <div className="rounded-xl border border-york-200 dark:border-york-800 bg-york-50 dark:bg-york-900/20 p-4 text-sm text-york-700 dark:text-york-300">
           {error}
         </div>
       )}
@@ -144,7 +144,7 @@ export const Members: React.FC<Props> = ({ user }) => {
           <button
             type="button"
             onClick={() => { setSearch(''); setRoleFilter(''); setCellFilter(''); }}
-            className="mt-3 text-xs font-semibold text-york-600 hover:underline"
+            className="mt-3 text-xs font-semibold text-york-600 dark:text-york-400 hover:underline"
           >
             Clear filters
           </button>
@@ -172,7 +172,7 @@ export const Members: React.FC<Props> = ({ user }) => {
                     {['Member', 'Role', 'Cell', 'Joined'].concat(canSeeContact ? ['Contact'] : []).map((h) => (
                       <th
                         key={h}
-                        className="px-5 py-3 text-left text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider"
+                        className="px-5 py-3 text-left text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider"
                       >
                         {h}
                       </th>
@@ -204,14 +204,14 @@ export const Members: React.FC<Props> = ({ user }) => {
                       <td className="px-5 py-3.5 text-sm text-gray-500 dark:text-slate-400">
                         {m.cellName ?? <span className="text-gray-300 dark:text-slate-600">—</span>}
                       </td>
-                      <td className="px-5 py-3.5 text-sm text-gray-400 dark:text-slate-500 whitespace-nowrap">
+                      <td className="px-5 py-3.5 text-sm text-gray-400 dark:text-slate-400 whitespace-nowrap">
                         {m.joined_at ? new Date(m.joined_at).toLocaleDateString('en-CA', { year: 'numeric', month: 'short' }) : '—'}
                       </td>
                       {canSeeContact && (
                         <td className="px-5 py-3.5">
                           <p className="text-sm text-gray-500 dark:text-slate-400 truncate max-w-[180px]">{m.email}</p>
                           {m.phone && (
-                            <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">{m.phone}</p>
+                            <p className="text-xs text-gray-400 dark:text-slate-400 mt-0.5">{m.phone}</p>
                           )}
                         </td>
                       )}
@@ -222,7 +222,7 @@ export const Members: React.FC<Props> = ({ user }) => {
             </div>
 
             <div className="px-5 py-3 border-t border-gray-100 dark:border-slate-700">
-              <p className="text-xs text-gray-400 dark:text-slate-500">
+              <p className="text-xs text-gray-400 dark:text-slate-400">
                 {totalMembers} {totalMembers === 1 ? 'person' : 'people'} shown
                 {(search || roleFilter || cellFilter) ? ' · filtered view' : ''}
               </p>
@@ -246,7 +246,7 @@ export const Members: React.FC<Props> = ({ user }) => {
 
 const StatChip: React.FC<{ label: string; value: number; className?: string }> = ({ label, value, className }) => (
   <div className={`bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm px-4 py-3 ${className ?? ''}`}>
-    <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">{label}</p>
+    <p className="text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider">{label}</p>
     <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-0.5">{value}</p>
   </div>
 );

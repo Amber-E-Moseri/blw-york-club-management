@@ -133,15 +133,15 @@ export const MeetingForm: React.FC<Props> = ({ isOpen, onClose, onSave, meeting 
 
         {/* Category */}
         <div>
-          <label className="block text-sm font-bold text-gray-800 mb-2">Meeting Type</label>
+          <label className="block text-sm font-bold text-gray-800 dark:text-slate-200 mb-2">Meeting Type</label>
           <div className="grid grid-cols-2 gap-2">
             {CATEGORIES.map((c) => (
               <label
                 key={c.value}
                 className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                   form.category === c.value
-                    ? 'border-york-600 bg-york-50'
-                    : 'border-gray-200 hover:bg-gray-50'
+                    ? 'border-york-600 bg-york-50 dark:bg-york-900/30'
+                    : 'border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800'
                 }`}
               >
                 <input
@@ -150,10 +150,10 @@ export const MeetingForm: React.FC<Props> = ({ isOpen, onClose, onSave, meeting 
                   value={c.value}
                   checked={form.category === c.value}
                   onChange={() => selectCategory(c.value)}
-                  className="mt-0.5 text-york-600 focus:ring-york-600"
+                  className="mt-0.5 text-york-600 dark:text-york-400 focus:ring-york-600"
                 />
                 <div>
-                  <p className="text-sm font-semibold text-gray-800">
+                  <p className="text-sm font-semibold text-gray-800 dark:text-slate-200">
                     <c.icon className="w-4 h-4 inline mr-1.5 -mt-0.5" aria-hidden="true" />{c.label}
                   </p>
                   <p className="text-xs text-gray-400 leading-snug mt-0.5">{c.desc}</p>
@@ -165,15 +165,15 @@ export const MeetingForm: React.FC<Props> = ({ isOpen, onClose, onSave, meeting 
 
         {/* Leadership: join request toggle */}
         {form.category === 'leadership' && (
-          <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50 cursor-pointer">
+          <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 cursor-pointer">
             <input
               type="checkbox"
               checked={form.allow_join_requests ?? false}
               onChange={(e) => set('allow_join_requests', e.target.checked)}
-              className="rounded text-york-600 focus:ring-york-600"
+              className="rounded text-york-600 dark:text-york-400 focus:ring-york-600"
             />
             <div>
-              <p className="text-sm font-semibold text-gray-800">Allow others to request to join</p>
+              <p className="text-sm font-semibold text-gray-800 dark:text-slate-200">Allow others to request to join</p>
               <p className="text-xs text-gray-400">Non-leaders will see this meeting and can request access</p>
             </div>
           </label>

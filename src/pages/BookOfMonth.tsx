@@ -72,11 +72,11 @@ export const BookOfMonthPage: React.FC<Props> = ({ user }) => {
     <div className="max-w-3xl mx-auto space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <BookOpen className="w-6 h-6 text-york-600" aria-hidden="true" />
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
+            <BookOpen className="w-6 h-6 text-york-600 dark:text-york-400" aria-hidden="true" />
             Book of the Month
           </h1>
-          <p className="text-sm text-gray-500 mt-0.5">Reading together as a fellowship</p>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">Reading together as a fellowship</p>
         </div>
         {canManage(user) && (
           <Button variant="primary" onClick={openAdd}>+ Add Book</Button>
@@ -84,7 +84,7 @@ export const BookOfMonthPage: React.FC<Props> = ({ user }) => {
       </div>
 
       {error && (
-        <div className="bg-york-50 border border-york-200 text-york-700 rounded-lg px-4 py-3 text-sm">{error}</div>
+        <div className="bg-york-50 dark:bg-york-900/30 border border-york-200 dark:border-york-800 text-york-700 dark:text-york-300 rounded-lg px-4 py-3 text-sm">{error}</div>
       )}
 
       {/* Current book */}
@@ -111,7 +111,7 @@ export const BookOfMonthPage: React.FC<Props> = ({ user }) => {
                   href={currentBook.drive_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-white text-york-700 text-sm font-bold rounded-lg hover:bg-york-50 transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 text-york-700 dark:text-york-300 text-sm font-bold rounded-lg hover:bg-york-50 dark:hover:bg-york-900/40 transition-colors"
                 >
                   <ExternalLink className="w-4 h-4" aria-hidden="true" />
                   Open in Google Drive
@@ -134,20 +134,20 @@ export const BookOfMonthPage: React.FC<Props> = ({ user }) => {
       {/* Archive */}
       {!loading && pastBooks.length > 0 && (
         <div>
-          <h2 className="text-lg font-bold text-gray-800 mb-4">Archive</h2>
+          <h2 className="text-lg font-bold text-gray-800 dark:text-slate-200 mb-4">Archive</h2>
           <div className="grid gap-4">
             {pastBooks.map((b) => (
-              <div key={b.id} className="bg-white border border-gray-200 rounded-xl p-4 flex gap-4 hover:shadow-sm transition-shadow">
+              <div key={b.id} className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-4 flex gap-4 hover:shadow-sm transition-shadow">
                 {b.cover_image_url ? (
                   <img src={b.cover_image_url} alt={b.title}
                     className="w-14 h-20 object-cover rounded-lg shrink-0" />
                 ) : (
                   <div className="w-14 h-20 bg-gray-100 dark:bg-slate-700 rounded-lg flex items-center justify-center shrink-0">
-                    <BookOpen className="w-6 h-6 text-gray-400 dark:text-slate-500" aria-hidden="true" />
+                    <BookOpen className="w-6 h-6 text-gray-400 dark:text-slate-400" aria-hidden="true" />
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-gray-900 text-sm">{b.title}</h3>
+                  <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm">{b.title}</h3>
                   <p className="text-xs text-gray-500">by {b.author}</p>
                   <p className="text-xs text-gray-400 mt-1">
                     {format(new Date(b.active_from), 'MMM yyyy')} – {format(new Date(b.active_until), 'MMM yyyy')}
@@ -157,13 +157,13 @@ export const BookOfMonthPage: React.FC<Props> = ({ user }) => {
                       href={b.drive_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-york-600 hover:underline font-medium"
+                      className="text-xs text-york-600 dark:text-york-400 hover:underline font-medium"
                     >
                       Open in Drive →
                     </a>
                     {canManage(user) && (
                       <>
-                        <button onClick={() => openEdit(b)} className="text-xs text-gray-400 hover:text-gray-600">Edit</button>
+                        <button onClick={() => openEdit(b)} className="text-xs text-gray-400 dark:text-slate-400 hover:text-gray-600 dark:hover:text-slate-200">Edit</button>
                         <button
                           onClick={() => window.confirm('Delete this book?') && remove(b.id)}
                           className="text-xs text-gray-400 hover:text-york-500"
@@ -182,7 +182,7 @@ export const BookOfMonthPage: React.FC<Props> = ({ user }) => {
 
       {loading && (
         <div className="space-y-3">
-          {[...Array(3)].map((_, i) => <div key={i} className="h-24 bg-gray-100 rounded-xl animate-pulse" />)}
+          {[...Array(3)].map((_, i) => <div key={i} className="h-24 bg-gray-100 dark:bg-slate-800 rounded-xl animate-pulse" />)}
         </div>
       )}
 

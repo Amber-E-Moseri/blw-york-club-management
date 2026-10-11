@@ -12,7 +12,7 @@ export const AdminTestimonies: React.FC<Props> = ({ user }) => {
   if (user?.role !== 'admin' && user?.role !== 'coordinator') {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
-        <p className="text-small text-gray-400">Access denied.</p>
+        <p className="text-small text-gray-400 dark:text-slate-400">Access denied.</p>
       </div>
     );
   }
@@ -20,7 +20,7 @@ export const AdminTestimonies: React.FC<Props> = ({ user }) => {
   return (
     <div className="max-w-3xl mx-auto space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Testimony Moderation</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Testimony Moderation</h1>
         <p className="text-sm text-gray-500 mt-0.5">
           Review and approve testimonies &amp; prophecies before they are published.
         </p>
@@ -28,14 +28,14 @@ export const AdminTestimonies: React.FC<Props> = ({ user }) => {
 
       {loading && (
         <div className="space-y-3">
-          {[...Array(3)].map((_, i) => <div key={i} className="h-40 bg-gray-100 rounded-xl animate-pulse" />)}
+          {[...Array(3)].map((_, i) => <div key={i} className="h-40 bg-gray-100 dark:bg-slate-800 rounded-xl animate-pulse" />)}
         </div>
       )}
 
       {!loading && pending.length === 0 && (
-        <div className="text-center py-16 bg-white border border-gray-200 rounded-xl">
+        <div className="text-center py-16 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl">
           <PartyPopper className="w-8 h-8 mx-auto mb-3 text-york-500" aria-hidden="true" />
-          <p className="text-base font-semibold text-gray-700">All caught up!</p>
+          <p className="text-base font-semibold text-gray-700 dark:text-slate-300">All caught up!</p>
           <p className="text-sm text-gray-400 mt-1">No pending submissions to review.</p>
         </div>
       )}

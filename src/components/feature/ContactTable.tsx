@@ -87,7 +87,7 @@ export const ContactTable: React.FC<Props> = ({
   const SortIcon = ({ col }: { col: string }) => {
     if (sort.column !== col) return <ArrowUpDown className="inline w-3 h-3 ml-1 text-gray-300" />;
     return sort.dir === 'asc'
-      ? <ArrowUp className="inline w-3 h-3 ml-1 text-york-600" />
+      ? <ArrowUp className="inline w-3 h-3 ml-1 text-york-600 dark:text-york-400" />
       : <ArrowDown className="inline w-3 h-3 ml-1 text-york-600" />;
   };
 
@@ -107,8 +107,8 @@ export const ContactTable: React.FC<Props> = ({
     <div className="space-y-3">
       {/* Bulk actions bar */}
       {selected.size > 0 && (
-        <div className="flex items-center gap-3 bg-york-50 border border-york-600/20 rounded-lg px-4 py-2">
-          <span className="text-sm font-semibold text-york-700">
+        <div className="flex items-center gap-3 bg-york-50 dark:bg-york-900/30 border border-york-600/20 rounded-lg px-4 py-2">
+          <span className="text-sm font-semibold text-york-700 dark:text-york-300">
             {selected.size} selected
           </span>
           {onBulkArchive && (
@@ -121,7 +121,7 @@ export const ContactTable: React.FC<Props> = ({
               Delete all
             </Button>
           )}
-          <button className="ml-auto text-xs text-gray-500 hover:text-gray-800" onClick={() => setSelected(new Set())}>
+          <button className="ml-auto text-xs text-gray-500 dark:text-slate-400 hover:text-gray-800" onClick={() => setSelected(new Set())}>
             Clear selection
           </button>
         </div>
@@ -138,14 +138,14 @@ export const ContactTable: React.FC<Props> = ({
                     type="checkbox"
                     checked={paginated.length > 0 && paginated.every((c) => selected.has(c.id))}
                     onChange={(e) => toggleAll(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-300 text-york-600 focus:ring-york-600"
+                    className="w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-york-600 dark:text-york-400 focus:ring-york-600"
                   />
                 </th>
                 {COLS.map((col) => (
                   <th
                     key={col.key}
                     className={cn(
-                      'px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap',
+                      'px-4 py-3 text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap',
                       col.sortable && 'cursor-pointer select-none hover:text-gray-800'
                     )}
                     onClick={col.sortable ? () => toggleSort(col.key) : undefined}
@@ -172,10 +172,10 @@ export const ContactTable: React.FC<Props> = ({
                       type="checkbox"
                       checked={selected.has(c.id)}
                       onChange={() => toggleOne(c.id)}
-                      className="w-4 h-4 rounded border-gray-300 text-york-600 focus:ring-york-600"
+                      className="w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-york-600 dark:text-york-400 focus:ring-york-600"
                     />
                   </td>
-                  <td className="px-4 py-3 font-semibold text-gray-900 whitespace-nowrap">
+                  <td className="px-4 py-3 font-semibold text-gray-900 dark:text-slate-100 whitespace-nowrap">
                     <button
                       className="hover:text-york-600 transition-colors text-left"
                       onClick={() => onEdit(c)}
@@ -188,7 +188,7 @@ export const ContactTable: React.FC<Props> = ({
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
+                  <td className="px-4 py-3 text-gray-500 dark:text-slate-400 whitespace-nowrap">
                     {c.phone_hidden && !showPhone ? (
                       <span className="flex items-center gap-1">
                         <EyeOff className="w-3.5 h-3.5 text-gray-400" aria-hidden="true" />
@@ -206,7 +206,7 @@ export const ContactTable: React.FC<Props> = ({
                       {c.follow_up_status}
                     </Tag>
                   </td>
-                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
+                  <td className="px-4 py-3 text-gray-500 dark:text-slate-400 whitespace-nowrap">
                     {c.date_contacted}
                   </td>
                   <td className="px-4 py-3">
@@ -216,7 +216,7 @@ export const ContactTable: React.FC<Props> = ({
                           aria-label="Edit contact"
                           title="Edit"
                           onClick={() => onEdit(c)}
-                          className="p-1.5 rounded text-gray-400 hover:text-york-600 hover:bg-york-50 transition-colors"
+                          className="p-1.5 rounded text-gray-400 dark:text-slate-400 hover:text-york-600 hover:bg-york-50 dark:hover:bg-york-900/40 transition-colors"
                         >
                           <Pencil className="w-4 h-4" aria-hidden="true" />
                         </button>
@@ -224,7 +224,7 @@ export const ContactTable: React.FC<Props> = ({
                           aria-label="Reassign follow-up"
                           title="Reassign follow-up"
                           onClick={() => onReassign?.(c)}
-                          className="p-1.5 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                          className="p-1.5 rounded text-gray-400 dark:text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                         >
                           <UserPlus className="w-4 h-4" aria-hidden="true" />
                         </button>
@@ -232,7 +232,7 @@ export const ContactTable: React.FC<Props> = ({
                           aria-label="Move to cell"
                           title="Move to cell"
                           onClick={() => onMove?.(c)}
-                          className="p-1.5 rounded text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors"
+                          className="p-1.5 rounded text-gray-400 dark:text-slate-400 hover:text-green-600 hover:bg-green-50 transition-colors"
                         >
                           <Map className="w-4 h-4" aria-hidden="true" />
                         </button>
@@ -240,7 +240,7 @@ export const ContactTable: React.FC<Props> = ({
                           aria-label={c.archived ? 'Unarchive contact' : 'Archive contact'}
                           title={c.archived ? 'Unarchive' : 'Archive'}
                           onClick={() => onArchive(c.id)}
-                          className="p-1.5 rounded text-gray-400 hover:text-orange-500 hover:bg-orange-50 transition-colors"
+                          className="p-1.5 rounded text-gray-400 dark:text-slate-400 hover:text-orange-500 hover:bg-orange-50 transition-colors"
                         >
                           <Archive className="w-4 h-4" aria-hidden="true" />
                         </button>
@@ -250,7 +250,7 @@ export const ContactTable: React.FC<Props> = ({
                           onClick={() => {
                             if (window.confirm(`Delete contact "${c.contact_name}"?`)) onDelete(c.id);
                           }}
-                          className="p-1.5 rounded text-gray-400 hover:text-york-600 hover:bg-york-50 transition-colors"
+                          className="p-1.5 rounded text-gray-400 dark:text-slate-400 hover:text-york-600 hover:bg-york-50 dark:hover:bg-york-900/40 transition-colors"
                         >
                           <Trash2 className="w-4 h-4" aria-hidden="true" />
                         </button>
@@ -279,7 +279,7 @@ export const ContactTable: React.FC<Props> = ({
                 >
                   {c.contact_name}
                 </button>
-                <p className="text-xs text-gray-400 dark:text-slate-500">{c.date_contacted}</p>
+                <p className="text-xs text-gray-400 dark:text-slate-400">{c.date_contacted}</p>
               </div>
               <Tag color={tagMap[c.tag] ?? '#666'} variant="light">{c.tag}</Tag>
             </div>
@@ -314,7 +314,7 @@ export const ContactTable: React.FC<Props> = ({
                 <button
                   aria-label="Archive contact"
                   onClick={() => onArchive(c.id)}
-                  className="ml-auto p-1.5 rounded text-gray-400 hover:text-orange-500 transition-colors"
+                  className="ml-auto p-1.5 rounded text-gray-400 dark:text-slate-400 hover:text-orange-500 transition-colors"
                 >
                   <Archive className="w-4 h-4" aria-hidden="true" />
                 </button>
@@ -327,7 +327,7 @@ export const ContactTable: React.FC<Props> = ({
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between px-1">
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-slate-400">
             {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, sorted.length)} of {sorted.length}
           </p>
           <div className="flex gap-2">

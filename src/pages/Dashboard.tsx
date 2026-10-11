@@ -49,7 +49,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       {/* Welcome Header */}
       <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
         <div className="border-t-4 border-york-600 px-5 py-5">
-          <p className="text-xs text-gray-400 dark:text-slate-500 font-medium">{today}</p>
+          <p className="text-xs text-gray-400 dark:text-slate-400 font-medium">{today}</p>
           <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100 mt-0.5">
             Good to see you, {firstName}.
           </h1>

@@ -84,7 +84,7 @@ export const DevotionalViewer: React.FC<DevotionalViewerProps> = ({ user }) => {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-100">
+    <div className="flex-1 overflow-y-auto bg-gray-100 dark:bg-slate-800">
       <div className="px-4 py-5 md:px-8 md:py-6">
         <div className="mx-auto max-w-6xl">
           <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -110,15 +110,15 @@ export const DevotionalViewer: React.FC<DevotionalViewerProps> = ({ user }) => {
           ) : !devotional || !page ? (
             <div className="card mx-auto max-w-2xl text-center">
               <h1 className="text-h2">Daily Bread</h1>
-              <p className="mt-2 text-small text-gray-400">No devotional is available for this day.</p>
+              <p className="mt-2 text-small text-gray-400 dark:text-slate-400">No devotional is available for this day.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_240px]">
               <section>
                 <div className="mb-5 text-center">
-                  <p className="text-small font-bold uppercase text-york-600">{devotional.book_title}</p>
+                  <p className="text-small font-bold uppercase text-york-600 dark:text-york-400">{devotional.book_title}</p>
                   <h1 className="mt-1 text-h1">Day {page.day_of_month}: {page.title || devotional.title}</h1>
-                  <p className="mt-2 text-small text-gray-500">{format(pageDate, 'MMMM d, yyyy')}</p>
+                  <p className="mt-2 text-small text-gray-500 dark:text-slate-400">{format(pageDate, 'MMMM d, yyyy')}</p>
                   <p className="text-small font-semibold text-gray-600">Pages {page.page_range}</p>
                 </div>
 
@@ -137,10 +137,10 @@ export const DevotionalViewer: React.FC<DevotionalViewerProps> = ({ user }) => {
               </section>
 
               <aside className="hidden xl:block">
-                <div className="sticky top-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="sticky top-6 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
                   <p className="stat-label">Today</p>
                   <p className="mt-2 text-h2">{state.stats?.viewed_count ?? 0}</p>
-                  <p className="text-small text-gray-400">member views</p>
+                  <p className="text-small text-gray-400 dark:text-slate-400">member views</p>
                   <div className="divider" />
                   <p className="text-small font-semibold text-gray-900">Reading Progress</p>
                   <p className="mt-1 text-small text-gray-500">

@@ -33,7 +33,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ user }) => {
   if (!['admin', 'coordinator', 'cell_leader'].includes(user?.role ?? '')) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
-        <p className="text-small text-gray-400">Access denied.</p>
+        <p className="text-small text-gray-400 dark:text-slate-400">Access denied.</p>
       </div>
     );
   }
@@ -52,9 +52,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ user }) => {
                 className="flex flex-col gap-2"
                 onClick={item.path ? () => navigate(item.path!) : undefined}
               >
-                <Icon className="w-6 h-6 text-york-600" />
+                <Icon className="w-6 h-6 text-york-600 dark:text-york-400" />
                 <h3 className="text-h3">{item.label}</h3>
-                <p className="text-small text-gray-400">{item.desc}</p>
+                <p className="text-small text-gray-400 dark:text-slate-400">{item.desc}</p>
               </Card>
             );
           })}

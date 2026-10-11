@@ -47,7 +47,7 @@ export const DailyConfessions: React.FC<Props> = ({ user }) => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Daily Confessions</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Daily Confessions</h1>
           <p className="text-sm text-gray-500 mt-0.5">Declare God's word over your life</p>
         </div>
         {isManager && (
@@ -58,7 +58,7 @@ export const DailyConfessions: React.FC<Props> = ({ user }) => {
       {/* Date navigation */}
       <div className="flex items-center gap-3">
         <button
-          className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-200 hover:bg-gray-50 text-gray-500"
+          className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-500 dark:text-slate-400"
           onClick={() => {
             const d = new Date(viewDate);
             d.setDate(d.getDate() - 1);
@@ -72,7 +72,7 @@ export const DailyConfessions: React.FC<Props> = ({ user }) => {
           className="max-w-[160px]"
         />
         <button
-          className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-200 hover:bg-gray-50 text-gray-500"
+          className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-500 dark:text-slate-400"
           onClick={() => {
             const d = new Date(viewDate);
             d.setDate(d.getDate() + 1);
@@ -85,13 +85,13 @@ export const DailyConfessions: React.FC<Props> = ({ user }) => {
       </div>
 
       {error && (
-        <div className="bg-york-50 border border-york-200 text-york-700 rounded-lg px-4 py-3 text-sm">{error}</div>
+        <div className="bg-york-50 dark:bg-york-900/30 border border-york-200 dark:border-york-800 text-york-700 dark:text-york-300 rounded-lg px-4 py-3 text-sm">{error}</div>
       )}
 
       {loading && (
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-32 bg-gray-100 rounded-lg animate-pulse" />
+            <div key={i} className="h-32 bg-gray-100 dark:bg-slate-800 rounded-lg animate-pulse" />
           ))}
         </div>
       )}
@@ -159,7 +159,7 @@ export const DailyConfessions: React.FC<Props> = ({ user }) => {
             onChange={setNewDate}
             required
           />
-          {formError && <p className="text-sm text-york-600"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{formError}</p>}
+          {formError && <p className="text-sm text-york-600 dark:text-york-400"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{formError}</p>}
         </div>
       </Modal>
     </div>

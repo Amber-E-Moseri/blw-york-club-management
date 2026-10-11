@@ -50,7 +50,7 @@ export const GlobalSearch: React.FC<{ user: AuthUser | null; collapsed?: boolean
         type="button"
         title="Search"
         onClick={() => setOpen(true)}
-        className="mx-auto flex h-10 w-10 items-center justify-center rounded-md text-sm font-bold text-gray-500 hover:bg-gray-100"
+        className="mx-auto flex h-10 w-10 items-center justify-center rounded-md text-sm font-bold text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700"
       >
         /
       </button>
@@ -89,7 +89,7 @@ export const GlobalSearch: React.FC<{ user: AuthUser | null; collapsed?: boolean
       />
       {open && query.trim().length > 0 && (
         <div id="global-search-results" className="absolute left-3 right-3 top-12 z-50 max-h-96 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
-          {loading && <p className="p-3 text-small text-gray-400">Searching...</p>}
+          {loading && <p className="p-3 text-small text-gray-400 dark:text-slate-400">Searching...</p>}
           {error && <p className="p-3 text-small text-error">{error}</p>}
           {!loading && !error && results.length === 0 && <p className="p-3 text-small text-gray-400">No results.</p>}
           {!loading && results.map((result, index) => (
@@ -100,11 +100,11 @@ export const GlobalSearch: React.FC<{ user: AuthUser | null; collapsed?: boolean
               onClick={() => go(index)}
               className={cn(
                 'block w-full px-3 py-2 text-left text-sm',
-                index === activeIndex ? 'bg-york-50 text-york-700' : 'text-gray-700 hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-slate-800',
+                index === activeIndex ? 'bg-york-50 dark:bg-york-900/30 text-york-700 dark:text-york-300' : 'text-gray-700 hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-slate-800',
               )}
             >
               <span className="block font-bold">{result.title}</span>
-              <span className="block text-xs text-gray-400">{result.type}{result.subtitle ? ` - ${result.subtitle}` : ''}</span>
+              <span className="block text-xs text-gray-400 dark:text-slate-400">{result.type}{result.subtitle ? ` - ${result.subtitle}` : ''}</span>
             </button>
           ))}
         </div>

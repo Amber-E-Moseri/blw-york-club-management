@@ -38,7 +38,7 @@ export const DevotionalCard: React.FC<DevotionalCardProps> = ({
 
   return (
     <div className="w-full">
-      <div className="relative mx-auto max-w-[900px] overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm">
+      <div className="relative mx-auto max-w-[900px] overflow-hidden rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
         {imageLoading && !imageError && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-white">
             <div className="w-8 h-8 border-4 border-york-600 border-t-transparent rounded-full animate-spin" />
@@ -46,15 +46,15 @@ export const DevotionalCard: React.FC<DevotionalCardProps> = ({
         )}
 
         {imageError ? (
-          <div className="aspect-[2/1] flex flex-col items-center justify-center gap-2 bg-gray-100 p-8 text-center">
-            <p className="text-small font-bold text-gray-900">Image could not be loaded.</p>
+          <div className="aspect-[2/1] flex flex-col items-center justify-center gap-2 bg-gray-100 dark:bg-slate-800 p-8 text-center">
+            <p className="text-small font-bold text-gray-900 dark:text-slate-100">Image could not be loaded.</p>
             <p className="text-tiny text-gray-400">Try refreshing or contact a coordinator.</p>
           </div>
         ) : (
           <img
             src={page.image_url}
             alt={`${devotional.book_title} Day ${page.day_of_month}`}
-            className="block w-full aspect-[2/1] object-contain bg-white"
+            className="block w-full aspect-[2/1] object-contain bg-white dark:bg-slate-800"
             onLoad={() => setImageLoading(false)}
             onError={() => {
               setImageLoading(false);
@@ -77,7 +77,7 @@ export const DevotionalCard: React.FC<DevotionalCardProps> = ({
             Previous Day
           </Button>
 
-          <p className="text-center text-small font-bold text-gray-600">
+          <p className="text-center text-small font-bold text-gray-600 dark:text-slate-300">
             Day {page.day_of_month} of {devotional.total_days}
           </p>
 

@@ -52,7 +52,7 @@ export const GrowthSnapshot: React.FC<GrowthSnapshotProps> = ({
                 <CheckCircle className="w-3.5 h-3.5" /> Viewed
               </span>
             ) : (
-              <span className="text-xs font-semibold text-york-600 group-hover:underline">Read now</span>
+              <span className="text-xs font-semibold text-york-600 dark:text-york-400 group-hover:underline">Read now</span>
             )}
           </button>
 
@@ -86,7 +86,7 @@ export const GrowthSnapshot: React.FC<GrowthSnapshotProps> = ({
               <span className="text-sm text-gray-600 dark:text-slate-400 truncate text-left pr-2">
                 {weeklyMessageTitle}
               </span>
-              <span className="shrink-0 text-xs font-semibold text-york-600 group-hover:underline">Read</span>
+              <span className="shrink-0 text-xs font-semibold text-york-600 dark:text-york-400 group-hover:underline">Read</span>
             </button>
           )}
         </div>

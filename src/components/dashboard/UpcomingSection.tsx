@@ -97,7 +97,7 @@ export const UpcomingSection: React.FC<UpcomingSectionProps> = ({ events, meetin
       ) : items.length === 0 ? (
         <div className="px-5 py-6 text-center">
           <p className="text-sm font-semibold text-gray-600 dark:text-slate-300">Nothing coming up yet</p>
-          <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">Check back soon for events and meetings.</p>
+          <p className="text-xs text-gray-400 dark:text-slate-400 mt-1">Check back soon for events and meetings.</p>
         </div>
       ) : (
         <ul className="divide-y divide-gray-100 dark:divide-slate-700">
@@ -116,7 +116,7 @@ export const UpcomingSection: React.FC<UpcomingSectionProps> = ({ events, meetin
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">{item.title}</p>
-                    <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
+                    <p className="text-xs text-gray-400 dark:text-slate-400 mt-0.5">
                       {item.time}{item.location ? ` · ${item.location}` : ''}
                     </p>
                   </div>

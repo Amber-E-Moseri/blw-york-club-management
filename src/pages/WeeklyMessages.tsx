@@ -121,7 +121,7 @@ export const WeeklyMessages: React.FC<Props> = ({ user }) => {
       {/* Page header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Message of the Week</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Message of the Week</h1>
           <p className="text-sm text-gray-500 mt-0.5">Org announcements and personal notes by week</p>
         </div>
         {isAdmin && (
@@ -134,7 +134,7 @@ export const WeeklyMessages: React.FC<Props> = ({ user }) => {
       {/* THIS WEEK spotlight */}
       {thisWeekOrgMessages.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-bold text-york-600 uppercase tracking-wider">This Week</p>
+          <p className="text-xs font-bold text-york-600 dark:text-york-400 uppercase tracking-wider">This Week</p>
           {thisWeekOrgMessages.map((m) => (
             <WeeklyMessageCard
               key={m.id}
@@ -148,19 +148,19 @@ export const WeeklyMessages: React.FC<Props> = ({ user }) => {
       )}
 
       {error && (
-        <div className="bg-york-50 border border-york-200 text-york-700 rounded-lg px-4 py-3 text-sm">{error}</div>
+        <div className="bg-york-50 dark:bg-york-900/30 border border-york-200 dark:border-york-800 text-york-700 dark:text-york-300 rounded-lg px-4 py-3 text-sm">{error}</div>
       )}
 
       {/* Tabs */}
-      <div className="flex gap-0 border-b border-gray-200">
+      <div className="flex gap-0 border-b border-gray-200 dark:border-slate-700">
         {(['schedule', 'personal'] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
               tab === t
-                ? 'border-york-600 text-york-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? 'border-york-600 text-york-600 dark:text-york-400'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
             }`}
           >
             {t === 'schedule' ? (
@@ -191,7 +191,7 @@ export const WeeklyMessages: React.FC<Props> = ({ user }) => {
           {loading && (
             <div className="space-y-2">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-14 bg-gray-100 rounded-lg animate-pulse" />
+                <div key={i} className="h-14 bg-gray-100 dark:bg-slate-800 rounded-lg animate-pulse" />
               ))}
             </div>
           )}
@@ -201,18 +201,18 @@ export const WeeklyMessages: React.FC<Props> = ({ user }) => {
             const isThis = isCurrentWeek(monStr);
             const isExpanded = expandedWeek === monStr;
             return (
-              <div key={monStr} className={`border rounded-lg overflow-hidden ${isThis ? 'border-york-300' : 'border-gray-200'}`}>
+              <div key={monStr} className={`border rounded-lg overflow-hidden ${isThis ? 'border-york-300' : 'border-gray-200 dark:border-slate-700'}`}>
                 <button
                   className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors ${
-                    isThis ? 'bg-york-50' : 'bg-white hover:bg-gray-50'
+                    isThis ? 'bg-york-50 dark:bg-york-900/30' : 'bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800'
                   }`}
                   onClick={() => setExpandedWeek(isExpanded ? null : monStr)}
                 >
                   <div className="flex items-center gap-3">
                     {isThis && (
-                      <span className="text-xs font-bold text-york-600 bg-york-100 px-2 py-0.5 rounded-full">NOW</span>
+                      <span className="text-xs font-bold text-york-600 dark:text-york-400 bg-york-100 dark:bg-york-900/40 px-2 py-0.5 rounded-full">NOW</span>
                     )}
-                    <span className="text-sm font-medium text-gray-700">{formatWeekLabel(monStr)}</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-slate-300">{formatWeekLabel(monStr)}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {weekMsgs.length > 0 ? (
@@ -221,13 +221,13 @@ export const WeeklyMessages: React.FC<Props> = ({ user }) => {
                       <span className="w-2 h-2 rounded-full bg-gray-200" />
                     )}
                     {isExpanded
-                      ? <ChevronUp className="w-4 h-4 text-gray-400" aria-hidden="true" />
+                      ? <ChevronUp className="w-4 h-4 text-gray-400 dark:text-slate-400" aria-hidden="true" />
                       : <ChevronDown className="w-4 h-4 text-gray-400" aria-hidden="true" />}
                   </div>
                 </button>
 
                 {isExpanded && (
-                  <div className="border-t border-gray-100 px-4 py-3 bg-white space-y-3">
+                  <div className="border-t border-gray-100 dark:border-slate-800 px-4 py-3 bg-white dark:bg-slate-800 space-y-3">
                     {weekMsgs.length > 0 ? (
                       weekMsgs.map((m) => (
                         <WeeklyMessageCard
@@ -240,7 +240,7 @@ export const WeeklyMessages: React.FC<Props> = ({ user }) => {
                         />
                       ))
                     ) : (
-                      <p className="text-sm text-gray-400">No message scheduled for this week.</p>
+                      <p className="text-sm text-gray-400 dark:text-slate-400">No message scheduled for this week.</p>
                     )}
                     {isAdmin && (
                       <Button
@@ -283,7 +283,7 @@ export const WeeklyMessages: React.FC<Props> = ({ user }) => {
             <div className="text-center py-12 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg">
               <NotebookPen className="w-8 h-8 mx-auto mb-2 text-gray-300 dark:text-slate-600" aria-hidden="true" />
               <p className="text-sm font-semibold text-gray-700 dark:text-slate-300">No personal notes yet</p>
-              <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">Use personal messages to write your own weekly reflections.</p>
+              <p className="text-xs text-gray-400 dark:text-slate-400 mt-1">Use personal messages to write your own weekly reflections.</p>
               <div className="mt-4">
                 <Button variant="primary" size="small" onClick={() => openCreate(currentWeekStart, 'personal')}>
                   Write First Note

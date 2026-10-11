@@ -43,18 +43,18 @@ export const OutreachSnapshot: React.FC<OutreachSnapshotProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${followUpCount > 0 ? 'bg-york-50 dark:bg-york-900/20' : 'bg-gray-50 dark:bg-slate-700'}`}>
-                <TrendingUp className={`w-4 h-4 ${followUpCount > 0 ? 'text-york-600' : 'text-gray-400'}`} />
+                <TrendingUp className={`w-4 h-4 ${followUpCount > 0 ? 'text-york-600 dark:text-york-400' : 'text-gray-400'}`} />
               </div>
               <span className="text-sm text-gray-600 dark:text-slate-400">Awaiting follow-up</span>
             </div>
-            <span className={`text-lg font-bold ${followUpCount > 0 ? 'text-york-600' : 'text-gray-900 dark:text-slate-100'}`}>
+            <span className={`text-lg font-bold ${followUpCount > 0 ? 'text-york-600 dark:text-york-400' : 'text-gray-900 dark:text-slate-100'}`}>
               {followUpCount}
             </span>
           </div>
 
           {stats?.contacts_last_7_days && stats.contacts_last_7_days.length > 0 && (
             <div className="pt-2 border-t border-gray-100 dark:border-slate-700">
-              <p className="text-[11px] font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-2">Last 7 days</p>
+              <p className="text-[11px] font-semibold text-gray-400 dark:text-slate-400 uppercase tracking-wider mb-2">Last 7 days</p>
               <div className="flex items-end gap-1 h-8">
                 {stats.contacts_last_7_days.map((day) => {
                   const max = Math.max(...stats.contacts_last_7_days!.map((d) => d.count), 1);

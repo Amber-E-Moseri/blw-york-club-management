@@ -75,7 +75,7 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
       sub: attentionCount === 0 ? 'You\'re caught up' : 'Awaiting action',
       icon: AlertCircle,
       iconBg: attentionCount > 0 ? 'bg-york-50 dark:bg-york-900/20' : 'bg-gray-50 dark:bg-slate-700',
-      iconColor: attentionCount > 0 ? 'text-york-600' : 'text-gray-400',
+      iconColor: attentionCount > 0 ? 'text-york-600 dark:text-york-400' : 'text-gray-400 dark:text-slate-400',
       onClick: () => onNavigate('/contacts'),
       urgent: attentionCount > 0,
     },
@@ -140,10 +140,10 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
             <p className="text-2xl font-bold text-gray-900 dark:text-white leading-none">
               <MetricValue value={m.value} />
             </p>
-            <p className="text-[11px] font-semibold text-gray-400 dark:text-slate-500 mt-0.5 uppercase tracking-wider">
+            <p className="text-[11px] font-semibold text-gray-400 dark:text-slate-400 mt-0.5 uppercase tracking-wider">
               {m.label}
             </p>
-            <p className={cn('text-xs mt-1', m.urgent ? 'text-york-600 font-medium' : 'text-gray-400 dark:text-slate-500')}>
+            <p className={cn('text-xs mt-1', m.urgent ? 'text-york-600 dark:text-york-400 font-medium' : 'text-gray-400 dark:text-slate-400')}>
               {m.sub}
             </p>
           </button>

@@ -77,7 +77,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       {globalError && (
-        <div className="bg-york-50 border border-york-200 rounded-md px-4 py-3 text-sm text-york-700">
+        <div className="bg-york-50 dark:bg-york-900/30 border border-york-200 dark:border-york-800 rounded-md px-4 py-3 text-sm text-york-700 dark:text-york-300">
           {globalError}
         </div>
       )}
@@ -97,13 +97,13 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
         <div>
           <button
             type="button"
-            className="text-sm font-semibold text-york-600 hover:text-york-700"
+            className="text-sm font-semibold text-york-600 dark:text-york-400 hover:text-york-700"
             onClick={() => fileRef.current?.click()}
             disabled={avatarUploading}
           >
             {avatarUploading ? 'Uploading…' : 'Change photo'}
           </button>
-          <p className="text-xs text-gray-400 mt-0.5">JPG or PNG, max 5 MB</p>
+          <p className="text-xs text-gray-400 dark:text-slate-400 mt-0.5">JPG or PNG, max 5 MB</p>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
         </div>
       </div>

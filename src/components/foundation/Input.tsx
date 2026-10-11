@@ -82,8 +82,8 @@ export const Input: React.FC<InputProps> = ({
   const hasRightIcon = !!icon && iconPosition === 'right';
 
   const borderClass = error
-    ? 'border-york-500 bg-york-50 focus:ring-york-500 focus:border-york-500'
-    : 'border-gray-200';
+    ? 'border-york-500 bg-york-50 dark:bg-york-900/30 focus:ring-york-500 focus:border-york-500'
+    : 'border-gray-200 dark:border-slate-700';
 
   const paddingClass = cn(
     'py-3',
@@ -114,9 +114,9 @@ export const Input: React.FC<InputProps> = ({
   return (
     <div className="w-full">
       {label && (
-        <label htmlFor={inputId} className="block text-sm font-bold text-gray-800 mb-1.5">
+        <label htmlFor={inputId} className="block text-sm font-bold text-gray-800 dark:text-slate-200 mb-1.5">
           {label}
-          {required && <span className="text-york-600 ml-1" aria-hidden="true">*</span>}
+          {required && <span className="text-york-600 dark:text-york-400 ml-1" aria-hidden="true">*</span>}
         </label>
       )}
 
@@ -124,7 +124,7 @@ export const Input: React.FC<InputProps> = ({
         {/* Left icon */}
         {hasLeftIcon && (
           <span
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400"
             aria-hidden="true"
           >
             {icon}
@@ -147,7 +147,7 @@ export const Input: React.FC<InputProps> = ({
         {/* Right icon */}
         {hasRightIcon && (
           <span
-            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400"
             aria-hidden="true"
           >
             {icon}
@@ -156,17 +156,17 @@ export const Input: React.FC<InputProps> = ({
       </div>
 
       {error && (
-        <p id={errorId} className="text-xs text-york-600 mt-1.5 flex items-center gap-1" role="alert">
+        <p id={errorId} className="text-xs text-york-600 dark:text-york-400 mt-1.5 flex items-center gap-1" role="alert">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" /> {error}
         </p>
       )}
       {helpText && !error && (
-        <p id={helpId} className="text-xs text-gray-400 mt-1.5">
+        <p id={helpId} className="text-xs text-gray-400 dark:text-slate-400 mt-1.5">
           {helpText}
         </p>
       )}
       {maxLength && (
-        <p className="text-xs text-gray-400 mt-1 text-right" aria-live="polite" aria-atomic="true">
+        <p className="text-xs text-gray-400 dark:text-slate-400 mt-1 text-right" aria-live="polite" aria-atomic="true">
           {value.length}/{maxLength}
         </p>
       )}

@@ -63,7 +63,7 @@ export const Navigation: React.FC<NavigationProps> = ({ userRole = 'member' }) =
                 'relative flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 min-h-[56px] text-[11px] font-medium transition-colors duration-150',
                 active
                   ? 'text-york-600 dark:text-york-300 font-semibold'
-                  : 'text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300',
+                  : 'text-gray-400 dark:text-slate-400 hover:text-gray-600 dark:hover:text-slate-300',
               )}
             >
               {active && (

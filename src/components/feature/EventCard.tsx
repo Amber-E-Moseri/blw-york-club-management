@@ -14,15 +14,15 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onRsvp }) => {
   return (
     <div className="flex items-start gap-4 p-4">
       {/* Date bubble */}
-      <div className="flex flex-col items-center justify-center w-12 h-14 bg-york-50 border border-york-200 rounded-xl shrink-0">
-        <span className="text-xs font-bold text-york-600 uppercase leading-none">{month}</span>
-        <span className="text-xl font-bold text-york-800 leading-snug mt-0.5">{day}</span>
+      <div className="flex flex-col items-center justify-center w-12 h-14 bg-york-50 dark:bg-york-900/30 border border-york-200 dark:border-york-800 rounded-xl shrink-0">
+        <span className="text-xs font-bold text-york-600 dark:text-york-400 uppercase leading-none">{month}</span>
+        <span className="text-xl font-bold text-york-800 dark:text-york-200 leading-snug mt-0.5">{day}</span>
       </div>
 
       {/* Details */}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold text-gray-900 dark:text-slate-100 truncate">{event.title}</p>
-        <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">{event.time} · {event.location}</p>
+        <p className="text-xs text-gray-400 dark:text-slate-400 mt-0.5">{event.time} · {event.location}</p>
         <Badge variant="gray" className="mt-1">{event.category}</Badge>
       </div>
 
