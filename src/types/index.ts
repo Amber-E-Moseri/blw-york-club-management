@@ -16,6 +16,8 @@ export interface User {
 
 export type EventCategory = 'Bible Study' | 'Worship' | 'Fellowship' | 'Outreach' | 'Prayer' | 'Other';
 
+export type EventAudience = 'all' | 'meeting';
+
 export interface Event {
   id: string;
   title: string;
@@ -26,6 +28,9 @@ export interface Event {
   category: EventCategory;
   created_by: string;
   created_at: string;
+  audience?: EventAudience;
+  audience_meeting_id?: string | null;
+  notified_at?: string | null;
   rsvp_count?: number;
   user_rsvp?: boolean;
 }
@@ -626,7 +631,8 @@ export type PushNotificationType =
   | 'message'
   | 'prophecy'
   | 'habit'
-  | 'devotional';
+  | 'devotional'
+  | 'event';
 
 export type PushStatus = 'queued' | 'sent' | 'failed' | 'clicked' | 'dismissed';
 

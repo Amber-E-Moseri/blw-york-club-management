@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Calendar, Plus } from 'lucide-react';
 import { EventCard } from '../components/feature';
 import { useAllEvents } from '../hooks/useEvents';
-import { createEvent } from '../lib/queries';
+import { createEvent, notifyEventMembers } from '../lib/queries';
+import { fetchMeetings } from '../lib/queries/meetings';
 import { Button, Input, Modal } from '../components/foundation';
 import type { AuthUser } from '../lib/auth';
-import type { EventCategory } from '../types';
+import type { EventAudience, EventCategory, Meeting } from '../types';
 
 const CATEGORIES: EventCategory[] = ['Bible Study', 'Worship', 'Fellowship', 'Outreach', 'Prayer', 'Other'];
 
@@ -15,6 +16,7 @@ export const Events: React.FC<Props> = ({ user }) => {
   const { events, loading, error, refetch } = useAllEvents();
   const [filter, setFilter] = useState<EventCategory | 'All'>('All');
   const [formOpen, setFormOpen] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const todayStr = new Date().toISOString().split('T')[0];
   const upcomingCount = events.filter((e) => e.date >= todayStr).length;
@@ -46,6 +48,13 @@ export const Events: React.FC<Props> = ({ user }) => {
           )}
         </div>
       </div>
+
+      {notice && (
+        <div role="status" className="flex items-start justify-between gap-3 rounded-lg border border-york-200 bg-york-50 px-3 py-2 text-sm text-york-700">
+          <span>{notice}</span>
+          <button type="button" className="font-bold shrink-0" onClick={() => setNotice(null)}>Dismiss</button>
+        </div>
+      )}
 
       {/* Stats strip */}
       {!loading && (
@@ -113,8 +122,9 @@ export const Events: React.FC<Props> = ({ user }) => {
           isOpen={formOpen}
           onClose={() => setFormOpen(false)}
           userId={user.id}
-          onSaved={() => {
+          onSaved={(message) => {
             setFormOpen(false);
+            setNotice(message ?? null);
             refetch();
           }}
         />
@@ -134,7 +144,8 @@ const EventFormModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   userId: string;
-  onSaved: () => void;
+  /** Called after the event is saved. `message` reports a notification problem, if any. */
+  onSaved: (message?: string) => void;
 }> = ({ isOpen, onClose, userId, onSaved }) => {
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -142,9 +153,20 @@ const EventFormModal: React.FC<{
   const [location, setLocation] = useState('');
   const [category, setCategory] = useState<EventCategory>('Other');
   const [description, setDescription] = useState('');
+  const [audience, setAudience] = useState<EventAudience>('all');
+  const [audienceMeetingId, setAudienceMeetingId] = useState('');
+  const [notify, setNotify] = useState(true);
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!isOpen) return;
+    fetchMeetings(true)
+      .then(setMeetings)
+      .catch(() => setMeetings([]));
+  }, [isOpen]);
 
   const reset = () => {
     setTitle('');
@@ -153,6 +175,9 @@ const EventFormModal: React.FC<{
     setLocation('');
     setCategory('Other');
     setDescription('');
+    setAudience('all');
+    setAudienceMeetingId('');
+    setNotify(true);
     setError(null);
     setFieldErrors({});
   };
@@ -168,13 +193,15 @@ const EventFormModal: React.FC<{
     const nextErrors: Record<string, string> = {};
     if (title.trim().length < 2) nextErrors['title'] = 'Title must be at least 2 characters.';
     if (!date) nextErrors['date'] = 'Date is required.';
+    if (audience === 'meeting' && !audienceMeetingId) nextErrors['audience'] = 'Choose a meeting.';
     setFieldErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
     setSaving(true);
     setError(null);
+    let created: { id: string };
     try {
-      await createEvent({
+      created = await createEvent({
         title: title.trim(),
         date,
         time: time || undefined,
@@ -182,14 +209,32 @@ const EventFormModal: React.FC<{
         description: description.trim() || undefined,
         category,
         created_by: userId,
+        audience,
+        audienceMeetingId: audience === 'meeting' ? audienceMeetingId : null,
       });
-      reset();
-      onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not create event.');
-    } finally {
       setSaving(false);
+      return;
     }
+
+    // The event is saved at this point. A notification failure is reported, not retried by re-saving the form,
+    // which would create a duplicate event.
+    let notice: string | undefined;
+    if (notify) {
+      try {
+        const result = await notifyEventMembers(created.id);
+        notice = result.sent > 0
+          ? `Event saved. Notified ${result.sent} of ${result.recipients} ${result.recipients === 1 ? 'member' : 'members'}.`
+          : `Event saved. No one was notified: ${result.recipients === 0 ? 'no members matched the audience' : 'no active push subscriptions'}.`;
+        if (result.failed > 0) notice += ` ${result.failed} delivery failed.`;
+      } catch (e) {
+        notice = `Event saved, but notifications failed: ${e instanceof Error ? e.message : 'unknown error'}.`;
+      }
+    }
+    reset();
+    setSaving(false);
+    onSaved(notice);
   };
 
   return (
@@ -225,6 +270,57 @@ const EventFormModal: React.FC<{
             ))}
           </select>
         </div>
+
+        <fieldset className="space-y-2">
+          <legend className="block text-sm font-bold text-gray-800 mb-1.5">Who should be notified?</legend>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <label className="flex items-center gap-2 text-sm text-gray-800">
+              <input
+                type="radio"
+                name="event-audience"
+                value="all"
+                checked={audience === 'all'}
+                onChange={() => setAudience('all')}
+              />
+              All active members
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-800">
+              <input
+                type="radio"
+                name="event-audience"
+                value="meeting"
+                checked={audience === 'meeting'}
+                onChange={() => setAudience('meeting')}
+              />
+              People assigned to a meeting
+            </label>
+          </div>
+          {audience === 'meeting' && (
+            <div>
+              <label className="block text-sm font-bold text-gray-800 mb-1.5" htmlFor="event-audience-meeting">
+                Meeting
+              </label>
+              <select
+                id="event-audience-meeting"
+                value={audienceMeetingId}
+                onChange={(e) => setAudienceMeetingId(e.target.value)}
+                className="w-full rounded-md border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-york-600 focus:border-york-600 dark:bg-slate-900 dark:text-slate-100"
+              >
+                <option value="">Select a meeting…</option>
+                {meetings.map((m) => (
+                  <option key={m.id} value={m.id}>{m.title} · {m.date}</option>
+                ))}
+              </select>
+              {fieldErrors['audience'] && (
+                <p className="text-xs text-york-700 mt-1">{fieldErrors['audience']}</p>
+              )}
+            </div>
+          )}
+          <label className="flex items-center gap-2 text-sm text-gray-800 pt-1">
+            <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
+            Send a push notification when saved
+          </label>
+        </fieldset>
 
         <Input
           label="Description"
