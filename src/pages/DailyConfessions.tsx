@@ -85,7 +85,7 @@ export const DailyConfessions: React.FC<Props> = ({ user }) => {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>
+        <div className="bg-york-50 border border-york-200 text-york-700 rounded-lg px-4 py-3 text-sm">{error}</div>
       )}
 
       {loading && (
@@ -159,7 +159,7 @@ export const DailyConfessions: React.FC<Props> = ({ user }) => {
             onChange={setNewDate}
             required
           />
-          {formError && <p className="text-sm text-red-600"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{formError}</p>}
+          {formError && <p className="text-sm text-york-600"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{formError}</p>}
         </div>
       </Modal>
     </div>

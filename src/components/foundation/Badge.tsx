@@ -12,8 +12,8 @@ const variantStyles: Record<NonNullable<BadgeProps['variant']>, string> = {
   primary: 'bg-york-600 text-white',
   success: 'bg-green-500 text-white',
   warning: 'bg-orange-500 text-white',
-  error:   'bg-red-600 text-white',
-  light:   'bg-red-50 text-york-700',
+  error:   'bg-york-600 text-white',
+  light:   'bg-york-50 text-york-700',
   info:    'bg-blue-500 text-white',
   // legacy aliases
   red:     'bg-york-100 text-york-700',

@@ -35,8 +35,8 @@ export const NeedsAttention: React.FC<NeedsAttentionProps> = ({ contacts, loadin
         </div>
       ) : contacts.length === 0 ? (
         <div className="px-5 py-6 flex flex-col items-center text-center gap-2">
-          <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
-            <AlertCircle className="w-5 h-5 text-emerald-500" />
+          <div className="w-10 h-10 rounded-full bg-green-50 dark:bg-green-900/20 flex items-center justify-center">
+            <AlertCircle className="w-5 h-5 text-green-500" />
           </div>
           <p className="text-sm font-semibold text-gray-700 dark:text-slate-200">You're caught up</p>
           <p className="text-xs text-gray-400 dark:text-slate-500">No follow-ups currently need attention.</p>

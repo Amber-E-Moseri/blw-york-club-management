@@ -107,7 +107,7 @@ export const ContactTable: React.FC<Props> = ({
     <div className="space-y-3">
       {/* Bulk actions bar */}
       {selected.size > 0 && (
-        <div className="flex items-center gap-3 bg-red-50 border border-york-600/20 rounded-lg px-4 py-2">
+        <div className="flex items-center gap-3 bg-york-50 border border-york-600/20 rounded-lg px-4 py-2">
           <span className="text-sm font-semibold text-york-700">
             {selected.size} selected
           </span>
@@ -163,8 +163,8 @@ export const ContactTable: React.FC<Props> = ({
                   className={cn(
                     'border-b border-gray-100 transition-colors dark:border-slate-700',
                     selected.has(c.id)
-                      ? 'bg-red-50 dark:bg-york-900/20'
-                      : i % 2 === 0 ? 'bg-white hover:bg-red-50/40 dark:bg-slate-800 dark:hover:bg-slate-700' : 'bg-gray-50/50 hover:bg-red-50/40 dark:bg-slate-900/50 dark:hover:bg-slate-700'
+                      ? 'bg-york-50 dark:bg-york-900/20'
+                      : i % 2 === 0 ? 'bg-white hover:bg-york-50/40 dark:bg-slate-800 dark:hover:bg-slate-700' : 'bg-gray-50/50 hover:bg-york-50/40 dark:bg-slate-900/50 dark:hover:bg-slate-700'
                   )}
                 >
                   <td className="px-4 py-3">
@@ -216,7 +216,7 @@ export const ContactTable: React.FC<Props> = ({
                           aria-label="Edit contact"
                           title="Edit"
                           onClick={() => onEdit(c)}
-                          className="p-1.5 rounded text-gray-400 hover:text-york-600 hover:bg-red-50 transition-colors"
+                          className="p-1.5 rounded text-gray-400 hover:text-york-600 hover:bg-york-50 transition-colors"
                         >
                           <Pencil className="w-4 h-4" aria-hidden="true" />
                         </button>
@@ -250,7 +250,7 @@ export const ContactTable: React.FC<Props> = ({
                           onClick={() => {
                             if (window.confirm(`Delete contact "${c.contact_name}"?`)) onDelete(c.id);
                           }}
-                          className="p-1.5 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          className="p-1.5 rounded text-gray-400 hover:text-york-600 hover:bg-york-50 transition-colors"
                         >
                           <Trash2 className="w-4 h-4" aria-hidden="true" />
                         </button>

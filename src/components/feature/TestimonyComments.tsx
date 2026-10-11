@@ -48,7 +48,7 @@ export const TestimonyComments: React.FC<Props> = ({ testimonyId, user }) => {
                   {c.is_mine && (
                     <button
                       onClick={() => window.confirm('Delete comment?') && removeComment(c.id)}
-                      className="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                      className="text-gray-300 hover:text-york-500 transition-colors opacity-0 group-hover:opacity-100"
                       title="Delete"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

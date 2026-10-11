@@ -122,7 +122,7 @@ export const WeeklyMessageForm: React.FC<Props> = ({
                   className={cn(
                     'flex items-center gap-2 cursor-pointer px-4 py-2 rounded-md border text-sm font-medium transition-colors',
                     form.scope === s
-                      ? 'border-york-600 bg-red-50 text-york-700'
+                      ? 'border-york-600 bg-york-50 text-york-700'
                       : 'border-gray-200 text-gray-600 hover:border-gray-300',
                   )}
                 >
@@ -212,7 +212,7 @@ export const WeeklyMessageForm: React.FC<Props> = ({
                         className={cn(
                           'flex-1 text-center cursor-pointer px-3 py-1.5 rounded border text-xs font-medium transition-colors',
                           form.recurrence_type === r
-                            ? 'border-york-600 bg-red-50 text-york-700'
+                            ? 'border-york-600 bg-york-50 text-york-700'
                             : 'border-gray-200 text-gray-500 hover:border-gray-300',
                         )}
                       >

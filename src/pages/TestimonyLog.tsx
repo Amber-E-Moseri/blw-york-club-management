@@ -121,7 +121,7 @@ export const TestimonyLog: React.FC<Props> = ({ user }) => {
       </p>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>
+        <div className="bg-york-50 border border-york-200 text-york-700 rounded-lg px-4 py-3 text-sm">{error}</div>
       )}
 
       {loading && (

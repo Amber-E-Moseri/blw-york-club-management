@@ -47,7 +47,7 @@ export const PushNotificationSettings: React.FC<PushNotificationSettingsProps> =
             and testimony activity.
           </p>
           {error && (
-            <p className="text-small text-red-600 mt-2"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{error}</p>
+            <p className="text-small text-york-600 mt-2"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{error}</p>
           )}
           {permission === 'denied' && (
             <p className="text-small text-gray-500 mt-2">

@@ -58,7 +58,7 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
             <Input label="Title" value={title} onChange={setTitle} />
             <Input label="Message" type="textarea" value={body} onChange={setBody} />
             {postError && (
-              <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+              <div className="rounded-md border border-york-200 bg-york-50 px-4 py-3 text-sm text-york-700" role="alert">
                 {postError}
               </div>
             )}

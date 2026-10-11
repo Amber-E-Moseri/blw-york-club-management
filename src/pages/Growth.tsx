@@ -87,8 +87,8 @@ export const Growth: React.FC<GrowthProps> = ({ user }) => {
 
         <GrowthCard
           to="/habits"
-          iconBg="bg-emerald-50 dark:bg-emerald-900/20"
-          icon={<CheckSquare className="w-6 h-6 text-emerald-600" />}
+          iconBg="bg-green-50 dark:bg-green-900/20"
+          icon={<CheckSquare className="w-6 h-6 text-green-600" />}
           title="Habits"
           subtitle={
             habitsTotal > 0

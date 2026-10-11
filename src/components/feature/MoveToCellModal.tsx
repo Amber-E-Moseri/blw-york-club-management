@@ -130,7 +130,7 @@ export const MoveToCellModal: React.FC<Props> = ({
         />
 
         {error && (
-          <p className="text-sm text-red-600"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{error}</p>
+          <p className="text-sm text-york-600"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{error}</p>
         )}
       </div>
     </Modal>

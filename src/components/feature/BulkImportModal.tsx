@@ -110,7 +110,7 @@ export const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, cells, onImp
               Import complete: {result.imported} imported, {result.failed} failed
             </p>
             {result.errors.map((e, i) => (
-              <p key={i} className="text-sm text-red-600 mt-1">Row {e.row}: {e.message}</p>
+              <p key={i} className="text-sm text-york-600 mt-1">Row {e.row}: {e.message}</p>
             ))}
           </div>
         )}
@@ -196,7 +196,7 @@ export const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, cells, onImp
                         key={i}
                         className={cn(
                           'border-b border-gray-100',
-                          r.errors.length > 0 ? 'bg-red-50' : 'bg-white'
+                          r.errors.length > 0 ? 'bg-york-50' : 'bg-white'
                         )}
                       >
                         <td className="px-3 py-2 text-gray-400">{i + 1}</td>
@@ -204,7 +204,7 @@ export const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, cells, onImp
                           {r.errors.length === 0 ? (
                             <Check className="w-4 h-4 text-green-600" aria-hidden="true" />
                           ) : (
-                            <span title={r.errors.join('; ')} className="text-red-600 cursor-help">
+                            <span title={r.errors.join('; ')} className="text-york-600 cursor-help">
                               <AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{r.errors[0]}
                             </span>
                           )}
@@ -223,7 +223,7 @@ export const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, cells, onImp
               </div>
             )}
 
-            {error && <p className="text-sm text-red-600"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{error}</p>}
+            {error && <p className="text-sm text-york-600"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{error}</p>}
           </>
         )}
       </div>

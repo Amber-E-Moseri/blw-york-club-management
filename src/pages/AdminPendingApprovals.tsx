@@ -96,7 +96,7 @@ export const AdminPendingApprovals: React.FC<Props> = ({ user }) => {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>
+        <div className="bg-york-50 border border-york-200 text-york-700 rounded-lg px-4 py-3 text-sm">{error}</div>
       )}
       {notice && (
         <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 text-sm">{notice}</div>

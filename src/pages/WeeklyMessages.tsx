@@ -148,7 +148,7 @@ export const WeeklyMessages: React.FC<Props> = ({ user }) => {
       )}
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>
+        <div className="bg-york-50 border border-york-200 text-york-700 rounded-lg px-4 py-3 text-sm">{error}</div>
       )}
 
       {/* Tabs */}
@@ -204,7 +204,7 @@ export const WeeklyMessages: React.FC<Props> = ({ user }) => {
               <div key={monStr} className={`border rounded-lg overflow-hidden ${isThis ? 'border-york-300' : 'border-gray-200'}`}>
                 <button
                   className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors ${
-                    isThis ? 'bg-red-50' : 'bg-white hover:bg-gray-50'
+                    isThis ? 'bg-york-50' : 'bg-white hover:bg-gray-50'
                   }`}
                   onClick={() => setExpandedWeek(isExpanded ? null : monStr)}
                 >

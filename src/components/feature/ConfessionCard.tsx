@@ -46,7 +46,7 @@ export const ConfessionCard: React.FC<Props> = ({
         {canDelete && onDelete && (
           <button
             onClick={() => window.confirm('Delete this confession?') && onDelete(c.id)}
-            className="text-gray-300 hover:text-red-500 transition-colors text-sm"
+            className="text-gray-300 hover:text-york-500 transition-colors text-sm"
             aria-label="Delete confession"
           >
             <X className="w-4 h-4" aria-hidden="true" />

@@ -4,6 +4,13 @@ import { cn } from '../../lib/utils';
 import type { EnhancedDashboardStats } from '../../types';
 import type { AuthUser } from '../../lib/auth';
 import { Skeleton } from './DashboardCard';
+import { useCountUp } from '../../hooks/useCountUp';
+
+/** Counts numeric metrics up on mount; text metrics render as-is. */
+const MetricValue: React.FC<{ value: number | string }> = ({ value }) => {
+  const counted = useCountUp(typeof value === 'number' ? value : NaN);
+  return <>{typeof value === 'number' ? counted : value}</>;
+};
 
 const ROLE_LEVEL: Record<AuthUser['role'], number> = {
   member: 0, cell_leader: 1, admin: 2, coordinator: 3,
@@ -58,8 +65,8 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
       value: stats?.contacts_this_week ?? 0,
       sub: 'Logged this week',
       icon: ClipboardList,
-      iconBg: 'bg-emerald-50 dark:bg-emerald-900/20',
-      iconColor: 'text-emerald-600',
+      iconBg: 'bg-green-50 dark:bg-green-900/20',
+      iconColor: 'text-green-600',
       onClick: () => onNavigate('/contacts'),
     },
     {
@@ -102,8 +109,8 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
         </svg>
       ),
-      iconBg: 'bg-emerald-50 dark:bg-emerald-900/20',
-      iconColor: 'text-emerald-600',
+      iconBg: 'bg-green-50 dark:bg-green-900/20',
+      iconColor: 'text-green-600',
       onClick: () => onNavigate('/habits'),
     },
   ];
@@ -111,7 +118,7 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
   const metrics = level >= 1 ? leaderMetrics : memberMetrics;
 
   return (
-    <div className={cn('grid grid-cols-2 gap-3 sm:gap-4', level >= 1 ? 'xl:grid-cols-4' : 'sm:grid-cols-2 max-w-sm')}>
+    <div className={cn('stagger grid grid-cols-2 gap-3 sm:gap-4', level >= 1 ? 'xl:grid-cols-4' : 'sm:grid-cols-2 max-w-sm')}>
       {metrics.map((m) => {
         const Icon = m.icon;
         return (
@@ -121,7 +128,7 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
             onClick={m.onClick}
             className={cn(
               'text-left bg-white dark:bg-slate-800 border rounded-2xl shadow-sm p-4 transition-all duration-150',
-              'hover:shadow-md active:scale-[0.99]',
+              'hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] transition-transform',
               m.urgent
                 ? 'border-york-200 dark:border-york-800'
                 : 'border-gray-200 dark:border-slate-700',
@@ -131,7 +138,7 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
               <Icon className={cn('w-4.5 h-4.5', m.iconColor)} />
             </div>
             <p className="text-2xl font-bold text-gray-900 dark:text-white leading-none">
-              {m.value}
+              <MetricValue value={m.value} />
             </p>
             <p className="text-[11px] font-semibold text-gray-400 dark:text-slate-500 mt-0.5 uppercase tracking-wider">
               {m.label}

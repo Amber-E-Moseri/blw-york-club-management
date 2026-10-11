@@ -176,7 +176,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       'flex items-center rounded-md text-sm font-medium w-full transition-colors duration-150',
                       collapsed ? 'justify-center h-10 w-10 mx-auto' : 'gap-3 px-4 py-2.5',
                       active
-                        ? 'bg-red-50 text-york-600 font-semibold dark:bg-york-900/30 dark:text-york-300'
+                        ? 'bg-york-50 text-york-600 font-semibold dark:bg-york-900/30 dark:text-york-300'
                         : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100',
                     )}
                   >

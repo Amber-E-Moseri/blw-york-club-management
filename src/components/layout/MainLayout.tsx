@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Navigation } from './Navigation';
@@ -19,6 +20,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const location = useLocation();
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 text-gray-600 dark:bg-slate-950 dark:text-slate-300">
@@ -66,7 +68,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
               'pb-24 md:pb-8',
             )}
           >
-            {children}
+            <div key={location.pathname} className="animate-fade-up">
+              {children}
+            </div>
           </main>
         </div>
       </div>

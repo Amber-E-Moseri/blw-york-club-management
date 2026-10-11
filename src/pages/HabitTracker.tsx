@@ -86,14 +86,14 @@ function HabitTemplateFormModal({
                 type="button"
                 onClick={() => setForm((f) => ({ ...f, icon: iconKey }))}
                 className={`w-9 h-9 rounded-md text-xl flex items-center justify-center border-2 transition-colors ${
-                  form.icon === iconKey ? 'border-york-600 bg-red-50' : 'border-gray-200 hover:border-gray-300'
+                  form.icon === iconKey ? 'border-york-600 bg-york-50' : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
                 <HabitIcon value={iconKey} className="w-4 h-4" />
               </button>
             ))}
           </div>
-          {errors.icon && <p className="text-xs text-red-600 mt-1">{errors.icon}</p>}
+          {errors.icon && <p className="text-xs text-york-600 mt-1">{errors.icon}</p>}
         </div>
 
         <Input
@@ -141,7 +141,7 @@ function HabitTemplateFormModal({
               ))}
             </div>
           )}
-          {errors.days && <p className="text-xs text-red-600 pl-6">{errors.days}</p>}
+          {errors.days && <p className="text-xs text-york-600 pl-6">{errors.days}</p>}
         </div>
 
         <div className="flex justify-end gap-3 pt-2">
@@ -197,7 +197,7 @@ export const HabitTracker: React.FC<Props> = ({ user }) => {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>
+        <div className="bg-york-50 border border-york-200 text-york-700 rounded-lg px-4 py-3 text-sm">{error}</div>
       )}
 
       {/* Today's habits grid */}
@@ -300,7 +300,7 @@ export const HabitTracker: React.FC<Props> = ({ user }) => {
                     </button>
                     <button
                       onClick={() => { setEditingTemplate(t); setFormOpen(true); }}
-                      className="p-1.5 rounded text-gray-400 hover:text-york-600 hover:bg-red-50"
+                      className="p-1.5 rounded text-gray-400 hover:text-york-600 hover:bg-york-50"
                       title="Edit"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -309,7 +309,7 @@ export const HabitTracker: React.FC<Props> = ({ user }) => {
                     </button>
                     <button
                       onClick={() => window.confirm(`Delete "${t.name}"?`) && admin.removeTemplate(t.id)}
-                      className="p-1.5 rounded text-gray-400 hover:text-red-600 hover:bg-red-50"
+                      className="p-1.5 rounded text-gray-400 hover:text-york-600 hover:bg-york-50"
                       title="Delete"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -323,7 +323,7 @@ export const HabitTracker: React.FC<Props> = ({ user }) => {
           )}
 
           {admin.error && (
-            <p className="text-xs text-red-600 px-5 pb-3">{admin.error}</p>
+            <p className="text-xs text-york-600 px-5 pb-3">{admin.error}</p>
           )}
 
           {/* Analytics */}
@@ -358,7 +358,7 @@ export const HabitTracker: React.FC<Props> = ({ user }) => {
                           <span className={`font-semibold ${
                             a.completion_7d_avg >= 0.7 ? 'text-green-600'
                               : a.completion_7d_avg >= 0.4 ? 'text-amber-600'
-                              : 'text-red-500'
+                              : 'text-york-500'
                           }`}>
                             {Math.round(a.completion_7d_avg * 100)}%
                           </span>

@@ -54,7 +54,7 @@ export const Header: React.FC<HeaderProps> = ({
           aria-controls="mobile-nav-drawer"
           className={cn(
             'md:hidden flex items-center justify-center w-11 h-11 rounded-md shrink-0',
-            'text-gray-600 hover:bg-red-50 hover:text-york-600 dark:text-slate-300 dark:hover:bg-slate-800',
+            'text-gray-600 hover:bg-york-50 hover:text-york-600 dark:text-slate-300 dark:hover:bg-slate-800',
             'focus:outline-none focus:ring-2 focus:ring-york-600 transition-colors duration-150',
           )}
         >
@@ -122,7 +122,7 @@ export const Header: React.FC<HeaderProps> = ({
               aria-label="User menu"
               className={cn(
                 'flex items-center gap-2 px-3 py-1.5 rounded-md',
-                'hover:bg-red-50 transition-colors duration-150 dark:hover:bg-slate-800',
+                'hover:bg-york-50 transition-colors duration-150 dark:hover:bg-slate-800',
                 'focus:outline-none focus:ring-2 focus:ring-york-600',
               )}
             >
@@ -166,7 +166,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <div className="border-t border-gray-100 mt-1 dark:border-slate-700">
                   <button
                     type="button"
-                    className="w-full text-left px-4 py-2 text-sm text-york-600 font-semibold hover:bg-red-50 transition-colors"
+                    className="w-full text-left px-4 py-2 text-sm text-york-600 font-semibold hover:bg-york-50 transition-colors"
                     onClick={() => { setMenuOpen(false); onLogout?.(); }}
                   >
                     Sign out

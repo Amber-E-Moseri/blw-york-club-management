@@ -32,8 +32,8 @@ export const OutreachSnapshot: React.FC<OutreachSnapshotProps> = ({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
-                <Users2 className="w-4 h-4 text-emerald-600" />
+              <div className="w-8 h-8 rounded-lg bg-green-50 dark:bg-green-900/20 flex items-center justify-center">
+                <Users2 className="w-4 h-4 text-green-600" />
               </div>
               <span className="text-sm text-gray-600 dark:text-slate-400">New contacts this week</span>
             </div>

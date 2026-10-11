@@ -100,7 +100,7 @@ export const GlobalSearch: React.FC<{ user: AuthUser | null; collapsed?: boolean
               onClick={() => go(index)}
               className={cn(
                 'block w-full px-3 py-2 text-left text-sm',
-                index === activeIndex ? 'bg-red-50 text-york-700' : 'text-gray-700 hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-slate-800',
+                index === activeIndex ? 'bg-york-50 text-york-700' : 'text-gray-700 hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-slate-800',
               )}
             >
               <span className="block font-bold">{result.title}</span>

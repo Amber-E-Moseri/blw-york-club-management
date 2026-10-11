@@ -61,6 +61,15 @@ module.exports = {
         lg: '0 8px 16px rgba(0,0,0,0.15)',
         xl: '0 12px 24px rgba(0,0,0,0.20)',
       },
+      keyframes: {
+        'fade-up': {
+          from: { opacity: '0', transform: 'translateY(8px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+      },
+      animation: {
+        'fade-up': 'fade-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards',
+      },
       transitionDuration: {
         fast: '150ms',
         normal: '300ms',

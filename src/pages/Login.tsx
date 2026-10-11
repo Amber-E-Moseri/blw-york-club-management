@@ -78,7 +78,7 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
                 <Input label="Email" type="email" value={email} onChange={setEmail} placeholder="you@yorku.ca" autoComplete="email" />
                 <Input label="Password" type="password" value={password} onChange={setPassword} placeholder="••••••••" autoComplete="current-password" />
                 {(error || localError) && (
-                  <p className="text-xs text-red-600" role="alert">{error || localError}</p>
+                  <p className="text-xs text-york-600" role="alert">{error || localError}</p>
                 )}
                 <Button fullWidth loading={loading} type="submit">Sign In</Button>
               </form>
@@ -102,7 +102,7 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
                 <Input label="Password" type="password" value={password} onChange={setPassword} placeholder="Min. 6 characters" autoComplete="new-password" />
                 <Input label="Confirm Password" type="password" value={confirm} onChange={setConfirm} placeholder="••••••••" autoComplete="new-password" />
                 {(error || localError) && (
-                  <p className="text-xs text-red-600" role="alert">{error || localError}</p>
+                  <p className="text-xs text-york-600" role="alert">{error || localError}</p>
                 )}
                 <Button fullWidth loading={loading} type="submit">Submit Request</Button>
               </form>

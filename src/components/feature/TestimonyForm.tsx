@@ -212,7 +212,7 @@ export const TestimonyForm: React.FC<Props> = ({ isOpen, onClose, onSave, testim
               <button
                 type="button"
                 onClick={() => { setImageFile(null); setImagePreview(null); set('image_url', undefined); }}
-                className="absolute top-2 right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                className="absolute top-2 right-2 w-7 h-7 bg-york-500 text-white rounded-full flex items-center justify-center hover:bg-york-600 transition-colors"
               >
                 <X className="w-4 h-4" aria-hidden="true" />
               </button>
@@ -235,7 +235,7 @@ export const TestimonyForm: React.FC<Props> = ({ isOpen, onClose, onSave, testim
             onChange={handleImageChange}
             className="hidden"
           />
-          {errors.image_url && <p className="text-xs text-red-500 mt-1">{errors.image_url}</p>}
+          {errors.image_url && <p className="text-xs text-york-500 mt-1">{errors.image_url}</p>}
           {uploadingImage && <p className="text-xs text-gray-400 mt-1">Uploading image…</p>}
         </div>
 

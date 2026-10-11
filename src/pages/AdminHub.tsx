@@ -157,7 +157,7 @@ export const AdminHub: React.FC<Props> = ({ user }) => {
           <button
             type="button"
             onClick={() => navigate('/admin/roles')}
-            className="h-9 px-3 inline-flex items-center justify-center gap-2 text-sm font-semibold text-york-600 border border-york-200 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-york-900/20 dark:border-york-800 dark:text-york-300"
+            className="h-9 px-3 inline-flex items-center justify-center gap-2 text-sm font-semibold text-york-600 border border-york-200 rounded-xl bg-york-50 hover:bg-york-100 dark:bg-york-900/20 dark:border-york-800 dark:text-york-300"
           >
             <KeyRound className="w-4 h-4" />
             Roles & Access

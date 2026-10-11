@@ -137,8 +137,8 @@ const QuickAddContent: React.FC<QuickAddContentProps> = ({ user, onClose }) => {
   if (success) {
     return (
       <div className="flex flex-col items-center justify-center py-10 gap-3">
-        <div className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-          <Check className="w-8 h-8 text-emerald-600" />
+        <div className="w-14 h-14 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+          <Check className="w-8 h-8 text-green-600" />
         </div>
         <p className="text-sm font-semibold text-gray-700 dark:text-slate-200">Saved!</p>
       </div>

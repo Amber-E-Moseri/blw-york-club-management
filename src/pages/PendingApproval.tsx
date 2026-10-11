@@ -28,7 +28,7 @@ export const PendingApproval: React.FC<Props> = ({ user, onSignOut }) => {
         <div className="bg-white rounded-lg shadow-md p-8 text-center space-y-5">
           <div className="flex items-center justify-center">
             {rejected || inactive
-              ? <XCircle className="w-14 h-14 text-red-400" aria-hidden="true" />
+              ? <XCircle className="w-14 h-14 text-york-400" aria-hidden="true" />
               : <Clock className="w-14 h-14 text-york-400" aria-hidden="true" />}
           </div>
 

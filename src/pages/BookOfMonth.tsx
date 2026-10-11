@@ -84,7 +84,7 @@ export const BookOfMonthPage: React.FC<Props> = ({ user }) => {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>
+        <div className="bg-york-50 border border-york-200 text-york-700 rounded-lg px-4 py-3 text-sm">{error}</div>
       )}
 
       {/* Current book */}
@@ -166,7 +166,7 @@ export const BookOfMonthPage: React.FC<Props> = ({ user }) => {
                         <button onClick={() => openEdit(b)} className="text-xs text-gray-400 hover:text-gray-600">Edit</button>
                         <button
                           onClick={() => window.confirm('Delete this book?') && remove(b.id)}
-                          className="text-xs text-gray-400 hover:text-red-500"
+                          className="text-xs text-gray-400 hover:text-york-500"
                         >
                           Delete
                         </button>

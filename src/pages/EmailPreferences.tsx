@@ -127,7 +127,7 @@ export const EmailPreferences: React.FC<Props> = () => {
           <button
             onClick={handleOptOutAll}
             disabled={optingOut || prefs.opt_out_all}
-            className="text-sm text-red-500 hover:text-red-700 underline disabled:opacity-40"
+            className="text-sm text-york-500 hover:text-york-700 underline disabled:opacity-40"
           >
             Unsubscribe from all
           </button>

@@ -60,7 +60,7 @@ export const DrivePreview: React.FC<DrivePreviewProps> = ({
             <button
               onClick={onRemove}
               aria-label="Remove link"
-              className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+              className="p-1 text-gray-400 hover:text-york-500 transition-colors"
             >
               <X className="w-4 h-4" aria-hidden="true" />
             </button>

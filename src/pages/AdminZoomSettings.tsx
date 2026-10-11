@@ -131,7 +131,7 @@ export const AdminZoomSettings: React.FC<Props> = ({ user }) => {
               </span>
             )}
             {result === false && (
-              <span className="text-sm text-red-500">
+              <span className="text-sm text-york-500">
                 {testError ?? 'Connection failed'}
               </span>
             )}

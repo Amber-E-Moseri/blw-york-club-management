@@ -3,22 +3,6 @@
 @tailwind utilities;
 
 :root {
-  --color-bg: #f5f5f5;
-  --color-surface: #ffffff;
-  --color-border: #e8e8e8;
-  --color-text-primary: #000000;
-  --color-text-secondary: #666666;
-}
-
-[data-theme="dark"] {
-  --color-bg: #0f172a;
-  --color-surface: #1e293b;
-  --color-border: #334155;
-  --color-text-primary: #f1f5f9;
-  --color-text-secondary: #94a3b8;
-}
-
-:root {
   --sat: env(safe-area-inset-top);
   --sar: env(safe-area-inset-right);
   --sab: env(safe-area-inset-bottom);
@@ -86,7 +70,7 @@
     @apply bg-white border border-gray-200 rounded-lg shadow-sm p-6 dark:border-slate-700 dark:bg-slate-800;
   }
   .card-hover {
-    @apply card hover:shadow-md transition-shadow duration-normal cursor-pointer;
+    @apply card cursor-pointer transition-[transform,box-shadow] duration-normal hover:-translate-y-0.5 hover:shadow-md;
   }
 
   /* Badges */
@@ -180,6 +164,15 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Staggered entrance for grids of cards. `backwards` fill drops the transform
+   after the animation, so fixed-position children (modals) stay viewport-anchored. */
+.stagger > * {
+  animation: fade-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+.stagger > *:nth-child(2) { animation-delay: 60ms; }
+.stagger > *:nth-child(3) { animation-delay: 120ms; }
+.stagger > *:nth-child(4) { animation-delay: 180ms; }
 
 @keyframes fadeIn {
   from { opacity: 0; }

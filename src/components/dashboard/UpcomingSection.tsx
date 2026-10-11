@@ -54,7 +54,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   leadership: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
   'Bible Study': 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
   Worship: 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-  Fellowship: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+  Fellowship: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300',
   Outreach: 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
   Prayer: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
 };

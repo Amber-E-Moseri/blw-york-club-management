@@ -93,7 +93,7 @@ export const TestimonyCard: React.FC<Props> = ({
           {t.is_mine && onEdit && (
             <button
               onClick={() => onEdit(t)}
-              className="p-1.5 rounded text-gray-400 hover:text-york-600 hover:bg-red-50 transition-colors"
+              className="p-1.5 rounded text-gray-400 hover:text-york-600 hover:bg-york-50 transition-colors"
               title="Edit"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -115,7 +115,7 @@ export const TestimonyCard: React.FC<Props> = ({
           {t.is_mine && onDelete && (
             <button
               onClick={() => window.confirm('Delete this entry?') && onDelete(t.id)}
-              className="p-1.5 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+              className="p-1.5 rounded text-gray-400 hover:text-york-600 hover:bg-york-50 transition-colors"
               title="Delete"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -193,7 +193,7 @@ export const TestimonyCard: React.FC<Props> = ({
           </button>
           <button
             onClick={() => onReject?.(t.id)}
-            className="flex-1 py-1.5 text-xs font-semibold text-white bg-red-500 hover:bg-red-600 rounded-md transition-colors"
+            className="flex-1 py-1.5 text-xs font-semibold text-white bg-york-500 hover:bg-york-600 rounded-md transition-colors"
           >
             <X className="w-3.5 h-3.5 inline -mt-0.5 mr-1" aria-hidden="true" />Reject
           </button>

@@ -121,7 +121,7 @@ export const ZoomMeetingForm: React.FC<Props> = ({ meeting, onZoomCreated }) => 
           >
             Create Zoom Meeting
           </Button>
-          {error && <p className="text-xs text-red-500">{error}</p>}
+          {error && <p className="text-xs text-york-500">{error}</p>}
         </div>
       )}
     </div>

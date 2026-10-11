@@ -351,9 +351,9 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
               </div>
 
               {invalidPlaceholders.length > 0 && (
-                <p className="text-sm text-red-600" role="alert">Invalid placeholders: {invalidPlaceholders.join(', ')}</p>
+                <p className="text-sm text-york-600" role="alert">Invalid placeholders: {invalidPlaceholders.join(', ')}</p>
               )}
-              {(composerError || resendError) && <p className="text-sm text-red-600" role="alert">{composerError || resendError}</p>}
+              {(composerError || resendError) && <p className="text-sm text-york-600" role="alert">{composerError || resendError}</p>}
               {notice && <p className="text-sm text-green-600" role="status">{notice}</p>}
               <p className="text-xs text-gray-400">Sending is disabled until the email relay is configured. Account approval, password reset, and authentication emails are managed separately from this composer.</p>
             </div>

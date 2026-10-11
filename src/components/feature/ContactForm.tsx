@@ -121,7 +121,7 @@ export const ContactForm: React.FC<Props> = ({
     >
       <div className="space-y-4">
         {saveError && (
-          <p role="alert" className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+          <p role="alert" className="text-sm text-york-600 bg-york-50 border border-york-200 rounded-md px-3 py-2">
             Could not save contact: {saveError}
           </p>
         )}
@@ -183,7 +183,7 @@ export const ContactForm: React.FC<Props> = ({
                 <option key={t.id} value={t.tag_name}>{t.tag_name}</option>
               ))}
             </select>
-            {errors.tag && <p className="text-xs text-red-600 mt-1"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{errors.tag}</p>}
+            {errors.tag && <p className="text-xs text-york-600 mt-1"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{errors.tag}</p>}
             {selectedTag && (
               <div className="mt-2">
                 <Tag color={selectedTag.color} variant="light">{selectedTag.tag_name}</Tag>
@@ -207,7 +207,7 @@ export const ContactForm: React.FC<Props> = ({
               ))}
             </select>
             {errors.follow_up_status && (
-              <p className="text-xs text-red-600 mt-1"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{errors.follow_up_status}</p>
+              <p className="text-xs text-york-600 mt-1"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{errors.follow_up_status}</p>
             )}
             {selectedStatus && (
               <div className="mt-2">

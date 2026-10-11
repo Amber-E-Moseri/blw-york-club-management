@@ -83,7 +83,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ currentUser, viewUserI
         <h1 className="text-h1">{isOwnProfile ? 'My Profile' : 'Member Profile'}</h1>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-md px-4 py-3 text-sm text-red-700">
+          <div className="bg-york-50 border border-york-200 rounded-md px-4 py-3 text-sm text-york-700">
             {error}
           </div>
         )}

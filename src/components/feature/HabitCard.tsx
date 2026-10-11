@@ -101,7 +101,7 @@ export const HabitCard: React.FC<Props> = ({ habit: h, onCheckIn }) => {
         </div>
         <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
           <div
-            className={cn('h-full rounded-full transition-all duration-500', pct >= 70 ? 'bg-green-500' : pct >= 40 ? 'bg-amber-400' : 'bg-red-400')}
+            className={cn('h-full rounded-full transition-all duration-500', pct >= 70 ? 'bg-green-500' : pct >= 40 ? 'bg-amber-400' : 'bg-york-400')}
             style={{ width: `${pct}%` }}
           />
         </div>

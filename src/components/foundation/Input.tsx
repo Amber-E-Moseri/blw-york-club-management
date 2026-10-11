@@ -82,7 +82,7 @@ export const Input: React.FC<InputProps> = ({
   const hasRightIcon = !!icon && iconPosition === 'right';
 
   const borderClass = error
-    ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500'
+    ? 'border-york-500 bg-york-50 focus:ring-york-500 focus:border-york-500'
     : 'border-gray-200';
 
   const paddingClass = cn(
@@ -156,7 +156,7 @@ export const Input: React.FC<InputProps> = ({
       </div>
 
       {error && (
-        <p id={errorId} className="text-xs text-red-600 mt-1.5 flex items-center gap-1" role="alert">
+        <p id={errorId} className="text-xs text-york-600 mt-1.5 flex items-center gap-1" role="alert">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" /> {error}
         </p>
       )}

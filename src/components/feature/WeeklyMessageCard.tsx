@@ -43,7 +43,7 @@ export const WeeklyMessageCard: React.FC<Props> = ({
           {onEdit && (
             <button
               onClick={() => onEdit(m)}
-              className="p-1.5 rounded text-gray-400 hover:text-york-600 hover:bg-red-50 transition-colors"
+              className="p-1.5 rounded text-gray-400 hover:text-york-600 hover:bg-york-50 transition-colors"
               title="Edit"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -54,7 +54,7 @@ export const WeeklyMessageCard: React.FC<Props> = ({
           {onDelete && (
             <button
               onClick={() => window.confirm('Delete this message?') && onDelete(m.id)}
-              className="p-1.5 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+              className="p-1.5 rounded text-gray-400 hover:text-york-600 hover:bg-york-50 transition-colors"
               title="Delete"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

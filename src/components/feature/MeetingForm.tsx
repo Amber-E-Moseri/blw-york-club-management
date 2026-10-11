@@ -140,7 +140,7 @@ export const MeetingForm: React.FC<Props> = ({ isOpen, onClose, onSave, meeting 
                 key={c.value}
                 className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                   form.category === c.value
-                    ? 'border-york-600 bg-red-50'
+                    ? 'border-york-600 bg-york-50'
                     : 'border-gray-200 hover:bg-gray-50'
                 }`}
               >
