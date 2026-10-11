@@ -1,14 +1,15 @@
 import React from 'react';
 import type { DriveLinkMetadata } from '../../types';
+import { FileSpreadsheet, FileText, FileType, Folder, Image, Link, Presentation, type LucideIcon, X } from 'lucide-react';
 
-const RESOURCE_ICONS: Record<string, string> = {
-  doc:          '📄',
-  sheet:        '📊',
-  presentation: '📋',
-  pdf:          '📕',
-  image:        '🖼️',
-  folder:       '📁',
-  unknown:      '🔗',
+const RESOURCE_ICONS: Record<string, LucideIcon> = {
+  doc:          FileText,
+  sheet:        FileSpreadsheet,
+  presentation: Presentation,
+  pdf:          FileType,
+  image:        Image,
+  folder:       Folder,
+  unknown:      Link,
 };
 
 const RESOURCE_LABELS: Record<string, string> = {
@@ -34,14 +35,14 @@ export const DrivePreview: React.FC<DrivePreviewProps> = ({
   onRemove,
   className = '',
 }) => {
-  const icon = RESOURCE_ICONS[metadata.resource_type] ?? '🔗';
+  const Icon = RESOURCE_ICONS[metadata.resource_type] ?? Link;
   const label = RESOURCE_LABELS[metadata.resource_type] ?? 'Drive Link';
 
   return (
     <div className={`border border-gray-200 rounded-lg overflow-hidden bg-white ${className}`}>
       {/* Header row */}
       <div className="flex items-center gap-3 px-3 py-2.5">
-        <span className="text-xl flex-shrink-0" aria-hidden>{icon}</span>
+        <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-50 text-york-600 flex-shrink-0" aria-hidden><Icon className="w-4.5 h-4.5" /></span>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-gray-900 truncate">{metadata.title}</p>
           <p className="text-xs text-gray-500">{label}</p>
@@ -61,7 +62,7 @@ export const DrivePreview: React.FC<DrivePreviewProps> = ({
               aria-label="Remove link"
               className="p-1 text-gray-400 hover:text-red-500 transition-colors"
             >
-              ✕
+              <X className="w-4 h-4" aria-hidden="true" />
             </button>
           )}
         </div>

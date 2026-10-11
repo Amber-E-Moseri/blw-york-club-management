@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle, Heart } from 'lucide-react';
+import { CheckCircle, Heart, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../foundation/Button';
 import { Badge } from '../foundation/Badge';
@@ -49,7 +49,7 @@ export const ConfessionCard: React.FC<Props> = ({
             className="text-gray-300 hover:text-red-500 transition-colors text-sm"
             aria-label="Delete confession"
           >
-            ✕
+            <X className="w-4 h-4" aria-hidden="true" />
           </button>
         )}
       </div>

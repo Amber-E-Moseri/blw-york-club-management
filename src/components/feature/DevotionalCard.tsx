@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { DevotionalDailyPage, MonthlyDevotional } from '../../types';
 import { Button } from '../foundation/Button';
+import { Check } from 'lucide-react';
 
 interface DevotionalCardProps {
   devotional: MonthlyDevotional;
@@ -66,7 +67,7 @@ export const DevotionalCard: React.FC<DevotionalCardProps> = ({
       <div className="mx-auto mt-4 max-w-[900px] space-y-4">
         {viewedTime && (
           <div className="flex items-center justify-center gap-2 text-small font-semibold text-success">
-            <span aria-hidden="true">✓</span>
+            <Check className="w-4 h-4" aria-hidden="true" />
             <span>Viewed at {viewedTime}</span>
           </div>
         )}

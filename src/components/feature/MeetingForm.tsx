@@ -3,6 +3,7 @@ import { Modal } from '../foundation/Modal';
 import { Button } from '../foundation/Button';
 import { Input } from '../foundation/Input';
 import type { Meeting, MeetingInput, MeetingVisibility, MeetingCategory } from '../../types';
+import { Building2, BookOpen, Star, Users, type LucideIcon } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -11,33 +12,33 @@ interface Props {
   meeting?: Meeting | null;
 }
 
-const CATEGORIES: { value: MeetingCategory; label: string; desc: string; icon: string; defaultVis: MeetingVisibility }[] = [
+const CATEGORIES: { value: MeetingCategory; label: string; desc: string; icon: LucideIcon; defaultVis: MeetingVisibility }[] = [
   {
     value: 'general',
     label: 'General',
     desc: 'Org-wide meeting — all members can see and attend',
-    icon: '🏛️',
+    icon: Building2,
     defaultVis: 'public',
   },
   {
     value: 'bsc',
     label: 'BSC',
     desc: 'Bible Study Cell — cell-level study, open to view by all',
-    icon: '📖',
+    icon: BookOpen,
     defaultVis: 'public',
   },
   {
     value: 'cell',
     label: 'Cell Meeting',
     desc: 'Your cell only — only cell members can see this',
-    icon: '👥',
+    icon: Users,
     defaultVis: 'cell',
   },
   {
     value: 'leadership',
     label: 'Leadership',
     desc: 'Leadership meeting — leaders only by default',
-    icon: '⭐',
+    icon: Star,
     defaultVis: 'leaders',
   },
 ];
@@ -153,7 +154,7 @@ export const MeetingForm: React.FC<Props> = ({ isOpen, onClose, onSave, meeting 
                 />
                 <div>
                   <p className="text-sm font-semibold text-gray-800">
-                    <span className="mr-1">{c.icon}</span>{c.label}
+                    <c.icon className="w-4 h-4 inline mr-1.5 -mt-0.5" aria-hidden="true" />{c.label}
                   </p>
                   <p className="text-xs text-gray-400 leading-snug mt-0.5">{c.desc}</p>
                 </div>

@@ -4,6 +4,7 @@ import { Button } from '../foundation/Button';
 import { Input } from '../foundation/Input';
 import { Tag } from '../foundation/Tag';
 import type { Contact, ContactInput, ContactTag, ContactStatus } from '../../types';
+import { AlertCircle } from 'lucide-react';
 
 interface AssignableUser { id: string; email: string; full_name: string; }
 
@@ -182,7 +183,7 @@ export const ContactForm: React.FC<Props> = ({
                 <option key={t.id} value={t.tag_name}>{t.tag_name}</option>
               ))}
             </select>
-            {errors.tag && <p className="text-xs text-red-600 mt-1">⚠️ {errors.tag}</p>}
+            {errors.tag && <p className="text-xs text-red-600 mt-1"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{errors.tag}</p>}
             {selectedTag && (
               <div className="mt-2">
                 <Tag color={selectedTag.color} variant="light">{selectedTag.tag_name}</Tag>
@@ -206,7 +207,7 @@ export const ContactForm: React.FC<Props> = ({
               ))}
             </select>
             {errors.follow_up_status && (
-              <p className="text-xs text-red-600 mt-1">⚠️ {errors.follow_up_status}</p>
+              <p className="text-xs text-red-600 mt-1"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{errors.follow_up_status}</p>
             )}
             {selectedStatus && (
               <div className="mt-2">

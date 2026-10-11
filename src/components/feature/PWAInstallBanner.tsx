@@ -1,5 +1,6 @@
 import React from 'react';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
+import { X } from 'lucide-react';
 
 export const PWAInstallBanner: React.FC = () => {
   const { isInstallable, install, dismiss } = usePWAInstall();
@@ -37,7 +38,7 @@ export const PWAInstallBanner: React.FC = () => {
           aria-label="Dismiss"
           className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
         >
-          ✕
+          <X className="w-4 h-4" aria-hidden="true" />
         </button>
       </div>
     </div>

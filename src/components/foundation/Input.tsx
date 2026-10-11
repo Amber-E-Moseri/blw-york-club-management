@@ -1,5 +1,6 @@
 import React, { useId } from 'react';
 import { cn } from '../../lib/utils';
+import { AlertCircle } from 'lucide-react';
 
 export interface InputProps {
   label?: string;
@@ -156,7 +157,7 @@ export const Input: React.FC<InputProps> = ({
 
       {error && (
         <p id={errorId} className="text-xs text-red-600 mt-1.5 flex items-center gap-1" role="alert">
-          <span aria-hidden="true">⚠️</span> {error}
+          <AlertCircle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" /> {error}
         </p>
       )}
       {helpText && !error && (

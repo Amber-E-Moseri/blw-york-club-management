@@ -5,6 +5,7 @@ import { Input } from '../foundation/Input';
 import { cn } from '../../lib/utils';
 import { addDays } from '../../lib/queries/weeklyMessages';
 import type { WeeklyMessage, WeeklyMessageInput, MessageScope, RecurrenceType } from '../../types';
+import { Building2, Lock } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -133,7 +134,7 @@ export const WeeklyMessageForm: React.FC<Props> = ({
                     onChange={() => set('scope', s)}
                     className="sr-only"
                   />
-                  {s === 'org' ? '🏛️ Organization' : '🔒 Personal (only me)'}
+                  {s === 'org' ? <><Building2 className="w-3.5 h-3.5 inline mr-1 -mt-0.5" aria-hidden="true" />Organization</> : <><Lock className="w-3.5 h-3.5 inline mr-1 -mt-0.5" aria-hidden="true" />Personal (only me)</>}
                 </label>
               ))}
             </div>

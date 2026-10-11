@@ -1,5 +1,6 @@
 import React from 'react';
-import { Flame } from 'lucide-react';
+import { Flame, Check } from 'lucide-react';
+import { HabitIcon } from './HabitIcon';
 import { cn } from '../../lib/utils';
 import { Button } from '../foundation/Button';
 import type { HabitWithStats } from '../../types';
@@ -44,7 +45,7 @@ export const HabitCard: React.FC<Props> = ({ habit: h, onCheckIn }) => {
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="text-2xl leading-none" aria-hidden="true">{t.icon}</span>
+          <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-york-50 text-york-600 dark:bg-slate-800" aria-hidden="true"><HabitIcon value={t.icon} className="w-5 h-5" /></span>
           <div>
             <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100">{t.name}</h3>
             {t.description && (
@@ -78,7 +79,7 @@ export const HabitCard: React.FC<Props> = ({ habit: h, onCheckIn }) => {
                 )}
                 title={`${dateStr}: ${status}`}
               >
-                {status === 'done' && '✓'}
+                {status === 'done' && <Check className="w-3 h-3 mx-auto" aria-hidden="true" />}
                 {status === 'skipped' && '–'}
               </div>
               <span className={cn(
@@ -114,7 +115,7 @@ export const HabitCard: React.FC<Props> = ({ habit: h, onCheckIn }) => {
           onClick={() => onCheckIn(t.id, 'done')}
           className="flex-1"
         >
-          {today_status === 'done' ? '✓ Done' : 'Mark Done'}
+          {today_status === 'done' ? <><Check className="w-4 h-4 inline -mt-0.5 mr-1" aria-hidden="true" />Done</> : 'Mark Done'}
         </Button>
         <Button
           size="small"

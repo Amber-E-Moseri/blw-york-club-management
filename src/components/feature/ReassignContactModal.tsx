@@ -3,6 +3,7 @@ import { Modal } from '../foundation/Modal';
 import { Button } from '../foundation/Button';
 import { Input } from '../foundation/Input';
 import type { Contact } from '../../types';
+import { AlertCircle } from 'lucide-react';
 
 interface AssignableUser { id: string; email: string; full_name: string; }
 
@@ -93,7 +94,7 @@ export const ReassignContactModal: React.FC<Props> = ({
         />
 
         {error && (
-          <p className="text-sm text-red-600">⚠️ {error}</p>
+          <p className="text-sm text-red-600"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{error}</p>
         )}
       </div>
     </Modal>

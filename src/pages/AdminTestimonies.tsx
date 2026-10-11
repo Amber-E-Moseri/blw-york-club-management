@@ -2,6 +2,7 @@ import React from 'react';
 import { TestimonyCard } from '../components/feature/TestimonyCard';
 import { usePendingTestimonies } from '../hooks/useTestimonies';
 import type { AuthUser } from '../lib/auth';
+import { PartyPopper } from 'lucide-react';
 
 interface Props { user: AuthUser | null; }
 
@@ -33,7 +34,7 @@ export const AdminTestimonies: React.FC<Props> = ({ user }) => {
 
       {!loading && pending.length === 0 && (
         <div className="text-center py-16 bg-white border border-gray-200 rounded-xl">
-          <p className="text-3xl mb-3">🎉</p>
+          <PartyPopper className="w-8 h-8 mx-auto mb-3 text-york-500" aria-hidden="true" />
           <p className="text-base font-semibold text-gray-700">All caught up!</p>
           <p className="text-sm text-gray-400 mt-1">No pending submissions to review.</p>
         </div>

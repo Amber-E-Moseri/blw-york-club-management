@@ -4,6 +4,7 @@ import { Button } from '../foundation/Button';
 import { cn } from '../../lib/utils';
 import { parseCSV, parseText, validateRow, downloadTemplate } from '../../lib/csv/contactImport';
 import type { BulkImportRow, Cell, ImportResult } from '../../types';
+import { AlertCircle, Check } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -201,10 +202,10 @@ export const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, cells, onImp
                         <td className="px-3 py-2 text-gray-400">{i + 1}</td>
                         <td className="px-3 py-2">
                           {r.errors.length === 0 ? (
-                            <span className="text-green-600 font-semibold">✓</span>
+                            <Check className="w-4 h-4 text-green-600" aria-hidden="true" />
                           ) : (
                             <span title={r.errors.join('; ')} className="text-red-600 cursor-help">
-                              ⚠ {r.errors[0]}
+                              <AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{r.errors[0]}
                             </span>
                           )}
                         </td>
@@ -222,7 +223,7 @@ export const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, cells, onImp
               </div>
             )}
 
-            {error && <p className="text-sm text-red-600">⚠️ {error}</p>}
+            {error && <p className="text-sm text-red-600"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{error}</p>}
           </>
         )}
       </div>

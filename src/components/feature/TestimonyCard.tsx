@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Banknote, HeartHandshake, Sparkles, Leaf, BookOpen, PenLine, Lock, Home, Users, Globe, type LucideIcon } from 'lucide-react';
+import { Banknote, HeartHandshake, Sparkles, Leaf, BookOpen, PenLine, Lock, Home, Users, Globe, type LucideIcon, Check, Flame, Heart, HandHeart, X } from 'lucide-react';
 import { Badge } from '../foundation/Badge';
 import { formatRelativeTime } from '../../lib/utils';
 import { TestimonyComments } from './TestimonyComments';
@@ -40,10 +40,10 @@ const STATUS_BADGE: Record<string, { label: string; variant: 'warning' | 'succes
   archived: { label: 'Archived',       variant: 'error' },
 };
 
-const REACTIONS: { type: ReactionType; emoji: string; label: string }[] = [
-  { type: 'heart', emoji: '❤️', label: 'Heart' },
-  { type: 'fire',  emoji: '🔥', label: 'Fire'  },
-  { type: 'pray',  emoji: '🙏', label: 'Pray'  },
+const REACTIONS: { type: ReactionType; icon: LucideIcon; label: string }[] = [
+  { type: 'heart', icon: Heart, label: 'Heart' },
+  { type: 'fire',  icon: Flame, label: 'Fire'  },
+  { type: 'pray',  icon: HandHeart, label: 'Pray'  },
 ];
 
 export const TestimonyCard: React.FC<Props> = ({
@@ -166,7 +166,7 @@ export const TestimonyCard: React.FC<Props> = ({
               title={r.label}
               disabled={!onReact}
             >
-              <span>{r.emoji}</span>
+              <r.icon className="w-4 h-4" aria-hidden="true" />
               {count > 0 && <span>{count}</span>}
             </button>
           );
@@ -189,13 +189,13 @@ export const TestimonyCard: React.FC<Props> = ({
             onClick={() => onApprove?.(t.id)}
             className="flex-1 py-1.5 text-xs font-semibold text-white bg-green-500 hover:bg-green-600 rounded-md transition-colors"
           >
-            ✓ Approve
+            <Check className="w-3.5 h-3.5 inline -mt-0.5 mr-1" aria-hidden="true" />Approve
           </button>
           <button
             onClick={() => onReject?.(t.id)}
             className="flex-1 py-1.5 text-xs font-semibold text-white bg-red-500 hover:bg-red-600 rounded-md transition-colors"
           >
-            ✕ Reject
+            <X className="w-3.5 h-3.5 inline -mt-0.5 mr-1" aria-hidden="true" />Reject
           </button>
         </div>
       )}

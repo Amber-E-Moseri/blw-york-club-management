@@ -61,7 +61,7 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
           {/* Sign-up success */}
           {mode === 'done' && (
             <div className="text-center space-y-4">
-              <div className="text-4xl">🍁</div>
+              <img src="/logo.png" alt="" className="w-14 h-14 mx-auto" />
               <h2 className="text-xl font-bold text-gray-900">Application submitted!</h2>
               <p className="text-sm text-gray-500">
                 Your account is pending approval by a leader. You'll be able to log in once you're approved.

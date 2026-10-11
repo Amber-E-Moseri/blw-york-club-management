@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, AlertCircle } from 'lucide-react';
 import { ConfessionCard } from '../components/feature/ConfessionCard';
 import { Button } from '../components/foundation/Button';
 import { Input } from '../components/foundation/Input';
@@ -159,7 +159,7 @@ export const DailyConfessions: React.FC<Props> = ({ user }) => {
             onChange={setNewDate}
             required
           />
-          {formError && <p className="text-sm text-red-600">⚠️ {formError}</p>}
+          {formError && <p className="text-sm text-red-600"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{formError}</p>}
         </div>
       </Modal>
     </div>

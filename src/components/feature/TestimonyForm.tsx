@@ -4,6 +4,7 @@ import { Button } from '../foundation/Button';
 import { Input } from '../foundation/Input';
 import { uploadTestimonyImage } from '../../hooks/useTestimonies';
 import type { Testimony, TestimonyInput, TestimonyCategory, TestimonyVisibility, TestimonyEntryType } from '../../types';
+import { Banknote, BookOpen, Camera, Eye, Globe, HandHeart, Home, HeartHandshake, Lock, type LucideIcon, PenLine, Sparkles, Sprout, Users, X } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -13,25 +14,25 @@ interface Props {
   userId?: string;
 }
 
-const ENTRY_TYPES: { value: TestimonyEntryType; label: string; emoji: string; desc: string }[] = [
-  { value: 'testimony', label: 'Testimony',  emoji: '✨', desc: 'Something God has done' },
-  { value: 'prophecy',  label: 'Prophecy',   emoji: '🔮', desc: 'A prophetic word received' },
+const ENTRY_TYPES: { value: TestimonyEntryType; label: string; icon: LucideIcon; desc: string }[] = [
+  { value: 'testimony', label: 'Testimony',  icon: Sparkles, desc: 'Something God has done' },
+  { value: 'prophecy',  label: 'Prophecy',   icon: Eye, desc: 'A prophetic word received' },
 ];
 
-const CATEGORIES: { value: TestimonyCategory; label: string; emoji: string }[] = [
-  { value: 'provision',       label: 'Provision',       emoji: '💰' },
-  { value: 'healing',         label: 'Healing',         emoji: '🙏' },
-  { value: 'prayer_answered', label: 'Prayer Answered', emoji: '✨' },
-  { value: 'growth',          label: 'Spiritual Growth', emoji: '🌱' },
-  { value: 'other',           label: 'Other',           emoji: '📖' },
+const CATEGORIES: { value: TestimonyCategory; label: string; icon: LucideIcon }[] = [
+  { value: 'provision',       label: 'Provision',       icon: Banknote },
+  { value: 'healing',         label: 'Healing',         icon: HeartHandshake },
+  { value: 'prayer_answered', label: 'Prayer Answered', icon: HandHeart },
+  { value: 'growth',          label: 'Spiritual Growth', icon: Sprout },
+  { value: 'other',           label: 'Other',           icon: BookOpen },
 ];
 
-const VISIBILITY: { value: TestimonyVisibility; label: string; desc: string; icon: string }[] = [
-  { value: 'draft',   label: 'Draft',        icon: '✏️', desc: 'Save for later, not submitted yet' },
-  { value: 'private', label: 'Private',      icon: '🔒', desc: 'Only visible to you' },
-  { value: 'cell',    label: 'My Cell',      icon: '🏠', desc: 'Cell group members only' },
-  { value: 'members', label: 'All Members',  icon: '👥', desc: 'All logged-in members (requires approval)' },
-  { value: 'public',  label: 'Public',       icon: '🌐', desc: 'Posted on public website (requires approval)' },
+const VISIBILITY: { value: TestimonyVisibility; label: string; desc: string; icon: LucideIcon }[] = [
+  { value: 'draft',   label: 'Draft',        icon: PenLine, desc: 'Save for later, not submitted yet' },
+  { value: 'private', label: 'Private',      icon: Lock, desc: 'Only visible to you' },
+  { value: 'cell',    label: 'My Cell',      icon: Home, desc: 'Cell group members only' },
+  { value: 'members', label: 'All Members',  icon: Users, desc: 'All logged-in members (requires approval)' },
+  { value: 'public',  label: 'Public',       icon: Globe, desc: 'Posted on public website (requires approval)' },
 ];
 
 const EMPTY: TestimonyInput = {
@@ -147,7 +148,7 @@ export const TestimonyForm: React.FC<Props> = ({ isOpen, onClose, onSave, testim
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
-                <span className="text-xl">{et.emoji}</span>
+                <et.icon className="w-6 h-6 text-york-600" aria-hidden="true" />
                 <span className="text-sm font-semibold text-gray-800">{et.label}</span>
                 <span className="text-xs text-gray-400">{et.desc}</span>
               </button>
@@ -182,7 +183,7 @@ export const TestimonyForm: React.FC<Props> = ({ isOpen, onClose, onSave, testim
                     : 'bg-white text-gray-600 border-gray-200 hover:border-york-600 hover:text-york-600'
                 }`}
               >
-                {cat.emoji} {cat.label}
+                <cat.icon className="w-4 h-4 inline mr-1.5 -mt-0.5" aria-hidden="true" />{cat.label}
               </button>
             ))}
           </div>
@@ -213,7 +214,7 @@ export const TestimonyForm: React.FC<Props> = ({ isOpen, onClose, onSave, testim
                 onClick={() => { setImageFile(null); setImagePreview(null); set('image_url', undefined); }}
                 className="absolute top-2 right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
               >
-                ✕
+                <X className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
           ) : (
@@ -222,7 +223,7 @@ export const TestimonyForm: React.FC<Props> = ({ isOpen, onClose, onSave, testim
               onClick={() => fileRef.current?.click()}
               className="w-full border-2 border-dashed border-gray-300 rounded-lg py-6 text-center hover:border-york-400 transition-colors"
             >
-              <span className="text-2xl">📷</span>
+              <Camera className="w-6 h-6" aria-hidden="true" />
               <p className="text-sm text-gray-500 mt-1">Click to upload an image</p>
               <p className="text-xs text-gray-400">Max 5 MB · JPG, PNG, WebP</p>
             </button>
@@ -253,7 +254,7 @@ export const TestimonyForm: React.FC<Props> = ({ isOpen, onClose, onSave, testim
                   className="mt-0.5 text-york-600 focus:ring-york-600"
                 />
                 <div>
-                  <p className="text-sm font-semibold text-gray-800">{v.icon} {v.label}</p>
+                  <p className="text-sm font-semibold text-gray-800"><v.icon className="w-4 h-4 inline mr-1.5 -mt-0.5 text-york-600" aria-hidden="true" />{v.label}</p>
                   <p className="text-xs text-gray-400">{v.desc}</p>
                 </div>
               </label>

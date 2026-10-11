@@ -1,5 +1,5 @@
 import React from 'react';
-import { Building2, BookOpen, Users, Star, Calendar, Clock, MapPin, Video, type LucideIcon } from 'lucide-react';
+import { Building2, BookOpen, Users, Star, Calendar, Clock, MapPin, Video, type LucideIcon, Check } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Badge } from '../foundation/Badge';
 import { Button } from '../foundation/Button';
@@ -129,7 +129,7 @@ export const MeetingCard: React.FC<Props> = ({
         variant={m.user_confirmed ? 'secondary' : 'primary'}
         onClick={() => m.user_confirmed ? onCancel(m.id) : onConfirm(m.id)}
       >
-        {m.user_confirmed ? '✓ Confirmed' : 'Confirm Attendance'}
+        {m.user_confirmed ? <><Check className="w-4 h-4 inline -mt-0.5 mr-1" aria-hidden="true" />Confirmed</> : 'Confirm Attendance'}
       </Button>
     </div>
   </div>

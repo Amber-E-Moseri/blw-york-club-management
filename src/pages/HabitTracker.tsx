@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Leaf, Flame, Settings } from 'lucide-react';
+import { HABIT_ICON_KEYS, HabitIcon } from '../components/feature/HabitIcon';
 import { Button } from '../components/foundation/Button';
 import { Input } from '../components/foundation/Input';
 import { Modal } from '../components/foundation/Modal';
@@ -11,13 +12,12 @@ import type { HabitTemplate, HabitTemplateInput } from '../types';
 
 interface Props { user: AuthUser | null; }
 
-const EMOJI_PRESETS = ['📖', '🙏', '✍️', '🏃', '💪', '🧘', '🌅', '💧', '🥗', '📵', '🎵', '💝'];
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const canAdmin = (role: string) => ['coordinator', 'admin'].includes(role);
 
 function defaultInput(): HabitTemplateInput {
-  return { name: '', description: '', icon: '✅', target_days: null };
+  return { name: '', description: '', icon: 'check', target_days: null };
 }
 
 function HabitTemplateFormModal({
@@ -80,16 +80,16 @@ function HabitTemplateFormModal({
         <div>
           <span className="block text-sm font-medium text-gray-700 mb-2">Icon</span>
           <div className="flex flex-wrap gap-2">
-            {EMOJI_PRESETS.map((emoji) => (
+            {HABIT_ICON_KEYS.map((iconKey) => (
               <button
-                key={emoji}
+                key={iconKey}
                 type="button"
-                onClick={() => setForm((f) => ({ ...f, icon: emoji }))}
+                onClick={() => setForm((f) => ({ ...f, icon: iconKey }))}
                 className={`w-9 h-9 rounded-md text-xl flex items-center justify-center border-2 transition-colors ${
-                  form.icon === emoji ? 'border-york-600 bg-red-50' : 'border-gray-200 hover:border-gray-300'
+                  form.icon === iconKey ? 'border-york-600 bg-red-50' : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
-                {emoji}
+                <HabitIcon value={iconKey} className="w-4 h-4" />
               </button>
             ))}
           </div>
@@ -275,7 +275,7 @@ export const HabitTracker: React.FC<Props> = ({ user }) => {
               {admin.templates.map((t) => (
                 <div key={t.id} className="flex items-center justify-between gap-3 px-5 py-3">
                   <div className="flex items-center gap-3">
-                    <span className="text-xl">{t.icon}</span>
+                    <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-york-50 text-york-600"><HabitIcon value={t.icon} className="w-4.5 h-4.5" /></span>
                     <div>
                       <span className="text-sm font-semibold text-gray-900">{t.name}</span>
                       {t.description && (
@@ -349,7 +349,7 @@ export const HabitTracker: React.FC<Props> = ({ user }) => {
                     {admin.analytics.map((a) => (
                       <tr key={a.template_id}>
                         <td className="py-2">
-                          <span className="mr-1.5">{a.icon}</span>
+                          <span className="inline-flex mr-1.5 align-[-2px] text-york-600"><HabitIcon value={a.icon} className="w-4 h-4" /></span>
                           {a.habit_name}
                         </td>
                         <td className="py-2 text-right text-gray-600">{a.member_count}</td>

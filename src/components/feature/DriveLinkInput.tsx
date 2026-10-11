@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useDriveLink } from '../../hooks/useDriveLink';
 import { DrivePreview } from './DrivePreview';
+import { AlertCircle } from 'lucide-react';
 
 interface DriveLinkInputProps {
   initialUrl?: string;
@@ -65,7 +66,7 @@ export const DriveLinkInput: React.FC<DriveLinkInputProps> = ({
             }`}
           />
           {error && (
-            <p className="text-xs text-red-600">⚠ {error}</p>
+            <p className="text-xs text-red-600"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{error}</p>
           )}
         </>
       )}

@@ -6,24 +6,25 @@ import { TestimonyForm } from '../components/feature/TestimonyForm';
 import { useTestimonies } from '../hooks/useTestimonies';
 import type { AuthUser } from '../lib/auth';
 import type { Testimony, TestimonyInput, TestimonyCategory, TestimonyEntryType, ReactionType } from '../types';
+import { Banknote, BookOpen, Eye, HandHeart, HeartHandshake, type LucideIcon, Sparkles, Sprout } from 'lucide-react';
 
 interface Props { user: AuthUser | null; }
 
-const CATEGORIES: { value: TestimonyCategory | 'all'; label: string; emoji: string }[] = [
-  { value: 'all',            label: 'All',          emoji: '✨' },
-  { value: 'provision',      label: 'Provision',    emoji: '💰' },
-  { value: 'healing',        label: 'Healing',      emoji: '🙏' },
-  { value: 'prayer_answered',label: 'Prayer',       emoji: '✝️' },
-  { value: 'growth',         label: 'Growth',       emoji: '🌱' },
-  { value: 'other',          label: 'Other',        emoji: '📖' },
+const CATEGORIES: { value: TestimonyCategory | 'all'; label: string; icon: LucideIcon }[] = [
+  { value: 'all',            label: 'All',          icon: Sparkles },
+  { value: 'provision',      label: 'Provision',    icon: Banknote },
+  { value: 'healing',        label: 'Healing',      icon: HeartHandshake },
+  { value: 'prayer_answered',label: 'Prayer',       icon: HandHeart },
+  { value: 'growth',         label: 'Growth',       icon: Sprout },
+  { value: 'other',          label: 'Other',        icon: BookOpen },
 ];
 
 type Tab = 'all' | 'testimony' | 'prophecy';
 
-const TABS: { value: Tab; label: string; emoji: string }[] = [
-  { value: 'all',       label: 'All',        emoji: '✨' },
-  { value: 'testimony', label: 'Testimonies', emoji: '📖' },
-  { value: 'prophecy',  label: 'Prophecies', emoji: '🔮' },
+const TABS: { value: Tab; label: string; icon: LucideIcon }[] = [
+  { value: 'all',       label: 'All',        icon: Sparkles },
+  { value: 'testimony', label: 'Testimonies', icon: BookOpen },
+  { value: 'prophecy',  label: 'Prophecies', icon: Eye },
 ];
 
 export const TestimonyLog: React.FC<Props> = ({ user }) => {
@@ -71,7 +72,7 @@ export const TestimonyLog: React.FC<Props> = ({ user }) => {
               tab === t.value ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            {t.emoji} {t.label}
+            <t.icon className="w-4 h-4 inline mr-1.5 -mt-0.5" aria-hidden="true" />{t.label}
           </button>
         ))}
       </div>
@@ -100,7 +101,7 @@ export const TestimonyLog: React.FC<Props> = ({ user }) => {
                   : 'bg-white text-gray-600 border-gray-200 hover:border-york-400'
               }`}
             >
-              {cat.emoji} {cat.label}
+              <cat.icon className="w-4 h-4 inline mr-1.5 -mt-0.5" aria-hidden="true" />{cat.label}
             </button>
           ))}
           <label className="inline-flex items-center gap-1.5 ml-2 cursor-pointer">
@@ -133,7 +134,7 @@ export const TestimonyLog: React.FC<Props> = ({ user }) => {
 
       {!loading && testimonies.length === 0 && (
         <div className="text-center py-16 bg-white border border-gray-200 rounded-xl">
-          <p className="text-3xl mb-3">✨</p>
+          <Sparkles className="w-8 h-8 mx-auto mb-3 text-york-500" aria-hidden="true" />
           <p className="text-base font-semibold text-gray-700">Nothing here yet</p>
           <p className="text-sm text-gray-400 mt-1">Be the first to share!</p>
           <div className="mt-4">
