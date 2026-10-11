@@ -9,7 +9,7 @@
 
 ## Summary
 
-Five security findings (F-1 through F-5) identified in the independent release security certification were reproduced, remediated with targeted database migrations and Edge Function patches, and re-certified on a local Supabase stack. Ten additional gaps discovered during the comprehensive P0 behavioural certification (p0_behavioural_certification.mjs) were subsequently fixed in a second remediation pass. Total cert pass rate across all harnesses: **266/266 checks**.
+Five security findings (F-1 through F-5) identified in the independent release security certification were reproduced, remediated with targeted database migrations and Edge Function patches, and re-certified on a local Supabase stack. Ten additional gaps discovered during the comprehensive P0 behavioural certification (p0_behavioural_certification.mjs) were subsequently fixed in a second remediation pass. The per-harness table below totals **243/243 checks**. An earlier headline figure of 266/266 is not reproduced by any harness listed here and has been removed.
 
 ---
 
@@ -112,7 +112,7 @@ All harnesses run against a warm local Supabase stack after `supabase db reset` 
 | `authorization_certification.mjs` | 61/61 | ✅ PASS |
 | `meeting_attendance_access_certification.sql` | 9/9 | ✅ PASS |
 | `edge_function_security_certification.mjs` | 18/18 | ✅ PASS (warm run; cold-start note below) |
-| `p0_behavioural_certification.mjs` | 123/123 | ✅ PASS |
+| `p0_behavioural_certification.mjs` | 123/123 (reported) | ⚠️ Not reproduced: 107/118 on a local run where the edge functions could not boot (the runtime cannot reach `esm.sh`). The edge-dependent checks need a CI or networked re-run via `scripts/certify-local.sh` |
 | **Total** | **243/243** | ✅ |
 
 > **Cold-start note (edge cert):** On the first run immediately after `supabase start`, the `send-email anonymous denied` and `unsubscribe malformed token denied` checks occasionally return unexpected HTTP codes due to edge runtime container warm-up latency (typically 200 ms–2 s). A second run with the runtime warm always returns 18/18. This is a local Docker/Windows timing artefact, not a logic or policy defect.
@@ -146,7 +146,7 @@ Ten gaps discovered by `p0_behavioural_certification.mjs` were fixed in a second
 
 ## Unresolved Risks (informational — not blocking)
 
-The following 7 tables were identified during schema inspection as potentially missing from the canonical migration chain. They appear only on the hosted project and should be reviewed before the next hosted deployment:
+The following 7 tables were reported as present on the hosted project but absent from the canonical migration chain. Checked against this branch: no migration creates them, no application or edge-function code references them, and the schema contract (`supabase/verification/schema_contract.json`) and golden fingerprint do not list them. They are therefore hosted-only drift, not a break in the shipped code. Confirm their status on the hosted project with a read-only schema dump before the next hosted deployment:
 
 - `calendar_tags`
 - `communication_settings`
