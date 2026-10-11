@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import {
-  BookMarked, CheckSquare, Heart, Star, MessageCircle, Book, ChevronRight,
+  BookMarked, CheckSquare, Heart, Star, MessageCircle, Book, ChevronRight, Users,
 } from 'lucide-react';
 import { useDevotional } from '../hooks/useDevotional';
 import { useHabits } from '../hooks/useHabits';
@@ -84,6 +84,16 @@ export const Growth: React.FC<GrowthProps> = ({ user }) => {
           subtitle={devotionalPage?.title ?? 'Today\'s devotional'}
           badge={devotionalView ? 'Read today' : undefined}
         />
+
+        {(user?.role === 'admin' || user?.role === 'coordinator' || user?.role === 'cell_leader') && (
+          <GrowthCard
+            to="/my-bsc"
+            iconBg="bg-blue-50 dark:bg-blue-900/20"
+            icon={<Users className="w-6 h-6 text-blue-600" />}
+            title="My BSC"
+            subtitle="Rhapsody reads and confessions for your members"
+          />
+        )}
 
         <GrowthCard
           to="/habits"

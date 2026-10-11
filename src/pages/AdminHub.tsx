@@ -27,6 +27,7 @@ const TOOL_GROUPS: {
       { label: 'Members', desc: 'Directory, roles, cells, and member details', icon: Users, path: '/members' },
       { label: 'Contacts', desc: 'Outreach pipeline, handoffs, and follow-ups', icon: ClipboardList, path: '/contacts' },
       { label: 'Approvals', desc: 'Review pending and rejected sign-up requests', icon: ClipboardCheck, path: '/admin/pending' },
+      { label: 'BSCs', desc: 'Create Bible study classes and assign members', icon: Users, path: '/admin/bscs' },
     ],
   },
   {

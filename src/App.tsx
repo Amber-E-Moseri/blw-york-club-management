@@ -31,6 +31,8 @@ import { PushPermissionPrompt } from './components/feature/PushPermissionPrompt'
 import { usePushNotifications } from './hooks/usePushNotifications';
 import { PendingApproval } from './pages/PendingApproval';
 import { AdminPendingApprovals } from './pages/AdminPendingApprovals';
+import { AdminBscs } from './pages/AdminBscs';
+import { MyBsc } from './pages/MyBsc';
 import { useTheme } from './hooks/useTheme';
 
 function AppShell() {
@@ -75,6 +77,8 @@ function AppShell() {
         <Route path="/admin/exports" element={<AdminDataExport user={user} />} />
         <Route path="/admin/email-log" element={<AdminEmailLog user={user} />} />
         <Route path="/admin/pending" element={<AdminPendingApprovals user={user} />} />
+        <Route path="/admin/bscs" element={<AdminBscs user={user} />} />
+        <Route path="/my-bsc" element={<MyBsc user={user} />} />
         <Route path="/books" element={<BookOfMonthPage user={user} />} />
         <Route path="/contacts" element={<Outreach user={user} />} />
         <Route path="/confessions" element={<DailyConfessions user={user} />} />
