@@ -15,7 +15,7 @@ const ADMIN_ITEMS: { label: string; desc: string; icon: LucideIcon; path?: strin
   { label: 'Manage Members',       desc: 'View, promote, or remove members',                           icon: Users,         path: '/members' },
   { label: 'Manage Events',        desc: 'Schedule or archive club events',                            icon: CalendarDays,  path: '/events' },
   { label: 'Manage Announcements', desc: 'Post or archive announcements',                              icon: Megaphone,     path: '/announcements' },
-  { label: 'Daily Bread Upload',   desc: 'Convert monthly PDFs into daily images',                     icon: BookMarked,    path: '/admin/devotionals' },
+  { label: 'Rhapsody Upload',   desc: 'Convert monthly PDFs into daily images',                     icon: BookMarked,    path: '/admin/devotionals' },
   { label: 'Testimony Moderation', desc: 'Approve or reject submitted testimonies & prophecies',       icon: CheckSquare,   path: '/admin/testimonies' },
   { label: 'Devotional Reports',   desc: 'View daily devotional engagement stats',                     icon: BarChart2,     path: '/admin/reports' },
   { label: 'Role Management',      desc: 'Create custom admin roles and assign permissions',           icon: KeyRound,      path: '/admin/roles' },

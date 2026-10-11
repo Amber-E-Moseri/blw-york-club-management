@@ -17,7 +17,7 @@ function getInitialDay(): number {
   return Number.isInteger(parsed) && parsed >= 1 && parsed <= 31 ? parsed : new Date().getDate();
 }
 
-/** True on phone-sized screens, where Daily Bread opens as a full-screen reader. */
+/** True on phone-sized screens, where Rhapsody of Realities opens as a full-screen reader. */
 function usePhoneLayout(): boolean {
   const query = '(max-width: 767px)';
   const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
@@ -136,12 +136,12 @@ export const DevotionalViewer: React.FC<DevotionalViewerProps> = ({ user }) => {
             </div>
           ) : state.error ? (
             <div className="card mx-auto max-w-2xl text-center">
-              <h1 className="text-h2">Daily Bread</h1>
+              <h1 className="text-h2">Rhapsody of Realities</h1>
               <p className="mt-2 text-small text-error">{state.error}</p>
             </div>
           ) : !devotional || !page ? (
             <div className="card mx-auto max-w-2xl text-center">
-              <h1 className="text-h2">Daily Bread</h1>
+              <h1 className="text-h2">Rhapsody of Realities</h1>
               <p className="mt-2 text-small text-gray-400 dark:text-slate-400">No devotional is available for this day.</p>
             </div>
           ) : (

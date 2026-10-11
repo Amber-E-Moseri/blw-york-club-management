@@ -65,7 +65,7 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
   const navigate = useNavigate();
   const now = useMemo(() => new Date(), []);
   const [step, setStep] = useState<Step>('upload');
-  const [bookTitle, setBookTitle] = useState('Daily Bread');
+  const [bookTitle, setBookTitle] = useState('Rhapsody of Realities');
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -205,7 +205,7 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
         <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-small font-bold uppercase text-york-600 dark:text-york-400">Coordinator</p>
-            <h1 className="text-h1">Daily Bread Upload</h1>
+            <h1 className="text-h1">Rhapsody Upload</h1>
           </div>
           <Button variant="ghost" onClick={() => navigate('/devotionals')} className="w-fit">
             View Devotional
@@ -242,7 +242,7 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
 
             <aside className="card space-y-4">
               <Input label="Book Title" value={bookTitle} onChange={setBookTitle} required />
-              <Input label="Day Title Fallback" value={title} onChange={setTitle} placeholder="Daily Bread" />
+              <Input label="Day Title Fallback" value={title} onChange={setTitle} placeholder="Rhapsody of Realities" />
               <Input label="Author" value={author} onChange={setAuthor} />
               <label className="block">
                 <span className="input-label">Month</span>

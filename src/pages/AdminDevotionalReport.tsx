@@ -81,7 +81,7 @@ export const AdminDevotionalReport: React.FC<Props> = ({ user }) => {
 
   function handleReminder() {
     const emails = notViewed.map((row) => row.email).join(',');
-    window.location.href = `mailto:${emails}?subject=Daily Bread reminder&body=Please remember to view today's devotional.`;
+    window.location.href = `mailto:${emails}?subject=Rhapsody of Realities reminder&body=Please remember to view today's devotional.`;
   }
 
   if (!isAdmin) {

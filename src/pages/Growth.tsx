@@ -80,7 +80,7 @@ export const Growth: React.FC<GrowthProps> = ({ user }) => {
           to="/devotionals"
           iconBg="bg-amber-50 dark:bg-amber-900/20"
           icon={<BookMarked className="w-6 h-6 text-amber-600" />}
-          title="Daily Bread"
+          title="Rhapsody of Realities"
           subtitle={devotionalPage?.title ?? 'Today\'s devotional'}
           badge={devotionalView ? 'Read today' : undefined}
         />

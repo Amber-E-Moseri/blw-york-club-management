@@ -40,7 +40,7 @@ const TOOL_GROUPS: {
   {
     title: 'Resources',
     items: [
-      { label: 'Daily Bread Upload', desc: 'Convert monthly PDFs into daily pages', icon: BookMarked, path: '/admin/devotionals' },
+      { label: 'Rhapsody Upload', desc: 'Convert monthly PDFs into daily pages', icon: BookMarked, path: '/admin/devotionals' },
       { label: 'Testimony Moderation', desc: 'Approve or reject submitted testimonies', icon: CheckSquare, path: '/admin/testimonies' },
       { label: 'Devotional Reports', desc: 'Review devotional engagement', icon: BarChart3, path: '/admin/reports' },
     ],
