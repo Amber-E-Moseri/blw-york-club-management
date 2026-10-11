@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DevotionalCard } from '../components/feature/DevotionalCard';
 import { Button } from '../components/foundation/Button';
+import { ChevronLeft } from 'lucide-react';
 import { useDevotional, useDevotionalByDay } from '../hooks/useDevotional';
 import type { AuthUser } from '../lib/auth';
 
@@ -76,81 +77,72 @@ export const DevotionalViewer: React.FC<DevotionalViewerProps> = ({ user }) => {
     link.click();
   }
 
-  function handleFullscreen() {
-    const image = document.querySelector('[data-devotional-image]');
-    if (image instanceof HTMLElement && image.requestFullscreen) {
-      image.requestFullscreen();
-    }
-  }
-
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-100 dark:bg-slate-800">
-      <div className="px-4 py-5 md:px-8 md:py-6">
-        <div className="mx-auto max-w-6xl">
-          <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <Button variant="ghost" onClick={() => navigate(-1)} className="w-fit">
-              Back
+    <div className="flex-1 overflow-y-auto">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <Button variant="ghost" size="small" onClick={() => navigate(-1)} icon={<ChevronLeft className="w-4 h-4" />}>
+            Back
+          </Button>
+          {(user?.role === 'admin' || user?.role === 'coordinator') && (
+            <Button variant="secondary" size="small" onClick={() => navigate('/admin/devotionals')}>
+              Manage
             </Button>
-            {(user?.role === 'admin' || user?.role === 'coordinator') && (
-              <Button variant="secondary" onClick={() => navigate('/admin/devotionals')} className="w-fit">
-                Manage Devotionals
-              </Button>
-            )}
-          </div>
-
-          {state.loading ? (
-            <div className="flex min-h-[420px] items-center justify-center">
-              <div className="w-8 h-8 border-4 border-york-600 border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : state.error ? (
-            <div className="card mx-auto max-w-2xl text-center">
-              <h1 className="text-h2">Daily Bread</h1>
-              <p className="mt-2 text-small text-error">{state.error}</p>
-            </div>
-          ) : !devotional || !page ? (
-            <div className="card mx-auto max-w-2xl text-center">
-              <h1 className="text-h2">Daily Bread</h1>
-              <p className="mt-2 text-small text-gray-400 dark:text-slate-400">No devotional is available for this day.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_240px]">
-              <section>
-                <div className="mb-5 text-center">
-                  <p className="text-small font-bold uppercase text-york-600 dark:text-york-400">{devotional.book_title}</p>
-                  <h1 className="mt-1 text-h1">Day {page.day_of_month}: {page.title || devotional.title}</h1>
-                  <p className="mt-2 text-small text-gray-500 dark:text-slate-400">{format(pageDate, 'MMMM d, yyyy')}</p>
-                  <p className="text-small font-semibold text-gray-600">Pages {page.page_range}</p>
-                </div>
-
-                <div data-devotional-image>
-                  <DevotionalCard
-                    devotional={devotional}
-                    page={page}
-                    viewedAt={state.view?.viewed_at}
-                    onPrevious={canGoPrevious ? () => setSelectedDay((day) => day - 1) : undefined}
-                    onNext={canGoNext ? () => setSelectedDay((day) => day + 1) : undefined}
-                    onShare={handleShare}
-                    onDownload={handleDownload}
-                    onFullscreen={handleFullscreen}
-                  />
-                </div>
-              </section>
-
-              <aside className="hidden xl:block">
-                <div className="sticky top-6 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
-                  <p className="stat-label">Today</p>
-                  <p className="mt-2 text-h2">{state.stats?.viewed_count ?? 0}</p>
-                  <p className="text-small text-gray-400 dark:text-slate-400">member views</p>
-                  <div className="divider" />
-                  <p className="text-small font-semibold text-gray-900 dark:text-slate-100">Reading Progress</p>
-                  <p className="mt-1 text-small text-gray-500">
-                    Day {page.day_of_month} of {devotional.total_days}
-                  </p>
-                </div>
-              </aside>
-            </div>
           )}
         </div>
+
+        {state.loading ? (
+          <div className="flex min-h-[420px] items-center justify-center">
+            <div className="w-8 h-8 border-4 border-york-600 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : state.error ? (
+          <div className="card mx-auto max-w-2xl text-center">
+            <h1 className="text-h2">Daily Bread</h1>
+            <p className="mt-2 text-small text-error">{state.error}</p>
+          </div>
+        ) : !devotional || !page ? (
+          <div className="card mx-auto max-w-2xl text-center">
+            <h1 className="text-h2">Daily Bread</h1>
+            <p className="mt-2 text-small text-gray-400 dark:text-slate-400">No devotional is available for this day.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_240px]">
+            <section>
+              <div className="mb-4 text-center">
+                <p className="text-tiny font-bold uppercase tracking-wider text-york-600 dark:text-york-400">{devotional.book_title}</p>
+                <h1 className="mt-1 text-h2 md:text-h1">Day {page.day_of_month}: {page.title || devotional.title}</h1>
+                <p className="mt-1.5 text-small text-gray-500 dark:text-slate-400">
+                  {format(pageDate, 'MMMM d, yyyy')} · Pages {page.page_range}
+                </p>
+              </div>
+
+              <div>
+                <DevotionalCard
+                  devotional={devotional}
+                  page={page}
+                  viewedAt={state.view?.viewed_at}
+                  onPrevious={canGoPrevious ? () => setSelectedDay((day) => day - 1) : undefined}
+                  onNext={canGoNext ? () => setSelectedDay((day) => day + 1) : undefined}
+                  onShare={handleShare}
+                  onDownload={handleDownload}
+                />
+              </div>
+            </section>
+
+            <aside className="hidden xl:block">
+              <div className="sticky top-6 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
+                <p className="stat-label">Today</p>
+                <p className="mt-2 text-h2">{state.stats?.viewed_count ?? 0}</p>
+                <p className="text-small text-gray-400 dark:text-slate-400">member views</p>
+                <div className="divider" />
+                <p className="text-small font-semibold text-gray-900 dark:text-slate-100">Reading Progress</p>
+                <p className="mt-1 text-small text-gray-500">
+                  Day {page.day_of_month} of {devotional.total_days}
+                </p>
+              </div>
+            </aside>
+          </div>
+        )}
       </div>
     </div>
   );
