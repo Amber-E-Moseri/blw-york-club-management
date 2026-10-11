@@ -72,8 +72,8 @@ export const DevotionalCard: React.FC<DevotionalCardProps> = ({
           </div>
         )}
 
-        <div className="flex flex-col gap-3">
-          <Button variant="secondary" onClick={onPrevious} disabled={!onPrevious}>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <Button variant="secondary" onClick={onPrevious} disabled={!onPrevious} className="md:w-44">
             Previous Day
           </Button>
 
@@ -81,7 +81,7 @@ export const DevotionalCard: React.FC<DevotionalCardProps> = ({
             Day {page.day_of_month} of {devotional.total_days}
           </p>
 
-          <Button variant="secondary" onClick={onNext} disabled={!onNext}>
+          <Button variant="secondary" onClick={onNext} disabled={!onNext} className="md:w-44">
             Next Day
           </Button>
         </div>
