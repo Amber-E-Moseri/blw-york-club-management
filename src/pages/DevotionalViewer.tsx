@@ -110,6 +110,7 @@ export const DevotionalViewer: React.FC<DevotionalViewerProps> = ({ user }) => {
         onClose={() => navigate(-1)}
         onShare={() => void handleShare()}
         onDownload={handleDownload}
+        onSelectDay={setSelectedDay}
       />
     );
   }

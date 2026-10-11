@@ -13,6 +13,7 @@ interface DevotionalReaderProps {
   onClose: () => void;
   onShare: () => void;
   onDownload: () => void;
+  onSelectDay: (day: number) => void;
 }
 
 const SWIPE_DISTANCE = 50;
@@ -32,9 +33,11 @@ export const DevotionalReader: React.FC<DevotionalReaderProps> = ({
   onClose,
   onShare,
   onDownload,
+  onSelectDay,
 }) => {
   const [chromeVisible, setChromeVisible] = useState(true);
   const [imageLoading, setImageLoading] = useState(true);
+  const [dayPickerOpen, setDayPickerOpen] = useState(false);
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
@@ -181,10 +184,15 @@ export const DevotionalReader: React.FC<DevotionalReaderProps> = ({
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
-          <p className="text-center text-tiny font-semibold text-gray-600 dark:text-slate-300">
+          <button
+            type="button"
+            onClick={() => setDayPickerOpen(true)}
+            aria-label="Choose a day"
+            className="rounded-xl px-3 py-1 text-center text-tiny font-semibold text-gray-600 dark:text-slate-300"
+          >
             Day {page.day_of_month} of {devotional.total_days}
-            <span className="block font-normal text-gray-500 dark:text-slate-400">Pages {page.page_range}</span>
-          </p>
+            <span className="block font-normal text-gray-500 dark:text-slate-400">Pages {page.page_range} · tap to jump</span>
+          </button>
           <button
             type="button"
             onClick={onNext}
@@ -196,6 +204,51 @@ export const DevotionalReader: React.FC<DevotionalReaderProps> = ({
           </button>
         </div>
       </footer>
+
+      {dayPickerOpen && (
+        <div className="absolute inset-0 z-20 flex flex-col justify-end bg-black/40" onClick={() => setDayPickerOpen(false)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Choose a day"
+            className="rounded-t-2xl bg-[#f7f3ea] dark:bg-[#0b1120] px-4 pb-[max(env(safe-area-inset-bottom),1rem)] pt-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-small font-semibold text-gray-800 dark:text-slate-100">Jump to a day</p>
+              <button
+                type="button"
+                onClick={() => setDayPickerOpen(false)}
+                aria-label="Close day picker"
+                className="flex h-11 w-11 items-center justify-center rounded-full text-gray-700 dark:text-slate-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-7 gap-2 max-h-[50vh] overflow-y-auto">
+              {Array.from({ length: devotional.total_days }, (_, i) => i + 1).map((day) => (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => {
+                    setDayPickerOpen(false);
+                    onSelectDay(day);
+                  }}
+                  aria-current={day === page.day_of_month ? 'page' : undefined}
+                  className={cn(
+                    'flex h-11 items-center justify-center rounded-xl text-small font-semibold',
+                    day === page.day_of_month
+                      ? 'bg-york-600 text-white'
+                      : 'bg-white text-gray-700 dark:bg-slate-800 dark:text-slate-200',
+                  )}
+                >
+                  {day}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
