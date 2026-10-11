@@ -120,3 +120,31 @@ create policy confession_declarations_read_scoped on public.confession_declarati
 
 -- habit_entries_admin_read (migration 017) already limits reads to the member
 -- plus coordinator/admin, so leaders cannot see habits. No change needed.
+
+-- ─── BSC assignment ──────────────────────────────────────────────────────────
+-- Only coordinators and admins assign members to BSCs (including existing members,
+-- who have no BSC until assigned). Members cannot move themselves.
+
+create or replace function public.guard_profile_bsc_assignment()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $$
+begin
+  -- Backend and database-owner contexts, as in migration 022.
+  if current_user in ('postgres', 'supabase_admin', 'service_role') then
+    return new;
+  end if;
+
+  if new.bsc_id is distinct from old.bsc_id and not public.is_admin_or_coordinator() then
+    raise exception 'Not authorised to change BSC assignment.' using errcode = '42501';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists profiles_guard_bsc_assignment on public.profiles;
+create trigger profiles_guard_bsc_assignment
+  before update on public.profiles
+  for each row execute function public.guard_profile_bsc_assignment();
