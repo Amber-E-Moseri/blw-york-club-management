@@ -83,7 +83,7 @@ export const ContactCard: React.FC<Props> = ({
           <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 mb-2">Follow-up</h3>
           {activeFollowUp ? (
             <p className="text-sm text-gray-600">
-              Current assignee: <span className="font-semibold text-gray-900">{activeFollowUp.assignee?.full_name ?? activeFollowUp.assignee?.email ?? activeFollowUp.assigned_to}</span>
+              Current assignee: <span className="font-semibold text-gray-900 dark:text-slate-100">{activeFollowUp.assignee?.full_name ?? activeFollowUp.assignee?.email ?? activeFollowUp.assigned_to}</span>
             </p>
           ) : (
             <p className="text-sm text-gray-500 dark:text-slate-400">No active follow-up history.</p>

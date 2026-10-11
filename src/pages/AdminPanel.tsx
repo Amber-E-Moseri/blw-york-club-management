@@ -39,7 +39,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ user }) => {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-8">
+    <div className="flex-1 overflow-y-auto p-0 md:p-4">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-h1 mb-6">Admin Panel</h1>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

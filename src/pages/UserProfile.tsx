@@ -158,6 +158,6 @@ export const UserProfile: React.FC<UserProfileProps> = ({ currentUser, viewUserI
 const Row: React.FC<{ label: string; value: string }> = ({ label, value }) => (
   <div className="flex gap-2">
     <dt className="font-semibold text-gray-400 dark:text-slate-400 w-24 shrink-0">{label}</dt>
-    <dd className="text-gray-900">{value}</dd>
+    <dd className="text-gray-900 dark:text-slate-100 break-words min-w-0">{value}</dd>
   </div>
 );

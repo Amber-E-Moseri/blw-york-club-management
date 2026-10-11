@@ -40,7 +40,7 @@ export const DevotionalCard: React.FC<DevotionalCardProps> = ({
     <div className="w-full">
       <div className="relative mx-auto max-w-[900px] overflow-hidden rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
         {imageLoading && !imageError && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-white">
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-white dark:bg-slate-800">
             <div className="w-8 h-8 border-4 border-york-600 border-t-transparent rounded-full animate-spin" />
           </div>
         )}

@@ -72,7 +72,7 @@ export const MoveToCellModal: React.FC<Props> = ({
       <div className="space-y-4">
         {currentCell && (
           <p className="text-sm text-gray-500 dark:text-slate-400">
-            Currently in: <span className="font-semibold text-gray-700">{currentCell.name}</span>
+            Currently in: <span className="font-semibold text-gray-700 dark:text-slate-300">{currentCell.name}</span>
           </p>
         )}
 

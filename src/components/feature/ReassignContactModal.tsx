@@ -64,7 +64,7 @@ export const ReassignContactModal: React.FC<Props> = ({
       <div className="space-y-4">
         {currentUser && (
           <p className="text-sm text-gray-500 dark:text-slate-400">
-            Currently assigned to: <span className="font-semibold text-gray-700">{currentUser.full_name}</span>
+            Currently assigned to: <span className="font-semibold text-gray-700 dark:text-slate-300">{currentUser.full_name}</span>
           </p>
         )}
 

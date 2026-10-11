@@ -277,7 +277,7 @@ export const WeeklyMessages: React.FC<Props> = ({ user }) => {
             </Button>
           </div>
 
-          {loading && <div className="h-20 bg-gray-100 rounded-lg animate-pulse" />}
+          {loading && <div className="h-20 bg-gray-100 dark:bg-slate-800 rounded-lg animate-pulse" />}
 
           {!loading && personalMessages.length === 0 && (
             <div className="text-center py-12 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg">

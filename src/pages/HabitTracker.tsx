@@ -212,7 +212,7 @@ export const HabitTracker: React.FC<Props> = ({ user }) => {
       {!loading && habitsWithStats.length === 0 && (
         <div className="text-center py-16 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg">
           <Leaf className="w-10 h-10 mx-auto mb-3 text-gray-300 dark:text-slate-600" />
-          <p className="text-base font-semibold text-gray-700">No habits set up yet</p>
+          <p className="text-base font-semibold text-gray-700 dark:text-slate-200">No habits set up yet</p>
           <p className="text-sm text-gray-400 mt-1">
             {isAdmin
               ? 'Create habit templates below for members to track.'
@@ -233,7 +233,7 @@ export const HabitTracker: React.FC<Props> = ({ user }) => {
           {/* Summary row */}
           <div className="flex gap-4 flex-wrap">
             <div className="text-sm text-gray-500 dark:text-slate-400">
-              <span className="font-bold text-gray-900">
+              <span className="font-bold text-gray-900 dark:text-slate-100">
                 {habitsWithStats.filter((h) => h.today_status === 'done').length}
               </span>{' '}
               / {habitsWithStats.length} done today

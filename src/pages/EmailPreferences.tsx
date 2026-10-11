@@ -91,7 +91,7 @@ export const EmailPreferences: React.FC<Props> = () => {
   const globalEnabled = !prefs.opt_out_all;
 
   return (
-    <div className="flex-1 overflow-y-auto p-8">
+    <div className="flex-1 overflow-y-auto p-0 md:p-4">
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Header */}
         <div>

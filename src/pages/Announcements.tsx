@@ -42,7 +42,7 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
   const canPost = user?.role === 'admin' || user?.role === 'coordinator' || user?.role === 'cell_leader';
 
   return (
-    <div className="flex-1 overflow-y-auto p-8">
+    <div className="flex-1 overflow-y-auto p-0 md:p-4">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-h1">Announcements</h1>

@@ -75,7 +75,7 @@ export const HabitCard: React.FC<Props> = ({ habit: h, onCheckIn }) => {
                     : status === 'skipped' ? statusClasses.skipped
                     : isPast ? 'border-gray-200 dark:border-slate-700 bg-gray-100 dark:bg-slate-800'
                     : isToday(dateStr) ? 'border-york-300 bg-york-50 dark:bg-york-900/30'
-                    : 'border-gray-100 bg-gray-50',
+                    : 'border-gray-100 bg-gray-50 dark:bg-slate-900',
                 )}
                 title={`${dateStr}: ${status}`}
               >

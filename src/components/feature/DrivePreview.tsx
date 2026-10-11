@@ -42,7 +42,7 @@ export const DrivePreview: React.FC<DrivePreviewProps> = ({
     <div className={`border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800 ${className}`}>
       {/* Header row */}
       <div className="flex items-center gap-3 px-3 py-2.5">
-        <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-50 text-york-600 dark:text-york-400 flex-shrink-0" aria-hidden><Icon className="w-4.5 h-4.5" /></span>
+        <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-50 dark:bg-slate-900 text-york-600 dark:text-york-400 flex-shrink-0" aria-hidden><Icon className="w-4.5 h-4.5" /></span>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">{metadata.title}</p>
           <p className="text-xs text-gray-500">{label}</p>

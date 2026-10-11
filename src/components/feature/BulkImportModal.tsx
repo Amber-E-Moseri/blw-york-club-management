@@ -180,7 +180,7 @@ export const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, cells, onImp
             {rows.length > 0 && (
               <div className="overflow-x-auto border border-gray-200 dark:border-slate-700 rounded-lg">
                 <table className="w-full text-xs text-left">
-                  <thead className="bg-gray-50 dark:bg-slate-900 border-b border-gray-200">
+                  <thead className="bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700">
                     <tr>
                       <th className="px-3 py-2 font-semibold text-gray-500 dark:text-slate-400 uppercase w-8">#</th>
                       <th className="px-3 py-2 font-semibold text-gray-500 uppercase">Status</th>

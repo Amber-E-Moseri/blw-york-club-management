@@ -99,7 +99,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside
       className={cn(
-        'shrink-0 bg-white border-r border-gray-200 flex flex-col h-screen sticky top-0 z-20',
+        'shrink-0 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 flex flex-col h-screen sticky top-0 z-20',
         'dark:border-slate-700 dark:bg-slate-900',
         'transition-[width] duration-200 ease-in-out',
         collapsed ? 'w-16' : 'w-56',

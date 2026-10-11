@@ -142,7 +142,7 @@ export const DevotionalViewer: React.FC<DevotionalViewerProps> = ({ user }) => {
                   <p className="mt-2 text-h2">{state.stats?.viewed_count ?? 0}</p>
                   <p className="text-small text-gray-400 dark:text-slate-400">member views</p>
                   <div className="divider" />
-                  <p className="text-small font-semibold text-gray-900">Reading Progress</p>
+                  <p className="text-small font-semibold text-gray-900 dark:text-slate-100">Reading Progress</p>
                   <p className="mt-1 text-small text-gray-500">
                     Day {page.day_of_month} of {devotional.total_days}
                   </p>

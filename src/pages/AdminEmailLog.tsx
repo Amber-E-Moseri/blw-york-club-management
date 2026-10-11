@@ -125,7 +125,7 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-8">
+    <div className="flex-1 overflow-y-auto p-0 md:p-4">
       <div className="max-w-6xl mx-auto space-y-6">
         <div>
           <h1 className="text-h1">Communications</h1>
@@ -361,7 +361,7 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
 
           <Card title="Rendered Preview" headerAction={<Eye className="h-4 w-4 text-gray-400 dark:text-slate-400" aria-hidden="true" />}>
             <div className="space-y-3">
-              <p className="text-sm font-semibold text-gray-900">{composerPreview.subject}</p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{composerPreview.subject}</p>
               <iframe
                 title="Rendered email preview"
                 className="h-[520px] w-full rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800"
@@ -445,7 +445,7 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
                 ) : logs.map((log) => (
                   <tr key={log.id} className="border-b border-gray-50">
                     <td className="py-3 pr-4 text-gray-700 dark:text-slate-300">{log.recipient_email}</td>
-                    <td className="py-3 pr-4 text-gray-900">{log.subject}</td>
+                    <td className="py-3 pr-4 text-gray-900 dark:text-slate-100">{log.subject}</td>
                     <td className="py-3 pr-4 text-gray-500">{log.template_type}</td>
                     <td className="py-3 pr-4">
                       <span className="rounded-full bg-gray-100 dark:bg-slate-800 px-2 py-1 text-xs font-semibold text-gray-700 dark:text-slate-300">{log.status}</span>
@@ -495,6 +495,6 @@ async function runComposerAction(
 const Metric: React.FC<{ label: string; value: number | string }> = ({ label, value }) => (
   <div>
     <p className="text-xs uppercase tracking-wide text-gray-400 dark:text-slate-400 font-semibold">{label}</p>
-    <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
+    <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-1">{value}</p>
   </div>
 );

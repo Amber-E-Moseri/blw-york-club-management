@@ -11,7 +11,7 @@ export const BookWidget: React.FC = () => {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 animate-pulse dark:bg-slate-800 dark:border-slate-700">
         <div className="h-4 bg-gray-200 rounded w-1/3 mb-3" />
-        <div className="h-24 bg-gray-100 rounded" />
+        <div className="h-24 bg-gray-100 dark:bg-slate-800 rounded" />
       </div>
     );
   }

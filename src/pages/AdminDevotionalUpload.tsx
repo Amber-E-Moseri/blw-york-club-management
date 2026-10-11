@@ -222,7 +222,7 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
             <section className="rounded-lg border-2 border-dashed border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 p-8 text-center">
               <label
-                className="flex min-h-[260px] cursor-pointer flex-col items-center justify-center gap-3 rounded-md bg-gray-100 p-6"
+                className="flex min-h-[260px] cursor-pointer flex-col items-center justify-center gap-3 rounded-md bg-gray-100 dark:bg-slate-900 p-6"
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={(event) => {
                   event.preventDefault();

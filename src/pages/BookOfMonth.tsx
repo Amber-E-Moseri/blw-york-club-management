@@ -70,7 +70,7 @@ export const BookOfMonthPage: React.FC<Props> = ({ user }) => {
 
   return (
     <div className="max-w-3xl mx-auto space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
             <BookOpen className="w-6 h-6 text-york-600 dark:text-york-400" aria-hidden="true" />

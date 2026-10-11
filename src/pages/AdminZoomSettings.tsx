@@ -36,7 +36,7 @@ export const AdminZoomSettings: React.FC<Props> = ({ user }) => {
   const isConnected = settings?.is_active ?? false;
 
   return (
-    <div className="flex-1 overflow-y-auto p-8">
+    <div className="flex-1 overflow-y-auto p-0 md:p-4">
       <div className="max-w-2xl mx-auto space-y-6">
         <div>
           <h1 className="text-h1">Zoom Integration</h1>
@@ -77,7 +77,7 @@ export const AdminZoomSettings: React.FC<Props> = ({ user }) => {
           <ol className="space-y-4 text-sm text-gray-600 dark:text-slate-300">
             <li className="flex gap-3">
               <span className="w-6 h-6 rounded-full bg-york-600 text-white text-xs flex items-center justify-center shrink-0 font-bold">1</span>
-              <div>
+              <div className="min-w-0">
                 <p className="font-medium text-gray-800 dark:text-slate-200">Create a Server-to-Server OAuth app in Zoom</p>
                 <p className="text-gray-400 text-xs mt-1">
                   Go to marketplace.zoom.us → Develop → Build App → Server-to-Server OAuth.
@@ -87,12 +87,12 @@ export const AdminZoomSettings: React.FC<Props> = ({ user }) => {
             </li>
             <li className="flex gap-3">
               <span className="w-6 h-6 rounded-full bg-york-600 text-white text-xs flex items-center justify-center shrink-0 font-bold">2</span>
-              <div>
+              <div className="min-w-0">
                 <p className="font-medium text-gray-800 dark:text-slate-200">Add credentials to Supabase project secrets</p>
                 <p className="text-gray-400 text-xs mt-1">
                   In the Supabase dashboard → Settings → Edge Functions → Secrets, add:
                 </p>
-                <div className="mt-2 bg-gray-50 dark:bg-slate-900 rounded p-3 font-mono text-xs space-y-1">
+                <div className="mt-2 bg-gray-50 dark:bg-slate-900 rounded p-3 font-mono text-xs space-y-1 break-all">
                   <p><span className="text-gray-500 dark:text-slate-400">ZOOM_ACCOUNT_ID</span>=your_account_id</p>
                   <p><span className="text-gray-500">ZOOM_CLIENT_ID</span>=your_client_id</p>
                   <p><span className="text-gray-500">ZOOM_CLIENT_SECRET</span>=your_client_secret</p>
@@ -101,7 +101,7 @@ export const AdminZoomSettings: React.FC<Props> = ({ user }) => {
             </li>
             <li className="flex gap-3">
               <span className="w-6 h-6 rounded-full bg-york-600 text-white text-xs flex items-center justify-center shrink-0 font-bold">3</span>
-              <div>
+              <div className="min-w-0">
                 <p className="font-medium text-gray-800 dark:text-slate-200">Test the connection below</p>
                 <p className="text-gray-400 text-xs mt-1">
                   Once secrets are saved, click Test Connection. A successful test saves the account ID here.
