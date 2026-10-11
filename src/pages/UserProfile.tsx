@@ -78,7 +78,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ currentUser, viewUserI
     : '—';
 
   return (
-    <div className="flex-1 overflow-y-auto p-8">
+    <div className="flex-1 overflow-y-auto p-0 md:p-4">
       <div className="max-w-xl mx-auto space-y-6">
         <h1 className="text-h1">{isOwnProfile ? 'My Profile' : 'Member Profile'}</h1>
 
@@ -112,7 +112,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ currentUser, viewUserI
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-h2 truncate">{displayName}</h2>
+                  <h2 className="text-h2 break-words">{displayName}</h2>
                   {profile.role && (
                     <Badge variant={roleBadgeVariant(profile.role)} className="mt-1">
                       {ROLE_LABELS[profile.role]}
@@ -120,7 +120,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ currentUser, viewUserI
                   )}
                 </div>
                 {isOwnProfile && (
-                  <Button variant="secondary" size="small" onClick={() => setEditing(true)}>
+                  <Button variant="secondary" size="small" className="shrink-0" onClick={() => setEditing(true)}>
                     Edit
                   </Button>
                 )}

@@ -38,9 +38,9 @@ export const ContactFilters: React.FC<Props> = ({
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3 dark:bg-slate-800 dark:border-slate-700">
-      <div className="flex flex-wrap gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
         {/* Search */}
-        <div className="flex-1 min-w-[200px]">
+        <div className="col-span-2 sm:col-span-1 sm:flex-1 sm:min-w-[200px]">
           <Input
             placeholder="Search by name…"
             value={filters.search ?? ''}
@@ -56,7 +56,7 @@ export const ContactFilters: React.FC<Props> = ({
 
         {/* Cell */}
         {cells.length > 0 && (
-          <div className="min-w-[140px]">
+          <div className="min-w-0 sm:min-w-[140px]">
             <select
               className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-york-600"
               value={filters.cell_id ?? ''}
@@ -71,7 +71,7 @@ export const ContactFilters: React.FC<Props> = ({
         )}
 
         {/* Tag */}
-        <div className="min-w-[140px]">
+        <div className="min-w-0 sm:min-w-[140px]">
           <select
             className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-york-600"
             value={filters.tag ?? ''}
@@ -85,7 +85,7 @@ export const ContactFilters: React.FC<Props> = ({
         </div>
 
         {/* Status */}
-        <div className="min-w-[160px]">
+        <div className="min-w-0 sm:min-w-[160px]">
           <select
             className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-york-600"
             value={filters.status ?? ''}
@@ -99,7 +99,7 @@ export const ContactFilters: React.FC<Props> = ({
         </div>
 
         {/* Date range preset */}
-        <div className="min-w-[140px]">
+        <div className="min-w-0 sm:min-w-[140px]">
           <select
             className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-york-600"
             value={filters.date_from ? `${filters.date_from}|${filters.date_to}` : ''}

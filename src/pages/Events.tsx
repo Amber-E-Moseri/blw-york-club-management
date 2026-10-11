@@ -56,7 +56,7 @@ export const Events: React.FC<Props> = ({ user }) => {
       )}
 
       {/* Category filter pills */}
-      <div className="flex gap-1.5 flex-wrap">
+      <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
         {(['All', ...CATEGORIES] as const).map((cat) => (
           <button
             key={cat}

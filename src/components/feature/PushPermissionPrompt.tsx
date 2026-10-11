@@ -49,9 +49,9 @@ export const PushPermissionPrompt: React.FC<Props> = ({ onAllow, onDismiss }) =>
     <div
       role="banner"
       aria-label="Enable push notifications"
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-sm px-4"
+      className="fixed bottom-[calc(80px+env(safe-area-inset-bottom))] md:bottom-6 left-1/2 -translate-x-1/2 z-40 w-full max-w-sm px-4"
     >
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-5">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-gray-100 dark:border-slate-700 p-5">
         {/* Bell icon */}
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center shrink-0">
