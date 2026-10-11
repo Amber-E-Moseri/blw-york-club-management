@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DevotionalCard } from '../components/feature/DevotionalCard';
+import { DevotionalReader } from '../components/feature/DevotionalReader';
 import { Button } from '../components/foundation/Button';
 import { useDevotional, useDevotionalByDay } from '../hooks/useDevotional';
 import type { AuthUser } from '../lib/auth';
@@ -14,6 +15,19 @@ function getInitialDay(): number {
   const day = new URLSearchParams(window.location.search).get('day');
   const parsed = Number(day);
   return Number.isInteger(parsed) && parsed >= 1 && parsed <= 31 ? parsed : new Date().getDate();
+}
+
+/** True on phone-sized screens, where Daily Bread opens as a full-screen reader. */
+function usePhoneLayout(): boolean {
+  const query = '(max-width: 767px)';
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const onChange = () => setMatches(media.matches);
+    media.addEventListener('change', onChange);
+    return () => media.removeEventListener('change', onChange);
+  }, []);
+  return matches;
 }
 
 export const DevotionalViewer: React.FC<DevotionalViewerProps> = ({ user }) => {
@@ -31,6 +45,7 @@ export const DevotionalViewer: React.FC<DevotionalViewerProps> = ({ user }) => {
   const todayState = useDevotional();
   const selectedState = useDevotionalByDay(selectedMonth, selectedDay, selectedYear, false);
   const state = isToday ? todayState : selectedState;
+  const isPhone = usePhoneLayout();
 
   useEffect(() => {
     if (
@@ -81,6 +96,22 @@ export const DevotionalViewer: React.FC<DevotionalViewerProps> = ({ user }) => {
     if (image instanceof HTMLElement && image.requestFullscreen) {
       image.requestFullscreen();
     }
+  }
+
+  if (isPhone && !state.loading && devotional && page) {
+    return (
+      <DevotionalReader
+        devotional={devotional}
+        page={page}
+        canPrevious={canGoPrevious}
+        canNext={canGoNext}
+        onPrevious={() => setSelectedDay((day) => day - 1)}
+        onNext={() => setSelectedDay((day) => day + 1)}
+        onClose={() => navigate(-1)}
+        onShare={() => void handleShare()}
+        onDownload={handleDownload}
+      />
+    );
   }
 
   return (
