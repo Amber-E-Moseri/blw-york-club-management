@@ -6,6 +6,7 @@ import { Input } from '../components/foundation/Input';
 import { Modal } from '../components/foundation/Modal';
 import { useConfessions } from '../hooks/useConfessions';
 import type { AuthUser } from '../lib/auth';
+import { PageHeader } from '../components/foundation/PageHeader';
 
 interface Props { user: AuthUser | null; }
 
@@ -45,15 +46,12 @@ export const DailyConfessions: React.FC<Props> = ({ user }) => {
   return (
     <div className="max-w-3xl mx-auto space-y-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Daily Confessions</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Declare God's word over your life</p>
-        </div>
-        {isManager && (
-          <Button variant="primary" onClick={() => setAddOpen(true)}>+ New Confession</Button>
-        )}
-      </div>
+      <PageHeader
+        eyebrow="Daily"
+        title="Daily Confessions"
+        description="Declare God's word over your life"
+        actions={isManager ? <Button variant="primary" onClick={() => setAddOpen(true)}>+ New Confession</Button> : undefined}
+      />
 
       {/* Date navigation */}
       <div className="flex items-center gap-3">

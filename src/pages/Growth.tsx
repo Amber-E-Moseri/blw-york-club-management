@@ -75,7 +75,7 @@ export const Growth: React.FC<GrowthProps> = ({ user }) => {
         </div>
       )}
 
-      <div className="space-y-3">
+      <div className="stagger space-y-3">
         <GrowthCard
           to="/devotionals"
           iconBg="bg-amber-50 dark:bg-amber-900/20"

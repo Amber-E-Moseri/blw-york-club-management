@@ -174,6 +174,11 @@
 .stagger > *:nth-child(3) { animation-delay: 120ms; }
 .stagger > *:nth-child(4) { animation-delay: 180ms; }
 
+/* Native controls (date pickers, selects, scrollbars) follow the app theme */
+html.dark { color-scheme: dark; }
+html:not(.dark) { color-scheme: light; }
+input[type='date'] { min-height: 44px; }
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }

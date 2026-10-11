@@ -9,6 +9,7 @@ import {
 } from '../hooks/useEmailNotifications';
 import type { AuthUser } from '../lib/auth';
 import type { EmailPreferencesInput } from '../types';
+import { PageHeader } from '../components/foundation/PageHeader';
 
 const DEFAULT_PREFS: EmailPreferencesInput = {
   meeting_reminders_8am: true,
@@ -94,10 +95,7 @@ export const EmailPreferences: React.FC<Props> = () => {
     <div className="flex-1 overflow-y-auto p-0 md:p-4">
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-h1">Email Preferences</h1>
-          <p className="text-small text-gray-400 dark:text-slate-400 mt-1">Choose which emails you want to receive.</p>
-        </div>
+        <PageHeader eyebrow="Account" title="Email Preferences" description="Choose which emails you want to receive." />
 
         {/* Global toggle */}
         <Card>

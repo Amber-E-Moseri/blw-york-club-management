@@ -102,7 +102,7 @@ export const Events: React.FC<Props> = ({ user }) => {
         </div>
       ) : (
         <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
-          <div className="divide-y divide-gray-100 dark:divide-slate-700">
+          <div className="stagger divide-y divide-gray-100 dark:divide-slate-700">
             {filtered.map((e) => <EventCard key={e.id} event={e} />)}
           </div>
         </div>

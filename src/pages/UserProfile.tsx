@@ -6,6 +6,7 @@ import { ProfileForm } from '../components/feature/ProfileForm';
 import { PushNotificationSettings } from '../components/feature/PushNotificationSettings';
 import { useUserProfile } from '../hooks/useUserProfile';
 import type { AuthUser } from '../lib/auth';
+import { PageHeader } from '../components/foundation/PageHeader';
 
 interface UserProfileProps {
   currentUser: AuthUser | null;
@@ -80,7 +81,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ currentUser, viewUserI
   return (
     <div className="flex-1 overflow-y-auto p-0 md:p-4">
       <div className="max-w-xl mx-auto space-y-6">
-        <h1 className="text-h1">{isOwnProfile ? 'My Profile' : 'Member Profile'}</h1>
+        <PageHeader eyebrow="Account" title={isOwnProfile ? 'My Profile' : 'Member Profile'} />
 
         {error && (
           <div className="bg-york-50 dark:bg-york-900/30 border border-york-200 dark:border-york-800 rounded-md px-4 py-3 text-sm text-york-700 dark:text-york-300">

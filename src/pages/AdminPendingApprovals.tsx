@@ -6,6 +6,7 @@ import { Button } from '../components/foundation/Button';
 import { getInitials } from '../lib/utils';
 import { approvePendingMember } from '../lib/queries/members';
 import type { AuthUser } from '../lib/auth';
+import { PageHeader } from '../components/foundation/PageHeader';
 
 interface Props { user: AuthUser | null; }
 
@@ -87,13 +88,11 @@ export const AdminPendingApprovals: React.FC<Props> = ({ user }) => {
 
   return (
     <div className="max-w-3xl mx-auto space-y-5">
-      <div>
-        <p className="text-xs text-gray-400 dark:text-slate-400 mb-1">People / Approvals</p>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Pending Approvals</h1>
-        <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
-          New members waiting for access to BLW York Hub
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="People / Approvals"
+        title="Pending Approvals"
+        description="New members waiting for access to BLW York Hub"
+      />
 
       {error && (
         <div className="bg-york-50 dark:bg-york-900/30 border border-york-200 dark:border-york-800 text-york-700 dark:text-york-300 rounded-lg px-4 py-3 text-sm">{error}</div>
@@ -119,7 +118,8 @@ export const AdminPendingApprovals: React.FC<Props> = ({ user }) => {
       {!loading && pending.length > 0 && (
         <div className="space-y-3">
           {pending.map((p) => (
-            <div key={p.id} className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-5 flex items-center gap-4">
+            <div key={p.id} className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-5 flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="flex items-start gap-4 min-w-0 flex-1">
               <div className="w-10 h-10 rounded-full bg-york-600 text-white flex items-center justify-center text-sm font-bold shrink-0">
                 {getInitials(p.full_name || p.email)}
               </div>
@@ -136,7 +136,8 @@ export const AdminPendingApprovals: React.FC<Props> = ({ user }) => {
                   Applied {new Date(p.joined_at).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </p>
               </div>
-              <div className="flex gap-2 shrink-0">
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
                 <Button
                   variant="primary"
                   size="small"

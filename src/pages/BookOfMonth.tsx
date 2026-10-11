@@ -7,6 +7,7 @@ import { useBooks } from '../hooks/useBookOfMonth';
 import type { AuthUser } from '../lib/auth';
 import type { BookOfMonth, BookOfMonthInput } from '../types';
 import { format } from 'date-fns';
+import { PageHeader } from '../components/foundation/PageHeader';
 
 interface Props { user: AuthUser | null; }
 
@@ -70,18 +71,13 @@ export const BookOfMonthPage: React.FC<Props> = ({ user }) => {
 
   return (
     <div className="max-w-3xl mx-auto space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
-            <BookOpen className="w-6 h-6 text-york-600 dark:text-york-400" aria-hidden="true" />
-            Book of the Month
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">Reading together as a fellowship</p>
-        </div>
-        {canManage(user) && (
-          <Button variant="primary" onClick={openAdd}>+ Add Book</Button>
-        )}
-      </div>
+      <PageHeader
+        eyebrow="Reading"
+        title="Book of the Month"
+        icon={<BookOpen className="w-5 h-5 text-york-600 dark:text-york-400" aria-hidden="true" />}
+        description="Reading together as a fellowship"
+        actions={canManage(user) ? <Button variant="primary" onClick={openAdd}>+ Add Book</Button> : undefined}
+      />
 
       {error && (
         <div className="bg-york-50 dark:bg-york-900/30 border border-york-200 dark:border-york-800 text-york-700 dark:text-york-300 rounded-lg px-4 py-3 text-sm">{error}</div>

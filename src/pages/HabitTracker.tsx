@@ -9,6 +9,7 @@ import { HabitCard } from '../components/feature/HabitCard';
 import { useHabits, useHabitAdmin } from '../hooks/useHabits';
 import type { AuthUser } from '../lib/auth';
 import type { HabitTemplate, HabitTemplateInput } from '../types';
+import { PageHeader } from '../components/foundation/PageHeader';
 
 interface Props { user: AuthUser | null; }
 
@@ -183,18 +184,17 @@ export const HabitTracker: React.FC<Props> = ({ user }) => {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Habit Tracker</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{today}</p>
-        </div>
-        {isAdmin && (
+      <PageHeader
+        eyebrow="Growth"
+        title="Habit Tracker"
+        description={today}
+        actions={isAdmin ? (
           <Button variant="secondary" onClick={() => setAdminOpen((v) => !v)}>
             <Settings className="w-4 h-4 mr-1.5 inline-block" />
             {adminOpen ? 'Hide Admin' : 'Manage Habits'}
           </Button>
-        )}
-      </div>
+        ) : undefined}
+      />
 
       {error && (
         <div className="bg-york-50 dark:bg-york-900/30 border border-york-200 dark:border-york-800 text-york-700 dark:text-york-300 rounded-lg px-4 py-3 text-sm">{error}</div>

@@ -5,6 +5,7 @@ import { Input } from '../components/foundation/Input';
 import { getAnnouncements, createAnnouncement } from '../lib/queries';
 import type { Announcement } from '../types';
 import type { AuthUser } from '../lib/auth';
+import { PageHeader } from '../components/foundation/PageHeader';
 
 interface AnnouncementsProps { user: AuthUser | null; }
 
@@ -44,13 +45,17 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
   return (
     <div className="flex-1 overflow-y-auto p-0 md:p-4">
       <div className="max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-h1">Announcements</h1>
-          {canPost && (
-            <Button onClick={() => setShowForm((v) => !v)}>
-              {showForm ? 'Cancel' : '+ New'}
-            </Button>
-          )}
+        <div className="mb-6">
+          <PageHeader
+            eyebrow="Community"
+            title="Announcements"
+            description="News and updates from BLW York leadership."
+            actions={canPost ? (
+              <Button onClick={() => setShowForm((v) => !v)}>
+                {showForm ? 'Cancel' : '+ New'}
+              </Button>
+            ) : undefined}
+          />
         </div>
 
         {showForm && (
