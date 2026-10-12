@@ -191,9 +191,8 @@ Deno.serve(async (req) => {
       notification_type: 'event',
       title: `New event: ${event.title}`,
       body: `${event.date}${event.location ? ` · ${event.location}` : ''}`,
-      target_url: '/events',
       status: result.sent ? 'sent' : 'failed',
-      error_message: result.sent ? null : result.error,
+      response_data: { target_url: '/events', error: result.sent ? null : result.error },
     }));
     if (logRows.length > 0) {
       const { error: logError } = await supabase.from('push_notification_log').insert(logRows);
