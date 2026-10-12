@@ -81,7 +81,6 @@
         "events_audience_meeting_id_fkey FOREIGN KEY (audience_meeting_id) REFERENCES meetings(id) ON DELETE SET NULL",
         "events_category_check CHECK ((category = ANY (ARRAY['Bible Study'::text, 'Worship'::text, 'Fellowship'::text, 'Outreach'::text, 'Prayer'::text, 'Other'::text])))",
         "events_created_by_fkey FOREIGN KEY (created_by) REFERENCES profiles(id)",
-        "events_meeting_audience_requires_meeting CHECK (((audience = 'all'::text) OR (audience_meeting_id IS NOT NULL)))",
         "events_pkey PRIMARY KEY (id)"
       ],
       "maintain_acl": 0
