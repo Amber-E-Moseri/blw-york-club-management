@@ -7,7 +7,10 @@
 // encryption, delivery logging and the expiry of dead endpoints. Push endpoints are a localhost mock that answers
 // 201, 410 or 500 by path, so no real push service is contacted and no real email is sent.
 //
-// Not covered: Deno's runtime and the gateway's JWT check, which need the Edge runtime (esm.sh and npm reachable).
+// NOTIFY_MODE=deno runs the function in the real Deno runtime (denoland/deno, via Docker, host networking). The only
+// change to the source is an import map that resolves https://esm.sh/@supabase/supabase-js@2.45.0 to the npm package
+// of the same version, which is what esm.sh serves. Use it where esm.sh is unreachable.
+// Not covered: the gateway's JWT check (the Supabase edge gateway), which only the hosted platform performs.
 import { createECDH, randomBytes } from 'node:crypto';
 import { createServer } from 'node:https';
 import { execFileSync } from 'node:child_process';
@@ -37,6 +40,11 @@ function check(name, ok, detail = '') {
   results.push({ name, ok });
   console.log(`${ok ? 'PASS' : 'FAIL'}\t${name}${!ok && detail ? `\t${detail}` : ''}`);
 }
+
+const MODE = process.env.NOTIFY_MODE === 'deno' ? 'deno' : 'transpiled';
+const DENO_IMAGE = 'denoland/deno:alpine';
+const containers = [];
+const secretDirs = [];  // per-container env files hold the VAPID private key; removed on exit
 
 // ---- build the function for Node ---------------------------------------------------------------------------------
 const buildDir = mkdtempSync(path.join(os.tmpdir(), 'notify-event-cert-'));
@@ -78,6 +86,7 @@ globalThis.Deno = {
 };
 let instanceCounter = 0;
 async function loadFunction(env) {
+  if (MODE === 'deno') return loadDenoFunction(env);
   Object.assign(process.env, env);
   capturedHandler = null;
   instanceCounter += 1;
@@ -85,6 +94,48 @@ async function loadFunction(env) {
   const handler = capturedHandler;
   if (!handler) throw new Error('function did not register a handler');
   return handler;
+}
+
+/** Starts notify-event in the Deno runtime with the given environment and returns a handler that calls it over HTTP. */
+async function loadDenoFunction(env) {
+  instanceCounter += 1;
+  const port = 8100 + instanceCounter;
+  const name = `notify-cert-${process.pid}-${instanceCounter}`;
+  const envDir = mkdtempSync(path.join(os.tmpdir(), 'notify-env-'));
+  secretDirs.push(envDir);
+  const envFile = path.join(envDir, 'notify.env');
+  const lines = { SUPABASE_URL: apiUrl, SUPABASE_SERVICE_ROLE_KEY: serviceKey, ...env };
+  writeFileSync(envFile, Object.entries(lines).map(([k, v]) => `${k}=${v ?? ''}`).join('\n') + '\n', { mode: 0o600 });
+
+  // A persistent Deno cache keeps npm packages between runs and between containers.
+  const denoCache = process.env.NOTIFY_DENO_CACHE ?? path.join(os.tmpdir(), 'notify-event-deno-cache');
+  mkdirSync(denoCache, { recursive: true });
+  // Trust store for the container: the sandbox CA bundle if one is given (it is needed where outbound HTTPS is
+  // intercepted), plus the localhost push mock's certificate. Verification stays on.
+  const caFile = path.join(envDir, 'ca.crt');
+  const bundle = process.env.NOTIFY_CA_BUNDLE ? readFileSync(process.env.NOTIFY_CA_BUNDLE) : '';
+  writeFileSync(caFile, Buffer.concat([Buffer.from(bundle), readFileSync(path.join(tlsDir, 'cert.pem'))]), { mode: 0o644 });
+
+  const dockerArgs = ['run', '-d', '--rm', '--name', name, '--network', 'host',
+    '-e', 'DENO_DIR=/deno-cache', '-e', 'DENO_CERT=/envs/ca.crt', '-e', 'NODE_EXTRA_CA_CERTS=/envs/ca.crt', '-v', `${denoCache}:/deno-cache`,
+    '-v', `${repoRoot}:/work`, '-v', `${envDir}:/envs:ro`, '-w', '/work'];
+  dockerArgs.push('-e', `DENO_SERVE_ADDRESS=tcp:127.0.0.1:${port}`, DENO_IMAGE, 'deno', 'run', '-A',
+    '--no-lock', '--node-modules-dir=none',
+    '--import-map=/work/supabase/verification/edge/import_map.json', '--env-file=/envs/notify.env',
+    '/work/supabase/functions/notify-event/index.ts');
+  execFileSync('docker', dockerArgs, { stdio: 'ignore' });
+  containers.push(name);
+
+  const url = `http://127.0.0.1:${port}/`;
+  for (let i = 0; i < 120; i += 1) {
+    const ready = await fetch(url, { method: 'OPTIONS' }).then(() => true, () => false);
+    if (ready) break;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  return async (req) => {
+    const body = await req.text();
+    return fetch(url, { method: req.method, headers: req.headers, body: body.length ? body : undefined });
+  };
 }
 
 // ---- VAPID keys and the mock push service ------------------------------------------------------------------------
@@ -95,9 +146,8 @@ const VAPID_ENV = {
   VAPID_SUBJECT: 'mailto:cert@example.org',
 };
 // web-push only speaks HTTPS to push endpoints. The mock presents a self-signed certificate created for this run, and
-// this process alone trusts it. The setting is process-wide, which is acceptable here because every HTTPS request in
-// this harness goes to the localhost mock; Supabase itself is reached over plain HTTP.
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+// the in-process mode trusts it by disabling verification for this process only; the Deno mode trusts it explicitly.
+if (MODE !== 'deno') process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';  // deno mode trusts the mock cert explicitly
 const pushHits = [];
 const tlsDir = mkdtempSync(path.join(os.tmpdir(), 'notify-event-tls-'));
 execFileSync('openssl', [
@@ -205,6 +255,8 @@ async function logRows(userId) {
   return rest('GET', `/rest/v1/push_notification_log?user_id=eq.${userId}&notification_type=eq.event&select=status,response_data`);
 }
 
+const observedText = [];  // every response body and container log, for the secret-exposure check
+
 async function invoke(handler, { token, body, method = 'POST', rawBody } = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -214,7 +266,10 @@ async function invoke(handler, { token, body, method = 'POST', rawBody } = {}) {
     body: rawBody ?? (body === undefined ? undefined : JSON.stringify(body)),
   });
   const res = await handler(req);
-  const json = await res.json().catch(() => null);
+  const text = await res.text();
+  observedText.push(text);
+  let json = null;
+  try { json = JSON.parse(text); } catch { /* non-JSON responses are checked as text only */ }
   return { status: res.status, json };
 }
 
@@ -374,9 +429,19 @@ check('missing VAPID configuration is reported to an admin (500)', r.status === 
 check('a configuration failure does not claim the event', (await eventState(unconfiguredEvent.id)).notified_at === null);
 
 // ---- finish ------------------------------------------------------------------------------------------------------
+for (const name of containers) {
+  try {
+    observedText.push(execFileSync('docker', ['logs', name], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
+  } catch { /* no logs available */ }
+  try { execFileSync('docker', ['rm', '-f', name], { stdio: 'ignore' }); } catch { /* already gone */ }
+}
+const everything = observedText.join('\n');
+const secretsWithheld = [VAPID_ENV.VAPID_PRIVATE_KEY, serviceKey].every((secret) => !everything.includes(secret));
+check('VAPID private key and service-role key never appear in responses or runtime logs', secretsWithheld);
+for (const dir of secretDirs) rmSync(dir, { recursive: true, force: true });
 pushServer.close();
 rmSync(buildDir, { recursive: true, force: true });
 rmSync(tlsDir, { recursive: true, force: true });
 const failed = results.filter((x) => !x.ok).length;
-console.log(`\nnotify-event: ${results.length - failed}/${results.length} checks passed`);
+console.log(`\nnotify-event (${MODE}): ${results.length - failed}/${results.length} checks passed`);
 if (failed > 0) process.exit(1);

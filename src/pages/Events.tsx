@@ -239,8 +239,24 @@ const EventFormModal: React.FC<{
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={close} title="Add Event" size="medium">
-      <form onSubmit={save} className="space-y-4">
+    <Modal
+      isOpen={isOpen}
+      onClose={close}
+      title="Add Event"
+      size="medium"
+      footer={
+        <>
+          <Button type="button" variant="secondary" onClick={close} disabled={saving}>
+            Cancel
+          </Button>
+          <Button type="submit" form="event-form" loading={saving} disabled={saving}>
+            Save Event
+          </Button>
+        </>
+      }
+    >
+      {/* Actions live in the modal footer so they stay visible when the form scrolls on short screens. */}
+      <form id="event-form" onSubmit={save} className="space-y-4">
         {error && (
           <div className="rounded-lg border border-york-200 bg-york-50 px-3 py-2 text-sm text-york-700">
             {error}
@@ -257,7 +273,7 @@ const EventFormModal: React.FC<{
         <Input label="Location" value={location} onChange={setLocation} />
 
         <div>
-          <label className="block text-sm font-bold text-gray-800 mb-1.5" htmlFor="event-category">
+          <label className="block text-sm font-bold text-gray-800 dark:text-slate-200 mb-1.5" htmlFor="event-category">
             Category
           </label>
           <select
@@ -273,9 +289,9 @@ const EventFormModal: React.FC<{
         </div>
 
         <fieldset className="space-y-2">
-          <legend className="block text-sm font-bold text-gray-800 mb-1.5">Who should be notified?</legend>
+          <legend className="block text-sm font-bold text-gray-800 dark:text-slate-200 mb-1.5">Who should be notified?</legend>
           <div className="flex flex-col sm:flex-row gap-2">
-            <label className="flex items-center gap-2 text-sm text-gray-800">
+            <label className="flex items-center gap-2 text-sm text-gray-800 dark:text-slate-200">
               <input
                 type="radio"
                 name="event-audience"
@@ -285,7 +301,7 @@ const EventFormModal: React.FC<{
               />
               All active members
             </label>
-            <label className="flex items-center gap-2 text-sm text-gray-800">
+            <label className="flex items-center gap-2 text-sm text-gray-800 dark:text-slate-200">
               <input
                 type="radio"
                 name="event-audience"
@@ -298,7 +314,7 @@ const EventFormModal: React.FC<{
           </div>
           {audience === 'meeting' && (
             <div>
-              <label className="block text-sm font-bold text-gray-800 mb-1.5" htmlFor="event-audience-meeting">
+              <label className="block text-sm font-bold text-gray-800 dark:text-slate-200 mb-1.5" htmlFor="event-audience-meeting">
                 Meeting
               </label>
               <select
@@ -317,7 +333,7 @@ const EventFormModal: React.FC<{
               )}
             </div>
           )}
-          <label className="flex items-center gap-2 text-sm text-gray-800 pt-1">
+          <label className="flex items-center gap-2 text-sm text-gray-800 dark:text-slate-200 pt-1">
             <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
             Send a push notification when saved
           </label>
@@ -331,14 +347,6 @@ const EventFormModal: React.FC<{
           rows={4}
         />
 
-        <div className="flex flex-col sm:flex-row gap-2 pt-2">
-          <Button type="submit" loading={saving} disabled={saving} fullWidth>
-            Save Event
-          </Button>
-          <Button type="button" variant="secondary" onClick={close} disabled={saving} fullWidth>
-            Cancel
-          </Button>
-        </div>
       </form>
     </Modal>
   );
