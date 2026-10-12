@@ -84,6 +84,142 @@ export function detectPageRanges(totalPages: number, totalDays: number): PageRan
   return ranges;
 }
 
+/**
+ * Splits pages from `firstPage` onward across the month. Pages before `firstPage`
+ * (cover, intro, table of contents) are skipped.
+ */
+export function rangesFromFirstPage(totalPages: number, totalDays: number, firstPage: number): PageRange[] {
+  if (firstPage < 1 || firstPage > totalPages) throw new Error('First devotional page must be within the PDF.');
+  return detectPageRanges(totalPages - firstPage + 1, totalDays).map((range) => ({
+    ...range,
+    startPage: range.startPage + firstPage - 1,
+    endPage: range.endPage + firstPage - 1,
+  }));
+}
+
+export interface ScheduleRow {
+  day: number;
+  startPage: number;
+  endPage: number;
+  title: string;
+}
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+/**
+ * Reads a pasted schedule such as "Thursday, October 1<TAB>You've Obtained Mercy<TAB>6–7".
+ * Header and blank lines are ignored; lines that look like entries but don't parse are reported.
+ */
+export function parseSchedule(text: string, month: number): { rows: ScheduleRow[]; errors: string[] } {
+  const rows: ScheduleRow[] = [];
+  const errors: string[] = [];
+  const pattern = /(\w+)\s+(\d{1,2})\s+(.+?)\s+(\d+)\s*[–-]\s*(\d+)\s*$/;
+  const seen = new Set<number>();
+
+  text.split('\n').forEach((rawLine) => {
+    const line = rawLine.trim();
+    if (!line || /^date\s/i.test(line)) return;
+
+    const match = line.match(pattern);
+    if (!match) {
+      errors.push(`Could not read: "${line}"`);
+      return;
+    }
+
+    const [, monthName, dayText, title, startText, endText] = match;
+    const expectedMonth = MONTH_NAMES[month - 1];
+    if (monthName.toLowerCase() !== expectedMonth.toLowerCase()) {
+      errors.push(`"${line}" is for ${monthName}, but the month is set to ${expectedMonth}.`);
+      return;
+    }
+
+    const day = Number(dayText);
+    const startPage = Number(startText);
+    const endPage = Number(endText);
+    if (seen.has(day)) {
+      errors.push(`Day ${day} appears more than once.`);
+      return;
+    }
+    seen.add(day);
+    rows.push({ day, startPage, endPage, title: title.trim() });
+  });
+
+  return { rows, errors };
+}
+
+/** Applies a parsed schedule to the day ranges: exact pages and titles for each listed day. */
+export function applySchedule(ranges: PageRange[], rows: ScheduleRow[]): PageRange[] {
+  const byDay = new Map(rows.map((row) => [row.day, row]));
+  return ranges.map((range) => {
+    const row = byDay.get(range.day);
+    return row ? { ...range, startPage: row.startPage, endPage: row.endPage, title: row.title } : range;
+  });
+}
+
+/**
+ * Changes one day's page range and keeps the month connected:
+ * - the previous day ends right before this day starts
+ * - later days keep their page counts and shift to follow this day
+ * Returns an error instead when the edit can't be applied cleanly.
+ */
+export function applyRangeEdit(
+  ranges: PageRange[],
+  day: number,
+  startPage: number,
+  endPage: number
+): { ranges: PageRange[] } | { error: string } {
+  const index = ranges.findIndex((range) => range.day === day);
+  if (index === -1) return { error: `Day ${day} was not found.` };
+  if (!Number.isInteger(startPage) || !Number.isInteger(endPage) || startPage < 1 || endPage < startPage) {
+    return { error: `Day ${day}: enter a valid page or range, such as 3 or 3-4.` };
+  }
+
+  const prev = ranges[index - 1];
+  if (prev && startPage <= prev.startPage) {
+    return { error: `Day ${day} can't start at page ${startPage}; Day ${prev.day} starts at page ${prev.startPage}.` };
+  }
+
+  const next = ranges.map((range) => ({ ...range }));
+  if (prev) next[index - 1].endPage = startPage - 1;
+  next[index] = { ...next[index], startPage, endPage };
+
+  for (let j = index + 1; j < next.length; j += 1) {
+    const count = ranges[j].endPage - ranges[j].startPage + 1;
+    const start = next[j - 1].endPage + 1;
+    next[j] = { ...next[j], startPage: start, endPage: start + count - 1 };
+  }
+
+  return { ranges: next };
+}
+
+/** Problems that must be fixed before a devotional can be processed. */
+export function validateRanges(ranges: PageRange[], totalPages: number): string[] {
+  const issues: string[] = [];
+  if (ranges.length === 0) return ['No days to process.'];
+
+  ranges.forEach((range, index) => {
+    if (range.startPage < 1 || range.endPage < range.startPage) {
+      issues.push(`Day ${range.day} has an invalid page range.`);
+      return;
+    }
+    const prev = ranges[index - 1];
+    if (prev && range.startPage <= prev.endPage) {
+      issues.push(`Day ${range.day} overlaps Day ${prev.day} on page ${range.startPage}.`);
+    } else if (prev && range.startPage > prev.endPage + 1) {
+      issues.push(`Pages ${prev.endPage + 1}–${range.startPage - 1} are not assigned to any day.`);
+    }
+  });
+
+  // Pages before Day 1 (front matter) and after the last day (back matter) may be unassigned.
+  const last = ranges[ranges.length - 1];
+  if (last.endPage > totalPages) issues.push(`Day ${last.day} goes past the last PDF page (${totalPages}).`);
+
+  return issues;
+}
+
 export async function analyzePdfStructure(file: File, month: number, year: number) {
   const pdf = await loadPdf(file);
   const totalDays = getDaysInMonth(month, year);

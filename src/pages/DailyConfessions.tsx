@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { BookOpen } from 'lucide-react';
 import { ConfessionCard } from '../components/feature/ConfessionCard';
 import { Button } from '../components/foundation/Button';
 import { Input } from '../components/foundation/Input';
 import { Modal } from '../components/foundation/Modal';
 import { useConfessions } from '../hooks/useConfessions';
+import { parseConfessionImport } from '../lib/confessionImport';
+import { createConfessions } from '../lib/queries/confessions';
 import type { AuthUser } from '../lib/auth';
 
 interface Props { user: AuthUser | null; }
@@ -14,7 +16,7 @@ const canManage = (role: string) => ['coordinator', 'admin'].includes(role);
 export const DailyConfessions: React.FC<Props> = ({ user }) => {
   const today = new Date().toISOString().split('T')[0];
   const [viewDate, setViewDate] = useState(today);
-  const { confessions, loading, error, declare, undeclare, add, remove } = useConfessions(viewDate);
+  const { confessions, loading, error, declare, undeclare, add, remove, refetch } = useConfessions(viewDate);
 
   const [addOpen, setAddOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -23,7 +25,34 @@ export const DailyConfessions: React.FC<Props> = ({ user }) => {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
 
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [importSaving, setImportSaving] = useState(false);
+  const [importError, setImportError] = useState('');
+  const [importNotice, setImportNotice] = useState('');
+  const importCheck = useMemo(
+    () => parseConfessionImport(importText, user?.id ?? ''),
+    [importText, user?.id]
+  );
+
   const isManager = canManage(user?.role ?? 'member');
+
+  const handleImport = async () => {
+    if (!user || importCheck.errors.length > 0 || importCheck.rows.length === 0) return;
+    setImportError('');
+    setImportSaving(true);
+    try {
+      const saved = await createConfessions(importCheck.rows);
+      setImportOpen(false);
+      setImportText('');
+      setImportNotice(`Imported ${saved} confession${saved === 1 ? '' : 's'}.`);
+      await refetch();
+    } catch (e) {
+      setImportError(e instanceof Error ? e.message : 'Import failed. Nothing was saved.');
+    } finally {
+      setImportSaving(false);
+    }
+  };
 
   const handleAdd = async () => {
     if (!newTitle.trim() || !newBody.trim() || !user) return;
@@ -51,7 +80,10 @@ export const DailyConfessions: React.FC<Props> = ({ user }) => {
           <p className="text-sm text-gray-500 mt-0.5">Declare God's word over your life</p>
         </div>
         {isManager && (
-          <Button variant="primary" onClick={() => setAddOpen(true)}>+ New Confession</Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setImportOpen(true)}>Bulk Import</Button>
+            <Button variant="primary" onClick={() => setAddOpen(true)}>+ New Confession</Button>
+          </div>
         )}
       </div>
 
@@ -88,6 +120,10 @@ export const DailyConfessions: React.FC<Props> = ({ user }) => {
         <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>
       )}
 
+      {importNotice && (
+        <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 text-sm">{importNotice}</div>
+      )}
+
       {loading && (
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
@@ -119,6 +155,68 @@ export const DailyConfessions: React.FC<Props> = ({ user }) => {
           onDelete={remove}
         />
       ))}
+
+      {/* Bulk import modal */}
+      <Modal
+        isOpen={importOpen}
+        onClose={() => setImportOpen(false)}
+        title="Bulk Import Confessions"
+        subtitle="One confession per line: date, title, confession text"
+        size="large"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setImportOpen(false)}>Cancel</Button>
+            <Button
+              variant="primary"
+              loading={importSaving}
+              disabled={importCheck.errors.length > 0 || importCheck.rows.length === 0}
+              onClick={handleImport}
+            >
+              Import {importCheck.rows.length} confession{importCheck.rows.length === 1 ? '' : 's'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Input
+            label="Paste confessions"
+            type="textarea"
+            rows={8}
+            value={importText}
+            onChange={setImportText}
+            placeholder={'2026-10-12\tGod is my provider\tI declare that...\nOctober 13, 2026\tPeace over my mind\tI declare that...'}
+            helpText={'Separate date, title and text with a tab, or with " | ". Dates: 2026-10-12 or October 12, 2026. Nothing is saved until every line is valid.'}
+          />
+          {importError && <p className="text-sm text-red-600">⚠️ {importError}</p>}
+          {importCheck.errors.length > 0 && (
+            <div className="rounded-md border border-york-200 bg-york-50 p-3 text-sm text-york-700 space-y-1">
+              {importCheck.errors.map((message) => (
+                <p key={message}>{message}</p>
+              ))}
+            </div>
+          )}
+          {importCheck.rows.length > 0 && (
+            <div className="max-h-64 overflow-y-auto rounded-md border border-gray-200 dark:border-slate-700">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-slate-800 text-left text-xs uppercase text-gray-500 dark:text-slate-400">
+                  <tr>
+                    <th className="px-3 py-2">Date</th>
+                    <th className="px-3 py-2">Title</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {importCheck.rows.map((row) => (
+                    <tr key={`${row.scheduled_date}-${row.title}`} className="border-t border-gray-100 dark:border-slate-700">
+                      <td className="px-3 py-2 whitespace-nowrap">{row.scheduled_date}</td>
+                      <td className="px-3 py-2">{row.title}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </Modal>
 
       {/* Add modal */}
       <Modal

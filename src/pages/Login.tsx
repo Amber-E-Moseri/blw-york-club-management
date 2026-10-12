@@ -44,8 +44,8 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="BLW York" className="w-14 h-14 object-contain" />
             <div>
-              <p className="text-lg font-bold text-gray-900">BLW York Hub</p>
-              <p className="text-sm text-gray-400">York University</p>
+              <p className="text-lg font-bold text-gray-900 dark:text-slate-100">BLW York Hub</p>
+              <p className="text-sm text-gray-400 dark:text-slate-500">York University</p>
             </div>
           </div>
         </div>
@@ -56,7 +56,7 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
           </div>
         )}
 
-        <div className="bg-white rounded-lg shadow-md p-8">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-8">
 
           {/* Sign-up success */}
           {mode === 'done' && (
@@ -73,7 +73,7 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
           {/* Sign In */}
           {mode === 'signin' && (
             <>
-              <h2 className="text-xl font-bold text-center mb-5">Sign In</h2>
+              <h2 className="text-xl font-bold text-center mb-5 text-gray-900 dark:text-slate-100">Sign In</h2>
               <form className="space-y-5" onSubmit={handleSignIn} noValidate>
                 <Input label="Email" type="email" value={email} onChange={setEmail} placeholder="you@yorku.ca" autoComplete="email" />
                 <Input label="Password" type="password" value={password} onChange={setPassword} placeholder="••••••••" autoComplete="current-password" />
@@ -82,7 +82,7 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
                 )}
                 <Button fullWidth loading={loading} type="submit">Sign In</Button>
               </form>
-              <p className="text-center text-sm text-gray-500 mt-5">
+              <p className="text-center text-sm text-gray-500 dark:text-slate-400 mt-5">
                 New to BLW York?{' '}
                 <button type="button" onClick={() => { setMode('signup'); setLocalError(''); }} className="text-york-600 font-semibold hover:underline">
                   Request access
@@ -94,7 +94,7 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
           {/* Sign Up */}
           {mode === 'signup' && (
             <>
-              <h2 className="text-xl font-bold text-center mb-5">Request Access</h2>
+              <h2 className="text-xl font-bold text-center mb-5 text-gray-900 dark:text-slate-100">Request Access</h2>
               <form className="space-y-4" onSubmit={handleSignUp} noValidate>
                 <Input label="Full Name" value={fullName} onChange={setFullName} placeholder="Your full name" autoComplete="name" required />
                 <Input label="Email" type="email" value={email} onChange={setEmail} placeholder="you@yorku.ca" autoComplete="email" />

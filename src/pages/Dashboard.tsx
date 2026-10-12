@@ -5,7 +5,10 @@ import { useDashboardStats } from '../hooks/useDashboardStats';
 import { useCurrentWeekMessage } from '../hooks/useWeeklyMessages';
 import { useHabits } from '../hooks/useHabits';
 import { useDevotional } from '../hooks/useDevotional';
+import { useHomeLayout, type HomeSectionId } from '../hooks/useHomeLayout';
 import { getUpcomingEvents } from '../lib/queries';
+import { cn } from '../lib/utils';
+import { Button } from '../components/foundation/Button';
 import { MinistryPulse } from '../components/dashboard/MinistryPulse';
 import { NeedsAttention } from '../components/dashboard/NeedsAttention';
 import { UpcomingSection } from '../components/dashboard/UpcomingSection';
@@ -17,6 +20,16 @@ import type { AuthUser } from '../lib/auth';
 const ROLE_LEVEL: Record<AuthUser['role'], number> = {
   member: 0, cell_leader: 1, admin: 2, coordinator: 3,
 };
+
+const SECTION_LABELS: Record<HomeSectionId, string> = {
+  needsAttention: 'Needs Attention',
+  upcoming: 'Upcoming',
+  growth: 'Growth Snapshot',
+  outreach: 'Outreach Snapshot',
+};
+
+// Sections that take two of the three desktop columns; the others take one.
+const WIDE_SECTIONS: HomeSectionId[] = ['needsAttention', 'upcoming'];
 
 interface DashboardProps {
   user: AuthUser | null;
@@ -43,6 +56,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const habitsDone = habitsWithStats.filter((h) => h.today_status === 'done').length;
   const habitsTotal = habitsWithStats.length;
   const devotionalViewed = !!devotional.view;
+
+  const { order, move, reset: resetLayout } = useHomeLayout(user?.id);
+  const [customizing, setCustomizing] = useState(false);
+
+  // Needs Attention and Outreach are leaders-only; members see Upcoming and Growth.
+  const visibleSections = order.filter((id) => isLeader || (id !== 'needsAttention' && id !== 'outreach'));
+
+  function renderSection(id: HomeSectionId) {
+    switch (id) {
+      case 'needsAttention':
+        return <NeedsAttention contacts={attentionContacts} loading={loading} />;
+      case 'upcoming':
+        return <UpcomingSection events={events} meetings={meetings} loading={loading} />;
+      case 'growth':
+        return (
+          <GrowthSnapshot
+            habitsDone={habitsDone}
+            habitsTotal={habitsTotal}
+            devotionalViewed={devotionalViewed}
+            weeklyMessageTitle={message?.title}
+            role={role}
+            loading={loading}
+          />
+        );
+      case 'outreach':
+        return <OutreachSnapshot stats={stats} attentionContacts={attentionContacts} loading={loading} />;
+    }
+  }
 
   return (
     <div className="space-y-5 pb-4">
@@ -78,44 +119,49 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         onNavigate={navigate}
       />
 
-      {/* Main grid */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        {/* Left / main column */}
-        <div className="space-y-5 lg:col-span-2">
-          {/* Needs Attention — leaders only */}
-          {isLeader && (
-            <NeedsAttention contacts={attentionContacts} loading={loading} />
-          )}
+      {/* Customizable sections */}
+      <div className="flex items-center justify-end gap-2">
+        {customizing && (
+          <Button variant="ghost" onClick={resetLayout}>
+            Reset order
+          </Button>
+        )}
+        <Button variant="secondary" onClick={() => setCustomizing((on) => !on)}>
+          {customizing ? 'Done' : 'Customize layout'}
+        </Button>
+      </div>
 
-          {/* Upcoming — events + meetings merged */}
-          <UpcomingSection
-            events={events}
-            meetings={meetings}
-            loading={loading}
-          />
-        </div>
-
-        {/* Right sidebar */}
-        <div className="space-y-5">
-          {/* Outreach Snapshot — leaders only */}
-          {isLeader && (
-            <OutreachSnapshot
-              stats={stats}
-              attentionContacts={attentionContacts}
-              loading={loading}
-            />
-          )}
-
-          {/* Growth Snapshot — all roles */}
-          <GrowthSnapshot
-            habitsDone={habitsDone}
-            habitsTotal={habitsTotal}
-            devotionalViewed={devotionalViewed}
-            weeklyMessageTitle={message?.title}
-            role={role}
-            loading={loading}
-          />
-        </div>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:[grid-auto-flow:dense]">
+        {visibleSections.map((id, index) => (
+          <div key={id} className={cn('min-w-0', WIDE_SECTIONS.includes(id) && 'lg:col-span-2')}>
+            {customizing && (
+              <div className="mb-2 flex items-center justify-between rounded-lg border border-dashed border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                <span className="font-semibold">{SECTION_LABELS[id]}</span>
+                <span className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => move(id, -1)}
+                    disabled={index === 0}
+                    aria-label={`Move ${SECTION_LABELS[id]} up`}
+                    className="rounded px-2 py-0.5 hover:bg-gray-100 disabled:opacity-40 dark:hover:bg-slate-700"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => move(id, 1)}
+                    disabled={index === visibleSections.length - 1}
+                    aria-label={`Move ${SECTION_LABELS[id]} down`}
+                    className="rounded px-2 py-0.5 hover:bg-gray-100 disabled:opacity-40 dark:hover:bg-slate-700"
+                  >
+                    ↓
+                  </button>
+                </span>
+              </div>
+            )}
+            {renderSection(id)}
+          </div>
+        ))}
       </div>
     </div>
   );

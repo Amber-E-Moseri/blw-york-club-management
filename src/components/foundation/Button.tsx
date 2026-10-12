@@ -20,7 +20,7 @@ const variantStyles: Record<NonNullable<ButtonProps['variant']>, string> = {
   primary:
     'bg-york-600 text-white hover:bg-york-700 active:bg-york-800 focus:ring-york-600 shadow-sm hover:shadow-md',
   secondary:
-    'bg-red-50 text-york-600 border border-york-600 hover:bg-red-100 active:bg-red-200 focus:ring-york-600',
+    'bg-red-50 text-york-600 border border-york-600 hover:bg-red-100 active:bg-red-200 focus:ring-york-600 dark:bg-slate-800 dark:text-red-300 dark:border-red-400 dark:hover:bg-slate-700 dark:active:bg-slate-600',
   danger:
     'bg-red-600 text-white hover:bg-red-700 active:bg-red-800 focus:ring-red-600 shadow-sm hover:shadow-md',
   success:

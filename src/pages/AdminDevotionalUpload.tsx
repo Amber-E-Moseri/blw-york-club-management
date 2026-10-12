@@ -4,14 +4,22 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/foundation/Button';
 import { Input } from '../components/foundation/Input';
 import type { AuthUser } from '../lib/auth';
-import { createDailyPage, createDevotional } from '../lib/queries/devotionals';
+import {
+  getOrCreateDevotional,
+  replaceDailyPages,
+  type CreateDailyPageInput,
+} from '../lib/queries/devotionals';
 import {
   analyzePdfStructure,
+  applyRangeEdit,
+  applySchedule,
   convertPdfToDailyImages,
-  detectPageRanges,
   formatPageRange,
   getDaysInMonth,
+  parseSchedule,
+  rangesFromFirstPage,
   uploadConvertedImages,
+  validateRanges,
   type ConversionProgress,
   type PageRange,
 } from '../lib/pdf-converter';
@@ -73,6 +81,11 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
   const [totalPages, setTotalPages] = useState(0);
   const [file, setFile] = useState<File | null>(null);
   const [ranges, setRanges] = useState<PageRange[]>([]);
+  const [rangeDrafts, setRangeDrafts] = useState<Record<number, string>>({});
+  const [rangeError, setRangeError] = useState<string | null>(null);
+  const [firstPage, setFirstPage] = useState(1);
+  const [scheduleText, setScheduleText] = useState('');
+  const [scheduleErrors, setScheduleErrors] = useState<string[]>([]);
   const [provider, setProvider] = useState<UploadProvider>('google-drive');
   const [manualUrlPrefix, setManualUrlPrefix] = useState('');
   const [progress, setProgress] = useState<ConversionProgress | null>(null);
@@ -81,6 +94,7 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
 
   const canAdmin = user?.role === 'admin' || user?.role === 'coordinator';
   const totalDays = getDaysInMonth(month, year);
+  const rangeIssues = useMemo(() => validateRanges(ranges, totalPages), [ranges, totalPages]);
 
   if (!canAdmin) {
     return (
@@ -104,12 +118,12 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
     try {
       const analysis = await analyzePdfStructure(nextFile, month, year);
       setTotalPages(analysis.totalPages);
-      setRanges(analysis.ranges);
+      setRanges(rangesFromFirstPage(analysis.totalPages, totalDays, firstPage));
       setStep('review');
       setProgress(null);
     } catch (err) {
       setTotalPages(totalDays * 2);
-      setRanges(detectPageRanges(totalDays * 2, totalDays));
+      setRanges(rangesFromFirstPage(totalDays * 2, totalDays, 1));
       setStep('review');
       setProgress(null);
       setError(err instanceof Error ? err.message : 'PDF analysis failed. Review the generated page ranges.');
@@ -119,19 +133,53 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
   function handleManualDetect() {
     const pages = Math.max(totalPages || totalDays * 2, totalDays);
     setTotalPages(pages);
-    setRanges(detectPageRanges(pages, totalDays));
-    setStep('review');
+    try {
+      setRanges(rangesFromFirstPage(pages, totalDays, firstPage));
+      setError(null);
+      setStep('review');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not detect page structure.');
+    }
   }
 
-  function updateRange(day: number, field: 'range' | 'title', value: string) {
-    setRanges((items) =>
-      items.map((item) => {
-        if (item.day !== day) return item;
-        if (field === 'title') return { ...item, title: value };
-        const parsed = parseRange(value);
-        return parsed ? { ...item, ...parsed } : item;
-      })
-    );
+  function handleApplySchedule() {
+    const { rows, errors } = parseSchedule(scheduleText, month);
+    setScheduleErrors(errors);
+    if (rows.length === 0) {
+      if (errors.length === 0) setScheduleErrors(['Paste the schedule rows first.']);
+      return;
+    }
+    setRanges(applySchedule(ranges, rows));
+    setRangeError(null);
+  }
+
+  function updateTitle(day: number, value: string) {
+    setRanges((items) => items.map((item) => (item.day === day ? { ...item, title: value } : item)));
+  }
+
+  // Range text is kept as a draft while typing so partial values like "3-" are allowed.
+  // On blur the draft is applied with applyRangeEdit, which moves the neighbouring days with it.
+  function commitRangeDraft(day: number) {
+    const draft = rangeDrafts[day];
+    setRangeDrafts((drafts) => {
+      const next = { ...drafts };
+      delete next[day];
+      return next;
+    });
+    if (draft === undefined) return;
+
+    const parsed = parseRange(draft);
+    if (!parsed) {
+      setRangeError(`Day ${day}: enter a page or range, such as 3 or 3-4.`);
+      return;
+    }
+    const result = applyRangeEdit(ranges, day, parsed.startPage, parsed.endPage);
+    if ('error' in result) {
+      setRangeError(result.error);
+      return;
+    }
+    setRangeError(null);
+    setRanges(result.ranges);
   }
 
   async function handleProcess() {
@@ -140,12 +188,16 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
       setError('Upload a PDF or provide an image URL prefix.');
       return;
     }
+    if (rangeIssues.length > 0) {
+      setError(`Fix the page ranges before processing: ${rangeIssues[0]}`);
+      return;
+    }
 
     setStep('processing');
     setError(null);
 
     try {
-      const devotional = await createDevotional({
+      const devotional = await getOrCreateDevotional({
         month,
         year,
         title: title.trim() || bookTitle.trim(),
@@ -156,18 +208,16 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
         created_by: user.id,
       });
 
+      // Pages are gathered first and written only once every image is ready,
+      // so a failed conversion or upload leaves the previous pages in place.
+      let pages: Omit<CreateDailyPageInput, 'devotional_id'>[];
       if (manualUrlPrefix.trim()) {
-        await Promise.all(
-          ranges.map((range) =>
-            createDailyPage({
-              devotional_id: devotional.id,
-              day_of_month: range.day,
-              page_range: formatPageRange(range),
-              image_url: `${manualUrlPrefix.replace(/\/$/, '')}/day-${String(range.day).padStart(2, '0')}.jpg`,
-              title: range.title || null,
-            })
-          )
-        );
+        pages = ranges.map((range) => ({
+          day_of_month: range.day,
+          page_range: formatPageRange(range),
+          image_url: `${manualUrlPrefix.replace(/\/$/, '')}/day-${String(range.day).padStart(2, '0')}.jpg`,
+          title: range.title || null,
+        }));
       } else if (file) {
         const converted = await convertPdfToDailyImages(file, ranges, setProgress);
         const uploaded = await uploadConvertedImages(
@@ -175,17 +225,17 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
           { month, year, bookTitle, devotionalId: devotional.id, provider },
           setProgress
         );
-
-        for (const image of uploaded) {
-          await createDailyPage({
-            devotional_id: devotional.id,
-            day_of_month: image.day,
-            page_range: image.pageRange,
-            image_url: image.imageUrl,
-            title: image.title || null,
-          });
-        }
+        pages = uploaded.map((image) => ({
+          day_of_month: image.day,
+          page_range: image.pageRange,
+          image_url: image.imageUrl,
+          title: image.title || null,
+        }));
+      } else {
+        pages = [];
       }
+
+      await replaceDailyPages(devotional.id, pages);
 
       setSuccessSummary(`${MONTHS[month - 1]} ${year} devotionals uploaded. ${ranges.length} days extracted and ready.`);
       setStep('success');
@@ -254,6 +304,13 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
               </label>
               <Input label="Year" type="number" value={String(year)} onChange={(value) => setYear(Number(value) || now.getFullYear())} />
               <Input
+                label="First Devotional Page"
+                type="number"
+                value={String(firstPage)}
+                onChange={(value) => setFirstPage(Number(value) || 1)}
+                helpText="Pages before this (cover, intro) are skipped. October's Daily Bread starts on page 6."
+              />
+              <Input
                 label="Manual Total Pages"
                 type="number"
                 value={String(totalPages || totalDays * 2)}
@@ -275,7 +332,18 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
                 <p className="text-small text-gray-400">
                   {MONTHS[month - 1]} {year} has {totalDays} days. Adjust ranges or titles before processing.
                 </p>
+                <p className="mt-1 text-small text-gray-400">
+                  Changing one day's pages moves the days after it. Days are checked for overlaps and gaps.
+                </p>
               </div>
+              {(rangeError || rangeIssues.length > 0) && (
+                <div className="mx-5 mt-4 rounded-md border border-york-200 bg-york-50 p-3 text-small text-york-700">
+                  {rangeError && <p>{rangeError}</p>}
+                  {rangeIssues.map((issue) => (
+                    <p key={issue}>{issue}</p>
+                  ))}
+                </div>
+              )}
               <div className="grid grid-cols-1 gap-3 p-5 md:grid-cols-2">
                 {ranges.map((range) => (
                   <div key={range.day} className="rounded-md border border-gray-200 p-3">
@@ -283,13 +351,14 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
                     <div className="grid grid-cols-[100px_1fr] gap-2">
                       <Input
                         label="Pages"
-                        value={formatPageRange(range)}
-                        onChange={(value) => updateRange(range.day, 'range', value)}
+                        value={rangeDrafts[range.day] ?? formatPageRange(range)}
+                        onChange={(value) => setRangeDrafts((drafts) => ({ ...drafts, [range.day]: value }))}
+                        onBlur={() => commitRangeDraft(range.day)}
                       />
                       <Input
                         label="Title"
                         value={range.title ?? ''}
-                        onChange={(value) => updateRange(range.day, 'title', value)}
+                        onChange={(value) => updateTitle(range.day, value)}
                       />
                     </div>
                   </div>
@@ -306,12 +375,30 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
                 </select>
               </label>
               <Input
+                type="textarea"
+                label="Paste Schedule (optional)"
+                value={scheduleText}
+                onChange={setScheduleText}
+                rows={6}
+                helpText="Paste the Date / Topic / Pages table. Sets exact pages and titles for each day."
+              />
+              <Button variant="secondary" onClick={handleApplySchedule} fullWidth disabled={!scheduleText.trim()}>
+                Apply Schedule
+              </Button>
+              {scheduleErrors.length > 0 && (
+                <div className="rounded-md border border-york-200 bg-york-50 p-3 text-small text-york-700">
+                  {scheduleErrors.map((message) => (
+                    <p key={message}>{message}</p>
+                  ))}
+                </div>
+              )}
+              <Input
                 label="Existing Image URL Prefix"
                 value={manualUrlPrefix}
                 onChange={setManualUrlPrefix}
                 helpText="Optional. Uses /day-01.jpg through /day-31.jpg and skips PDF conversion."
               />
-              <Button onClick={handleProcess} fullWidth>
+              <Button onClick={handleProcess} fullWidth disabled={rangeIssues.length > 0}>
                 Confirm and Process
               </Button>
               <Button variant="ghost" onClick={() => setStep('upload')} fullWidth>

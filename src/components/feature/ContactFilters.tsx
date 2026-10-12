@@ -58,7 +58,7 @@ export const ContactFilters: React.FC<Props> = ({
         {cells.length > 0 && (
           <div className="min-w-[140px]">
             <select
-              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-york-600"
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-md bg-white dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-york-600"
               value={filters.cell_id ?? ''}
               onChange={(e) => set({ cell_id: e.target.value || undefined })}
             >
@@ -73,7 +73,7 @@ export const ContactFilters: React.FC<Props> = ({
         {/* Tag */}
         <div className="min-w-[140px]">
           <select
-            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-york-600"
+            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-md bg-white dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-york-600"
             value={filters.tag ?? ''}
             onChange={(e) => set({ tag: e.target.value || undefined })}
           >
@@ -87,7 +87,7 @@ export const ContactFilters: React.FC<Props> = ({
         {/* Status */}
         <div className="min-w-[160px]">
           <select
-            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-york-600"
+            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-md bg-white dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-york-600"
             value={filters.status ?? ''}
             onChange={(e) => set({ status: e.target.value || undefined })}
           >
@@ -101,7 +101,7 @@ export const ContactFilters: React.FC<Props> = ({
         {/* Date range preset */}
         <div className="min-w-[140px]">
           <select
-            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-york-600"
+            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-md bg-white dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-york-600"
             value={filters.date_from ? `${filters.date_from}|${filters.date_to}` : ''}
             onChange={(e) => {
               if (!e.target.value) { set({ date_from: undefined, date_to: undefined }); return; }

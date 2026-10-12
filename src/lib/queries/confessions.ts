@@ -6,7 +6,7 @@ export async function fetchConfessionsForDate(date: string): Promise<Confession[
 
   const { data, error } = await supabase
     .from('confessions')
-    .select('*, confession_declarations(id, user_id)')
+    .select('*, confession_declarations(user_id)')
     .eq('scheduled_date', date)
     .eq('is_active', true)
     .order('created_at', { ascending: true });
@@ -30,7 +30,7 @@ export async function fetchUpcomingConfessions(days = 7): Promise<Confession[]> 
 
   const { data, error } = await supabase
     .from('confessions')
-    .select('*, confession_declarations(id, user_id)')
+    .select('*, confession_declarations(user_id)')
     .gte('scheduled_date', today)
     .lte('scheduled_date', until)
     .eq('is_active', true)
@@ -58,6 +58,16 @@ export async function createConfession(input: {
     .from('confessions').insert(input).select().single();
   if (error) throw new Error(error.message);
   return data;
+}
+
+/** Inserts many confessions in one statement, so either all of them are saved or none are. */
+export async function createConfessions(
+  rows: { title: string; body: string; scheduled_date: string; created_by: string }[]
+): Promise<number> {
+  if (rows.length === 0) return 0;
+  const { data, error } = await supabase.from('confessions').insert(rows).select('id');
+  if (error) throw new Error(error.message);
+  return data?.length ?? 0;
 }
 
 export async function updateConfession(

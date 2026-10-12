@@ -104,6 +104,72 @@ export async function createDevotional(data: CreateDevotionalInput): Promise<Mon
   return row;
 }
 
+export async function findDevotional(
+  month: number,
+  year: number,
+  bookTitle: string
+): Promise<MonthlyDevotional | null> {
+  const { data, error } = await supabase
+    .from('monthly_devotionals')
+    .select('*')
+    .eq('month', month)
+    .eq('year', year)
+    .eq('book_title', bookTitle)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message ?? 'Unknown error');
+  return data ?? null;
+}
+
+/**
+ * Reuses the month's existing row (matched on month, year and book title) and refreshes its details,
+ * so a re-run does not hit the unique constraint or leave a second row behind.
+ */
+export async function getOrCreateDevotional(data: CreateDevotionalInput): Promise<MonthlyDevotional> {
+  const existing = await findDevotional(data.month, data.year, data.book_title);
+  if (!existing) return createDevotional(data);
+
+  const { data: row, error } = await supabase
+    .from('monthly_devotionals')
+    .update({
+      title: data.title,
+      author: data.author ?? null,
+      total_days: data.total_days,
+      total_pages: data.total_pages,
+    })
+    .eq('id', existing.id)
+    .select('*')
+    .single();
+
+  if (error) throw new Error(error.message ?? 'Unknown error');
+  return row;
+}
+
+/** Replaces all day pages for a devotional. Called only after every image has uploaded. */
+export async function replaceDailyPages(
+  devotionalId: string,
+  pages: Omit<CreateDailyPageInput, 'devotional_id'>[]
+): Promise<void> {
+  const { error: deleteError } = await supabase
+    .from('devotional_daily_pages')
+    .delete()
+    .eq('devotional_id', devotionalId);
+
+  if (deleteError) throw new Error(deleteError.message ?? 'Unknown error');
+
+  const { error } = await supabase.from('devotional_daily_pages').insert(
+    pages.map((page) => ({
+      devotional_id: devotionalId,
+      day_of_month: page.day_of_month,
+      page_range: page.page_range,
+      image_url: page.image_url,
+      title: page.title ?? null,
+    }))
+  );
+
+  if (error) throw new Error(error.message ?? 'Unknown error');
+}
+
 export async function createDailyPage(data: CreateDailyPageInput): Promise<DevotionalDailyPage> {
   const { data: row, error } = await supabase
     .from('devotional_daily_pages')
