@@ -1,0 +1,46 @@
+PASS	A1 an active member can register themselves for a visible meeting
+PASS	A2 a member cannot register for a meeting they cannot see ('leaders' visibility)
+PASS	A3 a member cannot register someone else
+PASS	A4 a coordinator can add an active member who never confirmed
+PASS	A5 a coordinator cannot add a pending account to a roster
+PASS	A5 a coordinator cannot add a rejected account to a roster
+PASS	A5 a coordinator cannot add a inactive account to a roster
+PASS	A6 a cell leader can add an active member to a meeting in their own cell
+PASS	A6b a cell leader cannot add a pending account to their own meeting
+PASS	A6b a cell leader cannot add a rejected account to their own meeting
+PASS	A6b a cell leader cannot add a inactive account to their own meeting
+PASS	A6c scope is the MEETING: a leader can add an active member from another cell to their own cell's meeting
+PASS	A7 a cell leader cannot add anyone to another cell's meeting
+PASS	A8 the other cell's leader is likewise denied (symmetry)
+PASS	A9 a duplicate (meeting, user) insert is rejected and leaves exactly one row
+PASS	A10 six concurrent duplicate inserts leave exactly one row
+PASS	A11 a pending account cannot register itself or anyone else
+PASS	A11 a rejected account cannot register itself or anyone else
+PASS	A11 a inactive account cannot register itself or anyone else
+PASS	A12 anonymous callers cannot insert
+PASS	A13 inserting rights did not widen UPDATE: a member still cannot mark themselves attended
+PASS	B1 an active, opted-in memberId paired with a stranger address is skipped as recipient-mismatch (no provider dispatch)
+PASS	B2 the mismatched send is rejected BEFORE logging: no email_log row exists for the stranger address
+PASS	B3 batch: the same mismatch is skipped, not dispatched, and not logged
+PASS	B4 control: the matching active, opted-in member DOES reach the provider boundary
+PASS	B5 the same address in different case / with whitespace still matches the member
+PASS	B6 an opted-out member (own address) is skipped, with only a skipped audit row
+PASS	B7 a pending account (own address) is skipped, never dispatched, never logged
+PASS	B7 a rejected account (own address) is skipped, never dispatched, never logged
+PASS	B7 a inactive account (own address) is skipped, never dispatched, never logged
+PASS	B8 an unknown address with no memberId is skipped and not logged
+PASS	B9 a memberId that matches no profile is skipped and not logged
+PASS	B10 a transactional template also cannot pair a memberId with another address
+PASS	B11 control: a transactional send to the member's own address reaches the provider boundary
+PASS	B12 member callers cannot use send-email at all
+PASS	B12 cell leader callers cannot use send-email at all
+PASS	B12 pending callers cannot use send-email at all
+PASS	B12 rejected callers cannot use send-email at all
+PASS	B12 inactive callers cannot use send-email at all
+PASS	B13 resend of a log row whose address does not belong to its member is skipped, not dispatched
+PASS	B14 resend for a member who has since opted out is skipped
+PASS	B15 control: resend to the member's own address reaches the provider boundary
+PASS	B16 a scheduled email pairing a memberId with a stranger address is skipped by the dispatcher and not logged
+PASS	B17 the dispatcher refuses a wrong cron secret
+
+p0-boundary: 44/44 checks passed

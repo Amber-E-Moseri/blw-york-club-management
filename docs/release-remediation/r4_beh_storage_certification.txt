@@ -1,0 +1,32 @@
+PASS	bucket devotional-images exists, is public, limited to 10 MB, images only
+PASS	bucket testimony-images exists, is public, limited to 5 MB, images only
+PASS	bucket user-media exists, is public, limited to 5 MB, images only
+PASS	alice can upload her own avatar
+PASS	alice can replace (upsert) her own avatar
+PASS	the avatar renders from its public URL without signing in
+PASS	bob cannot upload to alice's avatar path
+PASS	bob cannot overwrite alice's avatar
+PASS	bob cannot delete alice's avatar
+PASS	an avatar outside the avatars/ folder is refused
+PASS	a non-image file is refused
+PASS	a file over 5 MB is refused
+PASS	anonymous upload is refused
+PASS	a pending (unapproved) account cannot upload
+PASS	anonymous listing is refused
+PASS	alice can delete her own avatar
+PASS	alice can upload into her own testimony folder
+PASS	bob cannot upload into alice's folder
+PASS	bob cannot overwrite alice's image
+PASS	bob cannot delete alice's image
+PASS	a non-image testimony file is refused
+PASS	a pending account cannot upload a testimony image
+PASS	a coordinator can remove an image for moderation
+PASS	alice can delete her own testimony image
+PASS	an ordinary member cannot upload a devotional image
+PASS	anonymous cannot upload a devotional image
+PASS	a member who edits their own user_metadata.role to admin is still refused
+PASS	an admin can upload a devotional image
+PASS	a member cannot delete a devotional image
+PASS	an admin can delete a devotional image
+
+storage: 30/30 checks passed

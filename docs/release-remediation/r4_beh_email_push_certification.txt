@@ -1,0 +1,38 @@
+PASS	a saves preferences (upsert on user_id)
+PASS	saving again updates the same single row
+PASS	a can read own preferences
+PASS	b cannot read a's preferences
+PASS	b cannot change a's preferences
+PASS	b cannot create a preferences row for a's account
+PASS	even a coordinator cannot read another account's preferences (personal data)
+PASS	anon cannot read preferences
+PASS	there is no member_id column on email_preferences
+PASS	a can subscribe two devices
+PASS	re-subscribing the same endpoint does not duplicate it (still 2 devices)
+PASS	b cannot subscribe a device in a's name
+PASS	b cannot see a's subscriptions (they hold push keys)
+PASS	a coordinator cannot see another account's subscriptions
+PASS	b cannot unsubscribe a's device
+PASS	a cannot hand a subscription to another account
+PASS	a can unsubscribe own device
+PASS	there is no member_id column on push_subscriptions
+PASS	the backend (service_role) can write a log row
+PASS	a log row must have a recipient (user_id NOT NULL)
+PASS	log status is constrained
+PASS	log status 'queued' is accepted
+PASS	log status 'sent' is accepted
+PASS	log status 'failed' is accepted
+PASS	log status 'clicked' is accepted
+PASS	log status 'dismissed' is accepted
+PASS	a can read own notification history
+PASS	b cannot read a's notification history
+PASS	a coordinator can read the log for operations
+PASS	a client cannot write the log
+PASS	a client cannot rewrite the log
+PASS	a client cannot delete from the log
+PASS	anon cannot read the log
+PASS	deleting an account removes its preferences, subscriptions and log (cascade)
+PASS	the backend can queue a scheduled email
+PASS	a member cannot read or queue scheduled email
+
+email-push: 36/36 checks passed

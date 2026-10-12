@@ -263,6 +263,54 @@ select authz_test.expect_count('F1 active member in no BSC reads all fellowships
 select authz_test.expect_count('F2 pending member reads no fellowships', '00000000-0000-0000-0000-00000000d101', 'select id from public.fellowships', 0);
 select authz_test.expect_count('F3 rejected member reads no BSCs', '00000000-0000-0000-0000-00000000d102', 'select id from public.bscs', 0);
 
+-- ─── H. Prayer visibility after 047: active authors only, cross-cell leader scope, moderation ─────────────────────
+-- Fixtures added after every check above, so the earlier expectations keep their meaning.
+insert into public.profiles (id, email, full_name, role, status, cell_id) values
+  ('00000000-0000-0000-0000-00000000c007', 'cl2@t', 'Cell leader C2 active', 'cell_leader', 'active', 'c0000000-0000-0000-0000-0000000000c2'),
+  ('00000000-0000-0000-0000-00000000d202', 'mi@t',  'Member inactive (author)', 'member', 'inactive', 'c0000000-0000-0000-0000-0000000000c1');
+insert into public.prayer_requests (id, content, author_id, author_name, visibility) values
+  ('a2000000-0000-0000-0000-0000000000f4', 'H4 shared by INACTIVE author d202', '00000000-0000-0000-0000-00000000d202', 'Inactive', 'shared'),
+  ('a2000000-0000-0000-0000-0000000000f5', 'H5 leadership by INACTIVE author d202', '00000000-0000-0000-0000-00000000d202', 'Inactive', 'leadership'),
+  ('a2000000-0000-0000-0000-0000000000f6', 'H6 shared by REJECTED author d102', '00000000-0000-0000-0000-00000000d102', 'Rejected', 'shared'),
+  ('a2000000-0000-0000-0000-0000000000f7', 'H7 shared by active d001 (cell C1)', '00000000-0000-0000-0000-00000000d001', 'M1', 'shared'),
+  ('a2000000-0000-0000-0000-0000000000f8', 'H8 leadership by active d003 (cell C3, cross-cell)', '00000000-0000-0000-0000-00000000d003', 'M3', 'leadership');
+
+-- Members: shared prayers of active authors only (T7)
+select authz_test.expect_count('H1 active member sees shared prayers of ACTIVE authors only (f3, f7)', '00000000-0000-0000-0000-00000000d201',
+  'select id from public.prayer_requests where visibility = ''shared''', 2);
+select authz_test.expect_count('H2 active member in cell C1 sees no leadership prayers', '00000000-0000-0000-0000-00000000d002',
+  'select id from public.prayer_requests where visibility = ''leadership''', 0);
+-- Cell leader C1: leadership prayers of its OWN cell's active authors; shared prayers of active authors
+select authz_test.expect_count('H3 cell leader C1 sees own-cell leadership (f1) and active shared (f3, f7), not cross-cell f8', '00000000-0000-0000-0000-00000000c003',
+  'select id from public.prayer_requests', 3);
+select authz_test.expect_count('H4 cell leader C2 sees no leadership prayers from cell C1 or C3', '00000000-0000-0000-0000-00000000c007',
+  'select id from public.prayer_requests where visibility = ''leadership''', 0);
+select authz_test.expect_count('H5 cell leader C2 sees active shared prayers only (f3, f7)', '00000000-0000-0000-0000-00000000c007',
+  'select id from public.prayer_requests', 2);
+-- Staff: leadership and shared prayers of ACTIVE authors across cells
+select authz_test.expect_count('H6 active coordinator sees active authors'' leadership and shared prayers (f1, f3, f7, f8)', '00000000-0000-0000-0000-00000000c001',
+  'select id from public.prayer_requests', 4);
+select authz_test.expect_count('H7 active admin sees active authors'' leadership and shared prayers (f1, f3, f7, f8)', '00000000-0000-0000-0000-00000000a001',
+  'select id from public.prayer_requests', 4);
+select authz_test.expect_count('H8 inactive coordinator sees no prayers', '00000000-0000-0000-0000-00000000c002',
+  'select id from public.prayer_requests', 0);
+-- Authors: own prayers while active; none once inactive or rejected (F5)
+select authz_test.expect_count('H9 active author reads own prayers (f1, f7)', '00000000-0000-0000-0000-00000000d001',
+  'select id from public.prayer_requests where author_id = auth.uid()', 2);
+select authz_test.expect_count('H10 INACTIVE author reads no own prayers', '00000000-0000-0000-0000-00000000d202',
+  'select id from public.prayer_requests where author_id = auth.uid()', 0);
+select authz_test.expect_count('H11 REJECTED author reads no own prayers', '00000000-0000-0000-0000-00000000d102',
+  'select id from public.prayer_requests where author_id = auth.uid()', 0);
+-- Moderation: active staff may moderate prayers they can read; leaders and members may not
+select authz_test.expect_affected('H12 active coordinator moderates an ACTIVE author leadership prayer', '00000000-0000-0000-0000-00000000c001',
+  $q$update public.prayer_requests set is_active = true where id = 'a2000000-0000-0000-0000-0000000000f1'$q$, 1);
+select authz_test.expect_affected('H13 cell leader cannot moderate prayers (no moderation role)', '00000000-0000-0000-0000-00000000c003',
+  $q$update public.prayer_requests set is_active = true where id = 'a2000000-0000-0000-0000-0000000000f1'$q$, 0);
+select authz_test.expect_affected('H14 member cannot moderate a shared prayer', '00000000-0000-0000-0000-00000000d201',
+  $q$update public.prayer_requests set is_active = true where id = 'a2000000-0000-0000-0000-0000000000f7'$q$, 0);
+select authz_test.expect_affected('H15 coordinator cannot moderate a prayer of an INACTIVE author (not readable; decision T7)', '00000000-0000-0000-0000-00000000c001',
+  $q$update public.prayer_requests set is_active = true where id = 'a2000000-0000-0000-0000-0000000000f5'$q$, 0);
+
 select * from authz_test.results order by name;
 select count(*) filter (where ok) as passed, count(*) filter (where not ok) as failed from authz_test.results;
 

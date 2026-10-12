@@ -982,9 +982,9 @@
       ],
       "policies": [
         "prayers_coordinator_manage | UPDATE | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
-        "prayers_leadership_read | SELECT | {public} | using=((visibility = ANY (ARRAY['leadership'::text, 'shared'::text])) AND (current_user_role() = ANY (ARRAY['coordinator'::text, 'admin'::text, 'cell_leader'::text])) AND is_active_profile(author_id)) | check=",
+        "prayers_leadership_read | SELECT | {public} | using=((visibility = ANY (ARRAY['leadership'::text, 'shared'::text])) AND is_active_profile(author_id) AND (is_admin_or_coordinator() OR is_cell_leader_for_profile(author_id))) | check=",
         "prayers_own | ALL | {public} | using=((auth.uid() = author_id) AND is_active_member()) | check=((auth.uid() = author_id) AND is_active_member())",
-        "prayers_shared_read | SELECT | {public} | using=((visibility = 'shared'::text) AND is_active_member()) | check="
+        "prayers_shared_read | SELECT | {public} | using=((visibility = 'shared'::text) AND is_active_member() AND is_active_profile(author_id)) | check="
       ],
       "triggers": [
         "CREATE TRIGGER prayer_requests_updated_at BEFORE UPDATE ON public.prayer_requests FOR EACH ROW EXECUTE FUNCTION set_updated_at()"

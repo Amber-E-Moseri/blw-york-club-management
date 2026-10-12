@@ -1,0 +1,125 @@
+PASS	A1 coordinator can log a new contact in a cell
+PASS	A2 EXPECTED: an email that differs only by case resolves to the same person (no error, one person)
+PASS	A3a phone-only match never silently merges two different people
+PASS	A3b EXPECTED: an ambiguous phone yields a clean, reviewable outcome rather than a raw database error
+PASS	A3c the existing phone owner is not overwritten by the second submission
+PASS	A4 two legitimate contacts with the same person on the same day are both recorded
+PASS	A4b both contacts point at one person
+PASS	A5 retry with the identical idempotency key creates exactly one contact and returns the original
+PASS	A6a concurrent duplicate submissions (same key) leave exactly one contact row
+PASS	A6b EXPECTED: every concurrent duplicate submission is answered without an error
+PASS	A6c concurrent duplicates produce exactly one person
+PASS	A7 EXPECTED: two simultaneous first contacts with a brand-new email both succeed and share one person
+PASS	A8a cell leader can log a contact in the cell they lead
+PASS	A8b cell leader cannot log a contact into another cell
+PASS	A8c ordinary member cannot log a contact
+PASS	A8d EXPECTED: a leader cannot attribute a contact to another user (logged_by spoofing)
+PASS	A9 pending account cannot create people or contacts
+PASS	A9 rejected account cannot create people or contacts
+PASS	A9 inactive account cannot create people or contacts
+PASS	B1 active member can confirm their own attendance
+PASS	B2 a member cannot confirm attendance for someone else
+PASS	B3 a member sees only their own attendance row
+PASS	B4 a member cannot mark another person's attendance
+PASS	B5 a member cannot remove another person's attendance
+PASS	B6 a member cannot mark themselves as attended (only managers confirm presence)
+PASS	B7 coordinator sees every attendance row for a meeting
+PASS	B8 coordinator can correct (mark attended) another person
+PASS	B9 coordinator can reverse a correction
+PASS	B10 EXPECTED: coordinator can add a person who attended but never confirmed (roster correction)
+PASS	B11 coordinator can remove a wrong roster entry
+PASS	B12 cell leader sees the roster of a meeting in their own cell
+PASS	B13 cell leader sees nothing of another cell's roster
+PASS	B14 cell leader can correct attendance in their own cell
+PASS	B15 cell leader cannot correct attendance in another cell
+PASS	B16 pending account cannot read, add, edit or delete attendance
+PASS	B17 pending account cannot read meetings
+PASS	B16 rejected account cannot read, add, edit or delete attendance
+PASS	B17 rejected account cannot read meetings
+PASS	B16 inactive account cannot read, add, edit or delete attendance
+PASS	B17 inactive account cannot read meetings
+PASS	B18 anon has no access to attendance
+PASS	C1 pending account can edit its own ordinary profile field (full_name)
+PASS	C2 pending account can save onboarding details (user_profiles)
+PASS	C3 pending account cannot change protected field "role"
+PASS	C3 pending account cannot change protected field "status"
+PASS	C3 pending account cannot change protected field "admin_role"
+PASS	C3 pending account cannot change protected field "cell_id"
+PASS	C3 pending account cannot change protected field "email"
+PASS	C4 (design) an active member has no direct UPDATE on profiles (self-edit is limited to pending onboarding; active edits go through user_profiles)
+PASS	C5 active member can save own user_profiles details
+PASS	C6 active member cannot change protected field "role"
+PASS	C6 active member cannot change protected field "status"
+PASS	C6 active member cannot change protected field "cell_id"
+PASS	C7 a member cannot edit another member's profile or user_profiles
+PASS	C8 rejected account cannot edit profiles or user_profiles
+PASS	C9 rejected account cannot reactivate itself
+PASS	C8 inactive account cannot edit profiles or user_profiles
+PASS	C9 inactive account cannot reactivate itself
+PASS	C10 inactive account still authenticates at the Auth layer (gating is app/RLS-level; recorded for the report)
+PASS	C11 a self-edit writes no staff audit row
+PASS	C12 coordinator can edit a member's profile
+PASS	C13 coordinator can edit a member's user_profiles (phone, bio)
+PASS	C14 admin can edit a member's user_profiles
+PASS	C15 the coordinator profile edit is audited with actor, target and field list
+PASS	C16 the user_profiles phone edit is audited
+PASS	C17 the audit stores no phone-number value (old or new)
+PASS	C18 the admin edit is audited under the admin actor
+PASS	C19 a member cannot read the staff audit
+PASS	C20 a cell leader cannot read the staff audit
+PASS	C21 admin/coordinator can read the staff audit
+PASS	C22 audit rows are append-only for staff (no insert, update or delete through the API)
+PASS	C23 a cell leader cannot edit a member's user_profiles
+PASS	C24 a non-coordinator admin cannot promote anyone to coordinator
+PASS	C25 coordinator can deactivate an account (status change allowed for staff)
+PASS	C26 a freshly deactivated account immediately loses attendance access
+PASS	D1 coordinator can create a template
+PASS	D2 admin can create a template
+PASS	D3 member cannot create or read templates, or create drafts
+PASS	D3 cell leader cannot create or read templates, or create drafts
+PASS	D3 pending cannot create or read templates, or create drafts
+PASS	D3 rejected cannot create or read templates, or create drafts
+PASS	D3 inactive cannot create or read templates, or create drafts
+PASS	D4 templates are shared: another coordinator can edit
+PASS	D5 coordinator can save a draft
+PASS	D6 reopening the draft restores subject, body, recipients, filter and linked template id
+PASS	D7 the linked template name can be resolved from the draft (what the 5-line UI fix relies on)
+PASS	D8 another coordinator cannot see or open someone else's draft
+PASS	D9 another coordinator cannot edit or delete someone else's draft
+PASS	D10 a draft cannot be created in another user's name
+PASS	D11 saving again updates the same draft (persistence)
+PASS	D12 deleting a template keeps the draft and clears its link
+PASS	D13 a blank subject draft is rejected by the database
+PASS	D14 anon cannot send email through the edge function
+PASS	D14 member cannot send email through the edge function
+PASS	D14 cell leader cannot send email through the edge function
+PASS	D14 pending cannot send email through the edge function
+PASS	D14 rejected cannot send email through the edge function
+PASS	D14 inactive cannot send email through the edge function
+PASS	D15 nothing is delivered: the call ends skipped (200) or at the unconfigured provider boundary (500)
+PASS	D16 EXPECTED: a recipient with opt_out_all=true is excluded before any send is attempted (no email_log row for them)
+PASS	D17 EXPECTED: sending to an address that belongs to no active member is rejected before logging
+PASS	D18 EXPECTED: a pending/rejected/inactive account is not an eligible recipient
+PASS	E1 service_role call without a token is rejected
+PASS	E2 wrong token touches nothing and returns false
+PASS	E3 message A's token cannot open message B (no cross-recipient tracking)
+PASS	E4 malformed ids are rejected
+PASS	E5 anon cannot call track_email_open directly, even with the correct token
+PASS	E5 authenticated member cannot call track_email_open directly, even with the correct token
+PASS	E5 authenticated coordinator cannot call track_email_open directly, even with the correct token
+PASS	E5b EXPECTED: the real email pixel (a bare GET from a mail client, no headers) is accepted and records the open
+PASS	E6 pixel with a wrong token records nothing and answers identically to an unknown message (no enumeration)
+PASS	E7 track_open without a token records nothing
+PASS	E8 a member cannot read another member's email_log row (so cannot learn their token)
+PASS	E9 pixel with the correct token records the open
+PASS	E10 a repeat open keeps the first opened_at
+PASS	E11 the other recipient's message is still unopened
+PASS	E12 a member cannot rewrite their own email_log row through the API
+PASS	E13 unsubscribe with a forged token is rejected
+PASS	E14 unsubscribe with a tampered signature is rejected
+PASS	E15 an expired unsubscribe token is rejected
+PASS	E16b EXPECTED: the real unsubscribe link (a bare browser GET, no headers) works
+PASS	E16 a valid unsubscribe link switches off exactly that category for that user
+PASS	E17 the unsubscribe did not touch another user's preferences
+
+p0-behavioural: 123/123 checks passed
