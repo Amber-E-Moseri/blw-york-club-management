@@ -11,6 +11,8 @@ export interface ButtonProps {
   icon?: React.ReactNode;
   iconPosition?: 'left' | 'right';
   type?: 'button' | 'submit' | 'reset';
+  /** Id of a form this button submits, so the button can sit outside the form (for example in a modal footer). */
+  form?: string;
   className?: string;
   children: React.ReactNode;
   'aria-label'?: string;
@@ -20,7 +22,7 @@ const variantStyles: Record<NonNullable<ButtonProps['variant']>, string> = {
   primary:
     'bg-york-600 text-white hover:bg-york-700 active:bg-york-800 focus:ring-york-600 shadow-sm hover:shadow-md',
   secondary:
-    'bg-red-50 text-york-600 border border-york-600 hover:bg-red-100 active:bg-red-200 focus:ring-york-600',
+    'bg-red-50 text-york-600 border border-york-600 hover:bg-red-100 active:bg-red-200 focus:ring-york-600 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-500 dark:hover:bg-slate-700',
   danger:
     'bg-red-600 text-white hover:bg-red-700 active:bg-red-800 focus:ring-red-600 shadow-sm hover:shadow-md',
   success:
@@ -78,6 +80,7 @@ export const Button: React.FC<ButtonProps> = ({
   icon,
   iconPosition = 'left',
   type = 'button',
+  form,
   className,
   children,
   'aria-label': ariaLabel,
@@ -87,6 +90,7 @@ export const Button: React.FC<ButtonProps> = ({
   return (
     <button
       type={type}
+      form={form}
       onClick={onClick}
       disabled={isDisabled}
       aria-label={ariaLabel}

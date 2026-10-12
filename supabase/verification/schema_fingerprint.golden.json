@@ -48,6 +48,8 @@
       "rls": true,
       "owner": "postgres",
       "columns": [
+        "audience:text:NOT NULL:'all'::text",
+        "audience_meeting_id:uuid:null:",
         "category:text:NOT NULL:'Other'::text",
         "created_at:timestamp with time zone:NOT NULL:now()",
         "created_by:uuid:NOT NULL:",
@@ -56,6 +58,7 @@
         "id:uuid:NOT NULL:gen_random_uuid()",
         "image_url:text:null:",
         "location:text:null:",
+        "notified_at:timestamp with time zone:null:",
         "time:time without time zone:null:",
         "title:text:NOT NULL:"
       ],
@@ -74,6 +77,8 @@
         "authenticated": "DELETE,INSERT,SELECT,UPDATE"
       },
       "constraints": [
+        "events_audience_check CHECK ((audience = ANY (ARRAY['all'::text, 'meeting'::text])))",
+        "events_audience_meeting_id_fkey FOREIGN KEY (audience_meeting_id) REFERENCES meetings(id) ON DELETE SET NULL",
         "events_category_check CHECK ((category = ANY (ARRAY['Bible Study'::text, 'Worship'::text, 'Fellowship'::text, 'Outreach'::text, 'Prayer'::text, 'Other'::text])))",
         "events_created_by_fkey FOREIGN KEY (created_by) REFERENCES profiles(id)",
         "events_pkey PRIMARY KEY (id)"
@@ -2059,7 +2064,7 @@
       },
       "security": "definer",
       "volatility": "s",
-      "definition_md5": "5e20012318656576f8da34e06331971f"
+      "definition_md5": "e852380f1be95d606c296b2a961118b5"
     },
     "is_cell_leader_of(uuid)": {
       "owner": "postgres",
@@ -2098,7 +2103,7 @@
       },
       "security": "invoker",
       "volatility": "s",
-      "definition_md5": "ba2b4d22e3b65dd070199f8a98f6d8ae"
+      "definition_md5": "52d20a93f7bb48730335b6056791790e"
     },
     "has_admin_permission(text)": {
       "owner": "postgres",

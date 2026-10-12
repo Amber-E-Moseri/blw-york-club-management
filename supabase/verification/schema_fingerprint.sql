@@ -1,3 +1,5 @@
+-- Line endings are stripped before hashing. A Windows checkout of a migration file stores CRLF in function bodies;
+-- the same SQL on LF is the same schema. Without this, the fingerprint depends on the machine that generated it.
 -- schema_fingerprint.sql
 -- READ-ONLY. One SELECT that returns ONE deterministic JSON document describing the security-relevant shape of the
 -- database: tables (columns, nullability, defaults, constraints, indexes, policies, triggers, privileges), views,
@@ -43,7 +45,7 @@ tbl as (
 vw as (
   select c.relname,
     jsonb_build_object(
-      'definition_md5', md5(pg_get_viewdef(c.oid)),
+      'definition_md5', md5(replace(pg_get_viewdef(c.oid), E'\r', '')),
       'options', coalesce(array_to_string(c.reloptions, ','), ''),
       'privileges', (select jsonb_object_agg(r.r, coalesce((select string_agg(p.p, ',' order by p.p) from privs p where has_table_privilege(r.r, c.oid, p.p)), '')) from roles r)) as doc
   from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind in ('v', 'm')
@@ -60,7 +62,7 @@ fn as (
         'anon', has_function_privilege('anon', p.oid, 'EXECUTE'),
         'authenticated', has_function_privilege('authenticated', p.oid, 'EXECUTE'),
         'service_role', has_function_privilege('service_role', p.oid, 'EXECUTE')),
-      'definition_md5', md5(pg_get_functiondef(p.oid))) as doc
+      'definition_md5', md5(replace(pg_get_functiondef(p.oid), E'\r', ''))) as doc
   from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prokind = 'f'
 )
 select jsonb_pretty(jsonb_build_object(

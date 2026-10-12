@@ -1,0 +1,5 @@
+# Migrations and verification artefacts are SQL/JSON compared byte for byte by the schema fingerprint.
+# Force LF so a Windows checkout cannot change function bodies (see schema_fingerprint.sql).
+supabase/**/*.sql text eol=lf
+supabase/**/*.json text eol=lf
+supabase/**/*.mjs text eol=lf
