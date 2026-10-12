@@ -82,33 +82,19 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="flex items-center gap-2">
         {/* Quick Add button */}
         {onQuickAdd && (
-          <>
-            <button
-              type="button"
-              onClick={onQuickAdd}
-              aria-label="Quick add"
-              className={cn(
-                'hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-semibold',
-                'bg-york-600 text-white hover:bg-york-700 transition-colors duration-150',
-                'focus:outline-none focus:ring-2 focus:ring-york-600 focus:ring-offset-1',
-              )}
-            >
-              <Plus className="w-4 h-4" />
-              Quick add
-            </button>
-            <button
-              type="button"
-              onClick={onQuickAdd}
-              aria-label="Quick add"
-              className={cn(
-                'sm:hidden flex items-center justify-center w-9 h-9 rounded-md',
-                'bg-york-600 text-white hover:bg-york-700 transition-colors duration-150',
-                'focus:outline-none focus:ring-2 focus:ring-york-600',
-              )}
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          </>
+          <button
+            type="button"
+            onClick={onQuickAdd}
+            aria-label="Quick add"
+            className={cn(
+              'hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-semibold',
+              'bg-york-600 text-white hover:bg-york-700 transition-colors duration-150',
+              'focus:outline-none focus:ring-2 focus:ring-york-600 focus:ring-offset-1',
+            )}
+          >
+            <Plus className="w-4 h-4" />
+            Quick add
+          </button>
         )}
 
         {/* User menu */}
