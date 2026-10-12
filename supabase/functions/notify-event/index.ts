@@ -1,5 +1,11 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import webpush from 'npm:web-push@3.6.7';
+import {
+  buildDeliveryLogRows,
+  buildEventPushPayload,
+  classifyPushError,
+  type DeliveryOutcome,
+} from '../_shared/event-notification.ts';
 
 // Sends one Web Push notification per active subscription to the people an event is aimed at.
 // Called by the client right after an admin or coordinator saves a new event.
@@ -91,24 +97,6 @@ async function resolveRecipientIds(event: {
   return (active ?? []).map((row: { id: string }) => row.id);
 }
 
-function buildPayload(event: {
-  id: string;
-  title: string;
-  date: string;
-  time: string | null;
-  location: string | null;
-}): string {
-  const when = [event.date, event.time ? `at ${event.time.slice(0, 5)}` : null].filter(Boolean).join(' ');
-  const where = event.location ? ` · ${event.location}` : '';
-  return JSON.stringify({
-    title: `New event: ${event.title}`,
-    body: `${when}${where}`,
-    url: '/events',
-    type: 'event',
-    eventId: event.id,
-  });
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
@@ -156,8 +144,8 @@ Deno.serve(async (req) => {
       throw e;
     }
 
-    const payload = buildPayload(event);
-    const outcomes = await Promise.all(
+    const payload = buildEventPushPayload(event);
+    const outcomes: Array<DeliveryOutcome & { endpointId: string }> = await Promise.all(
       subscriptions.map(async (sub) => {
         try {
           await webpush.sendNotification(
@@ -165,36 +153,20 @@ Deno.serve(async (req) => {
             payload,
             { TTL: 60 * 60 * 24 }
           );
-          return { sub, status: 'sent' as const, error: null };
+          return { endpointId: sub.id, userId: sub.user_id, status: 'sent' as const, error: null };
         } catch (err) {
           const statusCode = (err as { statusCode?: number }).statusCode;
-          // 404 and 410 mean the browser no longer accepts this endpoint.
-          if (statusCode === 404 || statusCode === 410) {
+          const message = err instanceof Error ? err.message : String(err);
+          const { status, error } = classifyPushError(statusCode, message);
+          if (status === 'expired') {
             await supabase.from('push_subscriptions').update({ is_active: false }).eq('id', sub.id);
-            return { sub, status: 'expired' as const, error: `Subscription gone (${statusCode})` };
           }
-          return { sub, status: 'failed' as const, error: err instanceof Error ? err.message : String(err) };
+          return { endpointId: sub.id, userId: sub.user_id, status, error };
         }
       })
     );
 
-    // One log row per member: sent if any of their devices received it.
-    const byUser = new Map<string, { sent: boolean; error: string | null }>();
-    for (const { sub, status, error } of outcomes) {
-      const current = byUser.get(sub.user_id) ?? { sent: false, error: null };
-      if (status === 'sent') current.sent = true;
-      if (error) current.error = error;
-      byUser.set(sub.user_id, current);
-    }
-    const logRows = [...byUser.entries()].map(([userId, result]) => ({
-      user_id: userId,
-      notification_type: 'event',
-      title: `New event: ${event.title}`,
-      body: `${event.date}${event.location ? ` · ${event.location}` : ''}`,
-      target_url: '/events',
-      status: result.sent ? 'sent' : 'failed',
-      error_message: result.sent ? null : result.error,
-    }));
+    const logRows = buildDeliveryLogRows(event, outcomes);
     if (logRows.length > 0) {
       const { error: logError } = await supabase.from('push_notification_log').insert(logRows);
       if (logError) console.error('push_notification_log insert failed', logError.message);

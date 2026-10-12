@@ -39,6 +39,7 @@ const NAV_GROUPS: NavGroup[] = [
     groupKey: 'People',
     items: [
       { labelKey: 'people', label: 'Members', path: '/members', icon: Users, minRole: 1 },
+      { labelKey: 'cells', label: 'Cells', path: '/cells', icon: Users, minRole: 1 },
       { labelKey: 'outreach', label: 'Contacts', path: '/contacts', icon: ClipboardList, minRole: 1 },
       { labelKey: 'approvals', label: 'Approvals', path: '/admin/pending', icon: ClipboardCheck, minRole: 2 },
     ],

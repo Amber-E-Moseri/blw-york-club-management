@@ -5,6 +5,7 @@ import { MainLayout } from './components/layout/MainLayout';
 import { Dashboard } from './pages/Dashboard';
 import { Events } from './pages/Events';
 import { Members } from './pages/Members';
+import { Cells } from './pages/Cells';
 import { Announcements } from './pages/Announcements';
 import { UserProfile } from './pages/UserProfile';
 import { AdminHub } from './pages/AdminHub';
@@ -61,6 +62,7 @@ function AppShell() {
         <Route path="/" element={<Dashboard user={user} />} />
         <Route path="/events" element={<Events user={user} />} />
         <Route path="/members" element={<Members user={user} />} />
+        <Route path="/cells" element={<Cells user={user} />} />
         <Route path="/announcements" element={<Announcements user={user} />} />
         <Route path="/devotionals" element={<DevotionalViewer user={user} />} />
         <Route path="/profile" element={<UserProfile currentUser={user} />} />
