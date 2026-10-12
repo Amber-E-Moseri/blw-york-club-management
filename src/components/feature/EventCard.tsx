@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatEventDate } from '../../lib/utils';
+import { buildGoogleCalendarUrl, downloadIcs } from '../../lib/calendar';
 import { Badge, Button } from '../foundation';
 import type { Event } from '../../types';
 
@@ -24,6 +25,23 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onRsvp }) => {
         <p className="text-sm font-bold text-gray-900 dark:text-slate-100 truncate">{event.title}</p>
         <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">{event.time} · {event.location}</p>
         <Badge variant="gray" className="mt-1">{event.category}</Badge>
+        <div className="mt-2 flex flex-wrap items-center gap-3 text-xs font-bold">
+          <a
+            href={buildGoogleCalendarUrl(event)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-york-700 underline underline-offset-2"
+          >
+            Add to Google Calendar
+          </a>
+          <button
+            type="button"
+            className="text-york-700 underline underline-offset-2"
+            onClick={() => downloadIcs(event)}
+          >
+            Add to Apple / Outlook (.ics)
+          </button>
+        </div>
       </div>
 
       {/* RSVP */}
