@@ -4,9 +4,9 @@
 -- Checks that a member's data can only be seen through the BSC/cell rules is covered by the
 -- behavioural checks in the local certification harness; this file checks the database shape.
 
-with checks as (
+with results as (
   -- Tables and columns
-  select 'table fellowships exists' as check,
+  select 'table fellowships exists' as item,
          exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'fellowships') as ok
   union all
   select 'table bscs exists',
@@ -67,7 +67,7 @@ with checks as (
                  and tgrelid = 'public.profiles'::regclass)
 )
 select
-  check,
+  item,
   case when ok then 'PASS' else 'FAIL' end as result
-from checks
-order by result desc, check;
+from results
+order by result desc, item;
