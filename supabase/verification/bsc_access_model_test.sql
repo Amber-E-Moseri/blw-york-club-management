@@ -104,6 +104,7 @@ grant execute on all functions in schema public to authenticated, anon;
 \i supabase/migrations/038_bsc_hierarchy_access.sql
 \i supabase/migrations/039_bsc_member_views.sql
 \i supabase/migrations/040_bsc_grants.sql
+\i supabase/migrations/041_bsc_function_grants.sql
 
 -- ─── Test helpers ────────────────────────────────────────────────────────────────────────────────────────────────
 create schema bsc_test;
