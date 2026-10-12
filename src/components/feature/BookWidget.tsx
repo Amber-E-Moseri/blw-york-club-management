@@ -9,7 +9,7 @@ export const BookWidget: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 animate-pulse dark:bg-slate-800 dark:border-slate-700">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 animate-pulse dark:bg-slate-900 dark:border-slate-800">
         <div className="h-4 bg-gray-200 rounded w-1/3 mb-3" />
         <div className="h-24 bg-gray-100 rounded" />
       </div>
@@ -23,7 +23,7 @@ export const BookWidget: React.FC = () => {
   const daysLeft = Math.ceil((until.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden dark:bg-slate-800 dark:border-slate-700">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden dark:bg-slate-900 dark:border-slate-800">
       <div className="section-header px-6 pt-5 pb-0">
         <h2 className="text-h3">Book of the Month</h2>
         <button onClick={() => navigate('/books')} className="see-all-link">Archive →</button>

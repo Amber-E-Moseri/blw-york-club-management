@@ -14,7 +14,7 @@ export const PersonCard: React.FC<PersonCardProps> = ({ member, onSelect, canSee
   <button
     type="button"
     onClick={onSelect}
-    className="w-full text-left bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl p-4 flex items-center gap-3 hover:border-york-300 dark:hover:border-york-700 hover:shadow-md transition-all active:scale-[0.99]"
+    className="w-full text-left bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg p-3.5 flex items-center gap-3 hover:border-york-300 dark:hover:border-york-700 hover:shadow-md transition-all active:scale-[0.99]"
   >
     {/* Avatar */}
     <div className="w-10 h-10 rounded-full bg-york-600 text-white flex items-center justify-center text-sm font-bold shrink-0 overflow-hidden">

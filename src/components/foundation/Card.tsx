@@ -18,9 +18,9 @@ export interface CardProps {
 }
 
 const variantStyles: Record<NonNullable<CardProps['variant']>, string> = {
-  default: 'bg-white border border-gray-200 shadow-sm dark:bg-slate-800 dark:border-slate-700',
-  elevated: 'bg-white border border-gray-200 shadow-[0_8px_16px_rgba(0,0,0,0.08)] dark:bg-slate-800 dark:border-slate-700',
-  outlined: 'bg-white border border-gray-300 shadow-none dark:bg-slate-800 dark:border-slate-700',
+  default: 'bg-white border border-gray-200 shadow-sm dark:bg-slate-900 dark:border-slate-800',
+  elevated: 'bg-white border border-gray-200 shadow-[0_4px_12px_rgba(0,0,0,0.08)] dark:bg-slate-900 dark:border-slate-800',
+  outlined: 'bg-white border border-gray-300 shadow-none dark:bg-slate-900 dark:border-slate-800',
 };
 
 /**
@@ -76,16 +76,16 @@ export const Card: React.FC<CardProps> = ({
     >
       {/* Header */}
       {(title || headerAction) && (
-        <div className="px-5 pt-5 pb-3 border-b border-gray-100">
+        <div className="px-4 pt-4 pb-3 border-b border-gray-100 dark:border-slate-800">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               {title && (
-                <h3 className="text-base font-bold text-gray-900 leading-tight truncate dark:text-slate-100">
+                <h3 className="text-sm font-bold text-gray-900 leading-tight truncate dark:text-slate-100">
                   {title}
                 </h3>
               )}
               {subtitle && (
-                <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>
+                <p className="text-xs text-gray-500 mt-0.5 dark:text-slate-400">{subtitle}</p>
               )}
             </div>
             {headerAction && (
@@ -96,13 +96,13 @@ export const Card: React.FC<CardProps> = ({
       )}
 
       {/* Body */}
-      <div className={cn('p-5', !title && !headerAction && 'pt-5')}>
+      <div className={cn('p-4', !title && !headerAction && 'pt-4')}>
         {children}
       </div>
 
       {/* Footer */}
       {footer && (
-        <div className="px-5 pb-4 pt-3 border-t border-gray-100">
+        <div className="px-4 pb-3.5 pt-3 border-t border-gray-100 dark:border-slate-800">
           {footer}
         </div>
       )}

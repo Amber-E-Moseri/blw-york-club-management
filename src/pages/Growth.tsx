@@ -21,7 +21,7 @@ interface GrowthCardProps {
 const GrowthCard: React.FC<GrowthCardProps> = ({ icon, iconBg, title, subtitle, badge, to }) => (
   <Link
     to={to}
-    className="flex items-center gap-4 p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-sm hover:shadow-md transition-all duration-150 group"
+    className="flex items-center gap-4 p-4 bg-white dark:bg-slate-900 rounded-lg shadow-sm hover:shadow-md transition-all duration-150 group"
   >
     <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
       {icon}
@@ -57,7 +57,7 @@ export const Growth: React.FC<GrowthProps> = ({ user }) => {
   return (
     <div className="space-y-5 pb-4">
       {/* Header */}
-      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg shadow-sm overflow-hidden">
         <div className="border-t-4 border-york-600 px-5 py-5">
           <p className="text-xs font-semibold text-york-600 uppercase tracking-wider">Spiritual</p>
           <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100 mt-1">Growth</h1>
@@ -139,7 +139,7 @@ export const Growth: React.FC<GrowthProps> = ({ user }) => {
 };
 
 const StatChip: React.FC<{ label: string; value: number }> = ({ label, value }) => (
-  <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm px-4 py-3">
+  <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg shadow-sm px-4 py-3">
     <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">{label}</p>
     <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-0.5">{value}</p>
   </div>

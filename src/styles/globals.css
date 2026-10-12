@@ -67,7 +67,7 @@
 
   /* Inputs */
   .input-field {
-    @apply w-full px-4 py-3 text-small text-gray-900
+    @apply w-full px-3.5 py-2.5 text-small text-gray-900
            border border-gray-300 rounded-md bg-white
            dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100
            placeholder:text-gray-400
@@ -83,7 +83,7 @@
 
   /* Cards */
   .card {
-    @apply bg-white border border-gray-200 rounded-lg shadow-sm p-6 dark:border-slate-700 dark:bg-slate-800;
+    @apply bg-white border border-gray-200 rounded-lg shadow-sm p-5 dark:border-slate-800 dark:bg-slate-900;
   }
   .card-hover {
     @apply card hover:shadow-md transition-shadow duration-normal cursor-pointer;
@@ -100,7 +100,7 @@
 
   /* Navigation */
   .nav-link {
-    @apply flex items-center gap-3 px-4 py-3 rounded-md text-small font-medium
+    @apply flex items-center gap-3 px-3.5 py-2 rounded-md text-small font-medium
            text-gray-500 hover:bg-gray-100 hover:text-gray-900
            transition-colors duration-fast cursor-pointer;
   }

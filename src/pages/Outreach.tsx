@@ -133,7 +133,7 @@ export const Outreach: React.FC<Props> = ({ user }) => {
   return (
     <div className="space-y-5 pb-4">
       {/* Header */}
-      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg shadow-sm overflow-hidden">
         <div className="border-t-4 border-york-600 px-5 py-5 flex items-start justify-between gap-4 flex-wrap">
           <div>
             <p className="text-xs font-semibold text-york-600 uppercase tracking-wider">Outreach CRM</p>
@@ -214,7 +214,7 @@ export const Outreach: React.FC<Props> = ({ user }) => {
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-14 rounded-2xl" />
+            <Skeleton key={i} className="h-12 rounded-lg" />
           ))}
         </div>
       ) : (
@@ -292,7 +292,7 @@ export const Outreach: React.FC<Props> = ({ user }) => {
 };
 
 const StatChip: React.FC<{ label: string; value: number }> = ({ label, value }) => (
-  <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm px-4 py-3">
+  <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg shadow-sm px-4 py-3">
     <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">{label}</p>
     <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-0.5">{value}</p>
   </div>

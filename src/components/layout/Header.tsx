@@ -39,8 +39,8 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header
       className={cn(
-        'h-[60px] bg-white border-b-2 border-york-600 shadow-sm dark:bg-slate-900',
-        'flex items-center justify-between px-5 shrink-0 sticky top-0 z-30',
+        'h-[52px] bg-white border-b border-gray-200 dark:border-slate-800 shadow-sm dark:bg-slate-950',
+        'flex items-center justify-between px-4 shrink-0 sticky top-0 z-30',
         className,
       )}
     >

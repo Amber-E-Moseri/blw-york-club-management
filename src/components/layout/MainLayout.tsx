@@ -62,8 +62,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             id="main-content"
             className={cn(
               'flex-1 overflow-y-auto bg-gray-50 dark:bg-slate-950',
-              'px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8',
-              'pb-24 md:pb-8',
+              'px-4 py-4 sm:px-5 sm:py-4 lg:px-6 lg:py-5',
+              'pb-24 md:pb-6',
             )}
           >
             {children}

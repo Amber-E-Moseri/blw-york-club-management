@@ -46,7 +46,7 @@ export const Navigation: React.FC<NavigationProps> = ({ userRole = 'member' }) =
 
   return (
     <nav
-      className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-gray-200 dark:border-slate-700 safe-bottom"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-t border-gray-200 dark:border-slate-800 safe-bottom"
       aria-label="Mobile navigation"
     >
       <div className="flex items-stretch">

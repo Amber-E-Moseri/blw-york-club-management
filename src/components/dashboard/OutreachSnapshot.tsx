@@ -53,7 +53,7 @@ export const OutreachSnapshot: React.FC<OutreachSnapshotProps> = ({
           </div>
 
           {stats?.contacts_last_7_days && stats.contacts_last_7_days.length > 0 && (
-            <div className="pt-2 border-t border-gray-100 dark:border-slate-700">
+            <div className="pt-2 border-t border-gray-100 dark:border-slate-800">
               <p className="text-[11px] font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-2">Last 7 days</p>
               <div className="flex items-end gap-1 h-8">
                 {stats.contacts_last_7_days.map((day) => {

@@ -82,7 +82,7 @@ export const Cells: React.FC<Props> = ({ user }) => {
           return (
             <li
               key={cell.id}
-              className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm"
+              className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg shadow-sm"
             >
               <button
                 type="button"

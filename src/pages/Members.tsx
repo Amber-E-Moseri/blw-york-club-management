@@ -98,13 +98,13 @@ export const Members: React.FC<Props> = ({ user }) => {
   const canSeeContact = isAdmin;
 
   return (
-    <div className="space-y-5 pb-4">
+    <div className="space-y-4 pb-4">
       {/* Header */}
-      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
-        <div className="border-t-4 border-york-600 px-5 py-5">
+      <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg shadow-sm overflow-hidden">
+        <div className="border-t-[3px] border-york-600 px-5 py-4">
           <p className="text-xs font-semibold text-york-600 uppercase tracking-wider">Community</p>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100 mt-1">People</h1>
-          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
+          <h1 className="text-lg font-bold text-gray-900 dark:text-slate-100 mt-0.5">People</h1>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
             Your ministry directory — members, leaders, and cells.
           </p>
         </div>
@@ -135,11 +135,11 @@ export const Members: React.FC<Props> = ({ user }) => {
 
       {/* List */}
       {loading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-2xl" />)}
+        <div className="space-y-2">
+          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-lg" />)}
         </div>
       ) : enriched.length === 0 ? (
-        <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl p-10 text-center">
+        <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg p-8 text-center">
           <p className="text-sm font-semibold text-gray-600 dark:text-slate-300">No people match your filters</p>
           <button
             type="button"
@@ -164,11 +164,11 @@ export const Members: React.FC<Props> = ({ user }) => {
           </div>
 
           {/* Desktop table */}
-          <div className="hidden sm:block bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
+          <div className="hidden sm:block bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[600px]">
                 <thead>
-                  <tr className="border-b border-gray-100 dark:border-slate-700">
+                  <tr className="border-b border-gray-100 dark:border-slate-800">
                     {['Member', 'Role', 'Cell', 'Joined'].concat(canSeeContact ? ['Contact'] : []).map((h) => (
                       <th
                         key={h}
@@ -245,8 +245,8 @@ export const Members: React.FC<Props> = ({ user }) => {
 };
 
 const StatChip: React.FC<{ label: string; value: number; className?: string }> = ({ label, value, className }) => (
-  <div className={`bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm px-4 py-3 ${className ?? ''}`}>
+  <div className={`bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg shadow-sm px-4 py-3 ${className ?? ''}`}>
     <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">{label}</p>
-    <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-0.5">{value}</p>
+    <p className="text-xl font-bold text-gray-900 dark:text-slate-100 mt-0.5">{value}</p>
   </div>
 );

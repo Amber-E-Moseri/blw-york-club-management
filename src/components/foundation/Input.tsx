@@ -81,12 +81,12 @@ export const Input: React.FC<InputProps> = ({
   const hasRightIcon = !!icon && iconPosition === 'right';
 
   const borderClass = error
-    ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500'
-    : 'border-gray-200';
+    ? 'border-red-500 bg-red-50 dark:bg-red-950/20 focus:ring-red-500 focus:border-red-500'
+    : 'border-gray-200 dark:border-slate-700';
 
   const paddingClass = cn(
-    'py-3',
-    hasLeftIcon ? 'pl-10 pr-4' : hasRightIcon ? 'pl-4 pr-10' : 'px-4'
+    'py-2.5',
+    hasLeftIcon ? 'pl-10 pr-3.5' : hasRightIcon ? 'pl-3.5 pr-10' : 'px-3.5'
   );
 
   const sharedProps = {

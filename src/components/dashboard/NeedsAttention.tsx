@@ -28,9 +28,9 @@ export const NeedsAttention: React.FC<NeedsAttentionProps> = ({ contacts, loadin
       noPadding
     >
       {loading ? (
-        <div className="px-5 py-4 space-y-3">
+        <div className="px-4 py-3.5 space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-12" />
+            <Skeleton key={i} className="h-11" />
           ))}
         </div>
       ) : contacts.length === 0 ? (
@@ -50,7 +50,7 @@ export const NeedsAttention: React.FC<NeedsAttentionProps> = ({ contacts, loadin
                 <button
                   type="button"
                   onClick={() => navigate('/contacts')}
-                  className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors text-left group"
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors text-left group"
                 >
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${urgent ? 'bg-york-100 text-york-700 dark:bg-york-900/30 dark:text-york-300' : 'bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-slate-400'}`}>
                     {contact.contact_name.charAt(0).toUpperCase()}

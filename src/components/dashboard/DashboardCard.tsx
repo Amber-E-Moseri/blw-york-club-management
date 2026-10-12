@@ -12,8 +12,8 @@ interface DashboardCardProps {
 export const DashboardCard: React.FC<DashboardCardProps> = ({
   title, action, children, className, noPadding,
 }) => (
-  <section className={cn('bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm', className)}>
-    <div className="flex items-center justify-between px-5 pt-4 pb-3">
+  <section className={cn('bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg shadow-sm', className)}>
+    <div className="flex items-center justify-between px-4 pt-3.5 pb-3">
       <h2 className="text-sm font-bold text-gray-900 dark:text-slate-100">{title}</h2>
       {action && (
         <button
@@ -25,8 +25,8 @@ export const DashboardCard: React.FC<DashboardCardProps> = ({
         </button>
       )}
     </div>
-    <div className="border-t border-gray-100 dark:border-slate-700" />
-    <div className={noPadding ? undefined : 'px-5 py-4'}>
+    <div className="border-t border-gray-100 dark:border-slate-800" />
+    <div className={noPadding ? undefined : 'px-4 py-4'}>
       {children}
     </div>
   </section>

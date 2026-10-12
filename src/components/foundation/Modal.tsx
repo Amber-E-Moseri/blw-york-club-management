@@ -125,7 +125,7 @@ export const Modal: React.FC<ModalProps> = ({
       <div
         ref={dialogRef}
         className={cn(
-          'relative w-full bg-white rounded-lg shadow-xl',
+          'relative w-full bg-white dark:bg-slate-900 rounded-lg shadow-xl',
           'flex flex-col max-h-[90vh]',
           'animate-[slideUp_0.25s_ease-out]',
           sizeStyles[size],
@@ -133,13 +133,13 @@ export const Modal: React.FC<ModalProps> = ({
         )}
       >
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-gray-100 shrink-0">
+        <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-gray-100 dark:border-slate-800 shrink-0">
           <div className="min-w-0 flex-1">
-            <h2 id={titleId} className="text-xl font-bold text-gray-900 leading-tight">
+            <h2 id={titleId} className="text-lg font-bold text-gray-900 dark:text-slate-100 leading-tight">
               {title}
             </h2>
             {subtitle && (
-              <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
+              <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">{subtitle}</p>
             )}
           </div>
           {closeButton && (
@@ -148,12 +148,12 @@ export const Modal: React.FC<ModalProps> = ({
               onClick={onClose}
               aria-label="Close dialog"
               className={cn(
-                'shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-gray-400',
-                'hover:text-york-600 hover:bg-red-50 transition-colors duration-150',
+                'shrink-0 w-7 h-7 flex items-center justify-center rounded-md text-gray-400',
+                'hover:text-york-600 hover:bg-red-50 dark:hover:bg-slate-800 transition-colors duration-150',
                 'focus:outline-none focus:ring-2 focus:ring-york-600'
               )}
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -161,13 +161,13 @@ export const Modal: React.FC<ModalProps> = ({
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
+        <div className="flex-1 overflow-y-auto px-5 py-4">
           {children}
         </div>
 
         {/* Footer */}
         {footer && (
-          <div className="shrink-0 flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
+          <div className="shrink-0 flex items-center justify-end gap-3 px-5 py-3.5 border-t border-gray-100 dark:border-slate-800">
             {footer}
           </div>
         )}

@@ -86,15 +86,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   }
 
   return (
-    <div className="space-y-5 pb-4">
+    <div className="space-y-4 pb-4">
       {/* Welcome Header */}
-      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
-        <div className="border-t-4 border-york-600 px-5 py-5">
+      <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg shadow-sm overflow-hidden">
+        <div className="border-t-[3px] border-york-600 px-5 py-4">
           <p className="text-xs text-gray-400 dark:text-slate-500 font-medium">{today}</p>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100 mt-0.5">
+          <h1 className="text-lg font-bold text-gray-900 dark:text-slate-100 mt-0.5">
             Good to see you, {firstName}.
           </h1>
-          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
             {loading
               ? 'Loading your ministry snapshot…'
               : isLeader
@@ -105,7 +105,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       </div>
 
       {error && (
-        <div className="rounded-xl border border-york-200 bg-york-50 dark:bg-york-900/20 dark:border-york-800 p-4 text-sm text-york-700 dark:text-york-300">
+        <div className="rounded-lg border border-york-200 bg-york-50 dark:bg-york-900/20 dark:border-york-800 p-3.5 text-sm text-york-700 dark:text-york-300">
           {error}
         </div>
       )}
@@ -131,11 +131,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:[grid-auto-flow:dense]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:[grid-auto-flow:dense]">
         {visibleSections.map((id, index) => (
           <div key={id} className={cn('min-w-0', WIDE_SECTIONS.includes(id) && 'lg:col-span-2')}>
             {customizing && (
-              <div className="mb-2 flex items-center justify-between rounded-lg border border-dashed border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400">
+              <div className="mb-2 flex items-center justify-between rounded-md border border-dashed border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
                 <span className="font-semibold">{SECTION_LABELS[id]}</span>
                 <span className="flex gap-1">
                   <button
