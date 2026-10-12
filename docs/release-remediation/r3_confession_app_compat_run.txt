@@ -1,0 +1,83 @@
+BEGIN
+SET
+CREATE SCHEMA
+GRANT
+CREATE TABLE
+INSERT 0 3
+INSERT 0 1
+INSERT 0 1
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+ check 
+-------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ run_ok 
+--------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ run_ok 
+--------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ run_denied 
+------------
+ 
+(1 row)
+
+                                          name                                          | ok |              detail               
+----------------------------------------------------------------------------------------+----+-----------------------------------
+ C1 active member: count RPC returns the confession (aggregate)                         | t  | 1 (expected 1)
+ C10 pending member: declareConfession is refused                                       | t  | got 42501 (expected 42501 denied)
+ C2 active member: own-row select for declared_by_me returns nothing (not declared yet) | t  | 0 (expected 0)
+ C3 active member: other member row is not returned by the app query                    | t  | 0 (expected 0)
+ C4 active member: declareConfession upsert succeeds                                    | t  | ok
+ C5 active member: own declared status is visible after declaring                       | t  | 1 (expected 1)
+ C6 active member: count RPC now counts two active declarations                         | t  | 1 (expected 1)
+ C7 active member: undeclareConfession delete succeeds                                  | t  | ok
+ C8 pending member: count RPC returns no rows (no error for the app)                    | t  | 0 (expected 0)
+ C9 pending member: own declared status returns nothing (T1)                            | t  | 0 (expected 0)
+(10 rows)
+
+ passed | failed 
+--------+--------
+     10 |      0
+(1 row)
+
+ROLLBACK

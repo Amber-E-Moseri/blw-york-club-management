@@ -1,0 +1,28 @@
+BEGIN
+CREATE TABLE
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+DO
+       area        |                               check_name                                | result |                                    evidence                                    
+-------------------+-------------------------------------------------------------------------+--------+--------------------------------------------------------------------------------
+ 031 announcements | active cell_leader can insert announcement                              | PASS   | 1
+ 031 announcements | inactive cell_leader cannot insert announcement                         | PASS   | new row violates row-level security policy for table "announcements"
+ 031 announcements | rejected cell_leader cannot insert announcement                         | PASS   | new row violates row-level security policy for table "announcements"
+ 032 confessions   | active member can insert confession declaration                         | PASS   | 1
+ 032 confessions   | pending member cannot insert confession declaration                     | PASS   | new row violates row-level security policy for table "confession_declarations"
+ 032 confessions   | pending member cannot read own confession declaration until active (F5) | PASS   | 0
+ 032 confessions   | rejected member cannot insert confession declaration                    | PASS   | new row violates row-level security policy for table "confession_declarations"
+ 032 event_rsvps   | active member can insert RSVP                                           | PASS   | 1
+ 032 event_rsvps   | pending member can still read their own RSVP                            | PASS   | 1
+ 032 event_rsvps   | pending member cannot insert RSVP                                       | PASS   | new row violates row-level security policy for table "event_rsvps"
+ 032 event_rsvps   | rejected member cannot insert RSVP                                      | PASS   | new row violates row-level security policy for table "event_rsvps"
+(11 rows)
+
+ failures | checks 
+----------+--------
+        0 |     11
+(1 row)
+
+ROLLBACK

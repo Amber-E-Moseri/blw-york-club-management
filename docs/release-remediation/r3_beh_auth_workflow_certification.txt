@@ -1,0 +1,14 @@
+PASS	signup
+PASS	login with a wrong password is refused
+PASS	login
+PASS	pending user (member + pending, hostile metadata ignored)
+PASS	pending bypass denied (direct privileged update persisted nothing)
+PASS	pending user can read its own profile (approval screen)
+PASS	password reset request accepted
+PASS	password reset answers the same for an unknown email (no account enumeration)
+PASS	approval by an authorised coordinator activates the account
+PASS	login after approval
+PASS	logout
+PASS	logout revokes the refresh token
+
+auth-workflow: 12/12 checks passed

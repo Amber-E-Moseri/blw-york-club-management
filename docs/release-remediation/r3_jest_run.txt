@@ -1,0 +1,344 @@
+
+> blw-york-portal@1.0.0 test
+> react-scripts test --watchAll=false --coverage --collectCoverageFrom='src/**/*.{ts,tsx}' --collectCoverageFrom='!src/**/__tests__/**' --collectCoverageFrom='!src/**/*.d.ts' --collectCoverageFrom='!src/index.tsx'
+
+(node:36868) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS src/__tests__/emailPreferenceEnforcement.test.ts (5.551 s)
+(node:34756) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS src/__tests__/approvePendingMember.test.ts (5.595 s)
+(node:38300) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS src/__tests__/people.test.ts (5.7 s)
+(node:41580) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS src/__tests__/devotionalRanges.test.ts (5.905 s)
+PASS src/__tests__/emailComposerBehaviour.test.ts
+PASS src/__tests__/outreachCreatePersonLink.test.ts
+PASS src/__tests__/emailCustomization.test.ts
+PASS src/__tests__/exportDevotionalReportCsv.test.ts
+PASS src/__tests__/calendar.test.ts
+PASS src/__tests__/securityAuthorization.test.ts
+PASS src/__tests__/migrationArchitecture.test.ts
+PASS src/__tests__/memberProfileDrawer.test.ts
+PASS src/__tests__/identityContract.test.ts
+PASS src/__tests__/cells.test.ts
+PASS src/__tests__/releaseHardening.test.ts
+PASS src/__tests__/pushPrompt.test.ts
+PASS src/__tests__/emailIdentityMatching.test.ts
+PASS src/__tests__/contactCellIdNormalisation.test.ts
+PASS src/__tests__/createContactCellId.test.ts
+PASS src/__tests__/eventCreation.test.ts
+PASS src/__tests__/quickAddCellAuthorization.test.ts
+PASS src/__tests__/confessionPrivacy.test.ts
+PASS src/__tests__/exportMembersCsv.test.ts
+PASS src/__tests__/eventNotification.test.ts
+PASS src/__tests__/recipientIdentity.test.ts
+PASS src/__tests__/getDashboardStats.test.ts
+PASS src/__tests__/meetingAttendanceSecurity.test.ts
+(node:39468) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS src/__tests__/emailRelay.test.ts (8.601 s)
+(node:39064) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+FAIL src/__tests__/schemaContract.test.ts (11.563 s)
+  ● schema contract gate › the certified golden fingerprint passes every check
+
+    expect(received).not.toMatch(expected)
+
+    Expected pattern: not /^FAIL/m
+    Received string:      "FAIL	inventory: exact table list (an unexpected new public table fails)	{\"missing\":[\"bscs\",\"fellowships\"],\"extra\":[]}
+    PASS	inventory: exact view list
+    PASS	inventory: no extra schemas
+    PASS	ownership: every table is owned by postgres (so supabase_admin defaults never apply)
+    PASS	RLS: enabled on every public table
+    PASS	grants: anon holds no privilege on any table
+    PASS	grants: anon holds no privilege on any view
+    PASS	grants: no TRUNCATE / REFERENCES / TRIGGER / MAINTAIN for any API role
+    PASS	grants: authenticated privileges match the reviewed matrix exactly
+    PASS	grants: service_role has only SELECT/INSERT/UPDATE/DELETE (none on owner-only tables)
+    PASS	grants: member_directory is read-only for authenticated and unreachable by anon
+    PASS	views: security_invoker
+    PASS	default ACLs: objects created by postgres in public grant nothing to API roles
+    PASS	authorization: profiles has exactly the allow-listed policies (an unexpected policy fails the release gate)
+    PASS	authorization: user_profiles has exactly the allow-listed policies (an unexpected policy fails the release gate)
+    PASS	authorization: no policy on any table lacks an identity check
+    PASS	authorization: no policy accepts \"any signed-in account\" (every such policy requires an active, approved account)
+    PASS	authorization: profiles carries the privileged-column guard trigger
+    PASS	identity: email_preferences is keyed by user_id and carries no member_id
+    PASS	identity: push_subscriptions is keyed by user_id and carries no member_id
+    PASS	identity: push_notification_log is keyed by user_id and carries no member_id
+    PASS	identity: email_preferences primary key is user_id
+    PASS	identity: push_subscriptions endpoint is unique and user_id is not (many devices per account)
+    FAIL	functions: exact allow-list (an unexpected new public function fails)	{\"missing\":[\"bsc_members_visible()\",\"can_view_member(uuid)\",\"is_bsc_leader_of(uuid)\",\"guard_profile_bsc_assignment()\",\"confession_declaration_counts(uuid[])\"],\"extra\":[]}
+    PASS	functions: security mode, pinned search_path, owner and EXECUTE grants match exactly; PUBLIC and anon never execute
+    PASS	storage: exact buckets with size and MIME limits
+    PASS	storage: exact policy set on storage.objects
+    PASS	storage: no policy applies to anon or public
+    PASS	signup: on_auth_user_created trigger exists on auth.users
+    PASS	parity: schema fingerprint equals the golden fingerprint
+
+    28/30 checks passed
+    "
+
+      27 |   test('the certified golden fingerprint passes every check', () => {
+      28 |     const result = check(() => undefined);
+    > 29 |     expect(result.output).not.toMatch(/^FAIL/m);
+         |                               ^
+      30 |     expect(result.status).toBe(0);
+      31 |   });
+      32 |
+
+      at Object.<anonymous> (src/__tests__/schemaContract.test.ts:29:31)
+
+(node:31376) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:424) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS src/__tests__/Badge.test.tsx (12.858 s)
+PASS src/__tests__/StatCard.test.tsx (12.87 s)
+(node:11932) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS src/__tests__/confessionImport.test.ts (12.913 s)
+(node:40304) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:17060) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS src/__tests__/EventCard.calendarLinks.test.tsx (13.586 s)
+PASS src/__tests__/contactFormSaveError.test.tsx (13.658 s)
+-------------------------------|---------|----------|---------|---------|---------------------------------------
+File                           | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s                     
+-------------------------------|---------|----------|---------|---------|---------------------------------------
+All files                      |    7.79 |     7.56 |    5.74 |    8.45 |                                       
+ src                           |       0 |        0 |       0 |       0 |                                       
+  App.tsx                      |       0 |        0 |       0 |       0 | 40-106                                
+ src/components/dashboard      |       0 |        0 |       0 |       0 |                                       
+  DashboardCard.tsx            |       0 |        0 |       0 |       0 | 12-36                                 
+  GrowthSnapshot.tsx           |       0 |        0 |       0 |       0 | 16-83                                 
+  MinistryPulse.tsx            |       0 |        0 |       0 |       0 | 10-124                                
+  NeedsAttention.tsx           |       0 |        0 |       0 |       0 | 14-52                                 
+  OutreachSnapshot.tsx         |       0 |        0 |       0 |       0 | 14-62                                 
+  UpcomingSection.tsx          |       0 |        0 |       0 |       0 | 19-110                                
+ src/components/feature        |    3.92 |     3.69 |    1.78 |     4.5 |                                       
+  ActivityFeed.tsx             |       0 |        0 |       0 |       0 | 6-26                                  
+  AnnouncementCard.tsx         |       0 |        0 |       0 |       0 | 9-10                                  
+  BookWidget.tsx               |       0 |        0 |       0 |       0 | 6-29                                  
+  BulkImportModal.tsx          |       0 |        0 |       0 |       0 | 22-195                                
+  ConfessionCard.tsx           |       0 |        0 |       0 |       0 | 17-70                                 
+  ContactCard.tsx              |       0 |        0 |       0 |       0 | 19-128                                
+  ContactFilters.tsx           |       0 |        0 |       0 |       0 | 16-133                                
+  ContactForm.tsx              |   56.66 |    54.23 |   19.04 |   62.96 | 39,41,43,45,47,79,85,133-264          
+  ContactTable.tsx             |       0 |        0 |       0 |       0 | 27-337                                
+  DevotionalCard.tsx           |       0 |        0 |       0 |       0 | 18-61                                 
+  DevotionalReader.tsx         |       0 |        0 |       0 |       0 | 19-235                                
+  DriveLinkInput.tsx           |       0 |        0 |       0 |       0 | 16-44                                 
+  DrivePreview.tsx             |       0 |        0 |       0 |       0 | 5-41                                  
+  EmailPreferencesList.tsx     |       0 |        0 |       0 |       0 | 12-70                                 
+  EventCard.tsx                |      60 |       25 |   33.33 |      60 | 40-57                                 
+  GlobalSearch.tsx             |       0 |        0 |       0 |       0 | 7-100                                 
+  HabitCard.tsx                |       0 |        0 |       0 |       0 | 13-123                                
+  HabitIcon.tsx                |       0 |        0 |       0 |       0 | 8-35                                  
+  MeetingCard.tsx              |       0 |        0 |       0 |       0 | 18-130                                
+  MeetingForm.tsx              |       0 |        0 |       0 |       0 | 15-227                                
+  MoveToCellModal.tsx          |       0 |        0 |       0 |       0 | 19-117                                
+  PWAInstallBanner.tsx         |       0 |        0 |       0 |       0 | 5-10                                  
+  ProfileForm.tsx              |       0 |        0 |       0 |       0 | 15-101                                
+  PushNotificationSettings.tsx |       0 |        0 |       0 |       0 | 10-39                                 
+  PushPermissionPrompt.tsx     |       0 |        0 |       0 |       0 | 9-102                                 
+  QuickAddModal.tsx            |       0 |        0 |       0 |       0 | 9-360                                 
+  ReassignContactModal.tsx     |       0 |        0 |       0 |       0 | 18-82                                 
+  StatCard.tsx                 |     100 |      100 |     100 |     100 |                                       
+  TestimonyCard.tsx            |       0 |        0 |       0 |       0 | 21-195                                
+  TestimonyComments.tsx        |       0 |        0 |       0 |       0 | 11-76                                 
+  TestimonyForm.tsx            |       0 |        0 |       0 |       0 | 17-253                                
+  WeeklyMessageCard.tsx        |       0 |        0 |       0 |       0 | 15-56                                 
+  WeeklyMessageForm.tsx        |       0 |        0 |       0 |       0 | 22-236                                
+  ZoomMeetingForm.tsx          |       0 |        0 |       0 |       0 | 19-108                                
+  index.ts                     |       0 |        0 |       0 |       0 |                                       
+ src/components/foundation     |   53.01 |    41.93 |   43.75 |   56.41 |                                       
+  Badge.tsx                    |     100 |       50 |     100 |     100 | 42                                    
+  Button.tsx                   |     100 |    77.77 |     100 |     100 | 74,105,111,115                        
+  Card.tsx                     |      40 |        0 |       0 |      40 | 61-75                                 
+  Input.tsx                    |    92.3 |     77.5 |      50 |    92.3 | 111                                   
+  Modal.tsx                    |      50 |    35.29 |      75 |   56.25 | 75-90                                 
+  PageHeader.tsx               |       0 |        0 |       0 |       0 | 16-17                                 
+  Tag.tsx                      |    6.25 |        0 |       0 |    6.66 | 17-32,57-75                           
+  index.ts                     |       0 |        0 |       0 |       0 |                                       
+ src/components/layout         |       0 |        0 |       0 |       0 |                                       
+  Header.tsx                   |       0 |        0 |       0 |       0 | 16-170                                
+  MainLayout.tsx               |       0 |        0 |       0 |       0 | 18-82                                 
+  Navigation.tsx               |       0 |        0 |       0 |       0 | 9-60                                  
+  ProtectedRoute.tsx           |       0 |        0 |       0 |       0 | 14-48                                 
+  Sidebar.tsx                  |       0 |        0 |       0 |       0 | 14-173                                
+  index.ts                     |       0 |        0 |       0 |       0 |                                       
+ src/components/people         |       0 |        0 |       0 |       0 |                                       
+  PeopleFilters.tsx            |       0 |        0 |       0 |       0 | 5-71                                  
+  PersonCard.tsx               |       0 |        0 |       0 |       0 | 13-14                                 
+  PersonDetailPanel.tsx        |       0 |        0 |       0 |       0 | 10-392                                
+  PersonStatusBadge.tsx        |       0 |        0 |       0 |       0 | 4-39                                  
+ src/hooks                     |       0 |        0 |       0 |       0 |                                       
+  useAuth.ts                   |       0 |        0 |       0 |       0 | 22-102                                
+  useBookOfMonth.ts            |       0 |        0 |       0 |       0 | 6-63                                  
+  useConfessions.ts            |       0 |        0 |       0 |       0 | 13-68                                 
+  useContacts.ts               |       0 |        0 |       0 |       0 | 13-227                                
+  useCountUp.ts                |       0 |        0 |       0 |       0 | 4-47                                  
+  useDashboardStats.ts         |       0 |        0 |       0 |       0 | 15-52                                 
+  useDevotional.ts             |       0 |        0 |       0 |       0 | 36-225                                
+  useDriveLink.ts              |       0 |        0 |       0 |       0 | 16-73                                 
+  useEmailNotifications.ts     |       0 |        0 |       0 |       0 | 13-150                                
+  useEvents.ts                 |       0 |        0 |       0 |       0 | 6-36                                  
+  useHabits.ts                 |       0 |        0 |       0 |       0 | 22-253                                
+  useHomeLayout.ts             |       0 |        0 |       0 |       0 | 3-63                                  
+  useMeetings.ts               |       0 |        0 |       0 |       0 | 9-95                                  
+  usePWAInstall.ts             |       0 |        0 |       0 |       0 | 8-64                                  
+  usePushNotifications.ts      |       0 |        0 |       0 |       0 | 4-158                                 
+  useSearch.ts                 |       0 |        0 |       0 |       0 | 7-30                                  
+  useTestimonies.ts            |       0 |        0 |       0 |       0 | 13-141                                
+  useTheme.ts                  |       0 |        0 |       0 |       0 | 5-74                                  
+  useUserProfile.ts            |       0 |        0 |       0 |       0 | 42-223                                
+  useWeeklyMessages.ts         |       0 |        0 |       0 |       0 | 13-115                                
+  useZoom.ts                   |       0 |        0 |       0 |       0 | 19-157                                
+ src/i18n                      |       0 |        0 |       0 |       0 |                                       
+  index.ts                     |       0 |        0 |       0 |       0 | 4-22                                  
+ src/lib                       |   48.34 |    40.06 |   44.68 |   50.61 |                                       
+  auth.ts                      |       0 |        0 |       0 |       0 | 21-154                                
+  calendar.ts                  |   80.26 |    67.74 |   92.85 |   81.81 | 106-108,165-173                       
+  cells.ts                     |     100 |       90 |     100 |     100 | 27                                    
+  confessionImport.ts          |   97.91 |    86.66 |     100 |     100 | 29-48                                 
+  drive.ts                     |       0 |        0 |       0 |       0 | 4-48                                  
+  pdf-converter.ts             |    43.5 |    55.55 |   46.42 |   44.73 | 58-62,128-129,143-144,205-206,224-408 
+  permissions.ts               |       0 |        0 |       0 |       0 | 3-20                                  
+  pushPrompt.ts                |     100 |      100 |     100 |     100 |                                       
+  queries.ts                   |      10 |     7.81 |    8.33 |   12.82 | 7-153                                 
+  supabase.ts                  |     100 |    83.33 |     100 |     100 | 9                                     
+  utils.ts                     |   33.33 |      100 |   28.57 |   33.33 | 9-25                                  
+ src/lib/csv                   |       0 |        0 |       0 |       0 |                                       
+  contactImport.ts             |       0 |        0 |       0 |       0 | 5-96                                  
+ src/lib/email                 |   48.03 |    30.23 |   53.84 |   50.42 |                                       
+  emailComposer.ts             |   96.77 |    57.14 |     100 |   96.66 | 112                                   
+  emailPreferenceGuard.ts      |     100 |      100 |     100 |     100 |                                       
+  emailService.ts              |       0 |        0 |       0 |       0 | 23-117                                
+  emailTemplates.ts            |   21.15 |        0 |   33.33 |   21.15 | 67-73,94-253,290-367                  
+ src/lib/queries               |   10.47 |    10.93 |   10.93 |   12.36 |                                       
+  adminRoles.ts                |       0 |        0 |       0 |       0 | 11-129                                
+  books.ts                     |       0 |        0 |       0 |       0 | 5-43                                  
+  bscs.ts                      |       0 |        0 |       0 |       0 | 45-124                                
+  confessions.ts               |    41.5 |     27.9 |      50 |   51.35 | 72-128                                
+  contacts.ts                  |    5.32 |     3.26 |     8.1 |    6.97 | 10-42,64-71,88-417                    
+  dashboardStats.ts            |       0 |        0 |       0 |       0 | 14-202                                
+  devotionals.ts               |       0 |        0 |       0 |       0 | 29-273                                
+  emailComposer.ts             |       0 |        0 |       0 |       0 | 54-125                                
+  emailNotifications.ts        |       0 |        0 |       0 |       0 | 6-136                                 
+  export.ts                    |   31.81 |       35 |    37.5 |      30 | 13-19,44-69                           
+  habits.ts                    |       0 |        0 |       0 |       0 | 5-139                                 
+  meetings.ts                  |       0 |        0 |       0 |       0 | 5-120                                 
+  members.ts                   |   51.72 |     38.7 |      50 |   59.09 | 66-80                                 
+  memberships.ts               |   76.47 |       70 |   85.71 |   82.75 | 49-50,76,101-107                      
+  people.ts                    |      50 |    56.25 |   66.66 |   52.72 | 77-81,88-91,158-202,216-239           
+  pushNotifications.ts         |       0 |        0 |       0 |       0 | 9-83                                  
+  reports.ts                   |    6.84 |     3.03 |   13.33 |    8.47 | 19-139                                
+  search.ts                    |       0 |        0 |       0 |       0 | 6-84                                  
+  testimonies.ts               |       0 |        0 |       0 |       0 | 19-197                                
+  weeklyMessages.ts            |       0 |        0 |       0 |       0 | 5-143                                 
+  zoomMeetings.ts              |       0 |        0 |       0 |       0 | 8-104                                 
+ src/lib/zoom                  |       0 |        0 |       0 |       0 |                                       
+  zoomIntegration.ts           |       0 |        0 |       0 |       0 | 19-118                                
+ src/pages                     |       0 |        0 |       0 |       0 |                                       
+  AdminBscs.tsx                |       0 |        0 |       0 |       0 | 20-162                                
+  AdminContactReports.tsx      |       0 |        0 |       0 |       0 | 14-117                                
+  AdminDataExport.tsx          |       0 |        0 |       0 |       0 | 14-98                                 
+  AdminDevotionalReport.tsx    |       0 |        0 |       0 |       0 | 20-167                                
+  AdminDevotionalUpload.tsx    |       0 |        0 |       0 |       0 | 31-438                                
+  AdminEmailLog.tsx            |       0 |        0 |       0 |       0 | 27-496                                
+  AdminHub.tsx                 |       0 |        0 |       0 |       0 | 23-220                                
+  AdminPanel.tsx               |       0 |        0 |       0 |       0 | 13-53                                 
+  AdminPendingApprovals.tsx    |       0 |        0 |       0 |       0 | 22-153                                
+  AdminRoleManagement.tsx      |       0 |        0 |       0 |       0 | 24-274                                
+  AdminTestimonies.tsx         |       0 |        0 |       0 |       0 | 9-50                                  
+  AdminZoomSettings.tsx        |       0 |        0 |       0 |       0 | 12-151                                
+  Announcements.tsx            |       0 |        0 |       0 |       0 | 12-78                                 
+  BookOfMonth.tsx              |       0 |        0 |       0 |       0 | 14-216                                
+  Cells.tsx                    |       0 |        0 |       0 |       0 | 9-111                                 
+  ContactLogging.tsx           |       0 |        0 |       0 |       0 | 27-227                                
+  DailyConfessions.tsx         |       0 |        0 |       0 |       0 | 14-230                                
+  Dashboard.tsx                |       0 |        0 |       0 |       0 | 20-152                                
+  DevotionalViewer.tsx         |       0 |        0 |       0 |       0 | 15-163                                
+  EmailPreferences.tsx         |       0 |        0 |       0 |       0 | 14-94                                 
+  Events.tsx                   |       0 |        0 |       0 |       0 | 11-337                                
+  Growth.tsx                   |       0 |        0 |       0 |       0 | 21-152                                
+  HabitTracker.tsx             |       0 |        0 |       0 |       0 | 16-378                                
+  Login.tsx                    |       0 |        0 |       0 |       0 | 13-111                                
+  Meetings.tsx                 |       0 |        0 |       0 |       0 | 12-160                                
+  MeetingsHub.tsx              |       0 |        0 |       0 |       0 | 12-187                                
+  Members.tsx                  |       0 |        0 |       0 |       0 | 13-248                                
+  MyBsc.tsx                    |       0 |        0 |       0 |       0 | 17-100                                
+  Outreach.tsx                 |       0 |        0 |       0 |       0 | 24-295                                
+  PendingApproval.tsx          |       0 |        0 |       0 |       0 | 11-15                                 
+  Profile.tsx                  |       0 |        0 |       0 |       0 | 9-22                                  
+  TestimonyLog.tsx             |       0 |        0 |       0 |       0 | 13-162                                
+  UserProfile.tsx              |       0 |        0 |       0 |       0 | 17-160                                
+  WeeklyMessages.tsx           |       0 |        0 |       0 |       0 | 16-313                                
+ src/types                     |       0 |        0 |       0 |       0 |                                       
+  index.ts                     |       0 |        0 |       0 |       0 |                                       
+  person.ts                    |       0 |        0 |       0 |       0 |                                       
+-------------------------------|---------|----------|---------|---------|---------------------------------------
+
+Summary of all failing tests
+FAIL src/__tests__/schemaContract.test.ts (11.563 s)
+  ● schema contract gate › the certified golden fingerprint passes every check
+
+    expect(received).not.toMatch(expected)
+
+    Expected pattern: not /^FAIL/m
+    Received string:      "FAIL	inventory: exact table list (an unexpected new public table fails)	{\"missing\":[\"bscs\",\"fellowships\"],\"extra\":[]}
+    PASS	inventory: exact view list
+    PASS	inventory: no extra schemas
+    PASS	ownership: every table is owned by postgres (so supabase_admin defaults never apply)
+    PASS	RLS: enabled on every public table
+    PASS	grants: anon holds no privilege on any table
+    PASS	grants: anon holds no privilege on any view
+    PASS	grants: no TRUNCATE / REFERENCES / TRIGGER / MAINTAIN for any API role
+    PASS	grants: authenticated privileges match the reviewed matrix exactly
+    PASS	grants: service_role has only SELECT/INSERT/UPDATE/DELETE (none on owner-only tables)
+    PASS	grants: member_directory is read-only for authenticated and unreachable by anon
+    PASS	views: security_invoker
+    PASS	default ACLs: objects created by postgres in public grant nothing to API roles
+    PASS	authorization: profiles has exactly the allow-listed policies (an unexpected policy fails the release gate)
+    PASS	authorization: user_profiles has exactly the allow-listed policies (an unexpected policy fails the release gate)
+    PASS	authorization: no policy on any table lacks an identity check
+    PASS	authorization: no policy accepts \"any signed-in account\" (every such policy requires an active, approved account)
+    PASS	authorization: profiles carries the privileged-column guard trigger
+    PASS	identity: email_preferences is keyed by user_id and carries no member_id
+    PASS	identity: push_subscriptions is keyed by user_id and carries no member_id
+    PASS	identity: push_notification_log is keyed by user_id and carries no member_id
+    PASS	identity: email_preferences primary key is user_id
+    PASS	identity: push_subscriptions endpoint is unique and user_id is not (many devices per account)
+    FAIL	functions: exact allow-list (an unexpected new public function fails)	{\"missing\":[\"bsc_members_visible()\",\"can_view_member(uuid)\",\"is_bsc_leader_of(uuid)\",\"guard_profile_bsc_assignment()\",\"confession_declaration_counts(uuid[])\"],\"extra\":[]}
+    PASS	functions: security mode, pinned search_path, owner and EXECUTE grants match exactly; PUBLIC and anon never execute
+    PASS	storage: exact buckets with size and MIME limits
+    PASS	storage: exact policy set on storage.objects
+    PASS	storage: no policy applies to anon or public
+    PASS	signup: on_auth_user_created trigger exists on auth.users
+    PASS	parity: schema fingerprint equals the golden fingerprint
+
+    28/30 checks passed
+    "
+
+      27 |   test('the certified golden fingerprint passes every check', () => {
+      28 |     const result = check(() => undefined);
+    > 29 |     expect(result.output).not.toMatch(/^FAIL/m);
+         |                               ^
+      30 |     expect(result.status).toBe(0);
+      31 |   });
+      32 |
+
+      at Object.<anonymous> (src/__tests__/schemaContract.test.ts:29:31)
+
+
+Test Suites: 1 failed, 1 skipped, 33 passed, 34 of 35 total
+Tests:       1 failed, 11 skipped, 279 passed, 291 total
+Snapshots:   0 total
+Time:        47.899 s
+Ran all test suites.
+EXIT=1

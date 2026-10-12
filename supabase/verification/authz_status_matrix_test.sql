@@ -250,7 +250,7 @@ select authz_test.expect_count('D13 pending member cannot read any books of the 
 select authz_test.expect_count('D14 active member reads books of the month', '00000000-0000-0000-0000-00000000d201', 'select id from public.books_of_month', 1);
 
 -- ─── E. F4: pending members' growth and prayer activity hidden from staff, leaders and teachers ─────────────────
-select authz_test.expect_count('E1 active coordinator sees only active students'' enrolments', '00000000-0000-0000-0000-00000000c001', 'select id from public.foundation_school_enrollments', 1);
+select authz_test.expect_count('E1 active coordinator sees enrolments of pending and active students (onboarding, T6)', '00000000-0000-0000-0000-00000000c001', 'select id from public.foundation_school_enrollments', 2);
 select authz_test.expect_count('E2 teacher LB1 (active) sees only the active student enrolment', '00000000-0000-0000-0000-00000000b001', 'select id from public.foundation_school_enrollments', 1);
 select authz_test.expect_count('E3 active coordinator sees active-author leadership prayers and shared (P1, P3)', '00000000-0000-0000-0000-00000000c001', 'select id from public.prayer_requests where visibility in (''leadership'',''shared'')', 2);
 select authz_test.expect_count('E4 active cell leader sees active-author leadership prayers (P1, P3)', '00000000-0000-0000-0000-00000000c003', 'select id from public.prayer_requests where visibility in (''leadership'',''shared'')', 2);

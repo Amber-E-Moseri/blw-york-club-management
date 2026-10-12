@@ -2008,8 +2008,11 @@
         "idx_foundation_enrollments_teacher_id CREATE INDEX idx_foundation_enrollments_teacher_id ON public.foundation_school_enrollments USING btree (teacher_id)"
       ],
       "policies": [
-        "enrollments_coordinator | ALL | {public} | using=(is_admin_or_coordinator() AND is_active_profile(student_id)) | check=(is_admin_or_coordinator() AND is_active_profile(student_id))",
         "enrollments_own | SELECT | {public} | using=((auth.uid() = student_id) AND is_active_member()) | check=",
+        "enrollments_staff_delete | DELETE | {public} | using=(is_admin_or_coordinator() AND is_active_profile(student_id)) | check=",
+        "enrollments_staff_insert | INSERT | {public} | using= | check=(is_admin_or_coordinator() AND (EXISTS ( SELECT 1\n   FROM profiles s\n  WHERE ((s.id = foundation_school_enrollments.student_id) AND (s.status = ANY (ARRAY['pending'::text, 'active'::text]))))))",
+        "enrollments_staff_read | SELECT | {public} | using=(is_admin_or_coordinator() AND (EXISTS ( SELECT 1\n   FROM profiles s\n  WHERE ((s.id = foundation_school_enrollments.student_id) AND (s.status = ANY (ARRAY['pending'::text, 'active'::text])))))) | check=",
+        "enrollments_staff_update | UPDATE | {public} | using=(is_admin_or_coordinator() AND is_active_profile(student_id)) | check=(is_admin_or_coordinator() AND is_active_profile(student_id))",
         "enrollments_teacher_read | SELECT | {public} | using=((auth.uid() = teacher_id) AND is_active_member() AND is_active_profile(student_id)) | check="
       ],
       "triggers": [
