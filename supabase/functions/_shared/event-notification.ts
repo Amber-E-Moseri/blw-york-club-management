@@ -40,17 +40,23 @@ export function classifyPushError(statusCode: number | undefined, message: strin
   return { status: 'failed', error: message };
 }
 
-/** One log row per member: 'sent' if any of their devices received it. */
+/**
+ * One log row per member: 'sent' if any of their devices received it.
+ * Columns follow the live push_notification_log table (009): there is no error_message or target_url column, so a
+ * failure reason goes in response_data.
+ */
 export function buildDeliveryLogRows(
-  event: Pick<NotifiableEvent, 'title' | 'date' | 'location'>,
-  outcomes: DeliveryOutcome[]
+  event: Pick<NotifiableEvent, 'id' | 'title' | 'date' | 'location'>,
+  outcomes: DeliveryOutcome[],
+  sentAt: string = new Date().toISOString()
 ): Array<{
   user_id: string;
   notification_type: 'event';
   title: string;
   body: string;
   status: 'sent' | 'failed';
-  response_data: { target_url: string; error: string | null };
+  sent_at: string;
+  response_data: { event_id: string; error?: string };
 }> {
   const byUser = new Map<string, { sent: boolean; error: string | null }>();
   for (const outcome of outcomes) {
@@ -66,6 +72,9 @@ export function buildDeliveryLogRows(
     title: `New event: ${event.title}`,
     body: `${event.date}${event.location ? ` · ${event.location}` : ''}`,
     status: result.sent ? 'sent' : 'failed',
-    response_data: { target_url: '/events', error: result.sent ? null : result.error },
+    sent_at: sentAt,
+    response_data: result.sent || !result.error
+      ? { event_id: event.id }
+      : { event_id: event.id, error: result.error },
   }));
 }

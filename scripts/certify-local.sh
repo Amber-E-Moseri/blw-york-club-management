@@ -79,4 +79,8 @@ for harness in auth_workflow_certification authorization_certification email_pus
   node "supabase/verification/$harness.mjs"
 done
 
+# notify-event runs from the transpiled source against the local database and a localhost push mock, so it does not
+# need the edge runtime and runs here as well as in CI.
+node supabase/verification/notify_event_certification.mjs
+
 step "Certification complete"

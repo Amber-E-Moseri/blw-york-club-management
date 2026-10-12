@@ -102,12 +102,13 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   try {
+    // Authenticate before anything else, so an anonymous caller learns nothing about server configuration.
+    await requireAdminOrCoordinator(req);
+
     if (!vapidPublicKey || !vapidPrivateKey || !vapidSubject) {
       throw new HttpError('Push notifications are not configured', 500);
     }
     webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
-
-    await requireAdminOrCoordinator(req);
 
     const body = await req.json().catch(() => null);
     const eventId = typeof body?.event_id === 'string' ? body.event_id : '';
@@ -128,10 +129,21 @@ Deno.serve(async (req) => {
     let subscriptions: Array<{ id: string; user_id: string; endpoint: string; p256dh: string; auth: string }>;
     try {
       recipientIds = await resolveRecipientIds(event);
-      if (recipientIds.length === 0) {
+      const { data, error } = recipientIds.length
+        ? await supabase
+            .from('push_subscriptions')
+            .select('id, user_id, endpoint, p256dh, auth')
+            .in('user_id', recipientIds)
+            .eq('is_active', true)
+        : { data: [], error: null };
+      if (error) throw new Error(error.message);
+      subscriptions = data ?? [];
+      if (subscriptions.length === 0) {
+        // Nothing to send to. Release the claim so the event can be notified once someone enables push.
+        await supabase.from('events').update({ notified_at: null }).eq('id', eventId);
         return json({
           event_id: eventId,
-          recipients: 0,
+          recipients: recipientIds.length,
           members_sent: 0,
           members_failed: 0,
           devices: 0,
@@ -141,13 +153,6 @@ Deno.serve(async (req) => {
           log_saved: true,
         });
       }
-      const { data, error } = await supabase
-        .from('push_subscriptions')
-        .select('id, user_id, endpoint, p256dh, auth')
-        .in('user_id', recipientIds)
-        .eq('is_active', true);
-      if (error) throw new Error(error.message);
-      subscriptions = data ?? [];
     } catch (e) {
       // Release the claim so an admin can retry once the problem is fixed.
       await supabase.from('events').update({ notified_at: null }).eq('id', eventId);

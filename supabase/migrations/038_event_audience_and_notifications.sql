@@ -13,9 +13,5 @@ alter table public.events
   add column if not exists audience_meeting_id uuid references public.meetings(id) on delete set null,
   add column if not exists notified_at timestamptz;
 
-alter table public.events
-  drop constraint if exists events_meeting_audience_requires_meeting;
-
-alter table public.events
-  add constraint events_meeting_audience_requires_meeting
-    check (audience = 'all' or audience_meeting_id is not null);
+-- No check ties audience = 'meeting' to a non-null audience_meeting_id. An event whose meeting is deleted keeps
+-- audience = 'meeting' with a null meeting, and notify-event refuses to send it. See 039.
