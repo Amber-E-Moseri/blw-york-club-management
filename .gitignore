@@ -37,3 +37,6 @@ test-results/
 seed-output.log
 BLW_York_Hub_Prototype.html
 BLW_York_Hub_v2.html
+
+.vercel
+.env*
