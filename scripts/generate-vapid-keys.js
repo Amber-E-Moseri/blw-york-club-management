@@ -2,11 +2,11 @@
 /**
  * Generate VAPID key pair for Web Push notifications.
  *
- * Usage:
+ * Usage (after npm ci, web-push is a dev dependency):
  *   node scripts/generate-vapid-keys.js
  *
- * Requires: npm install -g web-push
- * Or run once: npx web-push generate-vapid-keys
+ * Or without installing anything:
+ *   npx --yes web-push generate-vapid-keys
  *
  * Output:
  *   Public key  → paste into .env as REACT_APP_VAPID_PUBLIC_KEY
