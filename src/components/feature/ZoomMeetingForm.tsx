@@ -106,9 +106,9 @@ export const ZoomMeetingForm: React.FC<Props> = ({ meeting, onZoomCreated }) => 
           type="checkbox"
           checked={enabled}
           onChange={(e) => setEnabled(e.target.checked)}
-          className="w-4 h-4 rounded border-gray-300 text-york-600 focus:ring-york-500"
+          className="w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-york-600 dark:text-york-400 focus:ring-york-500"
         />
-        <span className="text-sm text-gray-700 font-medium">Create Zoom meeting</span>
+        <span className="text-sm text-gray-700 dark:text-slate-300 font-medium">Create Zoom meeting</span>
       </label>
 
       {enabled && (
@@ -121,7 +121,7 @@ export const ZoomMeetingForm: React.FC<Props> = ({ meeting, onZoomCreated }) => 
           >
             Create Zoom Meeting
           </Button>
-          {error && <p className="text-xs text-red-500">{error}</p>}
+          {error && <p className="text-xs text-york-500">{error}</p>}
         </div>
       )}
     </div>

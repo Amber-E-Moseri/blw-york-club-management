@@ -109,7 +109,7 @@ export const ContactLogging: React.FC<Props> = ({ user }) => {
     <div className="max-w-7xl mx-auto space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <p className="text-xs text-gray-400 dark:text-slate-500 mb-1">People / Contacts</p>
+          <p className="text-xs text-gray-400 dark:text-slate-400 mb-1">People / Contacts</p>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Contacts</h1>
           <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">Track outreach contacts, follow-ups, and cell handoffs.</p>
         </div>
@@ -139,13 +139,13 @@ export const ContactLogging: React.FC<Props> = ({ user }) => {
         onClear={() => setFilters({})}
       />
 
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-gray-500 dark:text-slate-400">
         {loading ? 'Loading...' : `${contacts.length} contact${contacts.length !== 1 ? 's' : ''}`}
         {filters.archived && ' (archived)'}
       </p>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
+        <div className="bg-york-50 dark:bg-york-900/30 border border-york-200 dark:border-york-800 text-york-700 dark:text-york-300 rounded-lg px-4 py-3 text-sm">
           {error}
         </div>
       )}
@@ -170,7 +170,7 @@ export const ContactLogging: React.FC<Props> = ({ user }) => {
       {loading && (
         <div className="space-y-2">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-12 bg-gray-100 rounded-lg animate-pulse" />
+            <div key={i} className="h-12 bg-gray-100 dark:bg-slate-800 rounded-lg animate-pulse" />
           ))}
         </div>
       )}

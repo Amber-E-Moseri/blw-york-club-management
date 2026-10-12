@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Leaf, Flame, Settings } from 'lucide-react';
+import { HABIT_ICON_KEYS, HabitIcon } from '../components/feature/HabitIcon';
 import { Button } from '../components/foundation/Button';
 import { Input } from '../components/foundation/Input';
 import { Modal } from '../components/foundation/Modal';
@@ -8,16 +9,16 @@ import { HabitCard } from '../components/feature/HabitCard';
 import { useHabits, useHabitAdmin } from '../hooks/useHabits';
 import type { AuthUser } from '../lib/auth';
 import type { HabitTemplate, HabitTemplateInput } from '../types';
+import { PageHeader } from '../components/foundation/PageHeader';
 
 interface Props { user: AuthUser | null; }
 
-const EMOJI_PRESETS = ['📖', '🙏', '✍️', '🏃', '💪', '🧘', '🌅', '💧', '🥗', '📵', '🎵', '💝'];
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const canAdmin = (role: string) => ['coordinator', 'admin'].includes(role);
 
 function defaultInput(): HabitTemplateInput {
-  return { name: '', description: '', icon: '✅', target_days: null };
+  return { name: '', description: '', icon: 'check', target_days: null };
 }
 
 function HabitTemplateFormModal({
@@ -78,22 +79,22 @@ function HabitTemplateFormModal({
       <form onSubmit={handleSubmit} className="space-y-4 p-1">
         {/* Emoji picker */}
         <div>
-          <span className="block text-sm font-medium text-gray-700 mb-2">Icon</span>
+          <span className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Icon</span>
           <div className="flex flex-wrap gap-2">
-            {EMOJI_PRESETS.map((emoji) => (
+            {HABIT_ICON_KEYS.map((iconKey) => (
               <button
-                key={emoji}
+                key={iconKey}
                 type="button"
-                onClick={() => setForm((f) => ({ ...f, icon: emoji }))}
+                onClick={() => setForm((f) => ({ ...f, icon: iconKey }))}
                 className={`w-9 h-9 rounded-md text-xl flex items-center justify-center border-2 transition-colors ${
-                  form.icon === emoji ? 'border-york-600 bg-red-50' : 'border-gray-200 hover:border-gray-300'
+                  form.icon === iconKey ? 'border-york-600 bg-york-50 dark:bg-york-900/30' : 'border-gray-200 dark:border-slate-700 hover:border-gray-300'
                 }`}
               >
-                {emoji}
+                <HabitIcon value={iconKey} className="w-4 h-4" />
               </button>
             ))}
           </div>
-          {errors.icon && <p className="text-xs text-red-600 mt-1">{errors.icon}</p>}
+          {errors.icon && <p className="text-xs text-york-600 dark:text-york-400 mt-1">{errors.icon}</p>}
         </div>
 
         <Input
@@ -119,9 +120,9 @@ function HabitTemplateFormModal({
               type="checkbox"
               checked={useDays}
               onChange={(e) => handleUseDays(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-300"
+              className="w-4 h-4 rounded border-gray-300 dark:border-slate-600"
             />
-            <span className="text-sm font-medium text-gray-700">Specific days only (default: every day)</span>
+            <span className="text-sm font-medium text-gray-700 dark:text-slate-300">Specific days only (default: every day)</span>
           </label>
           {useDays && (
             <div className="flex gap-2 flex-wrap pl-6">
@@ -133,7 +134,7 @@ function HabitTemplateFormModal({
                   className={`px-2.5 py-1 rounded text-xs font-semibold border transition-colors ${
                     form.target_days?.includes(i)
                       ? 'bg-york-600 text-white border-york-600'
-                      : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                      : 'border-gray-200 dark:border-slate-700 text-gray-500 dark:text-slate-400 hover:border-gray-300'
                   }`}
                 >
                   {name}
@@ -141,7 +142,7 @@ function HabitTemplateFormModal({
               ))}
             </div>
           )}
-          {errors.days && <p className="text-xs text-red-600 pl-6">{errors.days}</p>}
+          {errors.days && <p className="text-xs text-york-600 dark:text-york-400 pl-6">{errors.days}</p>}
         </div>
 
         <div className="flex justify-end gap-3 pt-2">
@@ -183,28 +184,27 @@ export const HabitTracker: React.FC<Props> = ({ user }) => {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Habit Tracker</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{today}</p>
-        </div>
-        {isAdmin && (
+      <PageHeader
+        eyebrow="Growth"
+        title="Habit Tracker"
+        description={today}
+        actions={isAdmin ? (
           <Button variant="secondary" onClick={() => setAdminOpen((v) => !v)}>
             <Settings className="w-4 h-4 mr-1.5 inline-block" />
             {adminOpen ? 'Hide Admin' : 'Manage Habits'}
           </Button>
-        )}
-      </div>
+        ) : undefined}
+      />
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>
+        <div className="bg-york-50 dark:bg-york-900/30 border border-york-200 dark:border-york-800 text-york-700 dark:text-york-300 rounded-lg px-4 py-3 text-sm">{error}</div>
       )}
 
       {/* Today's habits grid */}
       {loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-48 bg-gray-100 rounded-lg animate-pulse" />
+            <div key={i} className="h-48 bg-gray-100 dark:bg-slate-800 rounded-lg animate-pulse" />
           ))}
         </div>
       )}
@@ -212,7 +212,7 @@ export const HabitTracker: React.FC<Props> = ({ user }) => {
       {!loading && habitsWithStats.length === 0 && (
         <div className="text-center py-16 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg">
           <Leaf className="w-10 h-10 mx-auto mb-3 text-gray-300 dark:text-slate-600" />
-          <p className="text-base font-semibold text-gray-700">No habits set up yet</p>
+          <p className="text-base font-semibold text-gray-700 dark:text-slate-200">No habits set up yet</p>
           <p className="text-sm text-gray-400 mt-1">
             {isAdmin
               ? 'Create habit templates below for members to track.'
@@ -232,8 +232,8 @@ export const HabitTracker: React.FC<Props> = ({ user }) => {
         <>
           {/* Summary row */}
           <div className="flex gap-4 flex-wrap">
-            <div className="text-sm text-gray-500">
-              <span className="font-bold text-gray-900">
+            <div className="text-sm text-gray-500 dark:text-slate-400">
+              <span className="font-bold text-gray-900 dark:text-slate-100">
                 {habitsWithStats.filter((h) => h.today_status === 'done').length}
               </span>{' '}
               / {habitsWithStats.length} done today
@@ -258,16 +258,16 @@ export const HabitTracker: React.FC<Props> = ({ user }) => {
       {isAdmin && adminOpen && (
         <div className="border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
-            <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Habit Templates</h2>
+            <h2 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-wide">Habit Templates</h2>
             <Button variant="primary" size="small" onClick={() => { setEditingTemplate(null); setFormOpen(true); }}>
               + New Habit
             </Button>
           </div>
 
-          {admin.loading && <div className="h-16 bg-gray-50 animate-pulse m-4 rounded" />}
+          {admin.loading && <div className="h-16 bg-gray-50 dark:bg-slate-900 animate-pulse m-4 rounded" />}
 
           {!admin.loading && admin.templates.length === 0 && (
-            <p className="text-sm text-gray-400 p-5">No habit templates yet.</p>
+            <p className="text-sm text-gray-400 dark:text-slate-400 p-5">No habit templates yet.</p>
           )}
 
           {!admin.loading && admin.templates.length > 0 && (
@@ -275,13 +275,13 @@ export const HabitTracker: React.FC<Props> = ({ user }) => {
               {admin.templates.map((t) => (
                 <div key={t.id} className="flex items-center justify-between gap-3 px-5 py-3">
                   <div className="flex items-center gap-3">
-                    <span className="text-xl">{t.icon}</span>
+                    <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-york-50 dark:bg-york-900/30 text-york-600 dark:text-york-400"><HabitIcon value={t.icon} className="w-4.5 h-4.5" /></span>
                     <div>
-                      <span className="text-sm font-semibold text-gray-900">{t.name}</span>
+                      <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">{t.name}</span>
                       {t.description && (
                         <p className="text-xs text-gray-400">{t.description}</p>
                       )}
-                      <p className="text-xs text-gray-400 mt-0.5">
+                      <p className="text-xs text-gray-400 dark:text-slate-400 mt-0.5">
                         {t.target_days === null
                           ? 'Every day'
                           : t.target_days.map((d) => DAY_NAMES[d]).join(', ')}
@@ -294,13 +294,13 @@ export const HabitTracker: React.FC<Props> = ({ user }) => {
                     </Badge>
                     <button
                       onClick={() => admin.toggleActive(t.id, !t.is_active)}
-                      className="text-xs text-gray-400 hover:text-gray-700"
+                      className="text-xs text-gray-400 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
                     >
                       {t.is_active ? 'Deactivate' : 'Activate'}
                     </button>
                     <button
                       onClick={() => { setEditingTemplate(t); setFormOpen(true); }}
-                      className="p-1.5 rounded text-gray-400 hover:text-york-600 hover:bg-red-50"
+                      className="p-1.5 rounded text-gray-400 dark:text-slate-400 hover:text-york-600 hover:bg-york-50 dark:hover:bg-york-900/40"
                       title="Edit"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -309,7 +309,7 @@ export const HabitTracker: React.FC<Props> = ({ user }) => {
                     </button>
                     <button
                       onClick={() => window.confirm(`Delete "${t.name}"?`) && admin.removeTemplate(t.id)}
-                      className="p-1.5 rounded text-gray-400 hover:text-red-600 hover:bg-red-50"
+                      className="p-1.5 rounded text-gray-400 dark:text-slate-400 hover:text-york-600 hover:bg-york-50 dark:hover:bg-york-900/40"
                       title="Delete"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -323,13 +323,13 @@ export const HabitTracker: React.FC<Props> = ({ user }) => {
           )}
 
           {admin.error && (
-            <p className="text-xs text-red-600 px-5 pb-3">{admin.error}</p>
+            <p className="text-xs text-york-600 dark:text-york-400 px-5 pb-3">{admin.error}</p>
           )}
 
           {/* Analytics */}
-          <div className="border-t border-gray-100 px-5 py-4">
+          <div className="border-t border-gray-100 dark:border-slate-800 px-5 py-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-gray-700">Engagement Analytics</h3>
+              <h3 className="text-sm font-bold text-gray-700 dark:text-slate-300">Engagement Analytics</h3>
               <Button variant="ghost" size="small" onClick={handleAnalytics}>
                 {admin.analyticsLoading ? 'Loading...' : 'Load Stats'}
               </Button>
@@ -338,7 +338,7 @@ export const HabitTracker: React.FC<Props> = ({ user }) => {
               <div className="mt-3 overflow-x-auto">
                 <table className="w-full text-xs text-left">
                   <thead>
-                    <tr className="text-gray-400 border-b border-gray-100">
+                    <tr className="text-gray-400 dark:text-slate-400 border-b border-gray-100 dark:border-slate-800">
                       <th className="pb-2 font-semibold">Habit</th>
                       <th className="pb-2 font-semibold text-right">Active Members</th>
                       <th className="pb-2 font-semibold text-right">Done Today</th>
@@ -349,16 +349,16 @@ export const HabitTracker: React.FC<Props> = ({ user }) => {
                     {admin.analytics.map((a) => (
                       <tr key={a.template_id}>
                         <td className="py-2">
-                          <span className="mr-1.5">{a.icon}</span>
+                          <span className="inline-flex mr-1.5 align-[-2px] text-york-600 dark:text-york-400"><HabitIcon value={a.icon} className="w-4 h-4" /></span>
                           {a.habit_name}
                         </td>
-                        <td className="py-2 text-right text-gray-600">{a.member_count}</td>
+                        <td className="py-2 text-right text-gray-600 dark:text-slate-300">{a.member_count}</td>
                         <td className="py-2 text-right text-gray-600">{a.done_today}</td>
                         <td className="py-2 text-right">
                           <span className={`font-semibold ${
                             a.completion_7d_avg >= 0.7 ? 'text-green-600'
                               : a.completion_7d_avg >= 0.4 ? 'text-amber-600'
-                              : 'text-red-500'
+                              : 'text-york-500'
                           }`}>
                             {Math.round(a.completion_7d_avg * 100)}%
                           </span>

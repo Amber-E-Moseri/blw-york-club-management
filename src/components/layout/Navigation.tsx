@@ -61,17 +61,17 @@ export const Navigation: React.FC<NavigationProps> = ({ userRole = 'member' }) =
               aria-current={active ? 'page' : undefined}
               aria-label={tab.label}
               className={cn(
-                'flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 min-h-[56px] text-[10px] font-medium transition-colors duration-150',
+                'relative flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 min-h-[56px] text-[11px] font-medium transition-colors duration-150',
                 active
-                  ? 'text-york-600 dark:text-york-300'
-                  : 'text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300',
+                  ? 'text-york-600 dark:text-york-300 font-semibold'
+                  : 'text-gray-400 dark:text-slate-400 hover:text-gray-600 dark:hover:text-slate-300',
               )}
             >
-              <Icon className={cn('w-5 h-5', active && 'scale-110 transition-transform')} />
-              <span>{tab.label}</span>
               {active && (
-                <span className="absolute bottom-0 w-6 h-0.5 bg-york-600 dark:bg-york-400 rounded-t-full" />
+                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-york-600 dark:bg-york-400 rounded-b-full" />
               )}
+              <Icon className={cn('w-5 h-5 transition-transform duration-150', active && 'scale-110')} />
+              <span>{tab.label}</span>
             </button>
           );
         })}

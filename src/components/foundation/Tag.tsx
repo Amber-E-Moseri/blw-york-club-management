@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
+import { X } from 'lucide-react';
 
 export interface TagProps {
   variant?: 'colored' | 'light';
@@ -76,7 +77,7 @@ export const Tag: React.FC<TagProps> = ({
           className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full opacity-60 hover:opacity-100 transition-opacity ml-0.5 shrink-0"
           style={{ color: 'inherit' }}
         >
-          ✕
+          <X className="w-3 h-3" aria-hidden="true" />
         </button>
       )}
     </span>

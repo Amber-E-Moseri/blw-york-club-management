@@ -20,7 +20,7 @@ export const Profile: React.FC<ProfileProps> = ({ user }) => {
     user.role === 'cell_leader' ? 'Cell Leader' : 'Member';
 
   return (
-    <div className="flex-1 overflow-y-auto p-8">
+    <div className="flex-1 overflow-y-auto p-0 md:p-4">
       <div className="max-w-lg mx-auto">
         <h1 className="text-h1 mb-6">Profile</h1>
         <Card>
@@ -35,19 +35,19 @@ export const Profile: React.FC<ProfileProps> = ({ user }) => {
           </div>
           <dl className="space-y-3 text-small">
             <div className="flex gap-2">
-              <dt className="font-semibold text-gray-400 w-28 shrink-0">Email</dt>
-              <dd className="text-gray-900">{user.email}</dd>
+              <dt className="font-semibold text-gray-400 dark:text-slate-400 w-28 shrink-0">Email</dt>
+              <dd className="text-gray-900 dark:text-slate-100">{user.email}</dd>
             </div>
             <div className="flex gap-2">
-              <dt className="font-semibold text-gray-400 w-28 shrink-0">Member since</dt>
-              <dd className="text-gray-900">
+              <dt className="font-semibold text-gray-400 dark:text-slate-400 w-28 shrink-0">Member since</dt>
+              <dd className="text-gray-900 dark:text-slate-100">
                 {user.createdAt.toLocaleDateString('en-CA', { year: 'numeric', month: 'long' })}
               </dd>
             </div>
             {user.cellId && (
               <div className="flex gap-2">
-                <dt className="font-semibold text-gray-400 w-28 shrink-0">Cell</dt>
-                <dd className="text-gray-900">{user.cellId}</dd>
+                <dt className="font-semibold text-gray-400 dark:text-slate-400 w-28 shrink-0">Cell</dt>
+                <dd className="text-gray-900 dark:text-slate-100">{user.cellId}</dd>
               </div>
             )}
           </dl>

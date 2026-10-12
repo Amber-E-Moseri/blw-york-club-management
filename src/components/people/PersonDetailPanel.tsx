@@ -92,7 +92,7 @@ export const PersonDetailPanel: React.FC<PersonDetailPanelProps> = ({
             className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
             aria-label="Close member profile"
           >
-            <X className="w-4 h-4 text-gray-500" />
+            <X className="w-4 h-4 text-gray-500 dark:text-slate-400" />
           </button>
         </div>
 
@@ -103,16 +103,16 @@ export const PersonDetailPanel: React.FC<PersonDetailPanelProps> = ({
         ) : error ? (
           <div className="flex-1 flex items-center justify-center p-6">
             <div className="max-w-xs text-center">
-              <AlertCircle className="w-8 h-8 text-york-600 mx-auto mb-3" aria-hidden="true" />
+              <AlertCircle className="w-8 h-8 text-york-600 dark:text-york-400 mx-auto mb-3" aria-hidden="true" />
               <p className="text-sm font-semibold text-gray-700 dark:text-slate-200">Profile could not be loaded.</p>
-              <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">{error}</p>
+              <p className="text-xs text-gray-400 dark:text-slate-400 mt-1">{error}</p>
             </div>
           </div>
         ) : notFound || !profile ? (
           <div className="flex-1 flex items-center justify-center p-6">
             <div className="max-w-xs text-center">
               <p className="text-sm font-semibold text-gray-600 dark:text-slate-300">Profile not found.</p>
-              <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+              <p className="text-xs text-gray-400 dark:text-slate-400 mt-1">
                 No visible member profile exists for this directory entry.
               </p>
             </div>
@@ -151,7 +151,7 @@ export const PersonDetailPanel: React.FC<PersonDetailPanelProps> = ({
                     </span>
                   </div>
                   <div className="mt-2">
-                    <span className="text-xs text-gray-400 dark:text-slate-500">
+                    <span className="text-xs text-gray-400 dark:text-slate-400">
                       Joined {safeFormat(profile.joinedAt)}
                     </span>
                   </div>
@@ -202,7 +202,7 @@ export const PersonDetailPanel: React.FC<PersonDetailPanelProps> = ({
             <div className="px-5 py-4 space-y-4">
               {/* Contact info */}
               <section>
-                <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-2">Contact</p>
+                <p className="text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider mb-2">Contact</p>
                 <div className="space-y-2">
                   <Detail icon={<Mail className="w-3.5 h-3.5" />} label="Email" value={profile.email} />
                   {isAdmin ? (
@@ -215,7 +215,7 @@ export const PersonDetailPanel: React.FC<PersonDetailPanelProps> = ({
 
               {/* Ministry info */}
               <section>
-                <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-2">Ministry</p>
+                <p className="text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider mb-2">Ministry</p>
                 <div className="space-y-2">
                   {profile.cellName && (
                     <Detail icon={<Building2 className="w-3.5 h-3.5" />} label="Cell" value={profile.cellName} />
@@ -232,7 +232,7 @@ export const PersonDetailPanel: React.FC<PersonDetailPanelProps> = ({
               {/* Bio */}
               {profile.bio && (
                 <section>
-                  <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-2">About</p>
+                  <p className="text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider mb-2">About</p>
                   <p className="text-sm text-gray-600 dark:text-slate-300 leading-relaxed">{profile.bio}</p>
                 </section>
               )}
@@ -261,7 +261,7 @@ const Detail: React.FC<{ icon: React.ReactNode; label: string; value: string }> 
   <div className="flex items-start gap-2">
     <span className="w-4 h-4 mt-0.5 text-gray-300 dark:text-slate-600 shrink-0">{icon}</span>
     <div className="min-w-0">
-      <p className="text-[10px] text-gray-400 dark:text-slate-500 font-medium">{label}</p>
+      <p className="text-[10px] text-gray-400 dark:text-slate-400 font-medium">{label}</p>
       <p className="text-sm text-gray-800 dark:text-slate-200 break-words">{value}</p>
     </div>
   </div>
@@ -327,13 +327,13 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
   return (
     <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
       {saveError && (
-        <div className="rounded-lg border border-york-200 bg-york-50 px-3 py-2 text-sm text-york-700">
+        <div className="rounded-lg border border-york-200 dark:border-york-800 bg-york-50 dark:bg-york-900/30 px-3 py-2 text-sm text-york-700 dark:text-york-300">
           {saveError}
         </div>
       )}
 
       <div>
-        <p className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">Edit profile</p>
+        <p className="text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider">Edit profile</p>
         <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
           Role, status, cell, and account email are managed separately.
           {!canEditPersonalDetails ? ' Phone and bio are self-managed fields under current permissions.' : ''}
@@ -390,7 +390,7 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
 
 const ReadOnlyField: React.FC<{ label: string; value: string }> = ({ label, value }) => (
   <div>
-    <p className="font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">{label}</p>
+    <p className="font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider">{label}</p>
     <p className="mt-1 capitalize text-gray-700 dark:text-slate-200">{value}</p>
   </div>
 );

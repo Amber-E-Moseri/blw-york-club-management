@@ -42,17 +42,17 @@ export const GrowthSnapshot: React.FC<GrowthSnapshotProps> = ({
             className="w-full flex items-center justify-between group"
           >
             <div className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${devotionalViewed ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-gray-50 dark:bg-slate-700'}`}>
-                <BookOpen className={`w-4 h-4 ${devotionalViewed ? 'text-emerald-600' : 'text-gray-400'}`} />
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${devotionalViewed ? 'bg-green-50 dark:bg-green-900/20' : 'bg-gray-50 dark:bg-slate-700'}`}>
+                <BookOpen className={`w-4 h-4 ${devotionalViewed ? 'text-green-600' : 'text-gray-400'}`} />
               </div>
-              <span className="text-sm text-gray-600 dark:text-slate-400">Daily Bread</span>
+              <span className="text-sm text-gray-600 dark:text-slate-400">Rhapsody of Realities</span>
             </div>
             {devotionalViewed ? (
-              <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600">
+              <span className="flex items-center gap-1 text-xs font-semibold text-green-600">
                 <CheckCircle className="w-3.5 h-3.5" /> Viewed
               </span>
             ) : (
-              <span className="text-xs font-semibold text-york-600 group-hover:underline">Read now</span>
+              <span className="text-xs font-semibold text-york-600 dark:text-york-400 group-hover:underline">Read now</span>
             )}
           </button>
 
@@ -86,7 +86,7 @@ export const GrowthSnapshot: React.FC<GrowthSnapshotProps> = ({
               <span className="text-sm text-gray-600 dark:text-slate-400 truncate text-left pr-2">
                 {weeklyMessageTitle}
               </span>
-              <span className="shrink-0 text-xs font-semibold text-york-600 group-hover:underline">Read</span>
+              <span className="shrink-0 text-xs font-semibold text-york-600 dark:text-york-400 group-hover:underline">Read</span>
             </button>
           )}
         </div>

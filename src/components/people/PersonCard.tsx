@@ -31,18 +31,18 @@ export const PersonCard: React.FC<PersonCardProps> = ({ member, onSelect, canSee
       <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
         <PersonStatusBadge role={member.role} size="xs" />
         {member.cellName && (
-          <span className="text-[11px] text-gray-400 dark:text-slate-500 truncate">{member.cellName}</span>
+          <span className="text-[11px] text-gray-400 dark:text-slate-400 truncate">{member.cellName}</span>
         )}
       </div>
       {canSeeContact && (
         <div className="flex items-center gap-3 mt-1">
           {member.email && (
-            <span className="flex items-center gap-1 text-[11px] text-gray-400 dark:text-slate-500 truncate">
+            <span className="flex items-center gap-1 text-[11px] text-gray-400 dark:text-slate-400 truncate">
               <Mail className="w-3 h-3 shrink-0" />{member.email}
             </span>
           )}
           {member.phone && (
-            <span className="flex items-center gap-1 text-[11px] text-gray-400 dark:text-slate-500">
+            <span className="flex items-center gap-1 text-[11px] text-gray-400 dark:text-slate-400">
               <Phone className="w-3 h-3 shrink-0" />{member.phone}
             </span>
           )}

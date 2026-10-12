@@ -1,6 +1,7 @@
 import React from 'react';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 import { Card } from '../foundation/Card';
+import { AlertCircle } from 'lucide-react';
 
 interface PushNotificationSettingsProps {
   userId: string | undefined;
@@ -14,7 +15,7 @@ export const PushNotificationSettings: React.FC<PushNotificationSettingsProps> =
     return (
       <Card>
         <h3 className="text-h3 mb-1">Push Notifications</h3>
-        <p className="text-small text-gray-400">
+        <p className="text-small text-gray-400 dark:text-slate-400">
           Your browser doesn't support push notifications. Try Chrome or Firefox on Android,
           or add this app to your Home Screen on iOS 16.4+.
         </p>
@@ -30,7 +31,7 @@ export const PushNotificationSettings: React.FC<PushNotificationSettingsProps> =
   };
 
   const statusColor = (): string => {
-    if (!configured || permission === 'denied') return 'text-gray-400';
+    if (!configured || permission === 'denied') return 'text-gray-400 dark:text-slate-400';
     if (subscribed) return 'text-green-600';
     return 'text-gray-400';
   };
@@ -41,15 +42,15 @@ export const PushNotificationSettings: React.FC<PushNotificationSettingsProps> =
         <div className="flex-1">
           <h3 className="text-h3 mb-0.5">Push Notifications</h3>
           <p className={`text-small font-medium ${statusColor()}`}>{statusLabel()}</p>
-          <p className="text-small text-gray-400 mt-1">
+          <p className="text-small text-gray-400 dark:text-slate-400 mt-1">
             Get notified about meeting reminders, new messages, devotional reminders,
             and testimony activity.
           </p>
           {error && (
-            <p className="text-small text-red-600 mt-2">⚠ {error}</p>
+            <p className="text-small text-york-600 dark:text-york-400 mt-2"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{error}</p>
           )}
           {permission === 'denied' && (
-            <p className="text-small text-gray-500 mt-2">
+            <p className="text-small text-gray-500 dark:text-slate-400 mt-2">
               Notifications are blocked. Open your browser settings and allow notifications
               for this site, then come back and enable them.
             </p>
@@ -67,7 +68,7 @@ export const PushNotificationSettings: React.FC<PushNotificationSettingsProps> =
           aria-label="Toggle push notifications"
         >
           <span
-            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+            className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-slate-800 shadow transition-transform ${
               subscribed ? 'translate-x-6' : 'translate-x-1'
             }`}
           />
@@ -75,7 +76,7 @@ export const PushNotificationSettings: React.FC<PushNotificationSettingsProps> =
       </div>
 
       {!configured && (
-        <p className="text-tiny text-gray-400 mt-3 pt-3 border-t border-gray-100">
+        <p className="text-tiny text-gray-400 dark:text-slate-400 mt-3 pt-3 border-t border-gray-100 dark:border-slate-800">
           VAPID key not set — add <code>REACT_APP_VAPID_PUBLIC_KEY</code> to your environment
           to enable push notifications.
         </p>

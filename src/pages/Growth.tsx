@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import {
-  BookMarked, CheckSquare, Heart, Star, MessageCircle, Book, ChevronRight,
+  BookMarked, CheckSquare, Heart, Star, MessageCircle, Book, ChevronRight, Users,
 } from 'lucide-react';
 import { useDevotional } from '../hooks/useDevotional';
 import { useHabits } from '../hooks/useHabits';
@@ -27,7 +27,7 @@ const GrowthCard: React.FC<GrowthCardProps> = ({ icon, iconBg, title, subtitle, 
       {icon}
     </div>
     <div className="flex-1 min-w-0">
-      <p className="font-semibold text-gray-900 dark:text-white text-sm">{title}</p>
+      <p className="font-semibold text-gray-900 dark:text-slate-100 dark:text-white text-sm">{title}</p>
       {subtitle && (
         <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{subtitle}</p>
       )}
@@ -37,7 +37,7 @@ const GrowthCard: React.FC<GrowthCardProps> = ({ icon, iconBg, title, subtitle, 
         {badge}
       </span>
     )}
-    <ChevronRight className="w-4 h-4 text-gray-400 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+    <ChevronRight className="w-4 h-4 text-gray-400 dark:text-slate-400 shrink-0 group-hover:translate-x-0.5 transition-transform" />
   </Link>
 );
 
@@ -59,7 +59,7 @@ export const Growth: React.FC<GrowthProps> = ({ user }) => {
       {/* Header */}
       <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
         <div className="border-t-4 border-york-600 px-5 py-5">
-          <p className="text-xs font-semibold text-york-600 uppercase tracking-wider">Spiritual</p>
+          <p className="text-xs font-semibold text-york-600 dark:text-york-400 uppercase tracking-wider">Spiritual</p>
           <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100 mt-1">Growth</h1>
           <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
             Your discipleship journey in one place.
@@ -75,20 +75,30 @@ export const Growth: React.FC<GrowthProps> = ({ user }) => {
         </div>
       )}
 
-      <div className="space-y-3">
+      <div className="stagger space-y-3">
         <GrowthCard
           to="/devotionals"
           iconBg="bg-amber-50 dark:bg-amber-900/20"
           icon={<BookMarked className="w-6 h-6 text-amber-600" />}
-          title="Daily Bread"
+          title="Rhapsody of Realities"
           subtitle={devotionalPage?.title ?? 'Today\'s devotional'}
           badge={devotionalView ? 'Read today' : undefined}
         />
 
+        {(user?.role === 'admin' || user?.role === 'coordinator' || user?.role === 'cell_leader') && (
+          <GrowthCard
+            to="/my-bsc"
+            iconBg="bg-blue-50 dark:bg-blue-900/20"
+            icon={<Users className="w-6 h-6 text-blue-600" />}
+            title="My BSC"
+            subtitle="Rhapsody reads and confessions for your members"
+          />
+        )}
+
         <GrowthCard
           to="/habits"
-          iconBg="bg-emerald-50 dark:bg-emerald-900/20"
-          icon={<CheckSquare className="w-6 h-6 text-emerald-600" />}
+          iconBg="bg-green-50 dark:bg-green-900/20"
+          icon={<CheckSquare className="w-6 h-6 text-green-600" />}
           title="Habits"
           subtitle={
             habitsTotal > 0
@@ -140,7 +150,7 @@ export const Growth: React.FC<GrowthProps> = ({ user }) => {
 
 const StatChip: React.FC<{ label: string; value: number }> = ({ label, value }) => (
   <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm px-4 py-3">
-    <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">{label}</p>
+    <p className="text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider">{label}</p>
     <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-0.5">{value}</p>
   </div>
 );

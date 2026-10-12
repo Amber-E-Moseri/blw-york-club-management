@@ -44,7 +44,7 @@ export const AdminDataExport: React.FC<Props> = ({ user }) => {
   if (!isAdmin) {
     return (
       <div className="flex min-h-[360px] items-center justify-center">
-        <p className="text-small text-gray-400">Access denied.</p>
+        <p className="text-small text-gray-400 dark:text-slate-400">Access denied.</p>
       </div>
     );
   }
@@ -52,14 +52,14 @@ export const AdminDataExport: React.FC<Props> = ({ user }) => {
   return (
     <div className="mx-auto max-w-5xl space-y-6 printable-area">
       <div>
-        <p className="text-small font-bold uppercase text-york-600">Admin</p>
+        <p className="text-small font-bold uppercase text-york-600 dark:text-york-400">Admin</p>
         <h1 className="text-h1">Data Export & Backup</h1>
-        {lastExported && <p className="text-small text-gray-400">Last exported {lastExported}</p>}
+        {lastExported && <p className="text-small text-gray-400 dark:text-slate-400">Last exported {lastExported}</p>}
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card title="Members" hasRedBorder>
-          <p className="mb-4 text-small text-gray-500">Export profile details for all, active, or archived/inactive members.</p>
+          <p className="mb-4 text-small text-gray-500 dark:text-slate-400">Export profile details for all, active, or archived/inactive members.</p>
           <div className="space-y-3">
             <Button onClick={() => runExport('members', 'all')} loading={loading} fullWidth>Export All Profiles CSV</Button>
             <Button variant="secondary" onClick={() => runExport('members', 'active')} loading={loading} fullWidth>Export Active CSV</Button>
@@ -94,7 +94,7 @@ export const AdminDataExport: React.FC<Props> = ({ user }) => {
       </div>
 
       <Card title="Print-Friendly Snapshot">
-        <p className="text-small text-gray-500">Use your browser print dialog to save this export dashboard as a PDF.</p>
+        <p className="text-small text-gray-500 dark:text-slate-400">Use your browser print dialog to save this export dashboard as a PDF.</p>
         <Button variant="secondary" onClick={() => window.print()} className="mt-4">Print / Save PDF</Button>
       </Card>
     </div>

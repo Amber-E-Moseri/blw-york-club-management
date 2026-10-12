@@ -6,24 +6,25 @@ import { TestimonyForm } from '../components/feature/TestimonyForm';
 import { useTestimonies } from '../hooks/useTestimonies';
 import type { AuthUser } from '../lib/auth';
 import type { Testimony, TestimonyInput, TestimonyCategory, TestimonyEntryType, ReactionType } from '../types';
+import { Banknote, BookOpen, Eye, HandHeart, HeartHandshake, type LucideIcon, Sparkles, Sprout } from 'lucide-react';
 
 interface Props { user: AuthUser | null; }
 
-const CATEGORIES: { value: TestimonyCategory | 'all'; label: string; emoji: string }[] = [
-  { value: 'all',            label: 'All',          emoji: '✨' },
-  { value: 'provision',      label: 'Provision',    emoji: '💰' },
-  { value: 'healing',        label: 'Healing',      emoji: '🙏' },
-  { value: 'prayer_answered',label: 'Prayer',       emoji: '✝️' },
-  { value: 'growth',         label: 'Growth',       emoji: '🌱' },
-  { value: 'other',          label: 'Other',        emoji: '📖' },
+const CATEGORIES: { value: TestimonyCategory | 'all'; label: string; icon: LucideIcon }[] = [
+  { value: 'all',            label: 'All',          icon: Sparkles },
+  { value: 'provision',      label: 'Provision',    icon: Banknote },
+  { value: 'healing',        label: 'Healing',      icon: HeartHandshake },
+  { value: 'prayer_answered',label: 'Prayer',       icon: HandHeart },
+  { value: 'growth',         label: 'Growth',       icon: Sprout },
+  { value: 'other',          label: 'Other',        icon: BookOpen },
 ];
 
 type Tab = 'all' | 'testimony' | 'prophecy';
 
-const TABS: { value: Tab; label: string; emoji: string }[] = [
-  { value: 'all',       label: 'All',        emoji: '✨' },
-  { value: 'testimony', label: 'Testimonies', emoji: '📖' },
-  { value: 'prophecy',  label: 'Prophecies', emoji: '🔮' },
+const TABS: { value: Tab; label: string; icon: LucideIcon }[] = [
+  { value: 'all',       label: 'All',        icon: Sparkles },
+  { value: 'testimony', label: 'Testimonies', icon: BookOpen },
+  { value: 'prophecy',  label: 'Prophecies', icon: Eye },
 ];
 
 export const TestimonyLog: React.FC<Props> = ({ user }) => {
@@ -55,23 +56,23 @@ export const TestimonyLog: React.FC<Props> = ({ user }) => {
     <div className="max-w-3xl mx-auto space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Testimonies &amp; Prophecies</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Testimonies &amp; Prophecies</h1>
           <p className="text-sm text-gray-500 mt-0.5">Celebrate what God has done</p>
         </div>
         <Button variant="primary" onClick={handleAdd}>+ Share</Button>
       </div>
 
       {/* Type tabs */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit">
+      <div className="flex gap-1 bg-gray-100 dark:bg-slate-800 p-1 rounded-lg w-fit">
         {TABS.map((t) => (
           <button
             key={t.value}
             onClick={() => setTab(t.value)}
             className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
-              tab === t.value ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+              tab === t.value ? 'bg-white dark:bg-slate-800 shadow-sm text-gray-900 dark:text-slate-100' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
             }`}
           >
-            {t.emoji} {t.label}
+            <t.icon className="w-4 h-4 inline mr-1.5 -mt-0.5" aria-hidden="true" />{t.label}
           </button>
         ))}
       </div>
@@ -97,10 +98,10 @@ export const TestimonyLog: React.FC<Props> = ({ user }) => {
               className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
                 category === cat.value
                   ? 'bg-york-600 text-white border-york-600'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-york-400'
+                  : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-york-400'
               }`}
             >
-              {cat.emoji} {cat.label}
+              <cat.icon className="w-4 h-4 inline mr-1.5 -mt-0.5" aria-hidden="true" />{cat.label}
             </button>
           ))}
           <label className="inline-flex items-center gap-1.5 ml-2 cursor-pointer">
@@ -108,33 +109,33 @@ export const TestimonyLog: React.FC<Props> = ({ user }) => {
               type="checkbox"
               checked={myOnly}
               onChange={(e) => setMyOnly(e.target.checked)}
-              className="w-3.5 h-3.5 rounded border-gray-300 text-york-600"
+              className="w-3.5 h-3.5 rounded border-gray-300 dark:border-slate-600 text-york-600 dark:text-york-400"
             />
-            <span className="text-xs text-gray-600 font-medium">Mine only</span>
+            <span className="text-xs text-gray-600 dark:text-slate-300 font-medium">Mine only</span>
           </label>
         </div>
       </div>
 
-      <p className="text-sm text-gray-400">
+      <p className="text-sm text-gray-400 dark:text-slate-400">
         {loading ? 'Loading…' : `${testimonies.length} entr${testimonies.length !== 1 ? 'ies' : 'y'}`}
       </p>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>
+        <div className="bg-york-50 dark:bg-york-900/30 border border-york-200 dark:border-york-800 text-york-700 dark:text-york-300 rounded-lg px-4 py-3 text-sm">{error}</div>
       )}
 
       {loading && (
         <div className="space-y-3">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-40 bg-gray-100 rounded-xl animate-pulse" />
+            <div key={i} className="h-40 bg-gray-100 dark:bg-slate-800 rounded-xl animate-pulse" />
           ))}
         </div>
       )}
 
       {!loading && testimonies.length === 0 && (
-        <div className="text-center py-16 bg-white border border-gray-200 rounded-xl">
-          <p className="text-3xl mb-3">✨</p>
-          <p className="text-base font-semibold text-gray-700">Nothing here yet</p>
+        <div className="text-center py-16 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl">
+          <Sparkles className="w-8 h-8 mx-auto mb-3 text-york-500" aria-hidden="true" />
+          <p className="text-base font-semibold text-gray-700 dark:text-slate-300">Nothing here yet</p>
           <p className="text-sm text-gray-400 mt-1">Be the first to share!</p>
           <div className="mt-4">
             <Button variant="primary" size="small" onClick={handleAdd}>Share First Entry</Button>

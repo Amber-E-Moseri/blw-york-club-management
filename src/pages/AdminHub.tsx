@@ -27,6 +27,7 @@ const TOOL_GROUPS: {
       { label: 'Members', desc: 'Directory, roles, cells, and member details', icon: Users, path: '/members' },
       { label: 'Contacts', desc: 'Outreach pipeline, handoffs, and follow-ups', icon: ClipboardList, path: '/contacts' },
       { label: 'Approvals', desc: 'Review pending and rejected sign-up requests', icon: ClipboardCheck, path: '/admin/pending' },
+      { label: 'BSCs', desc: 'Create Bible study classes and assign members', icon: Users, path: '/admin/bscs' },
     ],
   },
   {
@@ -40,7 +41,7 @@ const TOOL_GROUPS: {
   {
     title: 'Resources',
     items: [
-      { label: 'Daily Bread Upload', desc: 'Convert monthly PDFs into daily pages', icon: BookMarked, path: '/admin/devotionals' },
+      { label: 'Rhapsody Upload', desc: 'Convert monthly PDFs into daily pages', icon: BookMarked, path: '/admin/devotionals' },
       { label: 'Testimony Moderation', desc: 'Approve or reject submitted testimonies', icon: CheckSquare, path: '/admin/testimonies' },
       { label: 'Devotional Reports', desc: 'Review devotional engagement', icon: BarChart3, path: '/admin/reports' },
     ],
@@ -138,7 +139,7 @@ export const AdminHub: React.FC<Props> = ({ user }) => {
   if (!isAdmin) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
-        <p className="text-sm text-york-600 font-medium">Access denied.</p>
+        <p className="text-sm text-york-600 dark:text-york-400 font-medium">Access denied.</p>
       </div>
     );
   }
@@ -148,7 +149,7 @@ export const AdminHub: React.FC<Props> = ({ user }) => {
       <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
         <div className="border-t-4 border-york-600 px-5 py-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs font-semibold text-york-600 uppercase tracking-wider">Administration</p>
+            <p className="text-xs font-semibold text-york-600 dark:text-york-400 uppercase tracking-wider">Administration</p>
             <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100 mt-1">Operations Dashboard</h1>
             <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
               Review the work that needs attention, then jump into the right tool.
@@ -157,7 +158,7 @@ export const AdminHub: React.FC<Props> = ({ user }) => {
           <button
             type="button"
             onClick={() => navigate('/admin/roles')}
-            className="h-9 px-3 inline-flex items-center justify-center gap-2 text-sm font-semibold text-york-600 border border-york-200 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-york-900/20 dark:border-york-800 dark:text-york-300"
+            className="h-9 px-3 inline-flex items-center justify-center gap-2 text-sm font-semibold text-york-600 border border-york-200 rounded-xl bg-york-50 hover:bg-york-100 dark:bg-york-900/20 dark:border-york-800 dark:text-york-300"
           >
             <KeyRound className="w-4 h-4" />
             Roles & Access
@@ -166,7 +167,7 @@ export const AdminHub: React.FC<Props> = ({ user }) => {
       </div>
 
       {error && (
-        <div className="rounded-xl border border-york-200 bg-york-50 dark:bg-york-900/20 p-4 text-sm text-york-700 dark:text-york-300">
+        <div className="rounded-xl border border-york-200 dark:border-york-800 bg-york-50 dark:bg-york-900/20 p-4 text-sm text-york-700 dark:text-york-300">
           {error}
         </div>
       )}
@@ -192,7 +193,7 @@ export const AdminHub: React.FC<Props> = ({ user }) => {
                 )}
               </div>
               <p className="mt-3 text-sm font-semibold text-gray-900 dark:text-slate-100">{item.label}</p>
-              <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
+              <p className="text-xs text-gray-400 dark:text-slate-400 mt-0.5">
                 {item.value > 0 ? 'Needs review' : 'No action needed'}
               </p>
             </button>
@@ -224,7 +225,7 @@ export const AdminHub: React.FC<Props> = ({ user }) => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{item.label}</p>
-                      <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5 line-clamp-1">{item.desc}</p>
+                      <p className="text-xs text-gray-400 dark:text-slate-400 mt-0.5 line-clamp-1">{item.desc}</p>
                     </div>
                     <ChevronRight className="w-4 h-4 text-gray-300 dark:text-slate-600 shrink-0" />
                   </button>

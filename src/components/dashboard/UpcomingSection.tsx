@@ -54,7 +54,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   leadership: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
   'Bible Study': 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
   Worship: 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-  Fellowship: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+  Fellowship: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300',
   Outreach: 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
   Prayer: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
 };
@@ -97,7 +97,7 @@ export const UpcomingSection: React.FC<UpcomingSectionProps> = ({ events, meetin
       ) : items.length === 0 ? (
         <div className="px-5 py-6 text-center">
           <p className="text-sm font-semibold text-gray-600 dark:text-slate-300">Nothing coming up yet</p>
-          <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">Check back soon for events and meetings.</p>
+          <p className="text-xs text-gray-400 dark:text-slate-400 mt-1">Check back soon for events and meetings.</p>
         </div>
       ) : (
         <ul className="divide-y divide-gray-100 dark:divide-slate-700">
@@ -116,7 +116,7 @@ export const UpcomingSection: React.FC<UpcomingSectionProps> = ({ events, meetin
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">{item.title}</p>
-                    <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
+                    <p className="text-xs text-gray-400 dark:text-slate-400 mt-0.5">
                       {item.time}{item.location ? ` · ${item.location}` : ''}
                     </p>
                   </div>

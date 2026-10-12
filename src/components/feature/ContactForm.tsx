@@ -4,6 +4,7 @@ import { Button } from '../foundation/Button';
 import { Input } from '../foundation/Input';
 import { Tag } from '../foundation/Tag';
 import type { Contact, ContactInput, ContactTag, ContactStatus } from '../../types';
+import { AlertCircle } from 'lucide-react';
 
 interface AssignableUser { id: string; email: string; full_name: string; }
 
@@ -120,7 +121,7 @@ export const ContactForm: React.FC<Props> = ({
     >
       <div className="space-y-4">
         {saveError && (
-          <p role="alert" className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+          <p role="alert" className="text-sm text-york-600 dark:text-york-400 bg-york-50 dark:bg-york-900/30 border border-york-200 dark:border-york-800 rounded-md px-3 py-2">
             Could not save contact: {saveError}
           </p>
         )}
@@ -151,9 +152,9 @@ export const ContactForm: React.FC<Props> = ({
               type="checkbox"
               checked={form.phone_hidden}
               onChange={(e) => set('phone_hidden', e.target.checked)}
-              className="w-4 h-4 rounded border-gray-300 text-york-600 focus:ring-york-600"
+              className="w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-york-600 dark:text-york-400 focus:ring-york-600"
             />
-            <span className="text-sm text-gray-600">Hide phone from other members</span>
+            <span className="text-sm text-gray-600 dark:text-slate-300">Hide phone from other members</span>
           </label>
         </div>
 
@@ -169,8 +170,8 @@ export const ContactForm: React.FC<Props> = ({
         <div className="grid grid-cols-2 gap-4">
           {/* Tag */}
           <div>
-            <label className="block text-sm font-bold text-gray-800 mb-1.5">
-              Tag <span className="text-york-600">*</span>
+            <label className="block text-sm font-bold text-gray-800 dark:text-slate-200 mb-1.5">
+              Tag <span className="text-york-600 dark:text-york-400">*</span>
             </label>
             <select
               className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-york-600"
@@ -182,7 +183,7 @@ export const ContactForm: React.FC<Props> = ({
                 <option key={t.id} value={t.tag_name}>{t.tag_name}</option>
               ))}
             </select>
-            {errors.tag && <p className="text-xs text-red-600 mt-1">⚠️ {errors.tag}</p>}
+            {errors.tag && <p className="text-xs text-york-600 dark:text-york-400 mt-1"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{errors.tag}</p>}
             {selectedTag && (
               <div className="mt-2">
                 <Tag color={selectedTag.color} variant="light">{selectedTag.tag_name}</Tag>
@@ -192,8 +193,8 @@ export const ContactForm: React.FC<Props> = ({
 
           {/* Status */}
           <div>
-            <label className="block text-sm font-bold text-gray-800 mb-1.5">
-              Follow-up Status <span className="text-york-600">*</span>
+            <label className="block text-sm font-bold text-gray-800 dark:text-slate-200 mb-1.5">
+              Follow-up Status <span className="text-york-600 dark:text-york-400">*</span>
             </label>
             <select
               className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-york-600"
@@ -206,7 +207,7 @@ export const ContactForm: React.FC<Props> = ({
               ))}
             </select>
             {errors.follow_up_status && (
-              <p className="text-xs text-red-600 mt-1">⚠️ {errors.follow_up_status}</p>
+              <p className="text-xs text-york-600 dark:text-york-400 mt-1"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{errors.follow_up_status}</p>
             )}
             {selectedStatus && (
               <div className="mt-2">
@@ -218,7 +219,7 @@ export const ContactForm: React.FC<Props> = ({
 
         {users.length > 0 && (
           <div>
-            <label className="block text-sm font-bold text-gray-800 mb-1.5">
+            <label className="block text-sm font-bold text-gray-800 dark:text-slate-200 mb-1.5">
               Follow-up Assignee
             </label>
             <select
@@ -261,9 +262,9 @@ export const ContactForm: React.FC<Props> = ({
             type="checkbox"
             checked={form.is_member}
             onChange={(e) => set('is_member', e.target.checked)}
-            className="w-4 h-4 rounded border-gray-300 text-york-600 focus:ring-york-600"
+            className="w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-york-600 dark:text-york-400 focus:ring-york-600"
           />
-          <span className="text-sm text-gray-700 font-medium">
+          <span className="text-sm text-gray-700 dark:text-slate-300 font-medium">
             This person is already a cell member
           </span>
         </label>

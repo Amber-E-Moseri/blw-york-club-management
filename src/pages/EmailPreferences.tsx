@@ -9,6 +9,7 @@ import {
 } from '../hooks/useEmailNotifications';
 import type { AuthUser } from '../lib/auth';
 import type { EmailPreferencesInput } from '../types';
+import { PageHeader } from '../components/foundation/PageHeader';
 
 const DEFAULT_PREFS: EmailPreferencesInput = {
   meeting_reminders_8am: true,
@@ -91,13 +92,10 @@ export const EmailPreferences: React.FC<Props> = () => {
   const globalEnabled = !prefs.opt_out_all;
 
   return (
-    <div className="flex-1 overflow-y-auto p-8">
+    <div className="flex-1 overflow-y-auto p-0 md:p-4">
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-h1">Email Preferences</h1>
-          <p className="text-small text-gray-400 mt-1">Choose which emails you want to receive.</p>
-        </div>
+        <PageHeader eyebrow="Account" title="Email Preferences" description="Choose which emails you want to receive." />
 
         {/* Global toggle */}
         <Card>
@@ -106,10 +104,10 @@ export const EmailPreferences: React.FC<Props> = () => {
               type="checkbox"
               checked={globalEnabled}
               onChange={handleGlobalToggle}
-              className="w-5 h-5 rounded border-gray-300 text-york-600 focus:ring-york-500"
+              className="w-5 h-5 rounded border-gray-300 dark:border-slate-600 text-york-600 dark:text-york-400 focus:ring-york-500"
             />
             <div>
-              <p className="text-sm font-semibold text-gray-900">I want to receive emails from BLW York Hub</p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">I want to receive emails from BLW York Hub</p>
               <p className="text-xs text-gray-400">When unchecked, all notification emails are paused.</p>
             </div>
           </label>
@@ -127,7 +125,7 @@ export const EmailPreferences: React.FC<Props> = () => {
           <button
             onClick={handleOptOutAll}
             disabled={optingOut || prefs.opt_out_all}
-            className="text-sm text-red-500 hover:text-red-700 underline disabled:opacity-40"
+            className="text-sm text-york-500 hover:text-york-700 underline disabled:opacity-40"
           >
             Unsubscribe from all
           </button>

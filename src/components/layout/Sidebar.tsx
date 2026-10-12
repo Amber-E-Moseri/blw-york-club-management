@@ -100,7 +100,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside
       className={cn(
-        'shrink-0 bg-white border-r border-gray-200 flex flex-col h-screen sticky top-0 z-20',
+        'shrink-0 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 flex flex-col h-screen sticky top-0 z-20',
         'dark:border-slate-700 dark:bg-slate-900',
         'transition-[width] duration-200 ease-in-out',
         collapsed ? 'w-16' : 'w-56',
@@ -112,7 +112,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="flex flex-col items-center gap-2">
             <img src="/logo.png" alt="BLW York" className="w-8 h-8 object-contain" />
             {onToggleCollapse && (
-              <button onClick={onToggleCollapse} aria-label="Expand sidebar" title="Expand" className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-slate-200">
+              <button onClick={onToggleCollapse} aria-label="Expand sidebar" title="Expand" className="w-6 h-6 flex items-center justify-center text-gray-400 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200">
                 <ChevronRight className="w-4 h-4" aria-hidden="true" />
               </button>
             )}
@@ -127,7 +127,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </div>
             {onToggleCollapse && (
-              <button onClick={onToggleCollapse} aria-label="Collapse sidebar" title="Collapse" className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-slate-200">
+              <button onClick={onToggleCollapse} aria-label="Collapse sidebar" title="Collapse" className="w-6 h-6 flex items-center justify-center text-gray-400 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200">
                 <ChevronLeft className="w-4 h-4" aria-hidden="true" />
               </button>
             )}
@@ -159,7 +159,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {visibleGroups.map((group) => (
           <div key={group.groupKey} className="mb-4">
             {!collapsed && (
-              <p className="px-4 mb-1 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500">
+              <p className="px-4 mb-1 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-400">
                 {group.groupKey}
               </p>
             )}
@@ -177,7 +177,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       'flex items-center rounded-md text-sm font-medium w-full transition-colors duration-150',
                       collapsed ? 'justify-center h-10 w-10 mx-auto' : 'gap-3 px-4 py-2.5',
                       active
-                        ? 'bg-red-50 text-york-600 font-semibold dark:bg-york-900/30 dark:text-york-300'
+                        ? 'bg-york-50 text-york-600 font-semibold dark:bg-york-900/30 dark:text-york-300'
                         : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100',
                     )}
                   >
@@ -199,7 +199,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="w-8 h-8 rounded-full bg-york-600 text-white flex items-center justify-center text-xs font-bold">
                 {getInitials(user.name)}
               </div>
-              <button onClick={onSignOut} aria-label="Sign out" title="Sign out" className="text-gray-400 hover:text-york-600 transition-colors">
+              <button onClick={onSignOut} aria-label="Sign out" title="Sign out" className="text-gray-400 dark:text-slate-400 hover:text-york-600 transition-colors">
                 <LogOut className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
@@ -211,12 +211,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-gray-900 truncate dark:text-slate-100">{user.name}</p>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-york-100 text-york-700 font-semibold capitalize">
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-york-100 dark:bg-york-900/40 text-york-700 dark:text-york-300 font-semibold capitalize">
                     {user.role.replace('_', ' ')}
                   </span>
                 </div>
               </div>
-              <button onClick={onSignOut} className="mt-3 flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 transition-colors">
+              <button onClick={onSignOut} className="mt-3 flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-400 hover:text-gray-600 dark:hover:text-slate-200 transition-colors">
                 <LogOut className="w-3.5 h-3.5" aria-hidden="true" />
                 Sign out
               </button>

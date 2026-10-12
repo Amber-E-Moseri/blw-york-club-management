@@ -148,8 +148,8 @@ export const Modal: React.FC<ModalProps> = ({
               onClick={onClose}
               aria-label="Close dialog"
               className={cn(
-                'shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-gray-400',
-                'hover:text-york-600 hover:bg-red-50 transition-colors duration-150',
+                'shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-gray-400 dark:text-slate-400',
+                'hover:text-york-600 hover:bg-york-50 dark:hover:bg-york-900/40 transition-colors duration-150',
                 'focus:outline-none focus:ring-2 focus:ring-york-600'
               )}
             >

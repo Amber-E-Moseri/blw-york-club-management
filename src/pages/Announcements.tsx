@@ -5,6 +5,7 @@ import { Input } from '../components/foundation/Input';
 import { getAnnouncements, createAnnouncement } from '../lib/queries';
 import type { Announcement } from '../types';
 import type { AuthUser } from '../lib/auth';
+import { PageHeader } from '../components/foundation/PageHeader';
 
 interface AnnouncementsProps { user: AuthUser | null; }
 
@@ -42,15 +43,19 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
   const canPost = user?.role === 'admin' || user?.role === 'coordinator' || user?.role === 'cell_leader';
 
   return (
-    <div className="flex-1 overflow-y-auto p-8">
+    <div className="flex-1 overflow-y-auto p-0 md:p-4">
       <div className="max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-h1">Announcements</h1>
-          {canPost && (
-            <Button onClick={() => setShowForm((v) => !v)}>
-              {showForm ? 'Cancel' : '+ New'}
-            </Button>
-          )}
+        <div className="mb-6">
+          <PageHeader
+            eyebrow="Community"
+            title="Announcements"
+            description="News and updates from BLW York leadership."
+            actions={canPost ? (
+              <Button onClick={() => setShowForm((v) => !v)}>
+                {showForm ? 'Cancel' : '+ New'}
+              </Button>
+            ) : undefined}
+          />
         </div>
 
         {showForm && (
@@ -58,7 +63,7 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
             <Input label="Title" value={title} onChange={setTitle} />
             <Input label="Message" type="textarea" value={body} onChange={setBody} />
             {postError && (
-              <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+              <div className="rounded-md border border-york-200 dark:border-york-800 bg-york-50 dark:bg-york-900/30 px-4 py-3 text-sm text-york-700 dark:text-york-300" role="alert">
                 {postError}
               </div>
             )}
@@ -67,9 +72,9 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
         )}
 
         {loading ? (
-          <p className="text-small text-gray-400">Loading…</p>
+          <p className="text-small text-gray-400 dark:text-slate-400">Loading…</p>
         ) : (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-6">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700 px-6">
             {items.map((a) => <AnnouncementCard key={a.id} announcement={a} />)}
           </div>
         )}

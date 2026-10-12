@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle, Heart } from 'lucide-react';
+import { CheckCircle, Heart, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../foundation/Button';
 import { Badge } from '../foundation/Badge';
@@ -38,7 +38,7 @@ export const ConfessionCard: React.FC<Props> = ({
             {c.scheduled_date}
           </Badge>
           {(c.declaration_count ?? 0) > 0 && (
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-gray-400 dark:text-slate-400">
               {c.declaration_count} declared
             </span>
           )}
@@ -46,10 +46,10 @@ export const ConfessionCard: React.FC<Props> = ({
         {canDelete && onDelete && (
           <button
             onClick={() => window.confirm('Delete this confession?') && onDelete(c.id)}
-            className="text-gray-300 hover:text-red-500 transition-colors text-sm"
+            className="text-gray-300 hover:text-york-500 transition-colors text-sm"
             aria-label="Delete confession"
           >
-            ✕
+            <X className="w-4 h-4" aria-hidden="true" />
           </button>
         )}
       </div>

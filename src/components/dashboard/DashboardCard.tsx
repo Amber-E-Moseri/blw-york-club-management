@@ -19,7 +19,7 @@ export const DashboardCard: React.FC<DashboardCardProps> = ({
         <button
           type="button"
           onClick={action.onClick}
-          className="text-xs font-semibold text-york-600 hover:text-york-700 transition-colors"
+          className="text-xs font-semibold text-york-600 dark:text-york-400 hover:text-york-700 transition-colors"
         >
           {action.label}
         </button>

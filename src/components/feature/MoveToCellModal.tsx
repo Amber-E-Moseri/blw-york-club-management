@@ -3,6 +3,7 @@ import { Modal } from '../foundation/Modal';
 import { Button } from '../foundation/Button';
 import { Input } from '../foundation/Input';
 import type { Contact, Cell } from '../../types';
+import { AlertCircle } from 'lucide-react';
 
 interface AssignableUser { id: string; email: string; full_name: string; }
 
@@ -70,17 +71,17 @@ export const MoveToCellModal: React.FC<Props> = ({
     >
       <div className="space-y-4">
         {currentCell && (
-          <p className="text-sm text-gray-500">
-            Currently in: <span className="font-semibold text-gray-700">{currentCell.name}</span>
+          <p className="text-sm text-gray-500 dark:text-slate-400">
+            Currently in: <span className="font-semibold text-gray-700 dark:text-slate-300">{currentCell.name}</span>
           </p>
         )}
 
         <div>
-          <label className="block text-sm font-bold text-gray-800 mb-1.5">
-            Move to Cell <span className="text-york-600">*</span>
+          <label className="block text-sm font-bold text-gray-800 dark:text-slate-200 mb-1.5">
+            Move to Cell <span className="text-york-600 dark:text-york-400">*</span>
           </label>
           <select
-            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-york-600"
+            className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-york-600"
             value={cellId}
             onChange={(e) => setCellId(e.target.value)}
           >
@@ -96,18 +97,18 @@ export const MoveToCellModal: React.FC<Props> = ({
             type="checkbox"
             checked={reassign}
             onChange={(e) => setReassign(e.target.checked)}
-            className="w-4 h-4 rounded border-gray-300 text-york-600 focus:ring-york-600"
+            className="w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-york-600 dark:text-york-400 focus:ring-york-600"
           />
-          <span className="text-sm text-gray-700">Reassign follow-up to someone in new cell</span>
+          <span className="text-sm text-gray-700 dark:text-slate-300">Reassign follow-up to someone in new cell</span>
         </label>
 
         {reassign && (
           <div>
-            <label className="block text-sm font-bold text-gray-800 mb-1.5">
-              New follow-up person <span className="text-york-600">*</span>
+            <label className="block text-sm font-bold text-gray-800 dark:text-slate-200 mb-1.5">
+              New follow-up person <span className="text-york-600 dark:text-york-400">*</span>
             </label>
             <select
-              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-york-600"
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-york-600"
               value={assigneeId}
               onChange={(e) => setAssigneeId(e.target.value)}
             >
@@ -129,7 +130,7 @@ export const MoveToCellModal: React.FC<Props> = ({
         />
 
         {error && (
-          <p className="text-sm text-red-600">⚠️ {error}</p>
+          <p className="text-sm text-york-600 dark:text-york-400"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{error}</p>
         )}
       </div>
     </Modal>

@@ -147,7 +147,7 @@ export const AdminRoleManagement: React.FC<Props> = ({ user }) => {
   if (!isCoordinator) {
     return (
       <div className="flex min-h-[360px] items-center justify-center">
-        <p className="text-small text-gray-400">Only coordinators can manage custom admin roles.</p>
+        <p className="text-small text-gray-400 dark:text-slate-400">Only coordinators can manage custom admin roles.</p>
       </div>
     );
   }
@@ -156,13 +156,13 @@ export const AdminRoleManagement: React.FC<Props> = ({ user }) => {
     <div className="mx-auto max-w-7xl space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-small font-bold uppercase text-york-600">Admin</p>
+          <p className="text-small font-bold uppercase text-york-600 dark:text-york-400">Admin</p>
           <h1 className="text-h1">Role Management</h1>
         </div>
         <Button variant="secondary" onClick={resetForm}>New Role</Button>
       </div>
 
-      {error && <div className="rounded-md border border-york-200 bg-york-50 p-4 text-small text-york-700">{error}</div>}
+      {error && <div className="rounded-md border border-york-200 dark:border-york-800 bg-york-50 dark:bg-york-900/30 p-4 text-small text-york-700 dark:text-york-300">{error}</div>}
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[380px_1fr]">
         <Card title={selectedRole ? 'Edit Role' : 'Create Role'} hasRedBorder>
@@ -173,17 +173,17 @@ export const AdminRoleManagement: React.FC<Props> = ({ user }) => {
             <div className="space-y-4">
               {Object.entries(grouped).map(([group, items]) => (
                 <div key={group}>
-                  <p className="mb-2 text-small font-bold text-gray-900">{group}</p>
+                  <p className="mb-2 text-small font-bold text-gray-900 dark:text-slate-100">{group}</p>
                   <div className="space-y-2">
                     {items.map((permission) => (
-                      <label key={permission.key} className="flex items-center gap-3 rounded-md border border-gray-200 p-3">
+                      <label key={permission.key} className="flex items-center gap-3 rounded-md border border-gray-200 dark:border-slate-700 p-3">
                         <input
                           type="checkbox"
                           checked={permissions.includes(permission.key)}
                           onChange={() => togglePermission(permission.key)}
                           className="h-4 w-4 accent-york-600"
                         />
-                        <span className="text-small text-gray-700">{permission.label}</span>
+                        <span className="text-small text-gray-700 dark:text-slate-300">{permission.label}</span>
                       </label>
                     ))}
                   </div>
@@ -200,7 +200,7 @@ export const AdminRoleManagement: React.FC<Props> = ({ user }) => {
         <div className="space-y-6">
           <Card title="Permission Matrix">
             {loading ? (
-              <p className="text-small text-gray-400">Loading...</p>
+              <p className="text-small text-gray-400 dark:text-slate-400">Loading...</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="table-base min-w-[760px]">
@@ -216,7 +216,7 @@ export const AdminRoleManagement: React.FC<Props> = ({ user }) => {
                   <tbody>
                     {roles.map((role) => (
                       <tr key={role.id}>
-                        <td className="font-bold text-gray-900">
+                        <td className="font-bold text-gray-900 dark:text-slate-100">
                           {role.name}
                           {role.is_system && <Badge variant="light" size="small" className="ml-2">System</Badge>}
                         </td>
@@ -264,11 +264,11 @@ export const AdminRoleManagement: React.FC<Props> = ({ user }) => {
 
             <div className="space-y-2">
               {assignments.length === 0 ? (
-                <p className="text-small text-gray-400">No custom role assignments yet.</p>
+                <p className="text-small text-gray-400 dark:text-slate-400">No custom role assignments yet.</p>
               ) : assignments.map((assignment) => (
-                <div key={assignment.id} className="flex flex-col gap-2 rounded-md border border-gray-200 p-3 md:flex-row md:items-center md:justify-between">
+                <div key={assignment.id} className="flex flex-col gap-2 rounded-md border border-gray-200 dark:border-slate-700 p-3 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <p className="text-small font-bold text-gray-900">{assignment.user?.full_name || assignment.user?.email}</p>
+                    <p className="text-small font-bold text-gray-900 dark:text-slate-100">{assignment.user?.full_name || assignment.user?.email}</p>
                     <p className="text-tiny text-gray-400">{assignment.role?.name}</p>
                   </div>
                   <Button size="small" variant="ghost" onClick={() => handleRemoveAssignment(assignment)}>

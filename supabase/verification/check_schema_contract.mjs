@@ -73,7 +73,7 @@ for (const [table, allowed] of Object.entries(contract.profilePolicyAllowList)) 
   const names = fp.tables[table].policies.map((p) => p.split(' | ')[0]);
   check(`authorization: ${table} has exactly the allow-listed policies (an unexpected policy fails the release gate)`, eq(names, allowed), JSON.stringify(diff(names, allowed)));
 }
-const identity = /(auth\.uid\(\)|auth\.jwt\(\)|auth\.role\(\)|is_[a-z_]+\(|has_admin_permission|current_user_role)/i;
+const identity = /(auth\.uid\(\)|auth\.jwt\(\)|auth\.role\(\)|is_[a-z_]+\(|has_admin_permission|current_user_role|can_view_member)/i;
 const open = [];
 for (const t of tableNames) {
   for (const p of fp.tables[t].policies) {

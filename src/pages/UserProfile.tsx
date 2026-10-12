@@ -6,6 +6,7 @@ import { ProfileForm } from '../components/feature/ProfileForm';
 import { PushNotificationSettings } from '../components/feature/PushNotificationSettings';
 import { useUserProfile } from '../hooks/useUserProfile';
 import type { AuthUser } from '../lib/auth';
+import { PageHeader } from '../components/foundation/PageHeader';
 
 interface UserProfileProps {
   currentUser: AuthUser | null;
@@ -51,7 +52,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ currentUser, viewUserI
   if (error) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
-        <p className="text-sm text-york-600 font-medium">{error}</p>
+        <p className="text-sm text-york-600 dark:text-york-400 font-medium">{error}</p>
       </div>
     );
   }
@@ -59,7 +60,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ currentUser, viewUserI
   if (notFound || !profile) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
-        <p className="text-sm text-gray-400">Profile not found.</p>
+        <p className="text-sm text-gray-400 dark:text-slate-400">Profile not found.</p>
       </div>
     );
   }
@@ -78,12 +79,12 @@ export const UserProfile: React.FC<UserProfileProps> = ({ currentUser, viewUserI
     : '—';
 
   return (
-    <div className="flex-1 overflow-y-auto p-8">
+    <div className="flex-1 overflow-y-auto p-0 md:p-4">
       <div className="max-w-xl mx-auto space-y-6">
-        <h1 className="text-h1">{isOwnProfile ? 'My Profile' : 'Member Profile'}</h1>
+        <PageHeader eyebrow="Account" title={isOwnProfile ? 'My Profile' : 'Member Profile'} />
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-md px-4 py-3 text-sm text-red-700">
+          <div className="bg-york-50 dark:bg-york-900/30 border border-york-200 dark:border-york-800 rounded-md px-4 py-3 text-sm text-york-700 dark:text-york-300">
             {error}
           </div>
         )}
@@ -112,7 +113,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ currentUser, viewUserI
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-h2 truncate">{displayName}</h2>
+                  <h2 className="text-h2 break-words">{displayName}</h2>
                   {profile.role && (
                     <Badge variant={roleBadgeVariant(profile.role)} className="mt-1">
                       {ROLE_LABELS[profile.role]}
@@ -120,7 +121,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ currentUser, viewUserI
                   )}
                 </div>
                 {isOwnProfile && (
-                  <Button variant="secondary" size="small" onClick={() => setEditing(true)}>
+                  <Button variant="secondary" size="small" className="shrink-0" onClick={() => setEditing(true)}>
                     Edit
                   </Button>
                 )}
@@ -138,8 +139,8 @@ export const UserProfile: React.FC<UserProfileProps> = ({ currentUser, viewUserI
               </dl>
 
               {profile.bio && (
-                <div className="mt-5 pt-5 border-t border-gray-100">
-                  <p className="text-tiny font-semibold text-gray-400 uppercase tracking-wider mb-2">About</p>
+                <div className="mt-5 pt-5 border-t border-gray-100 dark:border-slate-800">
+                  <p className="text-tiny font-semibold text-gray-400 dark:text-slate-400 uppercase tracking-wider mb-2">About</p>
                   <p className="text-small text-gray-600">{profile.bio}</p>
                 </div>
               )}
@@ -157,7 +158,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ currentUser, viewUserI
 
 const Row: React.FC<{ label: string; value: string }> = ({ label, value }) => (
   <div className="flex gap-2">
-    <dt className="font-semibold text-gray-400 w-24 shrink-0">{label}</dt>
-    <dd className="text-gray-900">{value}</dd>
+    <dt className="font-semibold text-gray-400 dark:text-slate-400 w-24 shrink-0">{label}</dt>
+    <dd className="text-gray-900 dark:text-slate-100 break-words min-w-0">{value}</dd>
   </div>
 );

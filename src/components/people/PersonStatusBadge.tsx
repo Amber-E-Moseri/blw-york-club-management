@@ -12,7 +12,7 @@ const ROLE_META: Record<UserRole, { label: string; classes: string }> = {
   },
   cell_leader: {
     label: 'Cell Leader',
-    classes: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+    classes: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300',
   },
   member: {
     label: 'Member',

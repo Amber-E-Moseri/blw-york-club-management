@@ -6,6 +6,7 @@ import { Button } from '../components/foundation/Button';
 import { getInitials } from '../lib/utils';
 import { approvePendingMember } from '../lib/queries/members';
 import type { AuthUser } from '../lib/auth';
+import { PageHeader } from '../components/foundation/PageHeader';
 
 interface Props { user: AuthUser | null; }
 
@@ -80,23 +81,21 @@ export const AdminPendingApprovals: React.FC<Props> = ({ user }) => {
   if (!canApprove) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
-        <p className="text-sm text-gray-400">Access denied.</p>
+        <p className="text-sm text-gray-400 dark:text-slate-400">Access denied.</p>
       </div>
     );
   }
 
   return (
     <div className="max-w-3xl mx-auto space-y-5">
-      <div>
-        <p className="text-xs text-gray-400 dark:text-slate-500 mb-1">People / Approvals</p>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Pending Approvals</h1>
-        <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
-          New members waiting for access to BLW York Hub
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="People / Approvals"
+        title="Pending Approvals"
+        description="New members waiting for access to BLW York Hub"
+      />
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>
+        <div className="bg-york-50 dark:bg-york-900/30 border border-york-200 dark:border-york-800 text-york-700 dark:text-york-300 rounded-lg px-4 py-3 text-sm">{error}</div>
       )}
       {notice && (
         <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 text-sm">{notice}</div>
@@ -112,14 +111,15 @@ export const AdminPendingApprovals: React.FC<Props> = ({ user }) => {
           <div className="text-center py-16 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg">
             <CheckCircle2 className="w-10 h-10 mx-auto mb-3 text-green-400" aria-hidden="true" />
             <p className="text-base font-semibold text-gray-700 dark:text-slate-300">No pending requests</p>
-            <p className="text-sm text-gray-400 dark:text-slate-500 mt-1">All accounts are up to date</p>
+            <p className="text-sm text-gray-400 dark:text-slate-400 mt-1">All accounts are up to date</p>
           </div>
         )}
 
       {!loading && pending.length > 0 && (
         <div className="space-y-3">
           {pending.map((p) => (
-            <div key={p.id} className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-5 flex items-center gap-4">
+            <div key={p.id} className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-5 flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="flex items-start gap-4 min-w-0 flex-1">
               <div className="w-10 h-10 rounded-full bg-york-600 text-white flex items-center justify-center text-sm font-bold shrink-0">
                 {getInitials(p.full_name || p.email)}
               </div>
@@ -130,13 +130,14 @@ export const AdminPendingApprovals: React.FC<Props> = ({ user }) => {
                 </div>
                 <p className="text-sm text-gray-500 dark:text-slate-400">{p.email}</p>
                 {p.student_number && (
-                  <p className="text-xs text-gray-400 dark:text-slate-500 font-mono mt-0.5">#{p.student_number}</p>
+                  <p className="text-xs text-gray-400 dark:text-slate-400 font-mono mt-0.5">#{p.student_number}</p>
                 )}
-                <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
+                <p className="text-xs text-gray-400 dark:text-slate-400 mt-0.5">
                   Applied {new Date(p.joined_at).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </p>
               </div>
-              <div className="flex gap-2 shrink-0">
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
                 <Button
                   variant="primary"
                   size="small"

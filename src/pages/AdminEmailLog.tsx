@@ -119,17 +119,17 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
   if (user?.role !== 'admin' && user?.role !== 'coordinator') {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
-        <p className="text-small text-gray-400">Access denied.</p>
+        <p className="text-small text-gray-400 dark:text-slate-400">Access denied.</p>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-8">
+    <div className="flex-1 overflow-y-auto p-0 md:p-4">
       <div className="max-w-6xl mx-auto space-y-6">
         <div>
           <h1 className="text-h1">Communications</h1>
-          <p className="text-small text-gray-400 mt-1">Compose editable member communications and review delivery status.</p>
+          <p className="text-small text-gray-400 dark:text-slate-400 mt-1">Compose editable member communications and review delivery status.</p>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -143,10 +143,10 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
           <Card title="Email Composer" subtitle="Reusable templates and drafts for ordinary communications">
             <div className="space-y-4">
               <div className="grid gap-3 md:grid-cols-2">
-                <label className="block text-sm font-bold text-gray-800">
+                <label className="block text-sm font-bold text-gray-800 dark:text-slate-200">
                   Saved template
                   <select
-                    className="mt-1.5 w-full rounded-md border border-gray-200 bg-white px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-york-600"
+                    className="mt-1.5 w-full rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-york-600"
                     value={templateId}
                     onChange={(event) => {
                       const next = templates.find((row) => row.id === event.target.value);
@@ -164,10 +164,10 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
                     ))}
                   </select>
                 </label>
-                <label className="block text-sm font-bold text-gray-800">
+                <label className="block text-sm font-bold text-gray-800 dark:text-slate-200">
                   Saved draft
                   <select
-                    className="mt-1.5 w-full rounded-md border border-gray-200 bg-white px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-york-600"
+                    className="mt-1.5 w-full rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-york-600"
                     value={draftId}
                     onChange={(event) => {
                       const next = drafts.find((row) => row.id === event.target.value);
@@ -231,7 +231,7 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
 
               <div>
                 <div className="mb-2 flex items-center justify-between gap-3">
-                  <p className="text-sm font-bold text-gray-800">Recipients</p>
+                  <p className="text-sm font-bold text-gray-800 dark:text-slate-200">Recipients</p>
                   <Button
                     variant="ghost"
                     size="small"
@@ -241,11 +241,11 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
                     Select Active
                   </Button>
                 </div>
-                <div className="max-h-56 overflow-y-auto rounded-md border border-gray-200 bg-white">
+                <div className="max-h-56 overflow-y-auto rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
                   {recipients.length === 0 ? (
-                    <p className="p-4 text-sm text-gray-400">No authorized recipients are visible.</p>
+                    <p className="p-4 text-sm text-gray-400 dark:text-slate-400">No authorized recipients are visible.</p>
                   ) : recipients.map((recipient) => (
-                    <label key={recipient.id} className="flex items-start gap-3 border-b border-gray-100 px-3 py-2 last:border-0">
+                    <label key={recipient.id} className="flex items-start gap-3 border-b border-gray-100 dark:border-slate-800 px-3 py-2 last:border-0">
                       <input
                         type="checkbox"
                         className="mt-1"
@@ -257,7 +257,7 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
                         }}
                       />
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-semibold text-gray-900">{recipient.full_name || recipient.email}</span>
+                        <span className="block truncate text-sm font-semibold text-gray-900 dark:text-slate-100">{recipient.full_name || recipient.email}</span>
                         <span className="block truncate text-xs text-gray-400">{recipient.email}</span>
                       </span>
                     </label>
@@ -351,23 +351,23 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
               </div>
 
               {invalidPlaceholders.length > 0 && (
-                <p className="text-sm text-red-600" role="alert">Invalid placeholders: {invalidPlaceholders.join(', ')}</p>
+                <p className="text-sm text-york-600 dark:text-york-400" role="alert">Invalid placeholders: {invalidPlaceholders.join(', ')}</p>
               )}
-              {(composerError || resendError) && <p className="text-sm text-red-600" role="alert">{composerError || resendError}</p>}
+              {(composerError || resendError) && <p className="text-sm text-york-600" role="alert">{composerError || resendError}</p>}
               {notice && <p className="text-sm text-green-600" role="status">{notice}</p>}
-              <p className="text-xs text-gray-400">Sending is disabled until the email relay is configured. Account approval, password reset, and authentication emails are managed separately from this composer.</p>
+              <p className="text-xs text-gray-400 dark:text-slate-400">Sending is disabled until the email relay is configured. Account approval, password reset, and authentication emails are managed separately from this composer.</p>
             </div>
           </Card>
 
-          <Card title="Rendered Preview" headerAction={<Eye className="h-4 w-4 text-gray-400" aria-hidden="true" />}>
+          <Card title="Rendered Preview" headerAction={<Eye className="h-4 w-4 text-gray-400 dark:text-slate-400" aria-hidden="true" />}>
             <div className="space-y-3">
-              <p className="text-sm font-semibold text-gray-900">{composerPreview.subject}</p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{composerPreview.subject}</p>
               <iframe
                 title="Rendered email preview"
-                className="h-[520px] w-full rounded-md border border-gray-200 bg-white"
+                className="h-[520px] w-full rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800"
                 srcDoc={composerPreview.html}
               />
-              <p className="text-xs text-gray-400">Preview uses {selectedRecipients[0]?.full_name || recipients[0]?.full_name || 'sample'} data and sanitized formatting.</p>
+              <p className="text-xs text-gray-400 dark:text-slate-400">Preview uses {selectedRecipients[0]?.full_name || recipients[0]?.full_name || 'sample'} data and sanitized formatting.</p>
             </div>
           </Card>
         </div>
@@ -376,7 +376,7 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
           <Card title="System Template Preview">
             <div className="space-y-3">
               <select
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-york-600"
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-york-600"
                 value={templateType}
                 onChange={(event) => setTemplateType(event.target.value as EmailTemplateType)}
               >
@@ -384,10 +384,10 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
                   <option key={type} value={type}>{type.replace(/_/g, ' ')}</option>
                 ))}
               </select>
-              <p className="text-sm font-semibold text-gray-900">{fixedPreview.subject}</p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{fixedPreview.subject}</p>
               <iframe
                 title="System email template preview"
-                className="w-full h-80 rounded-md border border-gray-200 bg-white"
+                className="w-full h-80 rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800"
                 srcDoc={fixedPreview.html}
               />
             </div>
@@ -405,7 +405,7 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
               >
                 Resend Failed Emails
               </Button>
-              <p className="text-sm text-gray-500">Resending uses the existing email log records and backend authorization checks.</p>
+              <p className="text-sm text-gray-500 dark:text-slate-400">Resending uses the existing email log records and backend authorization checks.</p>
             </div>
           </Card>
         </div>
@@ -414,7 +414,7 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
           title="Delivery History"
           headerAction={
             <select
-              className="px-3 py-2 text-sm border border-gray-200 rounded-md bg-white"
+              className="px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800"
               value={status}
               onChange={(event) => setStatus(event.target.value as EmailStatus | '')}
             >
@@ -429,7 +429,7 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead>
-                <tr className="border-b border-gray-100 text-xs uppercase text-gray-400">
+                <tr className="border-b border-gray-100 dark:border-slate-800 text-xs uppercase text-gray-400 dark:text-slate-400">
                   <th className="py-2 pr-4">Recipient</th>
                   <th className="py-2 pr-4">Subject</th>
                   <th className="py-2 pr-4">Template</th>
@@ -439,16 +439,16 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td className="py-4 text-gray-400" colSpan={5}>Loading...</td></tr>
+                  <tr><td className="py-4 text-gray-400 dark:text-slate-400" colSpan={5}>Loading...</td></tr>
                 ) : logs.length === 0 ? (
                   <tr><td className="py-4 text-gray-400" colSpan={5}>No email logs found.</td></tr>
                 ) : logs.map((log) => (
                   <tr key={log.id} className="border-b border-gray-50">
-                    <td className="py-3 pr-4 text-gray-700">{log.recipient_email}</td>
-                    <td className="py-3 pr-4 text-gray-900">{log.subject}</td>
+                    <td className="py-3 pr-4 text-gray-700 dark:text-slate-300">{log.recipient_email}</td>
+                    <td className="py-3 pr-4 text-gray-900 dark:text-slate-100">{log.subject}</td>
                     <td className="py-3 pr-4 text-gray-500">{log.template_type}</td>
                     <td className="py-3 pr-4">
-                      <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700">{log.status}</span>
+                      <span className="rounded-full bg-gray-100 dark:bg-slate-800 px-2 py-1 text-xs font-semibold text-gray-700 dark:text-slate-300">{log.status}</span>
                     </td>
                     <td className="py-3 pr-4 text-gray-500">{new Date(log.created_at).toLocaleString()}</td>
                   </tr>
@@ -494,7 +494,7 @@ async function runComposerAction(
 
 const Metric: React.FC<{ label: string; value: number | string }> = ({ label, value }) => (
   <div>
-    <p className="text-xs uppercase tracking-wide text-gray-400 font-semibold">{label}</p>
-    <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
+    <p className="text-xs uppercase tracking-wide text-gray-400 dark:text-slate-400 font-semibold">{label}</p>
+    <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-1">{value}</p>
   </div>
 );

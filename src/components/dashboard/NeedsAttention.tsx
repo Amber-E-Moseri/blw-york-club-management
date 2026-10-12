@@ -35,11 +35,11 @@ export const NeedsAttention: React.FC<NeedsAttentionProps> = ({ contacts, loadin
         </div>
       ) : contacts.length === 0 ? (
         <div className="px-5 py-6 flex flex-col items-center text-center gap-2">
-          <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
-            <AlertCircle className="w-5 h-5 text-emerald-500" />
+          <div className="w-10 h-10 rounded-full bg-green-50 dark:bg-green-900/20 flex items-center justify-center">
+            <AlertCircle className="w-5 h-5 text-green-500" />
           </div>
           <p className="text-sm font-semibold text-gray-700 dark:text-slate-200">You're caught up</p>
-          <p className="text-xs text-gray-400 dark:text-slate-500">No follow-ups currently need attention.</p>
+          <p className="text-xs text-gray-400 dark:text-slate-400">No follow-ups currently need attention.</p>
         </div>
       ) : (
         <ul className="divide-y divide-gray-100 dark:divide-slate-700">
@@ -59,7 +59,7 @@ export const NeedsAttention: React.FC<NeedsAttentionProps> = ({ contacts, loadin
                     <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">
                       {contact.contact_name}
                     </p>
-                    <p className={`text-xs ${urgent ? 'text-york-600 dark:text-york-400 font-medium' : 'text-gray-400 dark:text-slate-500'}`}>
+                    <p className={`text-xs ${urgent ? 'text-york-600 dark:text-york-400 font-medium' : 'text-gray-400 dark:text-slate-400'}`}>
                       {text} · {contact.follow_up_status}
                     </p>
                   </div>

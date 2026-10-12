@@ -4,6 +4,7 @@ import { Button } from '../foundation/Button';
 import { cn } from '../../lib/utils';
 import { parseCSV, parseText, validateRow, downloadTemplate } from '../../lib/csv/contactImport';
 import type { BulkImportRow, Cell, ImportResult } from '../../types';
+import { AlertCircle, Check } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -109,7 +110,7 @@ export const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, cells, onImp
               Import complete: {result.imported} imported, {result.failed} failed
             </p>
             {result.errors.map((e, i) => (
-              <p key={i} className="text-sm text-red-600 mt-1">Row {e.row}: {e.message}</p>
+              <p key={i} className="text-sm text-york-600 dark:text-york-400 mt-1">Row {e.row}: {e.message}</p>
             ))}
           </div>
         )}
@@ -117,7 +118,7 @@ export const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, cells, onImp
         {!result && (
           <>
             {/* Tabs */}
-            <div className="flex border-b border-gray-200">
+            <div className="flex border-b border-gray-200 dark:border-slate-700">
               {(['csv', 'paste'] as Tab[]).map((t) => (
                 <button
                   key={t}
@@ -125,8 +126,8 @@ export const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, cells, onImp
                   className={cn(
                     'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
                     tab === t
-                      ? 'border-york-600 text-york-700'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                      ? 'border-york-600 text-york-700 dark:text-york-300'
+                      : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                   )}
                 >
                   {t === 'csv' ? 'CSV Upload' : 'Paste Text'}
@@ -151,7 +152,7 @@ export const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, cells, onImp
                     onChange={handleFileChange}
                   />
                 </div>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-gray-400 dark:text-slate-400">
                   Columns: Name, Phone, Email, Cell, Tags, Notes, Follow Up Person
                 </p>
               </div>
@@ -159,11 +160,11 @@ export const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, cells, onImp
 
             {tab === 'paste' && (
               <div className="space-y-3">
-                <p className="text-xs text-gray-500">
-                  One contact per line: <code className="bg-gray-100 px-1 rounded">Name | Phone | Cell | Tags | Notes</code>
+                <p className="text-xs text-gray-500 dark:text-slate-400">
+                  One contact per line: <code className="bg-gray-100 dark:bg-slate-800 px-1 rounded">Name | Phone | Cell | Tags | Notes</code>
                 </p>
                 <textarea
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-york-600 font-mono"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-2 focus:ring-york-600 font-mono"
                   rows={6}
                   placeholder={"John Smith | 416-555-0101 | Cell A | evangelism\nJane Doe | 647-555-0202 | Cell B | first_contact"}
                   value={pasteText}
@@ -177,15 +178,15 @@ export const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, cells, onImp
 
             {/* Preview table */}
             {rows.length > 0 && (
-              <div className="overflow-x-auto border border-gray-200 rounded-lg">
+              <div className="overflow-x-auto border border-gray-200 dark:border-slate-700 rounded-lg">
                 <table className="w-full text-xs text-left">
-                  <thead className="bg-gray-50 border-b border-gray-200">
+                  <thead className="bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700">
                     <tr>
-                      <th className="px-3 py-2 font-semibold text-gray-500 uppercase w-8">#</th>
+                      <th className="px-3 py-2 font-semibold text-gray-500 dark:text-slate-400 uppercase w-8">#</th>
                       <th className="px-3 py-2 font-semibold text-gray-500 uppercase">Status</th>
                       <th className="px-3 py-2 font-semibold text-gray-500 uppercase">Name</th>
                       <th className="px-3 py-2 font-semibold text-gray-500 uppercase">Phone</th>
-                      <th className="px-3 py-2 font-semibold text-gray-500 uppercase">Cell</th>
+                      <th className="px-3 py-2 font-semibold text-gray-500 dark:text-slate-400 uppercase">Cell</th>
                       <th className="px-3 py-2 font-semibold text-gray-500 uppercase">Tags</th>
                     </tr>
                   </thead>
@@ -194,21 +195,21 @@ export const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, cells, onImp
                       <tr
                         key={i}
                         className={cn(
-                          'border-b border-gray-100',
-                          r.errors.length > 0 ? 'bg-red-50' : 'bg-white'
+                          'border-b border-gray-100 dark:border-slate-800',
+                          r.errors.length > 0 ? 'bg-york-50 dark:bg-york-900/30' : 'bg-white dark:bg-slate-800'
                         )}
                       >
-                        <td className="px-3 py-2 text-gray-400">{i + 1}</td>
+                        <td className="px-3 py-2 text-gray-400 dark:text-slate-400">{i + 1}</td>
                         <td className="px-3 py-2">
                           {r.errors.length === 0 ? (
-                            <span className="text-green-600 font-semibold">✓</span>
+                            <Check className="w-4 h-4 text-green-600" aria-hidden="true" />
                           ) : (
-                            <span title={r.errors.join('; ')} className="text-red-600 cursor-help">
-                              ⚠ {r.errors[0]}
+                            <span title={r.errors.join('; ')} className="text-york-600 dark:text-york-400 cursor-help">
+                              <AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{r.errors[0]}
                             </span>
                           )}
                         </td>
-                        <td className="px-3 py-2 font-medium text-gray-800">{r.contact_name}</td>
+                        <td className="px-3 py-2 font-medium text-gray-800 dark:text-slate-200">{r.contact_name}</td>
                         <td className="px-3 py-2 text-gray-500">{r.phone || '—'}</td>
                         <td className="px-3 py-2 text-gray-500">{r.cell_name}</td>
                         <td className="px-3 py-2 text-gray-500">{r.tags || '—'}</td>
@@ -216,13 +217,13 @@ export const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, cells, onImp
                     ))}
                   </tbody>
                 </table>
-                <div className="px-3 py-2 bg-gray-50 text-xs text-gray-500 border-t border-gray-200">
+                <div className="px-3 py-2 bg-gray-50 dark:bg-slate-900 text-xs text-gray-500 dark:text-slate-400 border-t border-gray-200 dark:border-slate-700">
                   {validRows.length} valid · {rows.length - validRows.length} with errors
                 </div>
               </div>
             )}
 
-            {error && <p className="text-sm text-red-600">⚠️ {error}</p>}
+            {error && <p className="text-sm text-york-600 dark:text-york-400"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{error}</p>}
           </>
         )}
       </div>

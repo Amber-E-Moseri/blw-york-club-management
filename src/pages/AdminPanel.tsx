@@ -15,7 +15,7 @@ const ADMIN_ITEMS: { label: string; desc: string; icon: LucideIcon; path?: strin
   { label: 'Manage Members',       desc: 'View, promote, or remove members',                           icon: Users,         path: '/members' },
   { label: 'Manage Events',        desc: 'Schedule or archive club events',                            icon: CalendarDays,  path: '/events' },
   { label: 'Manage Announcements', desc: 'Post or archive announcements',                              icon: Megaphone,     path: '/announcements' },
-  { label: 'Daily Bread Upload',   desc: 'Convert monthly PDFs into daily images',                     icon: BookMarked,    path: '/admin/devotionals' },
+  { label: 'Rhapsody Upload',   desc: 'Convert monthly PDFs into daily images',                     icon: BookMarked,    path: '/admin/devotionals' },
   { label: 'Testimony Moderation', desc: 'Approve or reject submitted testimonies & prophecies',       icon: CheckSquare,   path: '/admin/testimonies' },
   { label: 'Devotional Reports',   desc: 'View daily devotional engagement stats',                     icon: BarChart2,     path: '/admin/reports' },
   { label: 'Role Management',      desc: 'Create custom admin roles and assign permissions',           icon: KeyRound,      path: '/admin/roles' },
@@ -33,13 +33,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ user }) => {
   if (!['admin', 'coordinator', 'cell_leader'].includes(user?.role ?? '')) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
-        <p className="text-small text-gray-400">Access denied.</p>
+        <p className="text-small text-gray-400 dark:text-slate-400">Access denied.</p>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-8">
+    <div className="flex-1 overflow-y-auto p-0 md:p-4">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-h1 mb-6">Admin Panel</h1>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -52,9 +52,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ user }) => {
                 className="flex flex-col gap-2"
                 onClick={item.path ? () => navigate(item.path!) : undefined}
               >
-                <Icon className="w-6 h-6 text-york-600" />
+                <Icon className="w-6 h-6 text-york-600 dark:text-york-400" />
                 <h3 className="text-h3">{item.label}</h3>
-                <p className="text-small text-gray-400">{item.desc}</p>
+                <p className="text-small text-gray-400 dark:text-slate-400">{item.desc}</p>
               </Card>
             );
           })}
