@@ -43,7 +43,7 @@ test('signs in and reaches the dashboard', async ({ page }) => {
   await page.getByRole('button', { name: 'Sign In' }).click();
 
   await expect(page.getByRole('heading', { name: /Good to see you, Jordan\./i })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Daily Bread/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Rhapsody of Realities/i })).toBeVisible();
   await expect(page.getByText('Sunday Service')).toBeVisible();
   await expect(page.getByText('Leadership Sync').first()).toBeVisible();
 });

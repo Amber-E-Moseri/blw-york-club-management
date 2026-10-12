@@ -1,5 +1,5 @@
 -- bsc_access_checks.sql
--- READ-ONLY. Run in the Supabase SQL Editor after migrations 038 and 039.
+-- READ-ONLY. Run in the Supabase SQL Editor after migrations 040 through 044 (the BSC set; 038 and 039 are event notifications).
 -- Returns one row per check: PASS or FAIL, with a short detail. Nothing is written.
 -- Checks that a member's data can only be seen through the BSC/cell rules is covered by the
 -- behavioural checks in the local certification harness; this file checks the database shape.
@@ -65,7 +65,7 @@ with results as (
   select 'trigger profiles_guard_bsc_assignment exists',
          exists (select 1 from pg_trigger where tgname = 'profiles_guard_bsc_assignment'
                  and tgrelid = 'public.profiles'::regclass)
-  -- Table grants (migration 040): without these, every BSC query fails with "permission denied"
+  -- Table grants (migration 042): without these, every BSC query fails with "permission denied"
   union all
   select 'authenticated can read and write bscs (grants)',
          has_table_privilege('authenticated', 'public.bscs', 'SELECT')
