@@ -103,10 +103,10 @@ export const Growth: React.FC<GrowthProps> = ({ user }) => {
         />
 
         <GrowthCard
-          to="/confessions"
+          to="/affirmations"
           iconBg="bg-rose-50 dark:bg-rose-900/20"
           icon={<Heart className="w-6 h-6 text-rose-600" />}
-          title="Confessions"
+          title="Affirmations"
           subtitle="Speak today's declaration"
         />
 

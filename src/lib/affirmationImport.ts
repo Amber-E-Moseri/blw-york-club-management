@@ -1,8 +1,8 @@
 import { format, isValid, parse } from 'date-fns';
 
-export const CONFESSION_TITLE_MAX = 100;
+export const AFFIRMATION_TITLE_MAX = 100;
 
-export interface ConfessionImportRow {
+export interface AffirmationImportRow {
   title: string;
   body: string;
   scheduled_date: string; // yyyy-MM-dd
@@ -24,32 +24,30 @@ export function parseImportDate(value: string): string | null {
 function splitLine(line: string): string[] {
   const separator = line.includes('\t') ? '\t' : line.includes('|') ? '|' : null;
   if (!separator) return [line];
-  // Only the first two separators split the line, so the body may contain more of them.
   const [first, second, ...rest] = line.split(separator);
   return rest.length ? [first, second, rest.join(separator)] : [first, second ?? ''];
 }
 
 /**
- * Reads pasted confessions, one per line: `date<TAB>title<TAB>confession text`.
+ * Reads pasted affirmations, one per line: `date<TAB>title<TAB>affirmation text`.
  * A header row ("Date  Title  Text") is skipped. Problems are reported per line and
  * nothing is returned as importable until every line is valid.
  */
-export function parseConfessionImport(
+export function parseAffirmationImport(
   text: string,
   createdBy: string
-): { rows: ConfessionImportRow[]; errors: string[] } {
-  const rows: ConfessionImportRow[] = [];
+): { rows: AffirmationImportRow[]; errors: string[] } {
+  const rows: AffirmationImportRow[] = [];
   const errors: string[] = [];
   const seen = new Set<string>();
 
   text.split('\n').forEach((rawLine, index) => {
-    // Keep trailing separators so an empty last column is reported, not mistaken for a short line.
     const line = rawLine.replace(/\r$/, '');
     if (!line.trim()) return;
 
     const parts = splitLine(line);
     if (parts.length < 3) {
-      errors.push(`Line ${index + 1}: needs date, title and confession text separated by a tab or " | ".`);
+      errors.push(`Line ${index + 1}: needs date, title and affirmation text separated by a tab or " | ".`);
       return;
     }
     const [dateText, titleText, bodyText] = parts.map((part) => part.trim());
@@ -64,12 +62,12 @@ export function parseConfessionImport(
       errors.push(`Line ${index + 1}: the title is empty.`);
       return;
     }
-    if (titleText.length > CONFESSION_TITLE_MAX) {
-      errors.push(`Line ${index + 1}: the title is longer than ${CONFESSION_TITLE_MAX} characters.`);
+    if (titleText.length > AFFIRMATION_TITLE_MAX) {
+      errors.push(`Line ${index + 1}: the title is longer than ${AFFIRMATION_TITLE_MAX} characters.`);
       return;
     }
     if (!bodyText) {
-      errors.push(`Line ${index + 1}: the confession text is empty.`);
+      errors.push(`Line ${index + 1}: the affirmation text is empty.`);
       return;
     }
 
