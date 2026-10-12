@@ -234,10 +234,12 @@ begin
   select count(*) into row_count from public.confession_declarations where user_id = pending_member_id and confession_id = confession_id_v;
   perform pg_temp.as_postgres();
   delete from public.confession_declarations where user_id = pending_member_id and confession_id = confession_id_v;
-  if row_count = 1 then
-    perform pg_temp.cert_pass('032 confessions', 'pending member can still read their own confession declaration', row_count::text);
+  -- Changed by remediation F5 (migration 045): a confession declaration is a protected devotional record, so a pending
+  -- account can no longer read it until it is active. Expectation is now 0, not 1. Confirm this tradeoff.
+  if row_count = 0 then
+    perform pg_temp.cert_pass('032 confessions', 'pending member cannot read own confession declaration until active (F5)', row_count::text);
   else
-    perform pg_temp.cert_fail('032 confessions', 'pending member can still read their own confession declaration', row_count::text);
+    perform pg_temp.cert_fail('032 confessions', 'pending member cannot read own confession declaration until active (F5)', row_count::text);
   end if;
 
 end $$;

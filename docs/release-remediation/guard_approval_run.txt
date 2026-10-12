@@ -1,0 +1,49 @@
+BEGIN
+CREATE TABLE
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+DO
+     area      |                                    check_name                                     | result |                               evidence                               
+---------------+-----------------------------------------------------------------------------------+--------+----------------------------------------------------------------------
+ Guard         | admin can change account status (controlled operation)                            | PASS   | active
+ Guard         | admin cannot change a role (only a coordinator can)                               | PASS   | Not authorised to change role or admin_role.
+ Guard         | cell leader cannot approve through a direct update (rogue policy present)         | PASS   | Not authorised to change account status.
+ Guard         | cell leader cannot promote anyone (rogue policy present)                          | PASS   | Not authorised to change role or admin_role.
+ Guard         | coordinator can change a role (controlled operation)                              | PASS   | cell_leader
+ Guard         | member cannot promote self (rogue policy present)                                 | PASS   | Not authorised to change role or admin_role.
+ Guard         | member cannot set own admin_role (rogue policy present)                           | PASS   | Not authorised to change role or admin_role.
+ Guard         | pending account cannot self-activate (rogue policy present)                       | PASS   | Not authorised to change account status.
+ Guard         | precondition: the cell leader can see the rows it tries to change                 | PASS   | 2
+ Guard         | rejected account cannot reactivate itself (rogue policy present)                  | PASS   | Not authorised to change account status.
+ Guard         | the guard is column-specific: ordinary columns are unaffected                     | PASS   | Renamed By Policy
+ Bootstrap     | a membership transition was recorded                                              | PASS   | 1
+ Bootstrap     | a signed-in user cannot run the bootstrap                                         | PASS   | permission denied for function bootstrap_first_administrator
+ Bootstrap     | an active coordinator membership exists for the same person                       | PASS   | coordinator/active
+ Bootstrap     | an unknown email is refused (no account is ever created)                          | PASS   | No signed-up account with that email. The person must sign up first.
+ Bootstrap     | it refuses while an active administrator exists                                   | PASS   | An active administrator already exists; bootstrap is not allowed.
+ Bootstrap     | no API role can execute the bootstrap function                                    | PASS   | true
+ Bootstrap     | the action is audited (who, when, target)                                         | PASS   | 1
+ Bootstrap     | the bootstrap audit table is unreachable by API roles                             | PASS   | true
+ Bootstrap     | the bootstrap works only once                                                     | PASS   | Bootstrap already completed.
+ Bootstrap     | the owner promotes the signed-up account to coordinator + active                  | PASS   | coordinator/active
+ Approval      | a pending account can still read its own profile (needed for the approval screen) | PASS   | 1
+ Approval      | a pending account cannot create people records                                    | PASS   | new row violates row-level security policy for table "people"
+ Approval      | a pending account cannot read the people directory                                | PASS   | 0
+ Approval      | a rejected account cannot read the people directory                               | PASS   | 0
+ Approval      | a rejected coordinator loses administrative power (sees only itself)              | PASS   | 1
+ Approval      | an active coordinator can see all profiles (baseline)                             | PASS   | 9
+ Approval      | an active member can read the people directory                                    | PASS   | 10
+ Announcements | active cell leader can still insert announcement (F-1 regression)                 | PASS   | insert succeeded
+ Announcements | rejected cell leader cannot insert announcement (F-1)                             | PASS   | new row violates row-level security policy for table "announcements"
+ Announcements | rejected cell leader delete returns 0 rows (F-1)                                  | PASS   | 0
+ Announcements | rejected cell leader update returns 0 rows (F-1)                                  | PASS   | 0
+(32 rows)
+
+ failures | checks 
+----------+--------
+        0 |     32
+(1 row)
+
+ROLLBACK

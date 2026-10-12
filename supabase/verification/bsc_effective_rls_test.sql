@@ -137,8 +137,8 @@ end $fn$;
 -- (written inline below for readability)
 
 -- ─── A. Rhapsody reads: public.devotional_views ─────────────────────────────────────────────────────────────────
-select rls_test.expect_count('A1 coordinator sees all Rhapsody reads', '00000000-0000-0000-0000-00000000c001', 'select id from public.devotional_views', 6);
-select rls_test.expect_count('A2 admin sees all Rhapsody reads', '00000000-0000-0000-0000-00000000a001', 'select id from public.devotional_views', 6);
+select rls_test.expect_count('A1 coordinator sees all active members'' Rhapsody reads (pending excluded, F4)', '00000000-0000-0000-0000-00000000c001', 'select id from public.devotional_views', 5);
+select rls_test.expect_count('A2 admin sees all active members'' Rhapsody reads (pending excluded, F4)', '00000000-0000-0000-0000-00000000a001', 'select id from public.devotional_views', 5);
 select rls_test.expect_count('A3 INACTIVE coordinator sees no Rhapsody reads', '00000000-0000-0000-0000-00000000c002', 'select id from public.devotional_views', 0);
 select rls_test.expect_count('A4 cell leader sees reads of members in cell C1 (not pending)', '00000000-0000-0000-0000-00000000c003', 'select id from public.devotional_views', 4);
 select rls_test.expect_count('A5 BSC B1 leader sees only B1 active member', '00000000-0000-0000-0000-00000000b001', 'select id from public.devotional_views', 1);
@@ -151,7 +151,7 @@ select rls_test.expect_count('A11 member with no BSC sees nothing extra', '00000
 select rls_test.expect_count('A12 PENDING member sees no reads (own row included)', '00000000-0000-0000-0000-00000000d101', 'select id from public.devotional_views', 0);
 
 -- ─── B. Confession declarations: public.confession_declarations ──────────────────────────────────────────────────
-select rls_test.expect_count('B1 coordinator sees all declarations', '00000000-0000-0000-0000-00000000c001', 'select 1 from public.confession_declarations', 6);
+select rls_test.expect_count('B1 coordinator sees active members'' declarations (pending excluded, F4)', '00000000-0000-0000-0000-00000000c001', 'select 1 from public.confession_declarations', 5);
 select rls_test.expect_count('B2 cell leader sees declarations of cell C1 members', '00000000-0000-0000-0000-00000000c003', 'select 1 from public.confession_declarations', 4);
 select rls_test.expect_count('B3 BSC B1 leader sees only B1 member declaration', '00000000-0000-0000-0000-00000000b001', 'select 1 from public.confession_declarations', 1);
 select rls_test.expect_count('B4 unrelated BSC B2 leader sees only B2 member', '00000000-0000-0000-0000-00000000b002', 'select 1 from public.confession_declarations', 1);

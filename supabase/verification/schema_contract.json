@@ -52,6 +52,7 @@
     "guard_profile_bsc_assignment()": { "security": "invoker", "execute": [] },
     "current_user_role()": { "security": "definer", "execute": ["authenticated"] },
     "is_active_member()": { "security": "definer", "execute": ["authenticated"] },
+    "confession_declaration_counts(uuid[])": { "security": "definer", "execute": ["authenticated"] },
     "is_coordinator()": { "security": "definer", "execute": ["authenticated"] },
     "is_admin_or_coordinator()": { "security": "definer", "execute": ["authenticated"] },
     "is_cell_leader_for_profile(uuid)": { "security": "definer", "execute": ["authenticated"] },

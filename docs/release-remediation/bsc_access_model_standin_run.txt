@@ -1,0 +1,43 @@
+NOTICE:  policy "fellowships_read" for relation "public.fellowships" does not exist, skipping
+NOTICE:  policy "fellowships_manage" for relation "public.fellowships" does not exist, skipping
+NOTICE:  policy "bscs_read" for relation "public.bscs" does not exist, skipping
+NOTICE:  policy "bscs_manage" for relation "public.bscs" does not exist, skipping
+NOTICE:  policy "confession_declarations_read_scoped" for relation "public.confession_declarations" does not exist, skipping
+NOTICE:  trigger "profiles_guard_bsc_assignment" for relation "public.profiles" does not exist, skipping
+ result |                                     name                                     |            detail             
+--------+------------------------------------------------------------------------------+-------------------------------
+ PASS   | Assignment: admin can move a member                                          | ok
+ PASS   | Assignment: cell leader update is accepted but matches no member             | ok
+ PASS   | Assignment: coordinator can assign a member with no BSC                      | ok
+ PASS   | Assignment: member cannot move self                                          | got 42501 (expected 42501)
+ PASS   | Assignment: member with no BSC is still unassigned after cell leader attempt | checked as the database owner
+ PASS   | BSCs: cell A leader can create a BSC in cell A                               | ok
+ PASS   | BSCs: cell A leader cannot create a BSC in cell B                            | got 42501 (expected 42501)
+ PASS   | Confessions: BSC A1 leader sees only A1                                      | 1 (expected 1)
+ PASS   | Confessions: cell A leader sees A1 and A2                                    | 2 (expected 2)
+ PASS   | Confessions: cell B leader sees only B1                                      | 1 (expected 1)
+ PASS   | Confessions: coordinator sees all                                            | 3 (expected 3)
+ PASS   | Confessions: member A1 sees own only                                         | 1 (expected 1)
+ PASS   | Habits: BSC A1 leader sees none                                              | 0 (expected 0)
+ PASS   | Habits: cell A leader sees none                                              | 0 (expected 0)
+ PASS   | Habits: coordinator sees all                                                 | 1 (expected 1)
+ PASS   | Habits: member A1 sees own                                                   | 1 (expected 1)
+ PASS   | Member list: BSC A1 leader sees only A1                                      | 1 (expected 1)
+ PASS   | Member list: cell A leader sees A1 and A2                                    | 2 (expected 2)
+ PASS   | Member list: coordinator sees all assigned                                   | 3 (expected 3)
+ PASS   | Member list: member A1 sees no peers                                         | 0 (expected 0)
+ PASS   | Rhapsody: admin sees all reads                                               | 3 (expected 3)
+ PASS   | Rhapsody: BSC A1 leader sees only A1 member                                  | 1 (expected 1)
+ PASS   | Rhapsody: cell A leader sees A1 and A2, not B1                               | 2 (expected 2)
+ PASS   | Rhapsody: cell B leader sees only B1                                         | 1 (expected 1)
+ PASS   | Rhapsody: coordinator sees all reads                                         | 3 (expected 3)
+ PASS   | Rhapsody: member A1 sees only own read                                       | 1 (expected 1)
+ PASS   | Rhapsody: member A2 sees only own read                                       | 1 (expected 1)
+ PASS   | Rhapsody: member with no BSC sees nothing extra                              | 0 (expected 0)
+(28 rows)
+
+ passed | failed 
+--------+--------
+     28 |      0
+(1 row)
+

@@ -1,26 +1,48 @@
 import { supabase } from '../supabase';
 import type { Confession, ConfessionDeclaration } from '../../types';
 
+/**
+ * Adds declaration_count (every member, via an aggregate that returns counts only) and declared_by_me (the caller's own
+ * declaration row, the only declaration row a member may read). No other member's identity or timestamp is fetched.
+ */
+async function withDeclarationSummary(rows: Record<string, unknown>[], userId: string | undefined): Promise<Confession[]> {
+  const ids = rows.map((r) => r.id as string);
+  if (ids.length === 0) return [];
+
+  const [{ data: counts, error: countError }, { data: own, error: ownError }] = await Promise.all([
+    supabase.rpc('confession_declaration_counts', { p_confession_ids: ids }),
+    userId
+      ? supabase.from('confession_declarations').select('confession_id').eq('user_id', userId).in('confession_id', ids)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (countError) throw new Error(countError.message);
+  if (ownError) throw new Error(ownError.message);
+
+  const countById = new Map<string, number>(
+    ((counts ?? []) as { confession_id: string; declaration_count: number | string }[]).map((c) => [c.confession_id, Number(c.declaration_count)]),
+  );
+  const declaredIds = new Set(((own ?? []) as { confession_id: string }[]).map((d) => d.confession_id));
+
+  return rows.map((row) => ({
+    ...(row as unknown as Confession),
+    declared_by_me: declaredIds.has(row.id as string),
+    declaration_count: countById.get(row.id as string) ?? 0,
+  }));
+}
+
 export async function fetchConfessionsForDate(date: string): Promise<Confession[]> {
   const userId = (await supabase.auth.getUser()).data.user?.id;
 
   const { data, error } = await supabase
     .from('confessions')
-    .select('*, confession_declarations(user_id)')
+    .select('*')
     .eq('scheduled_date', date)
     .eq('is_active', true)
     .order('created_at', { ascending: true });
 
   if (error) throw new Error(error.message);
 
-  return (data ?? []).map((row: Record<string, unknown>) => {
-    const declarations = (row.confession_declarations as { user_id: string }[]) ?? [];
-    return {
-      ...(row as unknown as Confession),
-      declared_by_me: declarations.some((d) => d.user_id === userId),
-      declaration_count: declarations.length,
-    };
-  });
+  return withDeclarationSummary((data ?? []) as Record<string, unknown>[], userId);
 }
 
 export async function fetchUpcomingConfessions(days = 7): Promise<Confession[]> {
@@ -30,7 +52,7 @@ export async function fetchUpcomingConfessions(days = 7): Promise<Confession[]> 
 
   const { data, error } = await supabase
     .from('confessions')
-    .select('*, confession_declarations(user_id)')
+    .select('*')
     .gte('scheduled_date', today)
     .lte('scheduled_date', until)
     .eq('is_active', true)
@@ -38,14 +60,7 @@ export async function fetchUpcomingConfessions(days = 7): Promise<Confession[]> 
 
   if (error) throw new Error(error.message);
 
-  return (data ?? []).map((row: Record<string, unknown>) => {
-    const declarations = (row.confession_declarations as { user_id: string }[]) ?? [];
-    return {
-      ...(row as unknown as Confession),
-      declared_by_me: declarations.some((d) => d.user_id === userId),
-      declaration_count: declarations.length,
-    };
-  });
+  return withDeclarationSummary((data ?? []) as Record<string, unknown>[], userId);
 }
 
 export async function createConfession(input: {
