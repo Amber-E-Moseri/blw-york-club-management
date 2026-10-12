@@ -45,27 +45,36 @@ describe('classifyPushError', () => {
 });
 
 describe('buildDeliveryLogRows', () => {
+  const sentAt = '2026-10-18T19:00:00.000Z';
+
   it('writes one row per member, marked sent if any of their devices received it', () => {
     const rows = buildDeliveryLogRows(event, [
       { userId: 'u1', status: 'failed', error: 'timeout' },
       { userId: 'u1', status: 'sent', error: null },
       { userId: 'u2', status: 'expired', error: 'Subscription gone (410)' },
-    ]);
+    ], sentAt);
 
     expect(rows).toHaveLength(2);
     expect(rows.find((r) => r.user_id === 'u1')).toMatchObject({
       status: 'sent',
-      error_message: null,
       notification_type: 'event',
-      target_url: '/events',
+      sent_at: sentAt,
+      response_data: { event_id: 'e1' },
     });
     expect(rows.find((r) => r.user_id === 'u2')).toMatchObject({
       status: 'failed',
-      error_message: 'Subscription gone (410)',
+      response_data: { event_id: 'e1', error: 'Subscription gone (410)' },
     });
   });
 
+  it('uses only columns that exist on the live push_notification_log table', () => {
+    const [row] = buildDeliveryLogRows(event, [{ userId: 'u1', status: 'sent', error: null }], sentAt);
+    expect(Object.keys(row).sort()).toEqual(
+      ['body', 'notification_type', 'response_data', 'sent_at', 'status', 'title', 'user_id'].sort()
+    );
+  });
+
   it('returns no rows when nothing was attempted', () => {
-    expect(buildDeliveryLogRows(event, [])).toEqual([]);
+    expect(buildDeliveryLogRows(event, [], sentAt)).toEqual([]);
   });
 });
