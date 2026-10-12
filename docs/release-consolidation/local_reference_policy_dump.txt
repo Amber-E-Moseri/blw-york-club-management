@@ -1,0 +1,145 @@
+public | admin_role_assignments | admin_role_assignments_manage | ALL | {public} | is_coordinator() | is_coordinator()
+public | admin_role_assignments | admin_role_assignments_read_explicit | SELECT | {public} | (is_admin_or_coordinator() OR (auth.uid() = user_id)) | -
+public | admin_role_permissions | admin_role_permissions_manage | ALL | {public} | is_coordinator() | is_coordinator()
+public | admin_role_permissions | admin_role_permissions_read_explicit | SELECT | {public} | is_admin_or_coordinator() | -
+public | admin_roles | admin_roles_manage | ALL | {public} | is_coordinator() | is_coordinator()
+public | admin_roles | admin_roles_read_explicit | SELECT | {public} | is_admin_or_coordinator() | -
+public | announcements | announcements_manage | ALL | {public} | (is_admin_or_coordinator() OR (EXISTS ( SELECT 1 FROM profiles WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'cell_leader'::text) AND (profiles.status = 'active'::text))))) | (is_admin_or_coordinator() OR (EXISTS ( SELECT 1 FROM profiles WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'cell_leader'::text) AND (profiles.status = 'active'::text)))))
+public | announcements | announcements_read | SELECT | {public} | is_active_member() | -
+public | attendance_imports | attendance_imports_admin | ALL | {public} | is_core_admin() | is_core_admin()
+public | attendance_member_matches | attendance_matches_admin | ALL | {public} | is_core_admin() | is_core_admin()
+public | books_of_month | books_manage | ALL | {public} | is_admin_or_coordinator() | is_admin_or_coordinator()
+public | books_of_month | books_read | SELECT | {public} | is_active_member() | -
+public | bscs | bscs_manage | ALL | {public} | (is_admin_or_coordinator() OR is_cell_leader_of(cell_id)) | (is_admin_or_coordinator() OR is_cell_leader_of(cell_id))
+public | bscs | bscs_read | SELECT | {public} | is_active_member() | -
+public | cells | cells_manage | ALL | {public} | is_coordinator() | is_coordinator()
+public | cells | cells_read | SELECT | {public} | is_active_member() | -
+public | confession_declarations | confession_declarations_delete_own | DELETE | {public} | ((auth.uid() = user_id) AND is_active_member()) | -
+public | confession_declarations | confession_declarations_read_scoped | SELECT | {public} | can_view_member(user_id) | -
+public | confession_declarations | confession_declarations_update_own | UPDATE | {public} | ((auth.uid() = user_id) AND is_active_member()) | ((auth.uid() = user_id) AND is_active_member())
+public | confession_declarations | confession_declarations_write_own | INSERT | {public} | - | ((auth.uid() = user_id) AND is_active_member())
+public | confessions | confessions_manage | ALL | {public} | is_admin_or_coordinator() | is_admin_or_coordinator()
+public | confessions | confessions_read | SELECT | {public} | (is_active_member() AND (is_active = true)) | -
+public | contact_audit_log | contact_audit_log_insert_admin | INSERT | {public} | - | (is_admin_or_coordinator() AND (changed_by = auth.uid()))
+public | contact_audit_log | contact_audit_log_read_admin | SELECT | {public} | is_admin_or_coordinator() | -
+public | contact_follow_ups | contact_follow_ups_insert_scoped | INSERT | {public} | - | (is_admin_or_coordinator() OR (EXISTS ( SELECT 1 FROM contacts c WHERE ((c.id = contact_follow_ups.contact_id) AND is_cell_leader_of(c.cell_id)))))
+public | contact_follow_ups | contact_follow_ups_read | SELECT | {public} | (is_core_admin() OR (assigned_to = auth.uid()) OR (EXISTS ( SELECT 1 FROM contacts c WHERE ((c.id = contact_follow_ups.contact_id) AND (is_cell_leader_of(c.cell_id) OR (c.logged_by = auth.uid())))))) | -
+public | contact_follow_ups | contact_follow_ups_update_scoped | UPDATE | {public} | (is_admin_or_coordinator() OR (EXISTS ( SELECT 1 FROM contacts c WHERE ((c.id = contact_follow_ups.contact_id) AND is_cell_leader_of(c.cell_id))))) | (is_admin_or_coordinator() OR (EXISTS ( SELECT 1 FROM contacts c WHERE ((c.id = contact_follow_ups.contact_id) AND is_cell_leader_of(c.cell_id)))))
+public | contact_tags | contact_tags_delete | DELETE | {public} | (is_core_admin() OR (EXISTS ( SELECT 1 FROM contacts c WHERE ((c.id = contact_tags.contact_id) AND (is_cell_leader_of(c.cell_id) OR (c.logged_by = auth.uid())))))) | -
+public | contact_tags | contact_tags_insert | INSERT | {public} | - | (is_core_admin() OR (EXISTS ( SELECT 1 FROM contacts c WHERE ((c.id = contact_tags.contact_id) AND (is_cell_leader_of(c.cell_id) OR (c.logged_by = auth.uid()))))))
+public | contact_tags | contact_tags_read | SELECT | {public} | (is_core_admin() OR (EXISTS ( SELECT 1 FROM contacts c WHERE ((c.id = contact_tags.contact_id) AND (is_cell_leader_of(c.cell_id) OR (c.logged_by = auth.uid())))))) | -
+public | contacts | contacts_delete_admin_only | DELETE | {public} | is_admin_or_coordinator() | -
+public | contacts | contacts_insert_scoped | INSERT | {authenticated} | - | ((logged_by = auth.uid()) AND (is_admin_or_coordinator() OR is_cell_leader_of(cell_id)))
+public | contacts | contacts_read | SELECT | {public} | (is_core_admin() OR is_cell_leader_of(cell_id) OR (logged_by = auth.uid())) | -
+public | contacts | contacts_update_scoped | UPDATE | {public} | (is_admin_or_coordinator() OR is_cell_leader_of(cell_id)) | (is_admin_or_coordinator() OR is_cell_leader_of(cell_id))
+public | devotional_daily_pages | daily_pages_manage | ALL | {public} | is_devotional_admin() | is_devotional_admin()
+public | devotional_daily_pages | daily_pages_read | SELECT | {public} | is_active_member() | -
+public | devotional_views | devotional_views_select_own_or_admin | SELECT | {public} | can_view_member(member_id) | -
+public | devotional_views | views_admin_read | SELECT | {public} | (is_devotional_admin() AND is_active_profile(member_id)) | -
+public | devotional_views | views_own | ALL | {public} | ((auth.uid() = member_id) AND is_active_member()) | ((auth.uid() = member_id) AND is_active_member())
+public | drive_link_metadata | drive_links_manage | ALL | {public} | ((owner_id = auth.uid()) OR is_core_admin()) | ((owner_id = auth.uid()) OR is_core_admin())
+public | drive_link_metadata | drive_links_read | SELECT | {public} | is_active_member() | -
+public | email_drafts | email_drafts_manage_notifications | ALL | {authenticated} | (is_active_member() AND has_admin_permission('notifications.send'::text) AND (created_by = auth.uid())) | (is_active_member() AND has_admin_permission('notifications.send'::text) AND (created_by = auth.uid()))
+public | email_log | email_log_admin_manage | ALL | {public} | is_admin_or_coordinator() | is_admin_or_coordinator()
+public | email_log | email_log_admin_read | SELECT | {public} | is_admin_or_coordinator() | -
+public | email_log | email_log_own_read | SELECT | {public} | (auth.uid() = member_id) | -
+public | email_notification_log | email_log_admin_write | INSERT | {public} | - | is_core_admin()
+public | email_notification_log | email_log_read | SELECT | {public} | (is_core_admin() OR (user_id = auth.uid())) | -
+public | email_preferences | email_preferences_insert_own | INSERT | {public} | - | (user_id = auth.uid())
+public | email_preferences | email_preferences_select_own | SELECT | {public} | (user_id = auth.uid()) | -
+public | email_preferences | email_preferences_update_own | UPDATE | {public} | (user_id = auth.uid()) | (user_id = auth.uid())
+public | email_templates | email_templates_manage_notifications | ALL | {authenticated} | (is_active_member() AND has_admin_permission('notifications.send'::text)) | (is_active_member() AND has_admin_permission('notifications.send'::text))
+public | event_rsvps | event_rsvps_delete_own | DELETE | {public} | ((auth.uid() = user_id) AND is_active_member()) | -
+public | event_rsvps | event_rsvps_read_own | SELECT | {public} | (auth.uid() = user_id) | -
+public | event_rsvps | event_rsvps_update_own | UPDATE | {public} | ((auth.uid() = user_id) AND is_active_member()) | ((auth.uid() = user_id) AND is_active_member())
+public | event_rsvps | event_rsvps_write_own | INSERT | {public} | - | ((auth.uid() = user_id) AND is_active_member())
+public | events | events_manage | ALL | {public} | is_admin_or_coordinator() | (is_admin_or_coordinator() AND (created_by = auth.uid()))
+public | events | events_read | SELECT | {public} | is_active_member() | -
+public | fellowships | fellowships_manage | ALL | {public} | is_admin_or_coordinator() | is_admin_or_coordinator()
+public | fellowships | fellowships_read | SELECT | {public} | is_active_member() | -
+public | foundation_school_classes | classes_manage | ALL | {public} | is_admin_or_coordinator() | is_admin_or_coordinator()
+public | foundation_school_classes | classes_read | SELECT | {public} | is_active_member() | -
+public | foundation_school_enrollments | enrollments_own | SELECT | {public} | ((auth.uid() = student_id) AND is_active_member()) | -
+public | foundation_school_enrollments | enrollments_staff_delete | DELETE | {public} | (is_admin_or_coordinator() AND is_active_profile(student_id)) | -
+public | foundation_school_enrollments | enrollments_staff_insert | INSERT | {public} | - | (is_admin_or_coordinator() AND (EXISTS ( SELECT 1 FROM profiles s WHERE ((s.id = foundation_school_enrollments.student_id) AND (s.status = ANY (ARRAY['pending'::text, 'active'::text]))))))
+public | foundation_school_enrollments | enrollments_staff_read | SELECT | {public} | (is_admin_or_coordinator() AND (EXISTS ( SELECT 1 FROM profiles s WHERE ((s.id = foundation_school_enrollments.student_id) AND (s.status = ANY (ARRAY['pending'::text, 'active'::text])))))) | -
+public | foundation_school_enrollments | enrollments_staff_update | UPDATE | {public} | (is_admin_or_coordinator() AND is_active_profile(student_id)) | (is_admin_or_coordinator() AND is_active_profile(student_id))
+public | foundation_school_enrollments | enrollments_teacher_read | SELECT | {public} | ((auth.uid() = teacher_id) AND is_active_member() AND is_active_profile(student_id)) | -
+public | foundation_school_progress | progress_coordinator | ALL | {public} | (is_admin_or_coordinator() AND (EXISTS ( SELECT 1 FROM foundation_school_enrollments e WHERE ((e.id = foundation_school_progress.enrollment_id) AND is_active_profile(e.student_id))))) | (is_admin_or_coordinator() AND (EXISTS ( SELECT 1 FROM foundation_school_enrollments e WHERE ((e.id = foundation_school_progress.enrollment_id) AND is_active_profile(e.student_id)))))
+public | foundation_school_progress | progress_own | SELECT | {public} | (is_active_member() AND (EXISTS ( SELECT 1 FROM foundation_school_enrollments e WHERE ((e.id = foundation_school_progress.enrollment_id) AND (e.student_id = auth.uid()))))) | -
+public | foundation_school_progress | progress_teacher_read | SELECT | {public} | (is_active_member() AND (EXISTS ( SELECT 1 FROM foundation_school_enrollments e WHERE ((e.id = foundation_school_progress.enrollment_id) AND (e.teacher_id = auth.uid()) AND is_active_profile(e.student_id))))) | -
+public | habit_entries | habit_entries_admin_read | SELECT | {public} | (((auth.uid() = user_id) AND is_active_member()) OR (is_admin_or_coordinator() AND is_active_profile(user_id))) | -
+public | habit_entries | habit_entries_own | ALL | {public} | ((auth.uid() = user_id) AND is_active_member()) | ((auth.uid() = user_id) AND is_active_member())
+public | habit_templates | habit_templates_manage | ALL | {public} | is_admin_or_coordinator() | is_admin_or_coordinator()
+public | habit_templates | habit_templates_read | SELECT | {public} | is_active_member() | -
+public | meeting_attendances | meeting_attendances_delete_own_or_manager | DELETE | {authenticated} | (is_active_member() AND ((user_id = auth.uid()) OR has_admin_permission('attendance.view_all'::text) OR (EXISTS ( SELECT 1 FROM meetings m WHERE ((m.id = meeting_attendances.meeting_id) AND ((m.created_by = auth.uid()) OR is_cell_leader_of(m.cell_id))))))) | -
+public | meeting_attendances | meeting_attendances_insert_own_visible | INSERT | {authenticated} | - | (is_active_member() AND (EXISTS ( SELECT 1 FROM meetings m WHERE ((m.id = meeting_attendances.meeting_id) AND ((meeting_attendances.user_id = auth.uid()) OR (is_active_profile(meeting_attendances.user_id) AND (is_admin_or_coordinator() OR (m.created_by = auth.uid()) OR is_cell_leader_of(m.cell_id))))))))
+public | meeting_attendances | meeting_attendances_select_scoped | SELECT | {authenticated} | (is_active_member() AND ((user_id = auth.uid()) OR has_admin_permission('attendance.view_all'::text) OR (EXISTS ( SELECT 1 FROM meetings m WHERE ((m.id = meeting_attendances.meeting_id) AND ((m.created_by = auth.uid()) OR is_cell_leader_of(m.cell_id))))))) | -
+public | meeting_attendances | meeting_attendances_update_manager | UPDATE | {authenticated} | (is_active_member() AND (has_admin_permission('attendance.view_all'::text) OR (EXISTS ( SELECT 1 FROM meetings m WHERE ((m.id = meeting_attendances.meeting_id) AND ((m.created_by = auth.uid()) OR is_cell_leader_of(m.cell_id))))))) | (is_active_member() AND (has_admin_permission('attendance.view_all'::text) OR (EXISTS ( SELECT 1 FROM meetings m WHERE ((m.id = meeting_attendances.meeting_id) AND ((m.created_by = auth.uid()) OR is_cell_leader_of(m.cell_id)))))))
+public | meetings | meetings_cell_read | SELECT | {public} | ((visibility = 'cell'::text) AND is_active_member() AND (EXISTS ( SELECT 1 FROM profiles p WHERE ((p.id = auth.uid()) AND (p.cell_id = meetings.cell_id))))) | -
+public | meetings | meetings_leaders_read | SELECT | {public} | ((visibility = 'leaders'::text) AND (current_user_role() = ANY (ARRAY['cell_leader'::text, 'admin'::text, 'coordinator'::text]))) | -
+public | meetings | meetings_manage_scoped | ALL | {public} | (is_admin_or_coordinator() OR ((current_user_role() = 'cell_leader'::text) AND ((created_by = auth.uid()) OR is_cell_leader_of(cell_id)))) | (is_admin_or_coordinator() OR ((current_user_role() = 'cell_leader'::text) AND (created_by = auth.uid()) AND is_cell_leader_of(cell_id)))
+public | meetings | meetings_public_read | SELECT | {public} | (is_active_member() AND (visibility = 'public'::text)) | -
+public | membership_transitions | membership_transitions_insert | INSERT | {public} | - | is_active_member()
+public | membership_transitions | membership_transitions_read | SELECT | {public} | is_core_admin() | -
+public | memberships | memberships_insert | INSERT | {public} | - | is_core_admin()
+public | memberships | memberships_read | SELECT | {public} | is_active_member() | -
+public | memberships | memberships_update | UPDATE | {public} | is_core_admin() | is_core_admin()
+public | monthly_devotionals | devotional_manage | ALL | {public} | is_admin_or_coordinator() | is_admin_or_coordinator()
+public | monthly_devotionals | devotional_read | SELECT | {public} | is_active_member() | -
+public | people | people_delete | DELETE | {public} | is_coordinator() | -
+public | people | people_insert | INSERT | {public} | - | is_active_member()
+public | people | people_read | SELECT | {public} | is_active_member() | -
+public | people | people_update | UPDATE | {public} | is_core_admin() | is_core_admin()
+public | prayer_requests | prayers_coordinator_manage | UPDATE | {public} | is_admin_or_coordinator() | is_admin_or_coordinator()
+public | prayer_requests | prayers_leadership_read | SELECT | {public} | ((visibility = ANY (ARRAY['leadership'::text, 'shared'::text])) AND is_active_profile(author_id) AND (is_admin_or_coordinator() OR is_cell_leader_for_profile(author_id))) | -
+public | prayer_requests | prayers_own | ALL | {public} | ((auth.uid() = author_id) AND is_active_member()) | ((auth.uid() = author_id) AND is_active_member())
+public | prayer_requests | prayers_shared_read | SELECT | {public} | ((visibility = 'shared'::text) AND is_active_member() AND is_active_profile(author_id)) | -
+public | profiles | profiles_coordinator_administer | ALL | {public} | is_coordinator() | is_coordinator()
+public | profiles | profiles_select_scoped | SELECT | {public} | ((id = auth.uid()) OR is_admin_or_coordinator() OR is_cell_leader_for_profile(id)) | -
+public | profiles | profiles_self_onboarding_update | UPDATE | {authenticated} | ((id = auth.uid()) AND (status = 'pending'::text)) | ((id = auth.uid()) AND (status = 'pending'::text))
+public | push_notification_log | push_notification_log_select_admin | SELECT | {public} | is_admin_or_coordinator() | -
+public | push_notification_log | push_notification_log_select_own | SELECT | {public} | (user_id = auth.uid()) | -
+public | push_subscriptions | push_subscriptions_delete_own | DELETE | {public} | (user_id = auth.uid()) | -
+public | push_subscriptions | push_subscriptions_insert_own | INSERT | {public} | - | (user_id = auth.uid())
+public | push_subscriptions | push_subscriptions_select_own | SELECT | {public} | (user_id = auth.uid()) | -
+public | push_subscriptions | push_subscriptions_update_own | UPDATE | {public} | (user_id = auth.uid()) | (user_id = auth.uid())
+public | staff_profile_edit_audit | staff_profile_edit_audit_admin_read | SELECT | {authenticated} | is_admin_or_coordinator() | -
+public | status_settings | status_settings_manage | ALL | {public} | is_core_admin() | is_core_admin()
+public | status_settings | status_settings_read | SELECT | {public} | is_active_member() | -
+public | tags_settings | tags_settings_manage | ALL | {public} | is_core_admin() | is_core_admin()
+public | tags_settings | tags_settings_read | SELECT | {public} | is_active_member() | -
+public | testimonies | testimonies_delete | DELETE | {public} | (author_id = auth.uid()) | -
+public | testimonies | testimonies_insert | INSERT | {public} | - | (author_id = auth.uid())
+public | testimonies | testimonies_select | SELECT | {public} | ((author_id = auth.uid()) OR ((status = 'approved'::text) AND ((visibility = 'public'::text) OR ((visibility = 'members'::text) AND is_active_member()) OR ((visibility = 'cell'::text) AND is_active_member()))) OR (is_active_member() AND (EXISTS ( SELECT 1 FROM user_profiles WHERE (user_profiles.user_id = auth.uid()))))) | -
+public | testimonies | testimonies_update | UPDATE | {public} | (author_id = auth.uid()) | (author_id = auth.uid())
+public | testimony_comments | comments_delete | DELETE | {public} | (author_id = auth.uid()) | -
+public | testimony_comments | comments_insert | INSERT | {public} | - | (author_id = auth.uid())
+public | testimony_comments | comments_select | SELECT | {public} | is_active_member() | -
+public | testimony_reactions | reactions_delete | DELETE | {public} | (user_id = auth.uid()) | -
+public | testimony_reactions | reactions_insert | INSERT | {public} | - | (user_id = auth.uid())
+public | testimony_reactions | reactions_select | SELECT | {public} | is_active_member() | -
+public | user_profiles | profiles_delete | DELETE | {authenticated} | ((auth.uid() = user_id) AND (EXISTS ( SELECT 1 FROM profiles p WHERE ((p.id = auth.uid()) AND (p.status = 'active'::text))))) | -
+public | user_profiles | profiles_insert | INSERT | {authenticated} | - | ((auth.uid() = user_id) AND (EXISTS ( SELECT 1 FROM profiles p WHERE ((p.id = auth.uid()) AND (p.status = ANY (ARRAY['pending'::text, 'active'::text]))))))
+public | user_profiles | profiles_update | UPDATE | {authenticated} | ((auth.uid() = user_id) AND (EXISTS ( SELECT 1 FROM profiles p WHERE ((p.id = auth.uid()) AND (p.status = ANY (ARRAY['pending'::text, 'active'::text])))))) | ((auth.uid() = user_id) AND (EXISTS ( SELECT 1 FROM profiles p WHERE ((p.id = auth.uid()) AND (p.status = ANY (ARRAY['pending'::text, 'active'::text]))))))
+public | user_profiles | user_profiles_select_scoped | SELECT | {public} | ((user_id = auth.uid()) OR is_admin_or_coordinator() OR is_cell_leader_for_profile(user_id)) | -
+public | user_profiles | user_profiles_staff_insert | INSERT | {authenticated} | - | is_admin_or_coordinator()
+public | user_profiles | user_profiles_staff_update | UPDATE | {authenticated} | is_admin_or_coordinator() | is_admin_or_coordinator()
+public | weekly_messages | weekly_messages_delete | DELETE | {public} | ((auth.uid() = created_by) OR is_admin_or_coordinator()) | -
+public | weekly_messages | weekly_messages_insert | INSERT | {public} | - | ((auth.uid() = created_by) AND (((scope)::text = 'personal'::text) OR is_admin_or_coordinator()))
+public | weekly_messages | weekly_messages_read | SELECT | {public} | (((scope)::text = 'org'::text) OR (auth.uid() = created_by)) | -
+public | weekly_messages | weekly_messages_update | UPDATE | {public} | ((auth.uid() = created_by) OR is_admin_or_coordinator()) | ((auth.uid() = created_by) OR is_admin_or_coordinator())
+public | zoom_attendance | zoom_attendance_read_scoped | SELECT | {public} | (is_admin_or_coordinator() OR (EXISTS ( SELECT 1 FROM meetings m WHERE ((m.id = zoom_attendance.meeting_id) AND ((m.created_by = auth.uid()) OR is_cell_leader_of(m.cell_id)))))) | -
+public | zoom_settings | zoom_settings_admin_explicit | ALL | {public} | has_admin_permission('integrations.manage'::text) | has_admin_permission('integrations.manage'::text)
+storage | objects | devotional_images_admin_delete | DELETE | {authenticated} | ((bucket_id = 'devotional-images'::text) AND is_devotional_admin()) | -
+storage | objects | devotional_images_admin_insert | INSERT | {authenticated} | - | ((bucket_id = 'devotional-images'::text) AND is_devotional_admin())
+storage | objects | devotional_images_admin_update | UPDATE | {authenticated} | ((bucket_id = 'devotional-images'::text) AND is_devotional_admin()) | ((bucket_id = 'devotional-images'::text) AND is_devotional_admin())
+storage | objects | devotional_images_read | SELECT | {authenticated} | ((bucket_id = 'devotional-images'::text) AND is_active_member()) | -
+storage | objects | testimony_images_owner_insert | INSERT | {authenticated} | - | ((bucket_id = 'testimony-images'::text) AND is_active_member() AND ((storage.foldername(name))[1] = (auth.uid())::text))
+storage | objects | testimony_images_owner_or_moderator_delete | DELETE | {authenticated} | ((bucket_id = 'testimony-images'::text) AND (((storage.foldername(name))[1] = (auth.uid())::text) OR is_admin_or_coordinator())) | -
+storage | objects | testimony_images_owner_update | UPDATE | {authenticated} | ((bucket_id = 'testimony-images'::text) AND is_active_member() AND ((storage.foldername(name))[1] = (auth.uid())::text)) | ((bucket_id = 'testimony-images'::text) AND is_active_member() AND ((storage.foldername(name))[1] = (auth.uid())::text))
+storage | objects | testimony_images_read | SELECT | {authenticated} | ((bucket_id = 'testimony-images'::text) AND is_active_member()) | -
+storage | objects | user_media_avatar_delete | DELETE | {authenticated} | ((bucket_id = 'user-media'::text) AND ((storage.foldername(name))[1] = 'avatars'::text) AND (split_part(storage.filename(name), '.'::text, 1) = (auth.uid())::text)) | -
+storage | objects | user_media_avatar_insert | INSERT | {authenticated} | - | ((bucket_id = 'user-media'::text) AND is_active_member() AND ((storage.foldername(name))[1] = 'avatars'::text) AND (split_part(storage.filename(name), '.'::text, 1) = (auth.uid())::text))
+storage | objects | user_media_avatar_update | UPDATE | {authenticated} | ((bucket_id = 'user-media'::text) AND is_active_member() AND ((storage.foldername(name))[1] = 'avatars'::text) AND (split_part(storage.filename(name), '.'::text, 1) = (auth.uid())::text)) | ((bucket_id = 'user-media'::text) AND is_active_member() AND ((storage.foldername(name))[1] = 'avatars'::text) AND (split_part(storage.filename(name), '.'::text, 1) = (auth.uid())::text))
+storage | objects | user_media_read | SELECT | {authenticated} | ((bucket_id = 'user-media'::text) AND is_active_member()) | -

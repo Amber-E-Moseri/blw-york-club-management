@@ -1,0 +1,28 @@
+BEGIN
+NOTICE:  extension "pgcrypto" already exists, skipping
+CREATE EXTENSION
+CREATE TABLE
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+DO
+    area    |                              check_name                               | result |               evidence               
+------------+-----------------------------------------------------------------------+--------+--------------------------------------
+ Attendance | active member sees only their own attendance row                      | PASS   | 1
+ Attendance | cell leader can mark attendance for their cell meeting                | PASS   | 1
+ Attendance | cell leader reads all attendance rows for their cell meeting          | PASS   | 2
+ Attendance | coordinator reads all attendance rows for export/management           | PASS   | 2
+ Attendance | dashboard meeting query without attendance embedding remains readable | PASS   | fd018f49-30e8-470d-bc38-6b31d145e7d6
+ Attendance | meeting owner reads all attendance rows for owned meeting             | PASS   | 2
+ Attendance | pending member cannot read attendance rows                            | PASS   | 0
+ Attendance | rejected member cannot read attendance rows                           | PASS   | 0
+ Attendance | unrelated active member sees only their own row                       | PASS   | 1
+(9 rows)
+
+ failures | checks 
+----------+--------
+        0 |      9
+(1 row)
+
+ROLLBACK

@@ -1,0 +1,46 @@
+BEGIN
+CREATE TABLE
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+DO
+        area        |                          check_name                           | result |                                    evidence                                     
+--------------------+---------------------------------------------------------------+--------+---------------------------------------------------------------------------------
+ Admin RLS          | admin can approve pending member                              | PASS   | approval RPC accepted
+ Admin RLS          | admin cannot manage coordinator-only admin roles              | PASS   | new row violates row-level security policy for table "admin_roles"
+ Cell Leader RLS    | leader A can manage Cell A meeting                            | PASS   | scoped meeting update accepted
+ Cell Leader RLS    | leader A can update Cell A contact                            | PASS   | scoped update accepted
+ Cell Leader RLS    | leader A cannot manage Cell B meeting                         | PASS   | cross-cell update affected 0 rows
+ Cell Leader RLS    | leader A cannot mutate Cell B contact                         | PASS   | cross-cell update affected 0 rows
+ Cell Leader RLS    | leader A cannot promote another user                          | PASS   | target role remained member
+ Cell Leader RLS    | leader A cannot promote self                                  | PASS   | role remained cell_leader
+ Cell Leader RLS    | leader A cannot read Cell B Zoom attendance                   | PASS   | visible rows=0
+ Cell Leader RLS    | leader B cannot mutate Cell A contact                         | PASS   | cross-cell update affected 0 rows
+ Coordinator RLS    | coordinator can manage admin roles                            | PASS   | insert accepted
+ Custom Permissions | absent custom permission is denied                            | PASS   | notifications.send=false
+ Custom Permissions | custom reports permission allows export RPC                   | PASS   | export RPC accepted
+ Custom Permissions | custom reports permission present allows permission check     | PASS   | reports.generate=true
+ Member RLS         | member can RSVP to event                                      | PASS   | own RSVP row inserted
+ Member RLS         | member cannot approve pending member                          | PASS   | Not authorised to approve members.
+ Member RLS         | member cannot export sensitive members                        | PASS   | Not authorised to export member data.
+ Member RLS         | member cannot globally mutate contacts                        | PASS   | new row violates row-level security policy for table "contacts"
+ Member RLS         | member cannot manage unrelated meeting                        | PASS   | new row violates row-level security policy for table "meetings"
+ Member RLS         | member cannot read unrelated private profiles                 | PASS   | visible unrelated profiles=0
+ Member RLS         | member cannot reassign own cell                               | PASS   | cell_id remained Cell A
+ Member RLS         | member cannot reject pending member                           | PASS   | Not authorised to reject members.
+ Member RLS         | member cannot update own admin_role                           | PASS   | admin_role remained null
+ Member RLS         | member cannot update own role                                 | PASS   | role remained member
+ Member RLS         | member cannot update own status                               | PASS   | status remained active
+ People Lifecycle   | approval preserves outreach history                           | PASS   | contacts still attached=1
+ People Lifecycle   | authorized merge repoints relationships and preserves history | PASS   | contacts=1, transitions=2
+ People Lifecycle   | contact to pending member keeps same person                   | PASS   | pending memberships for person=1
+ People Lifecycle   | normalized duplicate email is blocked                         | PASS   | duplicate key value violates unique constraint "people_email_normalized_unique"
+ People Lifecycle   | normalized duplicate phone is blocked                         | PASS   | duplicate key value violates unique constraint "people_phone_normalized_unique"
+ People Lifecycle   | rejected person can reapply without duplicate human           | PASS   | same person has rejected and pending membership history
+ People Lifecycle   | same name different people remains possible                   | PASS   | two rows with same name and no identity inserted
+ People Lifecycle   | unauthorized merge_people fails                               | PASS   | Not authorised to merge people.
+(33 rows)
+
+DO
+ROLLBACK

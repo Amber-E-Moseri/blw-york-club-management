@@ -1,0 +1,12 @@
+
+Running 7 tests using 1 worker
+
+  ok 1 [chromium] › e2e\affected-flows.spec.ts:132:7 › confessions (declaration privacy, T1 and T5) › member sees the confession and the aggregate count, and no other member identity (2.8s)
+  ok 2 [chromium] › e2e\affected-flows.spec.ts:145:7 › confessions (declaration privacy, T1 and T5) › pending account is held at the approval screen and cannot open confessions (1.9s)
+  ok 3 [chromium] › e2e\affected-flows.spec.ts:155:7 › BSC leader view (scope, T2 and T4) › leader sees own BSC members including a pending onboarding member, and not another BSC (2.0s)
+  ok 4 [chromium] › e2e\affected-flows.spec.ts:168:7 › BSC leader view (scope, T2 and T4) › ordinary member cannot open the BSC leader view (1.8s)
+  ok 5 [chromium] › e2e\affected-flows.spec.ts:177:7 › habits (own growth record) › member sees own habit tracker and template (2.8s)
+  ok 6 [chromium] › e2e\affected-flows.spec.ts:190:7 › phone width (375 x 812) › leader pages (My BSC, habits) do not scroll horizontally on a phone (2.5s)
+  ok 7 [chromium] › e2e\affected-flows.spec.ts:199:7 › phone width (375 x 812) › confessions page does not scroll horizontally on a phone (2.3s)
+
+  7 passed (23.8s)

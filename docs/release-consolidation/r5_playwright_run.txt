@@ -1,0 +1,23 @@
+
+Running 18 tests using 6 workers
+
+  ok  2 [chromium] › e2e\auth.spec.ts:8:5 › shows the sign-in screen for signed-out visitors (3.7s)
+  ok  3 [chromium] › e2e\auth.spec.ts:16:5 › validates request access before submitting (4.1s)
+  ok  5 [chromium] › e2e\auth.spec.ts:25:5 › submits an access request (4.2s)
+  ok  4 [chromium] › e2e\auth.spec.ts:38:5 › signs in and reaches the dashboard (4.7s)
+  ok  1 [chromium] › e2e\auth.spec.ts:51:5 › toggles between dark and light mode (5.1s)
+  ok  6 [chromium] › e2e\affected-flows.spec.ts:143:7 › confessions (declaration privacy, T1 and T5) › member sees the confession and the aggregate count, and no other member identity (6.7s)
+  ok 12 [chromium] › e2e\affected-flows.spec.ts:156:7 › confessions (declaration privacy, T1 and T5) › pending account is held at the approval screen and cannot open confessions (4.0s)
+  ok  7 [chromium] › e2e\release-smoke.spec.ts:95:5 › invalid login is rejected (3.1s)
+  ok  8 [chromium] › e2e\release-smoke.spec.ts:103:5 › pending account is held at the approval screen and cannot reach the app (3.6s)
+  ok 10 [chromium] › e2e\release-smoke.spec.ts:137:5 › member is denied privileged admin pages, including by direct URL (5.2s)
+  ok 11 [chromium] › e2e\release-smoke.spec.ts:148:5 › admin reaches Admin and approves a pending member (5.9s)
+  ok  9 [chromium] › e2e\release-smoke.spec.ts:112:5 › member signs in and every primary page loads without crashing (6.3s)
+  ok 13 [chromium] › e2e\affected-flows.spec.ts:166:7 › BSC leader view (scope, T2 and T4) › leader sees own BSC members including a pending onboarding member, and not another BSC (4.0s)
+  ok 15 [chromium] › e2e\affected-flows.spec.ts:179:7 › BSC leader view (scope, T2 and T4) › ordinary member cannot open the BSC leader view (2.6s)
+  ok 14 [chromium] › e2e\release-smoke.spec.ts:168:5 › signed-in user can sign out and the session is gone (3.5s)
+  ok 16 [chromium] › e2e\affected-flows.spec.ts:188:7 › habits (own growth record) › member sees own habit tracker and template (2.1s)
+  ok 17 [chromium] › e2e\affected-flows.spec.ts:201:7 › phone width (375 x 812) › leader pages (My BSC, habits) do not scroll horizontally on a phone (2.0s)
+  ok 18 [chromium] › e2e\affected-flows.spec.ts:210:7 › phone width (375 x 812) › confessions page does not scroll horizontally on a phone (2.0s)
+
+  18 passed (30.6s)

@@ -1,0 +1,50 @@
+PASS	unauthenticated request is rejected (401)
+PASS	forged token is rejected (401)
+PASS	active member cannot send notifications (403)
+PASS	pending account with a coordinator role is rejected (403)
+PASS	rejected requests did not claim the event
+PASS	non-POST method is rejected (405)
+PASS	malformed body is rejected (400)
+PASS	non-UUID event_id is rejected (400)
+PASS	unknown event is reported as not found (409)
+(node:14476) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS	admin send returns 200
+PASS	audience "all" counts every active account and no pending account
+PASS	one device per active subscription; the pending account is not counted
+PASS	subscribed active devices receive the push (sent 2)
+PASS	a browser that answers 410 is recorded as expired, not failed
+PASS	the pending account endpoint is never contacted
+PASS	the event is marked notified
+PASS	the expired subscription is deactivated
+PASS	live subscriptions stay active
+PASS	pending subscription stays untouched (it was never selected)
+PASS	delivery is logged per member as sent
+PASS	expired device is logged as failed with its reason
+PASS	no log row exists for the pending account
+PASS	the push body reaches the endpoint exactly once per device
+PASS	a second send for the same event is refused (409)
+PASS	a refused duplicate sends nothing
+PASS	concurrent duplicates send nothing and are refused
+PASS	audience "meeting" reaches only active attendees (recipients 1)
+PASS	the pending attendee is excluded even though assigned
+PASS	meeting audience sends to the attendee device only (sent 1)
+PASS	no one outside the meeting is contacted
+PASS	a server error at the push service is recorded as failed, not expired
+PASS	the failure reason is written to the log
+PASS	a failed delivery keeps the subscription active
+PASS	the event stays notified after a partial failure (no automatic re-send)
+PASS	an audience with no push devices returns devices 0
+PASS	no devices releases the claim, so the event is not consumed
+PASS	after a device is added, the same event can be sent once
+PASS	deleting the meeting leaves the event with a null meeting
+notify-event failed Event has a meeting audience but no meeting
+PASS	an orphaned meeting audience is refused, not sent to everyone (500)
+PASS	an orphaned meeting audience sends nothing
+PASS	the refused orphan releases its claim
+PASS	an unauthenticated caller cannot see configuration state (401, not 500)
+PASS	missing VAPID configuration is reported to an admin (500)
+PASS	a configuration failure does not claim the event
+PASS	VAPID private key and service-role key never appear in responses or runtime logs
+
+notify-event (transpiled): 45/45 checks passed

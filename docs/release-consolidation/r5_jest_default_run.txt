@@ -1,0 +1,62 @@
+(node:39892) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS src/__tests__/emailRelay.test.ts (6.206 s)
+(node:42332) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS src/__tests__/emailPreferenceEnforcement.test.ts (8.834 s)
+(node:29780) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS src/__tests__/emailCustomization.test.ts (9.111 s)
+(node:14984) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS src/__tests__/approvePendingMember.test.ts (9.115 s)
+(node:42404) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS src/__tests__/people.test.ts (9.132 s)
+PASS src/__tests__/migrationArchitecture.test.ts
+PASS src/__tests__/confessionPrivacy.test.ts
+PASS src/__tests__/outreachCreatePersonLink.test.ts
+PASS src/__tests__/emailIdentityMatching.test.ts
+PASS src/__tests__/eventNotification.test.ts
+PASS src/__tests__/exportDevotionalReportCsv.test.ts
+PASS src/__tests__/calendar.test.ts
+PASS src/__tests__/devotionalRanges.test.ts
+PASS src/__tests__/getDashboardStats.test.ts
+PASS src/__tests__/createContactCellId.test.ts
+PASS src/__tests__/quickAddCellAuthorization.test.ts
+PASS src/__tests__/emailComposerBehaviour.test.ts
+PASS src/__tests__/identityContract.test.ts
+PASS src/__tests__/pushPrompt.test.ts
+PASS src/__tests__/securityAuthorization.test.ts
+PASS src/__tests__/releaseHardening.test.ts
+PASS src/__tests__/exportMembersCsv.test.ts
+PASS src/__tests__/meetingAttendanceSecurity.test.ts
+PASS src/__tests__/memberProfileDrawer.test.ts
+PASS src/__tests__/contactCellIdNormalisation.test.ts
+PASS src/__tests__/eventCreation.test.ts
+PASS src/__tests__/cells.test.ts
+PASS src/__tests__/recipientIdentity.test.ts
+(node:14592) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS src/__tests__/schemaContract.test.ts (11.449 s)
+(node:41708) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS src/__tests__/StatCard.test.tsx (15.103 s)
+(node:39984) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS src/__tests__/Badge.test.tsx (15.109 s)
+(node:16832) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS src/__tests__/confessionImport.test.ts (15.121 s)
+(node:42628) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:15296) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS src/__tests__/EventCard.calendarLinks.test.tsx (16.149 s)
+PASS src/__tests__/contactFormSaveError.test.tsx (16.185 s)
+
+Test Suites: 1 skipped, 34 passed, 34 of 35 total
+Tests:       11 skipped, 280 passed, 291 total
+Snapshots:   0 total
+Time:        39.584 s
+Ran all test suites.

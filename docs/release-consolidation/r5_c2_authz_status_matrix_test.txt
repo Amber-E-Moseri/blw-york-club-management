@@ -1,0 +1,540 @@
+BEGIN
+SET
+CREATE SCHEMA
+GRANT
+CREATE TABLE
+INSERT 0 2
+INSERT 0 3
+INSERT 0 21
+INSERT 0 6
+UPDATE 3
+UPDATE 1
+UPDATE 1
+UPDATE 1
+UPDATE 1
+INSERT 0 7
+INSERT 0 1
+INSERT 0 7
+INSERT 0 1
+INSERT 0 1
+INSERT 0 2
+INSERT 0 3
+INSERT 0 1
+INSERT 0 2
+INSERT 0 1
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+ expect_affected 
+-----------------
+ 
+(1 row)
+
+ expect_affected 
+-----------------
+ 
+(1 row)
+
+ expect_denied 
+---------------
+ 
+(1 row)
+
+ expect_denied 
+---------------
+ 
+(1 row)
+
+ expect_affected 
+-----------------
+ 
+(1 row)
+
+ expect_denied 
+---------------
+ 
+(1 row)
+
+ expect_denied 
+---------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_denied 
+---------------
+ 
+(1 row)
+
+ expect_affected 
+-----------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_denied 
+---------------
+ 
+(1 row)
+
+ expect_affected 
+-----------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_value 
+--------------
+ 
+(1 row)
+
+ expect_value 
+--------------
+ 
+(1 row)
+
+ expect_value 
+--------------
+ 
+(1 row)
+
+ expect_value 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_value 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_affected 
+-----------------
+ 
+(1 row)
+
+ expect_affected 
+-----------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_denied 
+---------------
+ 
+(1 row)
+
+ expect_denied 
+---------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+INSERT 0 2
+INSERT 0 5
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_affected 
+-----------------
+ 
+(1 row)
+
+ expect_affected 
+-----------------
+ 
+(1 row)
+
+ expect_affected 
+-----------------
+ 
+(1 row)
+
+ expect_affected 
+-----------------
+ 
+(1 row)
+
+                                             name                                              | ok |              detail               
+-----------------------------------------------------------------------------------------------+----+-----------------------------------
+ A1 active coordinator updates the monthly book                                                | t  | 1 rows affected (expected 1)
+ A10 inactive cell leader cannot create a meeting in own cell                                  | t  | got 42501 (expected 42501 denied)
+ A11 active cell leader may create a meeting in own cell                                       | t  | 1 rows affected (expected 1)
+ A12 inactive coordinator reads no Rhapsody reads                                              | t  | 0 visible (expected 0)
+ A13 pending coordinator reads no Rhapsody reads                                               | t  | 0 visible (expected 0)
+ A2 inactive coordinator cannot update the monthly book                                        | t  | 0 rows affected (expected 0)
+ A3 pending coordinator cannot insert a monthly book                                           | t  | got 42501 (expected 42501 denied)
+ A4 rejected coordinator cannot insert a monthly book                                          | t  | got 42501 (expected 42501 denied)
+ A5 active admin may update the monthly book                                                   | t  | 1 rows affected (expected 1)
+ A6 inactive coordinator cannot create a cell                                                  | t  | got 42501 (expected 42501 denied)
+ A7 rejected coordinator cannot create a cell                                                  | t  | got 42501 (expected 42501 denied)
+ A8 inactive coordinator cannot read email log                                                 | t  | 0 visible (expected 0)
+ A9 active coordinator reads email log                                                         | t  | 1 visible (expected 1)
+ B1 active BSC leader B1 sees only B1 active member reads                                      | t  | 1 visible (expected 1)
+ B10 cell leader C1 (active) sees reads of active members in C1 only                           | t  | 4 visible (expected 4)
+ B11 inactive cell leader C2 sees nothing                                                      | t  | 0 visible (expected 0)
+ B12 onboarding: active BSC leader B1 lists its active and pending members (not rejected)      | t  | 2 visible (expected 2)
+ B13 onboarding: cross-BSC leader B2 lists only B2 members                                     | t  | 1 visible (expected 1)
+ B14 onboarding: cross-fellowship leader B3 lists only B3 members                              | t  | 1 visible (expected 1)
+ B15 onboarding: inactive BSC leader lists nobody                                              | t  | 0 visible (expected 0)
+ B16 onboarding: pending BSC leader lists nobody                                               | t  | 0 visible (expected 0)
+ B17 onboarding: admin lists all active and pending BSC members                                | t  | 6 visible (expected 6)
+ B18 onboarding: pending member cannot use the BSC list                                        | t  | 0 visible (expected 0)
+ B19 BSC leader cannot insert a Rhapsody read for a member                                     | t  | got 42501 (expected 42501 denied)
+ B2 active BSC leader B2 sees only B2 member reads (unrelated leader)                          | t  | 1 visible (expected 1)
+ B20 BSC leader cannot edit BSC structure outside cell scope                                   | t  | 0 rows affected (expected 0)
+ B3 cross-fellowship leader B3 sees only B3 member reads                                       | t  | 1 visible (expected 1)
+ B4 inactive BSC leader sees no member reads                                                   | t  | 0 visible (expected 0)
+ B5 pending BSC leader sees no member reads                                                    | t  | 0 visible (expected 0)
+ B6 rejected BSC leader sees no member reads                                                   | t  | 0 visible (expected 0)
+ B7 inactive BSC leader sees no declarations                                                   | t  | 0 visible (expected 0)
+ B8 pending BSC leader sees no declarations                                                    | t  | 0 visible (expected 0)
+ B9 rejected BSC leader sees no declarations                                                   | t  | 0 visible (expected 0)
+ C1 active member sees only own declaration row                                                | t  | 1 visible (expected 1)
+ C10 coordinator sees declarations of active members only                                      | t  | 5 visible (expected 5)
+ C11 broad declaration read policy removed                                                     | t  | 0 (expected 0)
+ C2 active member cannot see another member declaration row                                    | t  | 0 visible (expected 0)
+ C3 active member with no BSC sees no declaration rows                                         | t  | 0 visible (expected 0)
+ C4 count RPC returns one row per confession for an active member                              | t  | 1 visible (expected 1)
+ C5 count RPC total counts active members only (5 of 7 rows; pending and rejected excluded)    | t  | 5 (expected 5)
+ C6 active member sees own declared status via count caller path (own row)                     | t  | 1 (expected 1)
+ C7 pending member cannot use the count RPC                                                    | t  | 0 (expected 0)
+ C8 inactive BSC leader cannot use the count RPC                                               | t  | 0 (expected 0)
+ C9 active BSC leader B1 sees declaration of its active member only                            | t  | 1 visible (expected 1)
+ D1 pending member reads own profile (onboarding)                                              | t  | 1 visible (expected 1)
+ D10 active member reads own Foundation School enrolment                                       | t  | 1 visible (expected 1)
+ D11 pending member cannot create a habit entry                                                | t  | got 42501 (expected 42501 denied)
+ D12 pending member cannot write a Rhapsody read                                               | t  | got 42501 (expected 42501 denied)
+ D13 pending member cannot read any books of the month                                         | t  | 0 visible (expected 0)
+ D14 active member reads books of the month                                                    | t  | 1 visible (expected 1)
+ D2 pending member may complete own onboarding profile                                         | t  | 1 rows affected (expected 1)
+ D3 rejected member cannot update own profile                                                  | t  | 0 rows affected (expected 0)
+ D4 rejected member reads own profile (status message)                                         | t  | 1 visible (expected 1)
+ D5 pending member reads no own Rhapsody reads                                                 | t  | 0 visible (expected 0)
+ D6 pending member reads no own habit entries                                                  | t  | 0 visible (expected 0)
+ D7 active member reads own habit entries                                                      | t  | 1 visible (expected 1)
+ D8 pending member reads no own prayer requests                                                | t  | 0 visible (expected 0)
+ D9 pending member reads no own Foundation School enrolment                                    | t  | 0 visible (expected 0)
+ E1 active coordinator sees enrolments of pending and active students (onboarding, T6)         | t  | 2 visible (expected 2)
+ E2 teacher LB1 (active) sees only the active student enrolment                                | t  | 1 visible (expected 1)
+ E3 active coordinator sees active-author leadership prayers and shared (P1, P3)               | t  | 2 visible (expected 2)
+ E4 active cell leader sees active-author leadership prayers (P1, P3)                          | t  | 2 visible (expected 2)
+ E5 inactive coordinator sees no leadership prayers                                            | t  | 0 visible (expected 0)
+ E6 active member sees shared prayer of an active author (P3)                                  | t  | 1 visible (expected 1)
+ E7 cross-fellowship leader B3 sees no habit entries of B1 members                             | t  | 0 visible (expected 0)
+ F1 active member in no BSC reads all fellowships (structure only)                             | t  | 2 visible (expected 2)
+ F2 pending member reads no fellowships                                                        | t  | 0 visible (expected 0)
+ F3 rejected member reads no BSCs                                                              | t  | 0 visible (expected 0)
+ H1 active member sees shared prayers of ACTIVE authors only (f3, f7)                          | t  | 2 visible (expected 2)
+ H10 INACTIVE author reads no own prayers                                                      | t  | 0 visible (expected 0)
+ H11 REJECTED author reads no own prayers                                                      | t  | 0 visible (expected 0)
+ H12 active coordinator moderates an ACTIVE author leadership prayer                           | t  | 1 rows affected (expected 1)
+ H13 cell leader cannot moderate prayers (no moderation role)                                  | t  | 0 rows affected (expected 0)
+ H14 member cannot moderate a shared prayer                                                    | t  | 0 rows affected (expected 0)
+ H15 coordinator cannot moderate a prayer of an INACTIVE author (not readable; decision T7)    | t  | 0 rows affected (expected 0)
+ H2 active member in cell C1 sees no leadership prayers                                        | t  | 0 visible (expected 0)
+ H3 cell leader C1 sees own-cell leadership (f1) and active shared (f3, f7), not cross-cell f8 | t  | 3 visible (expected 3)
+ H4 cell leader C2 sees no leadership prayers from cell C1 or C3                               | t  | 0 visible (expected 0)
+ H5 cell leader C2 sees active shared prayers only (f3, f7)                                    | t  | 2 visible (expected 2)
+ H6 active coordinator sees active authors' leadership and shared prayers (f1, f3, f7, f8)     | t  | 4 visible (expected 4)
+ H7 active admin sees active authors' leadership and shared prayers (f1, f3, f7, f8)           | t  | 4 visible (expected 4)
+ H8 inactive coordinator sees no prayers                                                       | t  | 0 visible (expected 0)
+ H9 active author reads own prayers (f1, f7)                                                   | t  | 2 visible (expected 2)
+(83 rows)
+
+ passed | failed 
+--------+--------
+     83 |      0
+(1 row)
+
+ROLLBACK

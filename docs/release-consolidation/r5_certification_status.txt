@@ -1,0 +1,20 @@
+replay exit=0 migrations=48
+authz_status_matrix_test exit=0 |  83 | 0 | FAILS=0
+bsc_effective_rls_test exit=0 |  37 | 0 | FAILS=0
+foundation_school_onboarding_test exit=0 |  35 | 0 | FAILS=0
+confession_app_compat_test exit=0 |  10 | 0 | FAILS=0
+release_rls_people_certification exit=0 PASS=33 FAIL=0
+guard_approval_bootstrap_certification exit=0 PASS=32 FAIL=0
+cert_031_032_active_guard exit=0 PASS=11 FAIL=0
+meeting_attendance_access_certification exit=0 PASS=9 FAIL=0
+fingerprint == restored-038 replay (byte-identical)
+30/30 checks passed
+bsc access model (stand-in) exit=0  28 | 0
+SQL_DONE
+BEHAV_DONE
+prayer session exit=0 prayer-visibility-session: 19/19 checks passed
+JEST_DONE
+build exit=0 warnings=0
+typecheck exit=0
+playwright exit=0
+ALL_DONE

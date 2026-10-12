@@ -1,0 +1,21 @@
+PASS	setup: active author posts a shared prayer	status 201
+PASS	setup: active author posts a leadership prayer	status 201
+PASS	setup: cell B author posts a leadership prayer	status 201
+PASS	setup: inactive-to-be author posts shared and leadership prayers while active	201/201
+PASS	pending author cannot post (prayers_own requires an active account)	status 403
+PASS	rejected author cannot post	status 403
+PASS	memberA: sees intended prayers (read status 200)	sees 1
+PASS	memberA: sees no restricted prayers	none leaked
+PASS	memberB: sees intended prayers (read status 200)	sees 1
+PASS	memberB: sees no restricted prayers	none leaked
+PASS	leaderA: sees intended prayers (read status 200)	sees 2
+PASS	leaderA: sees no restricted prayers	none leaked
+PASS	leaderB: sees intended prayers (read status 200)	sees 2
+PASS	leaderB: sees no restricted prayers	none leaked
+PASS	coordinator: sees intended prayers (read status 200)	sees 3
+PASS	coordinator: sees no restricted prayers	none leaked
+PASS	admin: sees intended prayers (read status 200)	sees 3
+PASS	admin: sees no restricted prayers	none leaked
+PASS	inactive author cannot read own prayers (F5)	sees 0
+
+prayer-visibility-session: 19/19 checks passed

@@ -1,0 +1,255 @@
+BEGIN
+SET
+CREATE SCHEMA
+CREATE TABLE
+GRANT
+INSERT 0 2
+INSERT 0 2
+INSERT 0 16
+INSERT 0 5
+UPDATE 2
+UPDATE 1
+UPDATE 1
+UPDATE 1
+UPDATE 1
+INSERT 0 1
+INSERT 0 6
+INSERT 0 6
+INSERT 0 1
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_affected 
+-----------------
+ 
+(1 row)
+
+ expect_denied 
+---------------
+ 
+(1 row)
+
+ expect_affected 
+-----------------
+ 
+(1 row)
+
+ expect_affected 
+-----------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_denied 
+---------------
+ 
+(1 row)
+
+ expect_affected 
+-----------------
+ 
+(1 row)
+
+ expect_denied 
+---------------
+ 
+(1 row)
+
+ expect_affected 
+-----------------
+ 
+(1 row)
+
+ expect_denied 
+---------------
+ 
+(1 row)
+
+                                     name                                      | ok |              detail               
+-------------------------------------------------------------------------------+----+-----------------------------------
+ A1 coordinator sees all active members' Rhapsody reads (pending excluded, F4) | t  | 5 visible (expected 5)
+ A10 active member sees only own read                                          | t  | 1 visible (expected 1)
+ A11 member with no BSC sees nothing extra                                     | t  | 0 visible (expected 0)
+ A12 PENDING member sees no reads (own row included)                           | t  | 0 visible (expected 0)
+ A2 admin sees all active members' Rhapsody reads (pending excluded, F4)       | t  | 5 visible (expected 5)
+ A3 INACTIVE coordinator sees no Rhapsody reads                                | t  | 0 visible (expected 0)
+ A4 cell leader sees reads of members in cell C1 (not pending)                 | t  | 4 visible (expected 4)
+ A5 BSC B1 leader sees only B1 active member                                   | t  | 1 visible (expected 1)
+ A6 unrelated BSC B2 leader sees only B2 member                                | t  | 1 visible (expected 1)
+ A7 cross-fellowship BSC B3 leader sees only B3 member                         | t  | 1 visible (expected 1)
+ A8 INACTIVE BSC leader sees no reads                                          | t  | 0 visible (expected 0)
+ A9 PENDING BSC leader sees no reads                                           | t  | 0 visible (expected 0)
+ B1 coordinator sees active members' declarations (pending excluded, F4)       | t  | 5 visible (expected 5)
+ B10 PENDING member sees no declarations                                       | t  | 0 visible (expected 0)
+ B2 cell leader sees declarations of cell C1 members                           | t  | 4 visible (expected 4)
+ B3 BSC B1 leader sees only B1 member declaration                              | t  | 1 visible (expected 1)
+ B4 unrelated BSC B2 leader sees only B2 member                                | t  | 1 visible (expected 1)
+ B5 cross-fellowship BSC B3 leader sees only B3 member                         | t  | 1 visible (expected 1)
+ B6 INACTIVE BSC leader sees no declarations                                   | t  | 0 visible (expected 0)
+ B7 PENDING BSC leader sees no declarations                                    | t  | 0 visible (expected 0)
+ B8 active member sees only own declaration (BSC intent)                       | t  | 1 visible (expected 1)
+ B9 member with no BSC sees no other declarations                              | t  | 0 visible (expected 0)
+ C1 BSC leader cannot update a member read                                     | t  | 0 rows affected (expected 0)
+ C2 BSC leader cannot insert a declaration for a member                        | t  | got 42501 (expected 42501 denied)
+ C3 BSC leader cannot edit BSC structure                                       | t  | 0 rows affected (expected 0)
+ C4 cell leader may rename a BSC in own cell                                   | t  | 1 rows affected (expected 1)
+ D1 PENDING member cannot read BSCs                                            | t  | 0 visible (expected 0)
+ D2 PENDING member cannot read fellowships                                     | t  | 0 visible (expected 0)
+ D3 active member reads BSCs                                                   | t  | 5 visible (expected 5)
+ D4 active member with no BSC reads fellowships                                | t  | 2 visible (expected 2)
+ E1 active member reads the monthly book                                       | t  | 1 visible (expected 1)
+ E2 PENDING member cannot read the monthly book                                | t  | 0 visible (expected 0)
+ E3 active member cannot write the monthly book                                | t  | got 42501 (expected 42501 denied)
+ E4 INACTIVE coordinator cannot update the monthly book                        | t  | 0 rows affected (expected 0)
+ E5 INACTIVE coordinator cannot insert a monthly book                          | t  | got 42501 (expected 42501 denied)
+ E6 active coordinator may update the monthly book                             | t  | 1 rows affected (expected 1)
+ F1 INACTIVE coordinator cannot create a cell                                  | t  | got 42501 (expected 42501 denied)
+(37 rows)
+
+ passed | failed 
+--------+--------
+     37 |      0
+(1 row)
+
+ROLLBACK

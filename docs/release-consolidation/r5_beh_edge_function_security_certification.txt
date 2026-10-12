@@ -1,0 +1,20 @@
+PASS	send-email anonymous denied
+PASS	send-email ordinary member denied
+PASS	send-email cell leader without permission denied
+PASS	send-email rejected coordinator denied (inactive accounts hold no authority)
+PASS	send-email admin authorization allowed before provider failure
+PASS	send-email custom notifications permission allowed
+PASS	process-scheduled-emails no secret denied
+PASS	process-scheduled-emails wrong secret denied
+PASS	unsubscribe malformed token denied
+PASS	process-scheduled-emails dispatches scheduled emails (auth chain intact)
+PASS	send-email wrong internal dispatch secret denied
+PASS	send-email correct internal dispatch reaches provider boundary (auth chain works)
+PASS	unsubscribe forged signature denied
+PASS	unsubscribe expired signed token denied
+PASS	unsubscribe token for the retired memberId field denied
+PASS	unsubscribe unknown notification type denied
+PASS	unsubscribe for a nonexistent account saves nothing and is refused
+PASS	unsubscribe valid signed token allowed and persisted for the account (user_id)
+
+edge-functions: 18/18 checks passed
