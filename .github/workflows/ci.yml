@@ -27,7 +27,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Behavioural harnesses use @supabase/supabase-js, which needs native WebSocket (Node 22+).
+          node-version: 22
           cache: npm
       - run: npm ci
       - run: ./scripts/certify-local.sh
