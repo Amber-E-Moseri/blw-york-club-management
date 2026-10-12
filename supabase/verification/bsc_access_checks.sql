@@ -65,6 +65,14 @@ with results as (
   select 'trigger profiles_guard_bsc_assignment exists',
          exists (select 1 from pg_trigger where tgname = 'profiles_guard_bsc_assignment'
                  and tgrelid = 'public.profiles'::regclass)
+  -- Table grants (migration 040): without these, every BSC query fails with "permission denied"
+  union all
+  select 'authenticated can read and write bscs (grants)',
+         has_table_privilege('authenticated', 'public.bscs', 'SELECT')
+           and has_table_privilege('authenticated', 'public.bscs', 'INSERT')
+  union all
+  select 'authenticated can read fellowships (grants)',
+         has_table_privilege('authenticated', 'public.fellowships', 'SELECT')
 )
 select
   item,
