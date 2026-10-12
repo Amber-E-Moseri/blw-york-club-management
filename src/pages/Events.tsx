@@ -224,10 +224,11 @@ const EventFormModal: React.FC<{
     if (notify) {
       try {
         const result = await notifyEventMembers(created.id);
-        notice = result.sent > 0
-          ? `Event saved. Notified ${result.sent} of ${result.recipients} ${result.recipients === 1 ? 'member' : 'members'}.`
+        notice = result.members_sent > 0
+          ? `Event saved. Notified ${result.members_sent} of ${result.recipients} ${result.recipients === 1 ? 'member' : 'members'}.`
           : `Event saved. No one was notified: ${result.recipients === 0 ? 'no members matched the audience' : 'no active push subscriptions'}.`;
-        if (result.failed > 0) notice += ` ${result.failed} delivery failed.`;
+        if (result.members_failed > 0) notice += ` ${result.members_failed} ${result.members_failed === 1 ? 'member' : 'members'} could not be reached.`;
+        if (!result.log_saved) notice += ' The delivery log could not be saved.';
       } catch (e) {
         notice = `Event saved, but notifications failed: ${e instanceof Error ? e.message : 'unknown error'}.`;
       }

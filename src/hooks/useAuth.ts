@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { releaseDeviceSubscription } from './usePushNotifications';
 import {
   signInWithEmail,
   signUpWithEmail,
@@ -82,6 +83,11 @@ export function useAuth() {
   }, []);
 
   const signOut = useCallback(async () => {
+    // Detach this browser from the account while the session can still authorise the delete. Otherwise the
+    // next person on this device would inherit the previous account's notifications. A failure must not block sign-out.
+    await releaseDeviceSubscription().catch((err) =>
+      console.warn('[Push] could not release device subscription', err instanceof Error ? err.message : err)
+    );
     await authSignOut();
   }, []);
 

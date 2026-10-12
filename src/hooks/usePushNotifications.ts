@@ -12,6 +12,40 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return output;
 }
 
+/** Store this browser's subscription against the signed-in account. Idempotent: safe to call on every load. */
+async function saveSubscription(userId: string, sub: PushSubscription): Promise<void> {
+  const subJson = sub.toJSON();
+  const { error: dbError } = await supabase.from('push_subscriptions').upsert(
+    {
+      user_id: userId,
+      endpoint: sub.endpoint,
+      p256dh: subJson.keys?.p256dh ?? '',
+      auth: subJson.keys?.auth ?? '',
+      user_agent: navigator.userAgent.slice(0, 200),
+      is_active: true,
+      subscribed_at: new Date().toISOString(),
+    },
+    { onConflict: 'endpoint' }
+  );
+  if (dbError) throw new Error(dbError.message);
+}
+
+/**
+ * Remove this browser's subscription from the account and from the browser. Must run while the session is still
+ * signed in, because the delete is authorised by RLS (user_id = auth.uid()). Does nothing if there is no subscription.
+ */
+export async function releaseDeviceSubscription(): Promise<void> {
+  if (!('serviceWorker' in navigator)) return;
+  // getRegistration resolves to undefined when no worker is registered; serviceWorker.ready would never settle.
+  const reg = await navigator.serviceWorker.getRegistration();
+  const sub = await reg?.pushManager.getSubscription();
+  if (!sub) return;
+
+  const { error } = await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+  if (error) throw new Error(error.message);
+  await sub.unsubscribe();
+}
+
 export type PushPermission = 'default' | 'granted' | 'denied';
 
 export interface UsePushNotificationsResult {
@@ -45,7 +79,16 @@ export function usePushNotifications(userId: string | undefined): UsePushNotific
 
     navigator.serviceWorker.ready
       .then((reg) => reg.pushManager.getSubscription())
-      .then((sub) => setSubscribed(!!sub))
+      .then((sub) => {
+        setSubscribed(!!sub);
+        // Reconcile: a browser subscription that never reached the database (failed save, or the browser rotated
+        // the endpoint while the app was closed) is saved now. Failures are retried on the next load.
+        if (sub && userId && Notification.permission === 'granted') {
+          saveSubscription(userId, sub).catch((err) =>
+            console.warn('[Push] could not save subscription', err instanceof Error ? err.message : err)
+          );
+        }
+      })
       .catch(() => {});
   }, [supported, userId]);
 
@@ -75,21 +118,14 @@ export function usePushNotifications(userId: string | undefined): UsePushNotific
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
       });
 
-      const subJson = sub.toJSON();
-      const { error: dbError } = await supabase.from('push_subscriptions').upsert(
-        {
-          user_id: userId,
-          endpoint: sub.endpoint,
-          p256dh: subJson.keys?.p256dh ?? '',
-          auth: subJson.keys?.auth ?? '',
-          user_agent: navigator.userAgent.slice(0, 200),
-          is_active: true,
-          subscribed_at: new Date().toISOString(),
-        },
-        { onConflict: 'endpoint' }
-      );
-
-      if (dbError) throw new Error(dbError.message);
+      // Save before reporting success. If the save fails, undo the browser subscription so the UI never shows
+      // "Enabled" for a device the server cannot reach.
+      try {
+        await saveSubscription(userId, sub);
+      } catch (dbErr) {
+        await sub.unsubscribe();
+        throw dbErr;
+      }
 
       setSubscribed(true);
       setLoading(false);
@@ -106,13 +142,8 @@ export function usePushNotifications(userId: string | undefined): UsePushNotific
     setError(null);
 
     try {
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.getSubscription();
-
-      if (sub) {
-        await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
-        await sub.unsubscribe();
-      }
+      // Database first: if the delete fails, the browser keeps its subscription and the UI still says "Enabled".
+      await releaseDeviceSubscription();
 
       setSubscribed(false);
       setLoading(false);

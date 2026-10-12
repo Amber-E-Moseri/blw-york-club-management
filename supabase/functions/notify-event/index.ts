@@ -100,12 +100,14 @@ function buildPayload(event: {
 }): string {
   const when = [event.date, event.time ? `at ${event.time.slice(0, 5)}` : null].filter(Boolean).join(' ');
   const where = event.location ? ` · ${event.location}` : '';
+  // `data` is what the service worker reads for the click target; the top-level url is kept for older workers.
   return JSON.stringify({
     title: `New event: ${event.title}`,
     body: `${when}${where}`,
     url: '/events',
     type: 'event',
     eventId: event.id,
+    data: { url: '/events', type: 'event', eventId: event.id },
   });
 }
 
@@ -141,7 +143,17 @@ Deno.serve(async (req) => {
     try {
       recipientIds = await resolveRecipientIds(event);
       if (recipientIds.length === 0) {
-        return json({ event_id: eventId, recipients: 0, devices: 0, sent: 0, failed: 0, expired: 0 });
+        return json({
+          event_id: eventId,
+          recipients: 0,
+          members_sent: 0,
+          members_failed: 0,
+          devices: 0,
+          sent: 0,
+          failed: 0,
+          expired: 0,
+          log_saved: true,
+        });
       }
       const { data, error } = await supabase
         .from('push_subscriptions')
@@ -194,18 +206,25 @@ Deno.serve(async (req) => {
       status: result.sent ? 'sent' : 'failed',
       response_data: { target_url: '/events', error: result.sent ? null : result.error },
     }));
-    if (logRows.length > 0) {
+    // The pushes have already gone out, so the event cannot be re-claimed. Retry the log once and report if it still fails.
+    let logSaved = logRows.length === 0;
+    for (let attempt = 1; attempt <= 2 && !logSaved; attempt++) {
       const { error: logError } = await supabase.from('push_notification_log').insert(logRows);
-      if (logError) console.error('push_notification_log insert failed', logError.message);
+      if (!logError) logSaved = true;
+      else console.error(`push_notification_log insert failed (attempt ${attempt})`, logError.message);
     }
 
     return json({
       event_id: eventId,
       recipients: recipientIds.length,
+      // Member counts: one log row per member. Device counts: one per push subscription.
+      members_sent: logRows.filter((r) => r.status === 'sent').length,
+      members_failed: logRows.filter((r) => r.status === 'failed').length,
       devices: subscriptions.length,
       sent: outcomes.filter((o) => o.status === 'sent').length,
       failed: outcomes.filter((o) => o.status === 'failed').length,
       expired: outcomes.filter((o) => o.status === 'expired').length,
+      log_saved: logSaved,
     });
   } catch (err) {
     if (err instanceof HttpError) return json({ error: err.message }, err.status);

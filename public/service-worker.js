@@ -73,10 +73,11 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: payload.body,
-    icon: payload.icon || '/logo192.png',
-    badge: payload.badge || '/logo192.png',
+    icon: payload.icon || '/logo.png',
+    badge: payload.badge || '/logo.png',
     tag: payload.tag,
-    data: payload.data || { url: '/' },
+    // notify-event sends the target as a top-level `url`; accept either shape.
+    data: payload.data || { url: payload.url || '/' },
     actions: payload.actions || [],
     requireInteraction: false,
     silent: false,
@@ -123,6 +124,17 @@ self.addEventListener('notificationclick', (event) => {
           return self.clients.openWindow(targetUrl);
         }
       })
+  );
+});
+
+// ─── Subscription Change ─────────────────────────────────────────────────────
+// The browser rotated or expired the endpoint. Re-subscribe with the same key so pushes keep arriving. The new
+// endpoint is saved to the database the next time the app loads (usePushNotifications reconciles on load).
+self.addEventListener('pushsubscriptionchange', (event) => {
+  const key = event.oldSubscription?.options?.applicationServerKey ?? null;
+  if (!key) return;
+  event.waitUntil(
+    self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }).catch(() => {})
   );
 });
 

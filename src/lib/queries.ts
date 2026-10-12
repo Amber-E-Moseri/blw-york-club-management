@@ -62,11 +62,19 @@ export async function createEvent(input: EventInput): Promise<Event> {
 }
 
 export interface EventNotifyResult {
+  /** Active members the audience resolved to. */
   recipients: number;
+  /** Members with at least one device that accepted the push. */
+  members_sent: number;
+  /** Members whose every device failed. */
+  members_failed: number;
+  /** Push subscriptions attempted (one member can have several devices). */
   devices: number;
   sent: number;
   failed: number;
   expired: number;
+  /** False if the delivery log could not be written after the pushes went out. */
+  log_saved: boolean;
 }
 
 /** Sends the new-event push notification through the notify-event edge function. Admins and coordinators only. */
