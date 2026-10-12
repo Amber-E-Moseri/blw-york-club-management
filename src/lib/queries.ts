@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { Event, EventCategory, Member, Announcement, PrayerRequest, DashboardStats } from '../types';
+import type { Event, EventAudience, EventCategory, Member, Announcement, PrayerRequest, DashboardStats } from '../types';
 
 // ─── Events ──────────────────────────────────────────────────────────────────
 
@@ -32,9 +32,16 @@ export interface EventInput {
   location?: string;
   category: EventCategory;
   created_by: string;
+  /** 'all' notifies every active member; 'meeting' notifies the people assigned to audienceMeetingId. */
+  audience?: EventAudience;
+  audienceMeetingId?: string | null;
 }
 
 export async function createEvent(input: EventInput): Promise<Event> {
+  const audience = input.audience ?? 'all';
+  if (audience === 'meeting' && !input.audienceMeetingId) {
+    throw new Error('Choose a meeting for this event audience.');
+  }
   const { data, error } = await supabase
     .from('events')
     .insert({
@@ -45,10 +52,34 @@ export async function createEvent(input: EventInput): Promise<Event> {
       location: input.location ?? null,
       category: input.category,
       created_by: input.created_by,
+      audience,
+      audience_meeting_id: audience === 'meeting' ? input.audienceMeetingId : null,
     })
     .select()
     .single();
   if (error) throw new Error(error.message);
+  return data;
+}
+
+export interface EventNotifyResult {
+  recipients: number;
+  devices: number;
+  sent: number;
+  failed: number;
+  expired: number;
+}
+
+/** Sends the new-event push notification through the notify-event edge function. Admins and coordinators only. */
+export async function notifyEventMembers(eventId: string): Promise<EventNotifyResult> {
+  const { data, error } = await supabase.functions.invoke<EventNotifyResult & { error?: string }>('notify-event', {
+    body: { event_id: eventId },
+  });
+  if (error) {
+    // A non-2xx reply carries the function's own message in the response body.
+    const detail = await (error as { context?: Response }).context?.json?.().catch(() => null);
+    throw new Error((detail as { error?: string } | null)?.error ?? error.message);
+  }
+  if (!data || data.error) throw new Error(data?.error ?? 'Could not send notifications');
   return data;
 }
 
