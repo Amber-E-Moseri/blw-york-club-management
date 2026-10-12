@@ -2065,7 +2065,7 @@
       },
       "security": "definer",
       "volatility": "s",
-      "definition_md5": "5e20012318656576f8da34e06331971f"
+      "definition_md5": "e852380f1be95d606c296b2a961118b5"
     },
     "is_cell_leader_of(uuid)": {
       "owner": "postgres",
@@ -2104,7 +2104,7 @@
       },
       "security": "invoker",
       "volatility": "s",
-      "definition_md5": "ba2b4d22e3b65dd070199f8a98f6d8ae"
+      "definition_md5": "52d20a93f7bb48730335b6056791790e"
     },
     "has_admin_permission(text)": {
       "owner": "postgres",
