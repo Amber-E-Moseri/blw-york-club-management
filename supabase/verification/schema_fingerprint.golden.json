@@ -11,21 +11,57 @@
     }
   },
   "tables": {
+    "bscs": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "cell_id:uuid:NOT NULL:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "leader_id:uuid:null:",
+        "name:text:NOT NULL:"
+      ],
+      "indexes": [
+        "bscs_cell_idx CREATE INDEX bscs_cell_idx ON public.bscs USING btree (cell_id)",
+        "bscs_leader_idx CREATE INDEX bscs_leader_idx ON public.bscs USING btree (leader_id)",
+        "bscs_pkey CREATE UNIQUE INDEX bscs_pkey ON public.bscs USING btree (id)"
+      ],
+      "policies": [
+        "bscs_manage | ALL | {public} | using=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id)) | check=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id))",
+        "bscs_read | SELECT | {public} | using=is_active_member() | check="
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "bscs_cell_id_fkey FOREIGN KEY (cell_id) REFERENCES cells(id) ON DELETE CASCADE",
+        "bscs_leader_id_fkey FOREIGN KEY (leader_id) REFERENCES profiles(id) ON DELETE SET NULL",
+        "bscs_name_check CHECK ((char_length(name) >= 1))",
+        "bscs_pkey PRIMARY KEY (id)"
+      ],
+      "maintain_acl": 0
+    },
     "cells": {
       "rls": true,
       "owner": "postgres",
       "columns": [
         "created_at:timestamp with time zone:NOT NULL:now()",
+        "fellowship_id:uuid:null:",
         "id:uuid:NOT NULL:gen_random_uuid()",
         "leader_id:uuid:null:",
         "name:text:NOT NULL:",
         "updated_at:timestamp with time zone:NOT NULL:now()"
       ],
       "indexes": [
+        "cells_fellowship_idx CREATE INDEX cells_fellowship_idx ON public.cells USING btree (fellowship_id)",
         "cells_pkey CREATE UNIQUE INDEX cells_pkey ON public.cells USING btree (id)"
       ],
       "policies": [
-        "cells_manage | ALL | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'coordinator'::text)))) | check=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'coordinator'::text))))",
+        "cells_manage | ALL | {public} | using=is_coordinator() | check=is_coordinator()",
         "cells_read | SELECT | {public} | using=is_active_member() | check="
       ],
       "triggers": [
@@ -38,6 +74,7 @@
         "authenticated": "DELETE,INSERT,SELECT,UPDATE"
       },
       "constraints": [
+        "cells_fellowship_id_fkey FOREIGN KEY (fellowship_id) REFERENCES fellowships(id) ON DELETE SET NULL",
         "cells_leader_id_fkey FOREIGN KEY (leader_id) REFERENCES profiles(id) ON DELETE SET NULL",
         "cells_name_check CHECK ((char_length(name) >= 1))",
         "cells_pkey PRIMARY KEY (id)"
@@ -104,7 +141,7 @@
         "people_pkey CREATE UNIQUE INDEX people_pkey ON public.people USING btree (id)"
       ],
       "policies": [
-        "people_delete | DELETE | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'coordinator'::text)))) | check=",
+        "people_delete | DELETE | {public} | using=is_coordinator() | check=",
         "people_insert | INSERT | {public} | using= | check=is_active_member()",
         "people_read | SELECT | {public} | using=is_active_member() | check=",
         "people_update | UPDATE | {public} | using=is_core_admin() | check=is_core_admin()"
@@ -215,9 +252,9 @@
         "meetings_pkey CREATE UNIQUE INDEX meetings_pkey ON public.meetings USING btree (id)"
       ],
       "policies": [
-        "meetings_cell_read | SELECT | {public} | using=((visibility = 'cell'::text) AND (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cell_id = meetings.cell_id))))) | check=",
-        "meetings_leaders_read | SELECT | {public} | using=((visibility = 'leaders'::text) AND (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['cell_leader'::text, 'admin'::text, 'coordinator'::text])))))) | check=",
-        "meetings_manage_scoped | ALL | {public} | using=(is_admin_or_coordinator() OR ((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'cell_leader'::text)))) AND ((created_by = auth.uid()) OR is_cell_leader_of(cell_id)))) | check=(is_admin_or_coordinator() OR ((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'cell_leader'::text)))) AND (created_by = auth.uid()) AND is_cell_leader_of(cell_id)))",
+        "meetings_cell_read | SELECT | {public} | using=((visibility = 'cell'::text) AND is_active_member() AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.cell_id = meetings.cell_id))))) | check=",
+        "meetings_leaders_read | SELECT | {public} | using=((visibility = 'leaders'::text) AND (current_user_role() = ANY (ARRAY['cell_leader'::text, 'admin'::text, 'coordinator'::text]))) | check=",
+        "meetings_manage_scoped | ALL | {public} | using=(is_admin_or_coordinator() OR ((current_user_role() = 'cell_leader'::text) AND ((created_by = auth.uid()) OR is_cell_leader_of(cell_id)))) | check=(is_admin_or_coordinator() OR ((current_user_role() = 'cell_leader'::text) AND (created_by = auth.uid()) AND is_cell_leader_of(cell_id)))",
         "meetings_public_read | SELECT | {public} | using=(is_active_member() AND (visibility = 'public'::text)) | check="
       ],
       "triggers": [
@@ -244,6 +281,7 @@
       "columns": [
         "admin_role:text:null:",
         "avatar_url:text:null:",
+        "bsc_id:uuid:null:",
         "cell_id:uuid:null:",
         "email:text:null:",
         "full_name:text:null:",
@@ -256,6 +294,7 @@
         "updated_at:timestamp with time zone:NOT NULL:now()"
       ],
       "indexes": [
+        "profiles_bsc_idx CREATE INDEX profiles_bsc_idx ON public.profiles USING btree (bsc_id)",
         "profiles_person_idx CREATE INDEX profiles_person_idx ON public.profiles USING btree (person_id)",
         "profiles_pkey CREATE UNIQUE INDEX profiles_pkey ON public.profiles USING btree (id)"
       ],
@@ -265,6 +304,7 @@
         "profiles_self_onboarding_update | UPDATE | {authenticated} | using=((id = auth.uid()) AND (status = 'pending'::text)) | check=((id = auth.uid()) AND (status = 'pending'::text))"
       ],
       "triggers": [
+        "CREATE TRIGGER profiles_guard_bsc_assignment BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION guard_profile_bsc_assignment()",
         "CREATE TRIGGER profiles_guard_privileged_columns BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION guard_profile_privileged_columns()",
         "CREATE TRIGGER profiles_staff_edit_audit AFTER UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION audit_staff_profile_edits()",
         "CREATE TRIGGER profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
@@ -276,6 +316,7 @@
         "authenticated": "DELETE,INSERT,SELECT,UPDATE"
       },
       "constraints": [
+        "profiles_bsc_id_fkey FOREIGN KEY (bsc_id) REFERENCES bscs(id) ON DELETE SET NULL",
         "profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE",
         "profiles_person_id_fkey FOREIGN KEY (person_id) REFERENCES people(id) ON DELETE SET NULL",
         "profiles_pkey PRIMARY KEY (id)",
@@ -313,8 +354,8 @@
         "idx_email_log_template CREATE INDEX idx_email_log_template ON public.email_log USING btree (template_type, created_at DESC)"
       ],
       "policies": [
-        "email_log_admin_manage | ALL | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['admin'::text, 'coordinator'::text]))))) | check=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['admin'::text, 'coordinator'::text])))))",
-        "email_log_admin_read | SELECT | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['admin'::text, 'coordinator'::text]))))) | check=",
+        "email_log_admin_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
+        "email_log_admin_read | SELECT | {public} | using=is_admin_or_coordinator() | check=",
         "email_log_own_read | SELECT | {public} | using=(auth.uid() = member_id) | check="
       ],
       "triggers": [],
@@ -348,7 +389,7 @@
         "admin_roles_pkey CREATE UNIQUE INDEX admin_roles_pkey ON public.admin_roles USING btree (id)"
       ],
       "policies": [
-        "admin_roles_manage | ALL | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'coordinator'::text)))) | check=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'coordinator'::text))))",
+        "admin_roles_manage | ALL | {public} | using=is_coordinator() | check=is_coordinator()",
         "admin_roles_read_explicit | SELECT | {public} | using=is_admin_or_coordinator() | check="
       ],
       "triggers": [
@@ -428,6 +469,34 @@
         "event_rsvps_event_id_fkey FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE",
         "event_rsvps_pkey PRIMARY KEY (event_id, user_id)",
         "event_rsvps_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE"
+      ],
+      "maintain_acl": 0
+    },
+    "fellowships": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "name:text:NOT NULL:"
+      ],
+      "indexes": [
+        "fellowships_pkey CREATE UNIQUE INDEX fellowships_pkey ON public.fellowships USING btree (id)"
+      ],
+      "policies": [
+        "fellowships_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
+        "fellowships_read | SELECT | {public} | using=is_active_member() | check="
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "fellowships_name_check CHECK ((char_length(name) >= 1))",
+        "fellowships_pkey PRIMARY KEY (id)"
       ],
       "maintain_acl": 0
     },
@@ -649,8 +718,8 @@
         "idx_habit_entries_user_date CREATE INDEX idx_habit_entries_user_date ON public.habit_entries USING btree (user_id, entry_date)"
       ],
       "policies": [
-        "habit_entries_admin_read | SELECT | {public} | using=((auth.uid() = user_id) OR is_admin_or_coordinator()) | check=",
-        "habit_entries_own | ALL | {public} | using=(auth.uid() = user_id) | check=(auth.uid() = user_id)"
+        "habit_entries_admin_read | SELECT | {public} | using=(((auth.uid() = user_id) AND is_active_member()) OR (is_admin_or_coordinator() AND is_active_profile(user_id))) | check=",
+        "habit_entries_own | ALL | {public} | using=((auth.uid() = user_id) AND is_active_member()) | check=((auth.uid() = user_id) AND is_active_member())"
       ],
       "triggers": [],
       "force_rls": false,
@@ -796,7 +865,7 @@
         "idx_books_active_period CREATE INDEX idx_books_active_period ON public.books_of_month USING btree (active_from, active_until)"
       ],
       "policies": [
-        "books_manage | ALL | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['coordinator'::text, 'admin'::text]))))) | check=",
+        "books_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
         "books_read | SELECT | {public} | using=is_active_member() | check="
       ],
       "triggers": [
@@ -912,10 +981,10 @@
         "prayer_requests_pkey CREATE UNIQUE INDEX prayer_requests_pkey ON public.prayer_requests USING btree (id)"
       ],
       "policies": [
-        "prayers_coordinator_manage | UPDATE | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['coordinator'::text, 'admin'::text]))))) | check=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['coordinator'::text, 'admin'::text])))))",
-        "prayers_leadership_read | SELECT | {public} | using=((visibility = ANY (ARRAY['leadership'::text, 'shared'::text])) AND (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['coordinator'::text, 'admin'::text, 'cell_leader'::text])))))) | check=",
-        "prayers_own | ALL | {public} | using=(auth.uid() = author_id) | check=",
-        "prayers_shared_read | SELECT | {public} | using=((visibility = 'shared'::text) AND is_active_member()) | check="
+        "prayers_coordinator_manage | UPDATE | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
+        "prayers_leadership_read | SELECT | {public} | using=((visibility = ANY (ARRAY['leadership'::text, 'shared'::text])) AND is_active_profile(author_id) AND (is_admin_or_coordinator() OR is_cell_leader_for_profile(author_id))) | check=",
+        "prayers_own | ALL | {public} | using=((auth.uid() = author_id) AND is_active_member()) | check=((auth.uid() = author_id) AND is_active_member())",
+        "prayers_shared_read | SELECT | {public} | using=((visibility = 'shared'::text) AND is_active_member() AND is_active_profile(author_id)) | check="
       ],
       "triggers": [
         "CREATE TRIGGER prayer_requests_updated_at BEFORE UPDATE ON public.prayer_requests FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
@@ -1072,8 +1141,9 @@
         "idx_devotional_views_member_id CREATE INDEX idx_devotional_views_member_id ON public.devotional_views USING btree (member_id, viewed_date DESC)"
       ],
       "policies": [
-        "views_admin_read | SELECT | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['coordinator'::text, 'admin'::text]))))) | check=",
-        "views_own | ALL | {public} | using=(auth.uid() = member_id) | check="
+        "devotional_views_select_own_or_admin | SELECT | {public} | using=can_view_member(member_id) | check=",
+        "views_admin_read | SELECT | {public} | using=(is_devotional_admin() AND is_active_profile(member_id)) | check=",
+        "views_own | ALL | {public} | using=((auth.uid() = member_id) AND is_active_member()) | check=((auth.uid() = member_id) AND is_active_member())"
       ],
       "triggers": [],
       "force_rls": false,
@@ -1446,7 +1516,7 @@
         "monthly_devotionals_pkey CREATE UNIQUE INDEX monthly_devotionals_pkey ON public.monthly_devotionals USING btree (id)"
       ],
       "policies": [
-        "devotional_manage | ALL | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['coordinator'::text, 'admin'::text]))))) | check=",
+        "devotional_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
         "devotional_read | SELECT | {public} | using=is_active_member() | check="
       ],
       "triggers": [
@@ -1585,7 +1655,7 @@
         "admin_role_assignments_user_idx CREATE INDEX admin_role_assignments_user_idx ON public.admin_role_assignments USING btree (user_id)"
       ],
       "policies": [
-        "admin_role_assignments_manage | ALL | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'coordinator'::text)))) | check=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'coordinator'::text))))",
+        "admin_role_assignments_manage | ALL | {public} | using=is_coordinator() | check=is_coordinator()",
         "admin_role_assignments_read_explicit | SELECT | {public} | using=(is_admin_or_coordinator() OR (auth.uid() = user_id)) | check="
       ],
       "triggers": [],
@@ -1616,7 +1686,7 @@
         "admin_role_permissions_pkey CREATE UNIQUE INDEX admin_role_permissions_pkey ON public.admin_role_permissions USING btree (role_id, permission_key)"
       ],
       "policies": [
-        "admin_role_permissions_manage | ALL | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'coordinator'::text)))) | check=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'coordinator'::text))))",
+        "admin_role_permissions_manage | ALL | {public} | using=is_coordinator() | check=is_coordinator()",
         "admin_role_permissions_read_explicit | SELECT | {public} | using=is_admin_or_coordinator() | check="
       ],
       "triggers": [],
@@ -1651,7 +1721,7 @@
         "idx_devotional_daily_pages_devotional_id CREATE INDEX idx_devotional_daily_pages_devotional_id ON public.devotional_daily_pages USING btree (devotional_id, day_of_month)"
       ],
       "policies": [
-        "daily_pages_manage | ALL | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['coordinator'::text, 'admin'::text]))))) | check=",
+        "daily_pages_manage | ALL | {public} | using=is_devotional_admin() | check=is_devotional_admin()",
         "daily_pages_read | SELECT | {public} | using=is_active_member() | check="
       ],
       "triggers": [],
@@ -1754,8 +1824,7 @@
       ],
       "policies": [
         "confession_declarations_delete_own | DELETE | {public} | using=((auth.uid() = user_id) AND is_active_member()) | check=",
-        "confession_declarations_read | SELECT | {public} | using=is_active_member() | check=",
-        "confession_declarations_read_own | SELECT | {public} | using=(auth.uid() = user_id) | check=",
+        "confession_declarations_read_scoped | SELECT | {public} | using=can_view_member(user_id) | check=",
         "confession_declarations_update_own | UPDATE | {public} | using=((auth.uid() = user_id) AND is_active_member()) | check=((auth.uid() = user_id) AND is_active_member())",
         "confession_declarations_write_own | INSERT | {public} | using= | check=((auth.uid() = user_id) AND is_active_member())"
       ],
@@ -1864,7 +1933,7 @@
         "idx_foundation_classes_number CREATE INDEX idx_foundation_classes_number ON public.foundation_school_classes USING btree (class_number)"
       ],
       "policies": [
-        "classes_manage | ALL | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['coordinator'::text, 'admin'::text]))))) | check=",
+        "classes_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
         "classes_read | SELECT | {public} | using=is_active_member() | check="
       ],
       "triggers": [
@@ -1900,9 +1969,9 @@
         "idx_foundation_progress_enrollment CREATE INDEX idx_foundation_progress_enrollment ON public.foundation_school_progress USING btree (enrollment_id, completed_at DESC)"
       ],
       "policies": [
-        "progress_coordinator | ALL | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['coordinator'::text, 'admin'::text]))))) | check=",
-        "progress_own | SELECT | {public} | using=(EXISTS ( SELECT 1\n   FROM foundation_school_enrollments\n  WHERE ((foundation_school_enrollments.id = foundation_school_progress.enrollment_id) AND (foundation_school_enrollments.student_id = auth.uid())))) | check=",
-        "progress_teacher_read | SELECT | {public} | using=(EXISTS ( SELECT 1\n   FROM foundation_school_enrollments\n  WHERE ((foundation_school_enrollments.id = foundation_school_progress.enrollment_id) AND (foundation_school_enrollments.teacher_id = auth.uid())))) | check="
+        "progress_coordinator | ALL | {public} | using=(is_admin_or_coordinator() AND (EXISTS ( SELECT 1\n   FROM foundation_school_enrollments e\n  WHERE ((e.id = foundation_school_progress.enrollment_id) AND is_active_profile(e.student_id))))) | check=(is_admin_or_coordinator() AND (EXISTS ( SELECT 1\n   FROM foundation_school_enrollments e\n  WHERE ((e.id = foundation_school_progress.enrollment_id) AND is_active_profile(e.student_id)))))",
+        "progress_own | SELECT | {public} | using=(is_active_member() AND (EXISTS ( SELECT 1\n   FROM foundation_school_enrollments e\n  WHERE ((e.id = foundation_school_progress.enrollment_id) AND (e.student_id = auth.uid()))))) | check=",
+        "progress_teacher_read | SELECT | {public} | using=(is_active_member() AND (EXISTS ( SELECT 1\n   FROM foundation_school_enrollments e\n  WHERE ((e.id = foundation_school_progress.enrollment_id) AND (e.teacher_id = auth.uid()) AND is_active_profile(e.student_id))))) | check="
       ],
       "triggers": [],
       "force_rls": false,
@@ -1939,9 +2008,12 @@
         "idx_foundation_enrollments_teacher_id CREATE INDEX idx_foundation_enrollments_teacher_id ON public.foundation_school_enrollments USING btree (teacher_id)"
       ],
       "policies": [
-        "enrollments_coordinator | ALL | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['coordinator'::text, 'admin'::text]))))) | check=",
-        "enrollments_own | SELECT | {public} | using=(auth.uid() = student_id) | check=",
-        "enrollments_teacher_read | SELECT | {public} | using=(auth.uid() = teacher_id) | check="
+        "enrollments_own | SELECT | {public} | using=((auth.uid() = student_id) AND is_active_member()) | check=",
+        "enrollments_staff_delete | DELETE | {public} | using=(is_admin_or_coordinator() AND is_active_profile(student_id)) | check=",
+        "enrollments_staff_insert | INSERT | {public} | using= | check=(is_admin_or_coordinator() AND (EXISTS ( SELECT 1\n   FROM profiles s\n  WHERE ((s.id = foundation_school_enrollments.student_id) AND (s.status = ANY (ARRAY['pending'::text, 'active'::text]))))))",
+        "enrollments_staff_read | SELECT | {public} | using=(is_admin_or_coordinator() AND (EXISTS ( SELECT 1\n   FROM profiles s\n  WHERE ((s.id = foundation_school_enrollments.student_id) AND (s.status = ANY (ARRAY['pending'::text, 'active'::text])))))) | check=",
+        "enrollments_staff_update | UPDATE | {public} | using=(is_admin_or_coordinator() AND is_active_profile(student_id)) | check=(is_admin_or_coordinator() AND is_active_profile(student_id))",
+        "enrollments_teacher_read | SELECT | {public} | using=((auth.uid() = teacher_id) AND is_active_member() AND is_active_profile(student_id)) | check="
       ],
       "triggers": [
         "CREATE TRIGGER foundation_enrollments_updated_at BEFORE UPDATE ON public.foundation_school_enrollments FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
@@ -2040,6 +2112,32 @@
       "volatility": "s",
       "definition_md5": "a4bceb1a38db1df494e7ac16a42340a9"
     },
+    "bsc_members_visible()": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": false,
+        "authenticated": true
+      },
+      "security": "definer",
+      "volatility": "s",
+      "definition_md5": "0b981e684b5758f80d3d617f25f4b56f"
+    },
+    "can_view_member(uuid)": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": false,
+        "authenticated": true
+      },
+      "security": "definer",
+      "volatility": "s",
+      "definition_md5": "59e2dad8d0d1a98a73709b77ed587e39"
+    },
     "is_devotional_admin()": {
       "owner": "postgres",
       "config": "search_path=public, pg_temp",
@@ -2052,6 +2150,19 @@
       "security": "invoker",
       "volatility": "s",
       "definition_md5": "7f7f076ca3c97356023d8b2fdf6673a8"
+    },
+    "is_bsc_leader_of(uuid)": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": false,
+        "authenticated": true
+      },
+      "security": "definer",
+      "volatility": "s",
+      "definition_md5": "ec0ef6e52f59883774f8c6278cfafd0b"
     },
     "is_active_profile(uuid)": {
       "owner": "postgres",
@@ -2183,6 +2294,19 @@
       "volatility": "v",
       "definition_md5": "aa01ec89353f70babf8cb70f4b2421de"
     },
+    "guard_profile_bsc_assignment()": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": false,
+        "authenticated": false
+      },
+      "security": "invoker",
+      "volatility": "v",
+      "definition_md5": "a00dc1386156458ef8809dd12b48b01f"
+    },
     "normalize_identity_email(text)": {
       "owner": "postgres",
       "config": "",
@@ -2247,6 +2371,19 @@
       "security": "invoker",
       "volatility": "v",
       "definition_md5": "61ac7a9d1794c3f2afb8500461f0608e"
+    },
+    "confession_declaration_counts(uuid[])": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": false,
+        "authenticated": true
+      },
+      "security": "definer",
+      "volatility": "s",
+      "definition_md5": "05ce1c066169b9e0fec0cfd55063a900"
     },
     "bootstrap_first_administrator(text,text)": {
       "owner": "postgres",
