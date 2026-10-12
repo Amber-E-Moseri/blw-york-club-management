@@ -152,10 +152,13 @@ select rls_test.expect_count('A12 PENDING member sees no reads (own row included
 
 -- ─── B. Confession declarations: public.confession_declarations ──────────────────────────────────────────────────
 select rls_test.expect_count('B1 coordinator sees active members'' declarations (pending excluded, F4)', '00000000-0000-0000-0000-00000000c001', 'select 1 from public.confession_declarations', 5);
-select rls_test.expect_count('B2 cell leader sees declarations of cell C1 members', '00000000-0000-0000-0000-00000000c003', 'select 1 from public.confession_declarations', 4);
-select rls_test.expect_count('B3 BSC B1 leader sees only B1 member declaration', '00000000-0000-0000-0000-00000000b001', 'select 1 from public.confession_declarations', 1);
-select rls_test.expect_count('B4 unrelated BSC B2 leader sees only B2 member', '00000000-0000-0000-0000-00000000b002', 'select 1 from public.confession_declarations', 1);
-select rls_test.expect_count('B5 cross-fellowship BSC B3 leader sees only B3 member', '00000000-0000-0000-0000-00000000b003', 'select 1 from public.confession_declarations', 1);
+-- Decision 4: cell and BSC leaders read no declaration identity. They get counts only, through the RPC (B2c-B5c).
+select rls_test.expect_count('B2 cell leader reads no declaration identities of cell C1 members', '00000000-0000-0000-0000-00000000c003', 'select 1 from public.confession_declarations', 0);
+select rls_test.expect_count('B2c cell leader gets declaration counts via RPC', '00000000-0000-0000-0000-00000000c003', 'select 1 from public.confession_declaration_counts(array[''e0000000-0000-0000-0000-0000000000e1''::uuid])', 1);
+select rls_test.expect_count('B3 BSC B1 leader reads no declaration identity', '00000000-0000-0000-0000-00000000b001', 'select 1 from public.confession_declarations', 0);
+select rls_test.expect_count('B3c BSC B1 leader gets declaration counts via RPC', '00000000-0000-0000-0000-00000000b001', 'select 1 from public.confession_declaration_counts(array[''e0000000-0000-0000-0000-0000000000e1''::uuid])', 1);
+select rls_test.expect_count('B4 unrelated BSC B2 leader reads no declaration identity', '00000000-0000-0000-0000-00000000b002', 'select 1 from public.confession_declarations', 0);
+select rls_test.expect_count('B5 cross-fellowship BSC B3 leader reads no declaration identity', '00000000-0000-0000-0000-00000000b003', 'select 1 from public.confession_declarations', 0);
 select rls_test.expect_count('B6 INACTIVE BSC leader sees no declarations', '00000000-0000-0000-0000-00000000b004', 'select 1 from public.confession_declarations', 0);
 select rls_test.expect_count('B7 PENDING BSC leader sees no declarations', '00000000-0000-0000-0000-00000000b005', 'select 1 from public.confession_declarations', 0);
 select rls_test.expect_count('B8 active member sees only own declaration (BSC intent)', '00000000-0000-0000-0000-00000000d001', 'select 1 from public.confession_declarations', 1);

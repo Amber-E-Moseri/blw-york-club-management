@@ -224,7 +224,10 @@ select authz_test.expect_value('C7 pending member cannot use the count RPC', '00
   $q$select count(*)::bigint from public.confession_declaration_counts(array['e0000000-0000-0000-0000-0000000000e1'::uuid])$q$, 0);
 select authz_test.expect_value('C8 inactive BSC leader cannot use the count RPC', '00000000-0000-0000-0000-00000000b004',
   $q$select count(*)::bigint from public.confession_declaration_counts(array['e0000000-0000-0000-0000-0000000000e1'::uuid])$q$, 0);
-select authz_test.expect_count('C9 active BSC leader B1 sees declaration of its active member only', '00000000-0000-0000-0000-00000000b001', 'select 1 from public.confession_declarations', 1);
+-- Decision 4: a BSC leader reads no declaration identity. Counts only, through the RPC (C9b).
+select authz_test.expect_count('C9 active BSC leader B1 reads no declaration identities', '00000000-0000-0000-0000-00000000b001', 'select 1 from public.confession_declarations', 0);
+select authz_test.expect_value('C9b active BSC leader B1 gets declaration counts via RPC', '00000000-0000-0000-0000-00000000b001',
+  $q$select coalesce(sum(declaration_count),0)::bigint from public.confession_declaration_counts(array['e0000000-0000-0000-0000-0000000000e1'::uuid])$q$, 5);
 select authz_test.expect_count('C10 coordinator sees declarations of active members only', '00000000-0000-0000-0000-00000000c001', 'select 1 from public.confession_declarations', 5);
 select authz_test.expect_value('C11 broad declaration read policy removed', '00000000-0000-0000-0000-00000000c001',
   $q$select count(*)::bigint from pg_policies where schemaname='public' and tablename='confession_declarations' and policyname='confession_declarations_read'$q$, 0);

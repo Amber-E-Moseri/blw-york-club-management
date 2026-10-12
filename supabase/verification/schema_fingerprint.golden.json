@@ -30,7 +30,9 @@
         "bscs_manage | ALL | {public} | using=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id)) | check=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id))",
         "bscs_read | SELECT | {public} | using=is_active_member() | check="
       ],
-      "triggers": [],
+      "triggers": [
+        "CREATE TRIGGER bscs_guard_leader_assignment BEFORE INSERT OR UPDATE OF leader_id ON public.bscs FOR EACH ROW EXECUTE FUNCTION guard_leader_assignment()"
+      ],
       "force_rls": false,
       "privileges": {
         "anon": "",
@@ -65,6 +67,7 @@
         "cells_read | SELECT | {public} | using=is_active_member() | check="
       ],
       "triggers": [
+        "CREATE TRIGGER cells_guard_leader_assignment BEFORE INSERT OR UPDATE OF leader_id ON public.cells FOR EACH ROW EXECUTE FUNCTION guard_leader_assignment()",
         "CREATE TRIGGER cells_updated_at BEFORE UPDATE ON public.cells FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
       ],
       "force_rls": false,
@@ -253,7 +256,7 @@
       ],
       "policies": [
         "meetings_cell_read | SELECT | {public} | using=((visibility = 'cell'::text) AND is_active_member() AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.cell_id = meetings.cell_id))))) | check=",
-        "meetings_leaders_read | SELECT | {public} | using=((visibility = 'leaders'::text) AND (current_user_role() = ANY (ARRAY['cell_leader'::text, 'admin'::text, 'coordinator'::text]))) | check=",
+        "meetings_leaders_read | SELECT | {authenticated} | using=((visibility = 'leaders'::text) AND (is_admin_or_coordinator() OR is_cell_leader_of(cell_id))) | check=",
         "meetings_manage_scoped | ALL | {public} | using=(is_admin_or_coordinator() OR ((current_user_role() = 'cell_leader'::text) AND ((created_by = auth.uid()) OR is_cell_leader_of(cell_id)))) | check=(is_admin_or_coordinator() OR ((current_user_role() = 'cell_leader'::text) AND (created_by = auth.uid()) AND is_cell_leader_of(cell_id)))",
         "meetings_public_read | SELECT | {public} | using=(is_active_member() AND (visibility = 'public'::text)) | check="
       ],
@@ -301,7 +304,8 @@
       "policies": [
         "profiles_coordinator_administer | ALL | {public} | using=is_coordinator() | check=is_coordinator()",
         "profiles_select_scoped | SELECT | {public} | using=((id = auth.uid()) OR is_admin_or_coordinator() OR is_cell_leader_for_profile(id)) | check=",
-        "profiles_self_onboarding_update | UPDATE | {authenticated} | using=((id = auth.uid()) AND (status = 'pending'::text)) | check=((id = auth.uid()) AND (status = 'pending'::text))"
+        "profiles_self_onboarding_update | UPDATE | {authenticated} | using=((id = auth.uid()) AND (status = 'pending'::text)) | check=((id = auth.uid()) AND (status = 'pending'::text))",
+        "profiles_self_update_active | UPDATE | {authenticated} | using=((id = auth.uid()) AND (status = 'active'::text)) | check=((id = auth.uid()) AND (status = 'active'::text))"
       ],
       "triggers": [
         "CREATE TRIGGER profiles_guard_bsc_assignment BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION guard_profile_bsc_assignment()",
@@ -566,10 +570,10 @@
         "testimonies_pkey CREATE UNIQUE INDEX testimonies_pkey ON public.testimonies USING btree (id)"
       ],
       "policies": [
-        "testimonies_delete | DELETE | {public} | using=(author_id = auth.uid()) | check=",
-        "testimonies_insert | INSERT | {public} | using= | check=(author_id = auth.uid())",
+        "testimonies_delete | DELETE | {authenticated} | using=((author_id = auth.uid()) AND is_active_member()) | check=",
+        "testimonies_insert | INSERT | {authenticated} | using= | check=((author_id = auth.uid()) AND is_active_member())",
         "testimonies_select | SELECT | {public} | using=((author_id = auth.uid()) OR ((status = 'approved'::text) AND ((visibility = 'public'::text) OR ((visibility = 'members'::text) AND is_active_member()) OR ((visibility = 'cell'::text) AND is_active_member()))) OR (is_active_member() AND (EXISTS ( SELECT 1\n   FROM user_profiles\n  WHERE (user_profiles.user_id = auth.uid()))))) | check=",
-        "testimonies_update | UPDATE | {public} | using=(author_id = auth.uid()) | check=(author_id = auth.uid())"
+        "testimonies_update | UPDATE | {authenticated} | using=((author_id = auth.uid()) AND is_active_member()) | check=((author_id = auth.uid()) AND is_active_member())"
       ],
       "triggers": [
         "CREATE TRIGGER testimonies_updated_at BEFORE UPDATE ON public.testimonies FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
@@ -1061,10 +1065,10 @@
         "weekly_messages_pkey CREATE UNIQUE INDEX weekly_messages_pkey ON public.weekly_messages USING btree (id)"
       ],
       "policies": [
-        "weekly_messages_delete | DELETE | {public} | using=((auth.uid() = created_by) OR is_admin_or_coordinator()) | check=",
-        "weekly_messages_insert | INSERT | {public} | using= | check=((auth.uid() = created_by) AND (((scope)::text = 'personal'::text) OR is_admin_or_coordinator()))",
+        "weekly_messages_delete | DELETE | {authenticated} | using=(((auth.uid() = created_by) AND is_active_member()) OR is_admin_or_coordinator()) | check=",
+        "weekly_messages_insert | INSERT | {authenticated} | using= | check=((auth.uid() = created_by) AND is_active_member() AND (((scope)::text = 'personal'::text) OR is_admin_or_coordinator()))",
         "weekly_messages_read | SELECT | {public} | using=(((scope)::text = 'org'::text) OR (auth.uid() = created_by)) | check=",
-        "weekly_messages_update | UPDATE | {public} | using=((auth.uid() = created_by) OR is_admin_or_coordinator()) | check=((auth.uid() = created_by) OR is_admin_or_coordinator())"
+        "weekly_messages_update | UPDATE | {authenticated} | using=(((auth.uid() = created_by) AND is_active_member()) OR is_admin_or_coordinator()) | check=(((auth.uid() = created_by) AND is_active_member()) OR is_admin_or_coordinator())"
       ],
       "triggers": [
         "CREATE TRIGGER weekly_messages_updated_at BEFORE UPDATE ON public.weekly_messages FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
@@ -1250,9 +1254,9 @@
         "email_preferences_pkey CREATE UNIQUE INDEX email_preferences_pkey ON public.email_preferences USING btree (user_id)"
       ],
       "policies": [
-        "email_preferences_insert_own | INSERT | {public} | using= | check=(user_id = auth.uid())",
+        "email_preferences_insert_own | INSERT | {authenticated} | using= | check=((user_id = auth.uid()) AND is_active_member())",
         "email_preferences_select_own | SELECT | {public} | using=(user_id = auth.uid()) | check=",
-        "email_preferences_update_own | UPDATE | {public} | using=(user_id = auth.uid()) | check=(user_id = auth.uid())"
+        "email_preferences_update_own | UPDATE | {authenticated} | using=((user_id = auth.uid()) AND is_active_member()) | check=((user_id = auth.uid()) AND is_active_member())"
       ],
       "triggers": [
         "CREATE TRIGGER email_preferences_updated_at BEFORE UPDATE ON public.email_preferences FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
@@ -1361,9 +1365,9 @@
       ],
       "policies": [
         "push_subscriptions_delete_own | DELETE | {public} | using=(user_id = auth.uid()) | check=",
-        "push_subscriptions_insert_own | INSERT | {public} | using= | check=(user_id = auth.uid())",
+        "push_subscriptions_insert_own | INSERT | {authenticated} | using= | check=((user_id = auth.uid()) AND is_active_member())",
         "push_subscriptions_select_own | SELECT | {public} | using=(user_id = auth.uid()) | check=",
-        "push_subscriptions_update_own | UPDATE | {public} | using=(user_id = auth.uid()) | check=(user_id = auth.uid())"
+        "push_subscriptions_update_own | UPDATE | {authenticated} | using=((user_id = auth.uid()) AND is_active_member()) | check=((user_id = auth.uid()) AND is_active_member())"
       ],
       "triggers": [],
       "force_rls": false,
@@ -1395,8 +1399,8 @@
         "testimony_comments_pkey CREATE UNIQUE INDEX testimony_comments_pkey ON public.testimony_comments USING btree (id)"
       ],
       "policies": [
-        "comments_delete | DELETE | {public} | using=(author_id = auth.uid()) | check=",
-        "comments_insert | INSERT | {public} | using= | check=(author_id = auth.uid())",
+        "comments_delete | DELETE | {authenticated} | using=((author_id = auth.uid()) AND is_active_member()) | check=",
+        "comments_insert | INSERT | {authenticated} | using= | check=((author_id = auth.uid()) AND is_active_member())",
         "comments_select | SELECT | {public} | using=is_active_member() | check="
       ],
       "triggers": [
@@ -1438,7 +1442,7 @@
         "drive_link_metadata_pkey CREATE UNIQUE INDEX drive_link_metadata_pkey ON public.drive_link_metadata USING btree (id)"
       ],
       "policies": [
-        "drive_links_manage | ALL | {public} | using=((owner_id = auth.uid()) OR is_core_admin()) | check=((owner_id = auth.uid()) OR is_core_admin())",
+        "drive_links_manage | ALL | {authenticated} | using=(((owner_id = auth.uid()) AND is_active_member()) OR is_core_admin()) | check=(((owner_id = auth.uid()) AND is_active_member()) OR is_core_admin())",
         "drive_links_read | SELECT | {public} | using=is_active_member() | check="
       ],
       "triggers": [
@@ -1554,8 +1558,8 @@
         "testimony_reactions_testimony_id_user_id_reaction_type_key CREATE UNIQUE INDEX testimony_reactions_testimony_id_user_id_reaction_type_key ON public.testimony_reactions USING btree (testimony_id, user_id, reaction_type)"
       ],
       "policies": [
-        "reactions_delete | DELETE | {public} | using=(user_id = auth.uid()) | check=",
-        "reactions_insert | INSERT | {public} | using= | check=(user_id = auth.uid())",
+        "reactions_delete | DELETE | {authenticated} | using=((user_id = auth.uid()) AND is_active_member()) | check=",
+        "reactions_insert | INSERT | {authenticated} | using= | check=((user_id = auth.uid()) AND is_active_member())",
         "reactions_select | SELECT | {public} | using=is_active_member() | check="
       ],
       "triggers": [],
@@ -1824,7 +1828,8 @@
       ],
       "policies": [
         "confession_declarations_delete_own | DELETE | {public} | using=((auth.uid() = user_id) AND is_active_member()) | check=",
-        "confession_declarations_read_scoped | SELECT | {public} | using=can_view_member(user_id) | check=",
+        "confession_declarations_read_own | SELECT | {authenticated} | using=((auth.uid() = user_id) AND is_active_member()) | check=",
+        "confession_declarations_read_staff | SELECT | {authenticated} | using=(is_admin_or_coordinator() AND is_active_profile(user_id)) | check=",
         "confession_declarations_update_own | UPDATE | {public} | using=((auth.uid() = user_id) AND is_active_member()) | check=((auth.uid() = user_id) AND is_active_member())",
         "confession_declarations_write_own | INSERT | {public} | using= | check=((auth.uid() = user_id) AND is_active_member())"
       ],
@@ -2162,7 +2167,7 @@
       },
       "security": "definer",
       "volatility": "s",
-      "definition_md5": "ec0ef6e52f59883774f8c6278cfafd0b"
+      "definition_md5": "5a9f080d8dc2fedeb4c812acd6d605f9"
     },
     "is_active_profile(uuid)": {
       "owner": "postgres",
@@ -2188,7 +2193,20 @@
       },
       "security": "invoker",
       "volatility": "s",
-      "definition_md5": "8a096ac7db3bb476066e328419ccce40"
+      "definition_md5": "0d5f6d0067342c6f6f800ee0d40f9ae8"
+    },
+    "guard_leader_assignment()": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": false,
+        "authenticated": false
+      },
+      "security": "invoker",
+      "volatility": "v",
+      "definition_md5": "f5df0a602d733e6c5508ca6cf1715699"
     },
     "is_admin_or_coordinator()": {
       "owner": "postgres",
@@ -2357,7 +2375,7 @@
       },
       "security": "definer",
       "volatility": "s",
-      "definition_md5": "9d95dd084f551fb0773c0c3d4658db23"
+      "definition_md5": "2a9df834fd3827a169b1e4acc56c5e88"
     },
     "guard_profile_privileged_columns()": {
       "owner": "postgres",
@@ -2370,7 +2388,7 @@
       },
       "security": "invoker",
       "volatility": "v",
-      "definition_md5": "61ac7a9d1794c3f2afb8500461f0608e"
+      "definition_md5": "7cf710f00baf3e126b656511fb1edbdc"
     },
     "confession_declaration_counts(uuid[])": {
       "owner": "postgres",

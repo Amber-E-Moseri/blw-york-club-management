@@ -32,9 +32,9 @@ with results as (
          exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'devotional_views'
                  and policyname = 'devotional_views_select_own_or_admin' and qual like '%can_view_member%')
   union all
-  select 'confession_declarations reads use can_view_member',
-         exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'confession_declarations'
-                 and policyname = 'confession_declarations_read_scoped' and qual like '%can_view_member%')
+  select 'confession_declarations reads do NOT use can_view_member (decision 4)',
+         not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'confession_declarations'
+                 and qual like '%can_view_member%')
   union all
   select 'habit_entries reads do NOT extend to leaders (no can_view_member)',
          not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'habit_entries'

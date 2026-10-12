@@ -32,7 +32,7 @@
   "serviceRoleNoAccess": ["admin_bootstrap_audit"],
   "forbiddenPrivileges": ["TRUNCATE", "REFERENCES", "TRIGGER"],
   "profilePolicyAllowList": {
-    "profiles": ["profiles_coordinator_administer", "profiles_select_scoped", "profiles_self_onboarding_update"],
+    "profiles": ["profiles_coordinator_administer", "profiles_select_scoped", "profiles_self_onboarding_update", "profiles_self_update_active"],
     "user_profiles": ["profiles_delete", "profiles_insert", "profiles_update", "user_profiles_select_scoped", "user_profiles_staff_insert", "user_profiles_staff_update"]
   },
   "identityContract": {
@@ -50,6 +50,7 @@
     "can_view_member(uuid)": { "security": "definer", "execute": ["authenticated"] },
     "is_bsc_leader_of(uuid)": { "security": "definer", "execute": ["authenticated"] },
     "guard_profile_bsc_assignment()": { "security": "invoker", "execute": [] },
+    "guard_leader_assignment()": { "security": "invoker", "execute": [] },
     "current_user_role()": { "security": "definer", "execute": ["authenticated"] },
     "is_active_member()": { "security": "definer", "execute": ["authenticated"] },
     "confession_declaration_counts(uuid[])": { "security": "definer", "execute": ["authenticated"] },
