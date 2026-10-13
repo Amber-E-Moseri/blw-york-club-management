@@ -275,3 +275,21 @@ Both positive (access granted) and negative (access denied) checks are required 
 ---
 
 *Last updated: 2026-10-13 by integration agent. Base: ops/blwyork-operational @ 53ef639.*
+
+---
+
+## 11. Reconciliation addendum (audience architecture)
+
+Authoritative detail: `docs/audience-shared-contract.md`. Where this addendum and the sections above differ, the reconciled contract governs.
+
+| Section above | Change |
+|---|---|
+| §1 Audience modes | Adds `composite` (any union of cells, groups and people) and exclusions (`excluded_*`). Specs are immutable. Created only through `create_audience_spec()`. |
+| §2a `audience_specs` | Adds exclusion arrays and `composite` (migration 068). Consumers use `ON DELETE RESTRICT`, not `SET NULL`. |
+| §3 Resolution | `resolve_audience()` is caller-scoped (066). `resolve_audience_all()` is internal. A spec that resolves to nobody is refused at create and at publish. |
+| §4 Snapshot vs dynamic | **Events with a spec are now snapshot** (migration 069), not "re-resolved at notify time". Visibility and notification use the same frozen recipients. Meeting invitations stay dynamic (`meeting_attendances`). |
+| §7 Affirmations | Targeted affirmations read the snapshot (069). `can_see_affirmation()` reads the snapshot. |
+| §8 Permission matrix | Leaders may post targeted announcements to their own cell only. Broadcast is staff-only. |
+| §10 E2E | Database-side coverage only, by `supabase/verification/audience_reconcile_certification.mjs` on an isolated replay: E2E-05 (non-invitee cannot read targeted content), E2E-07 (one named person, via the message path), E2E-11 (non-audience member cannot see a targeted affirmation), E2E-14 and E2E-15 (pending and rejected excluded). **Not covered:** E2E-01, 02, 03, 04, 06, 08, 09, 10, 12, 13 (cells/leaders, notification delivery, meeting flow, assignments, declaration UI, attendance and push log). Real-browser E2E is not run. |
+
+Migration numbers `066` (duplicate prefix) and the proposed `068`/`069` are **not yet assigned**. Agent 6 owns numbering.
