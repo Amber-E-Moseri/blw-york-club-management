@@ -1,4 +1,4 @@
--- 092_pending_applicant_cell_placement.sql
+-- 093_pending_applicant_cell_placement.sql
 --
 -- Forward-only. PROPOSED, NOT APPLIED: diff review and approval first.
 --

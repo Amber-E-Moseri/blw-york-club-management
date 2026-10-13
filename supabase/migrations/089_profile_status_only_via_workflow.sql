@@ -28,12 +28,6 @@ declare
   staff boolean;
   changed text[];
 begin
-  -- Status is refused for every caller except the database owner. service_role is NOT exempt for status: the workflow
-  -- RPCs are SECURITY DEFINER functions owned by postgres, so they reach this check as postgres.
-  if new.status is distinct from old.status and current_user not in ('postgres', 'supabase_admin') then
-    raise exception 'Account status changes go through the approval and status workflow.' using errcode = '42501';
-  end if;
-
   if current_user in ('postgres', 'supabase_admin', 'service_role') then
     return new;
   end if;
@@ -49,6 +43,11 @@ begin
        and new.status is distinct from 'active' then
       raise exception 'Staff roles can be assigned only to active accounts.' using errcode = '42501';
     end if;
+  end if;
+
+  -- Status changes only through the workflow RPCs (owner context). No direct write, by any role, may change status.
+  if new.status is distinct from old.status then
+    raise exception 'Account status changes go through the approval and status workflow.' using errcode = '42501';
   end if;
 
   if not staff then

@@ -1,4 +1,4 @@
--- 090_bsc_pending_visibility_policy.sql
+-- 091_bsc_pending_visibility_policy.sql
 --
 -- Forward-only. PROPOSED, NOT APPLIED: diff review and approval first.
 --

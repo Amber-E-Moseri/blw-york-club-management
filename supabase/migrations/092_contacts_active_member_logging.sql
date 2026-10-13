@@ -1,4 +1,4 @@
--- 091_contacts_active_member_logging.sql
+-- 092_contacts_active_member_logging.sql
 --
 -- Forward-only. PROPOSED, NOT APPLIED: diff review and approval first.
 --
