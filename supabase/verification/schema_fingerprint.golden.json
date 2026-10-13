@@ -262,7 +262,7 @@
             "policies": [
                 "meetings_cell_read | SELECT | {public} | using=((visibility = 'cell'::text) AND is_active_member() AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.cell_id = meetings.cell_id))))) | check=",
                 "meetings_leaders_read | SELECT | {authenticated} | using=((visibility = 'leaders'::text) AND (is_admin_or_coordinator() OR is_cell_leader_of(cell_id))) | check=",
-                "meetings_manage_scoped | ALL | {authenticated} | using=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id) OR ((current_user_role() = 'cell_leader'::text) AND (created_by = auth.uid()))) | check=(is_admin_or_coordinator() OR ((created_by = auth.uid()) AND is_cell_leader_of(cell_id)))",
+                "meetings_manage_scoped | ALL | {authenticated} | using=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id) OR ((current_user_role() = 'cell_leader'::text) AND (created_by = auth.uid()))) | check=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id))",
                 "meetings_public_read | SELECT | {public} | using=(is_active_member() AND (visibility = 'public'::text)) | check="
             ],
             "triggers": [
