@@ -185,7 +185,6 @@ gate "sql bsc access model (stand-in helpers)" bsc_model
 # ─── 6. Real authenticated sessions ─────────────────────────────────────────────────────────────────────────────────────
 gate "real-session prayer visibility" node supabase/verification/prayer_visibility_session_test.mjs
 gate "real-session BSC access" node supabase/verification/bsc_access_session_test.mjs
-gate "real-session security gap regression" node supabase/verification/security_gap_regression_test.mjs
 
 # ─── 7. Edge router and behavioural suites (router is owned by this run) ────────────────────────────────────────────────
 cat > "$WORK/edge.env" <<EOF
@@ -213,7 +212,7 @@ export CERT_CRON_SECRET=$(grep '^EMAIL_CRON_SECRET=' "$WORK/edge.env" | cut -d= 
 export CERT_UNSUBSCRIBE_SECRET=$(grep '^UNSUBSCRIBE_SECRET=' "$WORK/edge.env" | cut -d= -f2-)
 for h in edge_function_security_certification p0_behavioural_certification p0_boundary_certification \
          auth_workflow_certification authorization_certification email_push_certification storage_certification \
-         real_session_authz_certification; do
+         real_session_authz_certification devotional_metadata_authz_certification; do
   gate "behavioural $h" node "supabase/verification/$h.mjs"
 done
 gate "behavioural notify_event (transpiled)" node supabase/verification/notify_event_certification.mjs
