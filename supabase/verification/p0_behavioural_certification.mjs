@@ -318,8 +318,9 @@ try {
   const adminRole = await adminUser.client.from('profiles').update({ role: 'coordinator' }).eq('id', member2.id).select();
   const roleNow = (await admin.from('profiles').select('role').eq('id', member2.id).single()).data?.role;
   expect('C24 a non-coordinator admin cannot promote anyone to coordinator', roleNow !== 'coordinator', `role=${roleNow} err=${adminRole.error?.message ?? ''}`);
-  const sStatus = await coordinator.client.from('profiles').update({ status: 'inactive' }).eq('id', member2.id).select();
-  expect('C25 coordinator can deactivate an account (status change allowed for staff)', !sStatus.error && sStatus.data?.[0]?.status === 'inactive', sStatus.error?.message);
+  // Deactivation goes through the approved workflow (set_member_status). A direct profile status write is refused (089).
+  const sStatus = await coordinator.client.rpc('set_member_status', { p_member_id: member2.id, p_status: 'inactive', p_reason: 'p0 certification' });
+  expect('C25 coordinator can deactivate an account through set_member_status (the workflow)', !sStatus.error && (sStatus.data ?? []).length === 1, sStatus.error?.message);
   const nowIn = await member2.client.from('meeting_attendances').select('id').eq('meeting_id', meetA);
   expect('C26 a freshly deactivated account immediately loses attendance access', (nowIn.data ?? []).length === 0, `rows=${nowIn.data?.length}`);
   await admin.from('profiles').update({ status: 'active' }).eq('id', member2.id);

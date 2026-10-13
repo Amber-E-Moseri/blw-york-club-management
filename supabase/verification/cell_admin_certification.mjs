@@ -127,12 +127,14 @@ async function main() {
   // ─── 9. Leadership is recalculated from cells.leader_id when a leader becomes inactive ────────────────────────────
   // Profile updates of other people are permitted to coordinators only (RLS, migration 022). An admin's direct status
   // change therefore matches no row. That is recorded here as a finding: the write must not look successful.
+  // A direct status write is refused for every role since migration 089 (status changes only through the workflow RPC).
+  // The admin's attempt must not succeed, whether it raises or matches no row.
   const adminDeact = await attempt(db, 'authenticated', ADMIN, `update public.profiles set status = 'inactive' where id = $1 returning id`, [LEAD]);
-  record('finding', 'admin direct status change saves no row (profiles RLS is coordinator-only)',
-    adminDeact.ok && adminDeact.rows.length === 0, adminDeact.ok ? `rows=${adminDeact.rows.length}` : adminDeact.error.slice(0, 90));
-  // Deactivation is tested as a coordinator, who is the role RLS allows to change another profile.
-  const deact = await attempt(db, 'authenticated', COORD, `update public.profiles set status = 'inactive' where id = $1 returning id`, [LEAD]);
-  record('deactivate', 'coordinator sets the leader to inactive (one row saved)', deact.ok && deact.rows.length === 1,
+  record('finding', 'admin direct status change is refused (089: status only through the workflow)',
+    !adminDeact.ok || adminDeact.rows.length === 0, adminDeact.ok ? `rows=${adminDeact.rows.length}` : adminDeact.error.slice(0, 90));
+  // Deactivation goes through the approved workflow, set_member_status, as a coordinator. The release triggers are unchanged.
+  const deact = await attempt(db, 'authenticated', COORD, `select * from public.set_member_status($1, 'inactive', 'cell admin certification')`, [LEAD]);
+  record('deactivate', 'coordinator sets the leader to inactive via set_member_status (one row saved)', deact.ok && deact.rows.length === 1,
     deact.ok ? `rows=${deact.rows.length}` : deact.error.slice(0, 110));
   const caLeader = await count(db, `select count(*) n from public.cells where id=$1 and leader_id is null`, [CA]);
   record('deactivate', 'the cell loses its leader (cells.leader_id cleared)', caLeader === 1);
@@ -149,8 +151,8 @@ async function main() {
   // ─── 10. BSC leadership is released when its leader becomes inactive ──────────────────────────────────────────────
   // A BSC leader must be an active member of the BSC's cell (migration 040 guard), so place M1 in that cell first.
   await db.exec(`update public.profiles set cell_id = '${CB}' where id = '${M1}'; update public.bscs set leader_id = '${M1}' where id = '${BSC2}';`);
-  const bscDeact = await attempt(db, 'authenticated', COORD, `update public.profiles set status = 'inactive' where id = $1 returning id`, [M1]);
-  record('deactivate', 'admin sets a BSC leader to inactive (one row saved)', bscDeact.ok && bscDeact.rows.length === 1,
+  const bscDeact = await attempt(db, 'authenticated', COORD, `select * from public.set_member_status($1, 'inactive', 'bsc release certification')`, [M1]);
+  record('deactivate', 'coordinator sets a BSC leader to inactive via set_member_status (one row saved)', bscDeact.ok && bscDeact.rows.length === 1,
     bscDeact.ok ? `rows=${bscDeact.rows.length}` : bscDeact.error.slice(0, 110));
   const bscCleared = await count(db, `select count(*) n from public.bscs where id=$1 and leader_id is null`, [BSC2]);
   record('deactivate', 'the BSC leader is cleared on the row', bscCleared === 1);
