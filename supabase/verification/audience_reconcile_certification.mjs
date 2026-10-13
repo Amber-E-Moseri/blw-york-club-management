@@ -66,7 +66,7 @@ async function main() {
       ('${A1}','a1@cert.invalid','A1','member','active','${CELL_A}'),
       ('${A2}','a2@cert.invalid','A2','member','active','${CELL_A}'),
       ('${B1}','b1@cert.invalid','B1','member','active','${CELL_B}'),
-      ('${PEND}','pend@cert.invalid','Pending','member','pending',null),
+      ('${PEND}','pend@cert.invalid','Pending','member','active',null),
       ('${REJ}','rej@cert.invalid','Rejected','member','rejected',null)
     on conflict (id) do update set full_name = excluded.full_name, role = excluded.role,
       status = excluded.status, cell_id = excluded.cell_id;
@@ -76,6 +76,9 @@ async function main() {
       ('${G}','Group G','${ADMIN}',true),('${H}','Group H','${ADMIN}',true);
     insert into public.saved_group_members (group_id, profile_id, added_by) values
       ('${G}','${A1}','${ADMIN}'),('${G}','${B1}','${ADMIN}'),('${G}','${PEND}','${ADMIN}'),('${H}','${A2}','${ADMIN}');
+    -- 085 requires saved-group members to be active at INSERT time. The pending state is applied afterwards, so the
+    -- stored membership of PEND exists and the audience resolver must still exclude it.
+    update public.profiles set status = 'pending' where id = '${PEND}';
   `);
 
   const activeIds = [ADMIN, LA, LB, LC, A1, A2, B1].sort();
