@@ -2200,7 +2200,7 @@
             },
             "security": "definer",
             "volatility": "s",
-            "definition_md5": "f0f9d193e9a6a0b0f10d53401b824f9e"
+            "definition_md5": "972fac6d54378b7df839fe8f5f63180e"
         },
         "can_view_member(uuid)": {
             "owner": "postgres",
@@ -2421,7 +2421,7 @@
             },
             "security": "invoker",
             "volatility": "v",
-            "definition_md5": "a00dc1386156458ef8809dd12b48b01f"
+            "definition_md5": "96444f10f7af9bcadb3d9b4d3e40dda1"
         },
         "normalize_identity_email(text)": {
             "owner": "postgres",
@@ -2460,7 +2460,7 @@
             },
             "security": "definer",
             "volatility": "v",
-            "definition_md5": "966731532ec2d75f053c7947872e5291"
+            "definition_md5": "c0ca56a706f4ef61e05bdb68c06bff6a"
         },
         "export_members_authorized(text)": {
             "owner": "postgres",
