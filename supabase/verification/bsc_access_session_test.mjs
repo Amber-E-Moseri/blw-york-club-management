@@ -164,9 +164,11 @@ try {
     (await readRows(t('memberLeader'), people.memberInBscA.id)).length === 1);
   check('L5 member-role leader cannot read the Rhapsody read of a member of another BSC',
     (await readRows(t('memberLeader'), people.outsiderInBscB.id)).length === 0);
-  check('L6 member-role leader can read the confession declaration of an own BSC member',
-    (await declRows(t('memberLeader'), people.memberInBscA.id)).length === 1);
-  check('L7 member-role leader cannot read the confession declaration of a member of another BSC',
+  // Migration 052 (declaration_identity_privacy): BSC leaders have no row-level access to confession declarations;
+  // they read counts only via confession_declaration_counts() RPC. Both own-BSC and cross-BSC queries return 0.
+  check('L6 member-role leader has no direct read on confession declarations of own BSC members (privacy guard 052)',
+    (await declRows(t('memberLeader'), people.memberInBscA.id)).length === 0);
+  check('L7 member-role leader has no direct read on confession declarations of another BSC member',
     (await declRows(t('memberLeader'), people.outsiderInBscB.id)).length === 0);
 
   // ─── Unassigned, ordinary member: no BSC leadership, no protected data ─────────────────────────────────────────

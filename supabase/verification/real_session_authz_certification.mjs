@@ -169,12 +169,12 @@ async function main() {
   check('meetings: assigned member-label leader updates a meeting of own cell', r.count === 1, r.error ?? `${r.count}`);
   r = await writeCount(tokens.member_b_leader, 'PATCH', `/rest/v1/meetings?id=eq.${meetA.id}`, { title: `leaders A edited ${RUN}` });
   check('meetings: assigned member-label leader cannot update a meeting of another cell', r.count === 0, r.error ?? `${r.count}`);
-  await setStatus(actors.member_b_leader.id, { status: rejected });
+  await setStatus(actors.member_b_leader.id, { status: 'rejected' });
   r = await readCount(tokens.member_b_leader, `/rest/v1/profiles?select=id&id=eq.${actors.member_b.id}`);
   check('profiles: deactivated assigned leader reads no member of their cell', r.count === 0, r.error ?? `${r.count}`);
   r = await readCount(tokens.member_b_leader, `/rest/v1/meetings?select=id&id=eq.${meetB.id}`);
   check('meetings: deactivated assigned leader reads no leaders meeting of own cell', r.count === 0, r.error ?? `${r.count}`);
-  await setStatus(actors.member_b_leader.id, { status: active });
+  await setStatus(actors.member_b_leader.id, { status: 'active' });
 
   // 5. Prayers (047/049): leadership visibility via assigned leader of the author's cell
   const prayerId = prayer.count === 1 ? (await readCount(tokens.member_a, `/rest/v1/prayer_requests?select=id&author_id=eq.${actors.member_a.id}&content=eq.leadership%20prayer`)).rows?.[0]?.id : null;
