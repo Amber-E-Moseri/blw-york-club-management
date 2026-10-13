@@ -83,6 +83,20 @@ export async function fetchMembersFiltered(filters: MemberFilters = {}): Promise
 export type ManagedMemberStatus = 'active' | 'inactive' | 'rejected' | 'pending';
 
 /**
+ * The status changes set_member_status allows (migration 083). Mirrors the database, which decides. Pending accounts
+ * are not listed because they leave the pending state only through the approvals page.
+ */
+const MEMBER_STATUS_CHANGES: Partial<Record<ManagedMemberStatus, ManagedMemberStatus[]>> = {
+  active: ['inactive'],
+  inactive: ['active'],
+  rejected: ['pending'],
+};
+
+export function allowedStatusChanges(current: string): ManagedMemberStatus[] {
+  return MEMBER_STATUS_CHANGES[current as ManagedMemberStatus] ?? [];
+}
+
+/**
  * The one authorised way to change an account's status: the set_member_status RPC (migration 080). It checks the
  * caller, the reason and the target, writes one row and its audit record in one transaction. A refusal from the
  * database is thrown as-is, so the reason is shown to the user. A missing returned row is reported as not saved.

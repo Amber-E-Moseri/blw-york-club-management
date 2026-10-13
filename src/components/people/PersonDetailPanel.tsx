@@ -6,7 +6,7 @@ import { Button } from '../foundation/Button';
 import { Input } from '../foundation/Input';
 import { PersonStatusBadge } from './PersonStatusBadge';
 import type { AuthUser } from '../../lib/auth';
-import { setMemberStatus, type ManagedMemberStatus } from '../../lib/queries/members';
+import { allowedStatusChanges, setMemberStatus, type ManagedMemberStatus } from '../../lib/queries/members';
 
 const ROLE_LEVEL: Record<AuthUser['role'], number> = {
   member: 0, cell_leader: 1, admin: 2, coordinator: 3,
@@ -436,7 +436,8 @@ const MemberStatusControl: React.FC<MemberStatusControlProps> = ({ memberId, sta
     );
   }
 
-  const choices = STATUS_CHOICES.filter((c) => c.value !== status);
+  const allowed = allowedStatusChanges(status);
+  const choices = STATUS_CHOICES.filter((c) => allowed.includes(c.value));
   const canSubmit = next !== '' && reason.trim().length > 0 && !saving;
 
   async function submit() {
