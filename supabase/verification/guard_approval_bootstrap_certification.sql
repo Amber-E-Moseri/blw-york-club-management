@@ -122,12 +122,13 @@ begin
     perform pg_temp.as_postgres(); perform pg_temp.cert_fail('Guard', 'admin cannot change a role (only a coordinator can)', 'update succeeded');
   exception when others then perform pg_temp.as_postgres(); perform pg_temp.cert_pass('Guard', 'admin cannot change a role (only a coordinator can)', sqlerrm); end;
 
+  -- Status is changed through the approval workflow (089 refuses direct status writes for every role).
   perform pg_temp.as_auth(admin_id);
-  update public.profiles set status = 'active' where id = pending_id;
+  perform public.approve_pending_member(pending_id);
   perform pg_temp.as_postgres();
   select status into state from public.profiles where id = pending_id;
-  if state = 'active' then perform pg_temp.cert_pass('Guard', 'admin can change account status (controlled operation)', state);
-  else perform pg_temp.cert_fail('Guard', 'admin can change account status (controlled operation)', state); end if;
+  if state = 'active' then perform pg_temp.cert_pass('Guard', 'admin can change account status through the approval workflow (controlled operation)', state);
+  else perform pg_temp.cert_fail('Guard', 'admin can change account status through the approval workflow (controlled operation)', state); end if;
   update public.profiles set status = 'pending' where id = pending_id;
 
   perform pg_temp.as_auth(coord_id);
