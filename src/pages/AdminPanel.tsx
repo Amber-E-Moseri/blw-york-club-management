@@ -6,7 +6,7 @@ import {
   Heart, type LucideIcon,
 } from 'lucide-react';
 import { Card } from '../components/foundation/Card';
-import type { AuthUser } from '../lib/auth';
+import { effectiveRole, type AuthUser } from '../lib/auth';
 
 interface AdminPanelProps { user: AuthUser | null; }
 
@@ -30,7 +30,7 @@ const ADMIN_ITEMS: { label: string; desc: string; icon: LucideIcon; path?: strin
 export const AdminPanel: React.FC<AdminPanelProps> = ({ user }) => {
   const navigate = useNavigate();
 
-  if (!['admin', 'coordinator', 'cell_leader'].includes(user?.role ?? '')) {
+  if (!['admin', 'coordinator', 'cell_leader'].includes(effectiveRole(user))) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
         <p className="text-small text-gray-400 dark:text-slate-400">Access denied.</p>

@@ -47,7 +47,14 @@ export function useAuth() {
         .eq('id', id)
         .single();
       if (error) throw error;
-      setState({ user: buildProfile(data), loading: false, error: null });
+      // Leadership is the assignment cells.leader_id. A failed lookup fails the load rather than silently demoting a leader.
+      const { data: led, error: ledError } = await supabase
+        .from('cells')
+        .select('id')
+        .eq('leader_id', id);
+      if (ledError) throw ledError;
+      const user = { ...buildProfile(data), ledCellIds: (led ?? []).map((c) => c.id as string) };
+      setState({ user, loading: false, error: null });
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to load profile.';
       setState({ user: null, loading: false, error: msg });

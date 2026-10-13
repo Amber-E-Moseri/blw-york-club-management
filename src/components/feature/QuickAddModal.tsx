@@ -4,7 +4,7 @@ import { Modal } from '../foundation/Modal';
 import { useTagsAndStatuses, useCells } from '../../hooks/useContacts';
 import { createContact } from '../../lib/queries/contacts';
 import { createMeeting } from '../../lib/queries/meetings';
-import type { AuthUser } from '../../lib/auth';
+import { effectiveRole, type AuthUser } from '../../lib/auth';
 
 const ROLE_LEVEL: Record<AuthUser['role'], number> = {
   member: 0, cell_leader: 1, admin: 2, coordinator: 3,
@@ -22,7 +22,8 @@ interface QuickAddContentProps {
 }
 
 const QuickAddContent: React.FC<QuickAddContentProps> = ({ user, onClose }) => {
-  const level = ROLE_LEVEL[user.role] ?? 0;
+  const role = effectiveRole(user);
+  const level = ROLE_LEVEL[role] ?? 0;
   const canLogContact = level >= 1;
 
   const [tab, setTab] = useState<Tab>(canLogContact ? 'contact' : 'meeting');
@@ -48,16 +49,16 @@ const QuickAddContent: React.FC<QuickAddContentProps> = ({ user, onClose }) => {
   const { cells } = useCells();
 
   const manageableCells = useMemo(() => {
-    if (user.role === 'coordinator' || user.role === 'admin') return cells;
-    if (user.role === 'cell_leader') return cells.filter((cell) => cell.leader_id === user.id);
+    if (role === 'coordinator' || role === 'admin') return cells;
+    if (role === 'cell_leader') return cells.filter((cell) => cell.leader_id === user.id);
     return [];
-  }, [cells, user.id, user.role]);
+  }, [cells, user.id, role]);
 
   const selectedContactCellIsAllowed = manageableCells.some((cell) => cell.id === contactCellId);
   const selectedMeetingCellIsAllowed = manageableCells.some((cell) => cell.id === meetingCellId);
   const contactCellHelp =
     manageableCells.length === 0
-      ? user.role === 'member'
+      ? role === 'member'
         ? 'Your account is not authorized to log outreach contacts under the current contact permissions.'
         : 'No cells are available for your role. Ask a coordinator to assign you as the cell leader.'
       : null;

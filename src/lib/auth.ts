@@ -11,6 +11,8 @@ export interface AuthUser {
   cellId?: string;
   adminRole?: string;
   createdAt: Date;
+  /** Cells this account leads (cells.leader_id = this account). Leadership authority comes from here, not the role label. */
+  ledCellIds?: string[];
 }
 
 export class AuthError extends Error {
@@ -109,6 +111,20 @@ export function getUserPermissions(role: AuthUser['role']): string[] {
 export function hasPermission(role: AuthUser['role'], permission: string): boolean {
   const perms = ROLE_PERMISSIONS[role] ?? [];
   return perms.includes('*') || perms.includes(permission);
+}
+
+/**
+ * The role the UI should act on. Cell leadership comes from cells.leader_id (migrations 049 and 054), never from the
+ * role label alone: an active member who leads at least one cell acts as a cell leader, and a 'cell_leader' label with
+ * no assignment grants nothing. Admins and coordinators keep their role. The database applies the same rule.
+ */
+export function effectiveRole(
+  user: Pick<AuthUser, 'role' | 'status' | 'ledCellIds'> | null | undefined,
+): AuthUser['role'] {
+  if (!user) return 'member';
+  if (user.role === 'admin' || user.role === 'coordinator') return user.role;
+  if (user.status === 'active' && (user.ledCellIds?.length ?? 0) > 0) return 'cell_leader';
+  return 'member';
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

@@ -2,22 +2,23 @@ import React from 'react';
 import { Card } from '../components/foundation/Card';
 import { Badge } from '../components/foundation/Badge';
 import { getInitials } from '../lib/utils';
-import type { AuthUser } from '../lib/auth';
+import { effectiveRole, type AuthUser } from '../lib/auth';
 
 interface ProfileProps { user: AuthUser | null; }
 
 export const Profile: React.FC<ProfileProps> = ({ user }) => {
   if (!user) return null;
 
+  const role = effectiveRole(user);
   const badgeVariant =
-    user.role === 'coordinator' ? 'primary' :
-    user.role === 'admin' ? 'info' :
-    user.role === 'cell_leader' ? 'success' : 'gray';
+    role === 'coordinator' ? 'primary' :
+    role === 'admin' ? 'info' :
+    role === 'cell_leader' ? 'success' : 'gray';
 
   const roleLabel =
-    user.role === 'coordinator' ? 'Coordinator' :
-    user.role === 'admin' ? 'Admin' :
-    user.role === 'cell_leader' ? 'Cell Leader' : 'Member';
+    role === 'coordinator' ? 'Coordinator' :
+    role === 'admin' ? 'Admin' :
+    role === 'cell_leader' ? 'Cell Leader' : 'Member';
 
   return (
     <div className="flex-1 overflow-y-auto p-0 md:p-4">

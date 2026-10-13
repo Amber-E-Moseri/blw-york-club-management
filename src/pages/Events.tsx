@@ -2,11 +2,34 @@ import React, { useEffect, useState } from 'react';
 import { Calendar, Plus } from 'lucide-react';
 import { EventCard } from '../components/feature';
 import { useAllEvents } from '../hooks/useEvents';
-import { createEvent, notifyEventMembers } from '../lib/queries';
+import { createEvent, getMembers, notifyEventMembers } from '../lib/queries';
 import { fetchMeetings } from '../lib/queries/meetings';
+import {
+  audienceCandidatesFromMembers,
+  createAudienceSpec,
+  fetchAudienceCells,
+  fetchSavedGroups,
+} from '../lib/queries/audience';
+import { AudienceSelector } from '../components/feature/AudienceSelector';
+import { emptySpecDraft } from '../lib/audience/spec';
 import { Button, Input, Modal } from '../components/foundation';
 import type { AuthUser } from '../lib/auth';
 import type { EventAudience, EventCategory, Meeting } from '../types';
+import type {
+  AudienceCandidate,
+  AudienceCell,
+  AudienceSavedGroup,
+  AudienceScope,
+  AudienceSpecDraft,
+  AudienceValidationError,
+} from '../types/audience';
+
+/** The three options the form offers. 'targeted' becomes a spec-backed EventAudience when saved. */
+type AudienceChoice = 'all' | 'meeting' | 'targeted';
+
+/** Event creation is staff only, so the scope is unrestricted here. */
+const STAFF_SCOPE: AudienceScope = { canUseEveryone: true, ledCellIds: [], canExclude: true };
+const everyoneDraft = (): AudienceSpecDraft => ({ ...emptySpecDraft(), mode: 'all' });
 
 const CATEGORIES: EventCategory[] = ['Bible Study', 'Worship', 'Fellowship', 'Outreach', 'Prayer', 'Other'];
 
@@ -153,8 +176,13 @@ const EventFormModal: React.FC<{
   const [location, setLocation] = useState('');
   const [category, setCategory] = useState<EventCategory>('Other');
   const [description, setDescription] = useState('');
-  const [audience, setAudience] = useState<EventAudience>('all');
+  const [audience, setAudience] = useState<AudienceChoice>('all');
   const [audienceMeetingId, setAudienceMeetingId] = useState('');
+  const [targeted, setTargeted] = useState<AudienceSpecDraft>(everyoneDraft);
+  const [targetedErrors, setTargetedErrors] = useState<AudienceValidationError[]>([]);
+  const [targetCells, setTargetCells] = useState<AudienceCell[]>([]);
+  const [targetGroups, setTargetGroups] = useState<AudienceSavedGroup[]>([]);
+  const [targetCandidates, setTargetCandidates] = useState<AudienceCandidate[]>([]);
   const [notify, setNotify] = useState(true);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [saving, setSaving] = useState(false);
@@ -166,6 +194,16 @@ const EventFormModal: React.FC<{
     fetchMeetings(true)
       .then(setMeetings)
       .catch(() => setMeetings([]));
+    let cancelled = false;
+    Promise.all([fetchAudienceCells(), fetchSavedGroups(), getMembers()])
+      .then(([cells, groups, members]) => {
+        if (cancelled) return;
+        setTargetCells(cells);
+        setTargetGroups(groups);
+        setTargetCandidates(audienceCandidatesFromMembers(members));
+      })
+      .catch(() => { if (!cancelled) setError('Could not load the audience choices.'); });
+    return () => { cancelled = true; };
   }, [isOpen]);
 
   const reset = () => {
@@ -177,6 +215,8 @@ const EventFormModal: React.FC<{
     setDescription('');
     setAudience('all');
     setAudienceMeetingId('');
+    setTargeted(everyoneDraft());
+    setTargetedErrors([]);
     setNotify(true);
     setError(null);
     setFieldErrors({});
@@ -194,6 +234,7 @@ const EventFormModal: React.FC<{
     if (title.trim().length < 2) nextErrors['title'] = 'Title must be at least 2 characters.';
     if (!date) nextErrors['date'] = 'Date is required.';
     if (audience === 'meeting' && !audienceMeetingId) nextErrors['audience'] = 'Choose a meeting.';
+    if (audience === 'targeted' && targetedErrors.length > 0) nextErrors['audience'] = 'Fix the audience selection.';
     setFieldErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
@@ -201,6 +242,17 @@ const EventFormModal: React.FC<{
     setError(null);
     let created: { id: string };
     try {
+      // Everyone with no exclusions is a plain 'all' event (no spec). Any other targeted choice is frozen as a spec
+      // first, and the event's audience is that spec's mode.
+      let eventAudience: EventAudience = audience === 'targeted' ? 'all' : audience;
+      let audienceSpecId: string | null = null;
+      const plainEveryone =
+        targeted.mode === 'all' &&
+        targeted.excludedCellIds.length + targeted.excludedGroupIds.length + targeted.excludedProfileIds.length === 0;
+      if (audience === 'targeted' && !plainEveryone) {
+        eventAudience = targeted.mode;
+        audienceSpecId = await createAudienceSpec(targeted);
+      }
       created = await createEvent({
         title: title.trim(),
         date,
@@ -209,8 +261,9 @@ const EventFormModal: React.FC<{
         description: description.trim() || undefined,
         category,
         created_by: userId,
-        audience,
+        audience: eventAudience,
         audienceMeetingId: audience === 'meeting' ? audienceMeetingId : null,
+        audienceSpecId,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not create event.');
@@ -311,7 +364,35 @@ const EventFormModal: React.FC<{
               />
               People assigned to a meeting
             </label>
+            <label className="flex items-center gap-2 text-sm text-gray-800 dark:text-slate-200">
+              <input
+                type="radio"
+                name="event-audience"
+                value="targeted"
+                checked={audience === 'targeted'}
+                onChange={() => setAudience('targeted')}
+              />
+              Specific people or groups
+            </label>
           </div>
+          {audience === 'targeted' && (
+            <div className="space-y-2">
+              <AudienceSelector
+                label="Who this event is for"
+                value={targeted}
+                onChange={setTargeted}
+                candidates={targetCandidates}
+                cells={targetCells}
+                savedGroups={targetGroups}
+                scope={STAFF_SCOPE}
+                onValidityChange={setTargetedErrors}
+              />
+              <p className="text-xs text-gray-500 dark:text-slate-400">
+                Only these people can see the event, and only they are notified. Their list is fixed when you save.
+              </p>
+              {fieldErrors['audience'] && <p className="text-xs text-york-700 mt-1">{fieldErrors['audience']}</p>}
+            </div>
+          )}
           {audience === 'meeting' && (
             <div>
               <label className="block text-sm font-bold text-gray-800 dark:text-slate-200 mb-1.5" htmlFor="event-audience-meeting">

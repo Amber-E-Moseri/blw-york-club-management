@@ -19,7 +19,7 @@ import {
   useTagsAndStatuses,
 } from '../hooks/useContacts';
 import { exportContactsCSV } from '../lib/queries/contacts';
-import type { AuthUser } from '../lib/auth';
+import { effectiveRole, type AuthUser } from '../lib/auth';
 import type { BulkImportRow, Contact, ContactFilters as Filters, ContactInput, ImportResult } from '../types';
 
 interface Props { user: AuthUser | null; }
@@ -46,7 +46,7 @@ export const ContactLogging: React.FC<Props> = ({ user }) => {
   const { log: auditLog } = useContactAuditLog(selected?.id ?? null);
   const mutations = useContactMutations(refetch);
 
-  const role = user?.role ?? 'member';
+  const role = effectiveRole(user);
   const cellId = user?.cellId ?? '';
   const manage = canManage(role);
 

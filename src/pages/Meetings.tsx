@@ -5,7 +5,7 @@ import { MeetingCard } from '../components/feature/MeetingCard';
 import { MeetingForm } from '../components/feature/MeetingForm';
 import { MeetingAudiencePanel } from '../components/feature/MeetingAudiencePanel';
 import { useMeetings } from '../hooks/useMeetings';
-import type { AuthUser } from '../lib/auth';
+import { effectiveRole, type AuthUser } from '../lib/auth';
 import type { Meeting, MeetingInput, MeetingCategory } from '../types';
 
 interface Props { user: AuthUser | null; }
@@ -29,8 +29,9 @@ export const Meetings: React.FC<Props> = ({ user }) => {
 
   const { meetings, loading, error, save, remove, confirm, cancel, refetch } = useMeetings(!showPast);
 
-  const isManager = canManage(user?.role ?? 'member');
-  const isLeader = ['coordinator', 'admin', 'cell_leader'].includes(user?.role ?? '');
+  const role = effectiveRole(user);
+  const isManager = canManage(role);
+  const isLeader = ['coordinator', 'admin', 'cell_leader'].includes(role);
 
   const handleEdit = (m: Meeting) => { setEditing(m); setFormOpen(true); };
   const handleAdd  = () => { setEditing(null); setFormOpen(true); };

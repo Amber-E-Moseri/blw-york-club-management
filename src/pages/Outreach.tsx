@@ -18,7 +18,7 @@ import {
   useTagsAndStatuses,
 } from '../hooks/useContacts';
 import { exportContactsCSV } from '../lib/queries/contacts';
-import type { AuthUser } from '../lib/auth';
+import { effectiveRole, type AuthUser } from '../lib/auth';
 import type { BulkImportRow, Contact, ContactFilters as Filters, ContactInput, ImportResult } from '../types';
 
 const ROLE_LEVEL: Record<AuthUser['role'], number> = {
@@ -37,7 +37,7 @@ const sevenDaysAgo = (): string => {
 };
 
 export const Outreach: React.FC<Props> = ({ user }) => {
-  const level = ROLE_LEVEL[user?.role ?? 'member'] ?? 0;
+  const level = ROLE_LEVEL[effectiveRole(user)] ?? 0;
 
   const [filters, setFilters] = useState<Filters>({});
   const [formOpen, setFormOpen] = useState(false);
@@ -57,7 +57,7 @@ export const Outreach: React.FC<Props> = ({ user }) => {
   const { log: auditLog } = useContactAuditLog(selected?.id ?? null);
   const mutations = useContactMutations(refetch);
 
-  const role = user?.role ?? 'member';
+  const role = effectiveRole(user);
   const cellId = user?.cellId ?? '';
   const manage = canManage(role);
 

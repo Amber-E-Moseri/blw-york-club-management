@@ -35,12 +35,18 @@ export interface EventInput {
   /** 'all' notifies every active member; 'meeting' notifies the people assigned to audienceMeetingId. */
   audience?: EventAudience;
   audienceMeetingId?: string | null;
+  /** A targeted audience (migration 072). Recipients are frozen when the event is saved. */
+  audienceSpecId?: string | null;
 }
 
 export async function createEvent(input: EventInput): Promise<Event> {
   const audience = input.audience ?? 'all';
   if (audience === 'meeting' && !input.audienceMeetingId) {
     throw new Error('Choose a meeting for this event audience.');
+  }
+  // Every audience other than 'all' and 'meeting' needs a spec. The database refuses it otherwise.
+  if (audience !== 'all' && audience !== 'meeting' && !input.audienceSpecId) {
+    throw new Error('Choose who this event is for.');
   }
   const { data, error } = await supabase
     .from('events')
@@ -54,6 +60,7 @@ export async function createEvent(input: EventInput): Promise<Event> {
       created_by: input.created_by,
       audience,
       audience_meeting_id: audience === 'meeting' ? input.audienceMeetingId : null,
+      audience_spec_id: input.audienceSpecId ?? null,
     })
     .select()
     .single();
@@ -129,15 +136,20 @@ export async function getAnnouncements(limit = 5): Promise<Announcement[]> {
   return data ?? [];
 }
 
+/**
+ * audienceSpecId null is a fellowship-wide broadcast, which only staff may post (migration 068).
+ * A cell leader must pass the spec of a single cell they lead (migrations 068 and 072).
+ */
 export async function createAnnouncement(
   title: string,
   body: string,
   authorId: string,
-  authorName: string
+  authorName: string,
+  audienceSpecId: string | null = null
 ): Promise<void> {
   const { error } = await supabase
     .from('announcements')
-    .insert({ title, body, author_id: authorId, author_name: authorName });
+    .insert({ title, body, author_id: authorId, author_name: authorName, audience_spec_id: audienceSpecId });
   if (error) throw new Error(error.message);
 }
 

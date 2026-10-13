@@ -44,6 +44,8 @@ export interface AudienceCandidate {
 export interface AudienceCell {
   id: string;
   name: string;
+  /** cells.leader_id; used to scope a cell leader's choices. */
+  leaderId?: string | null;
 }
 
 export interface AudienceSavedGroup {
