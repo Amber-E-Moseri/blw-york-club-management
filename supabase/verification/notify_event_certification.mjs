@@ -69,10 +69,17 @@ writeFileSync(
   path.join(buildDir, 'event-notification.mjs'),
   transpile(path.join(fnDir, '_shared', 'event-notification.ts'))
 );
+// index.ts also imports _shared/audience-recipients.ts. Build it next to index.mjs and rewrite that import as well, so
+// every shared module resolves inside the temporary directory on any platform (Windows temp paths included).
+writeFileSync(
+  path.join(buildDir, 'audience-recipients.mjs'),
+  transpile(path.join(fnDir, '_shared', 'audience-recipients.ts'))
+);
 const fnSource = transpile(path.join(fnDir, 'notify-event', 'index.ts'))
   .replace(/['"]https:\/\/esm\.sh\/@supabase\/supabase-js@2\.45\.0['"]/, "'./supabase-shim.mjs'")
   .replace(/['"]npm:web-push@3\.6\.7['"]/, "'./webpush-shim.mjs'")
-  .replace(/['"]\.\.\/_shared\/event-notification\.ts['"]/, "'./event-notification.mjs'");
+  .replace(/['"]\.\.\/_shared\/event-notification\.ts['"]/, "'./event-notification.mjs'")
+  .replace(/['"]\.\.\/_shared\/audience-recipients\.ts['"]/, "'./audience-recipients.mjs'");
 if (fnSource.includes('esm.sh') || fnSource.includes('npm:')) throw new Error('remote import was not rewritten');
 writeFileSync(path.join(buildDir, 'index.mjs'), fnSource);
 
@@ -366,10 +373,25 @@ check('concurrent duplicates send nothing and are refused',
 const [meeting] = await rest('POST', '/rest/v1/meetings', {
   title: 'Cert cell', date: '2026-11-02', time: '18:00', created_by: admin.id, visibility: 'public',
 });
-await rest('POST', '/rest/v1/meeting_attendances', [
+// Written as the admin (the meeting manager). A service-role insert is refused by the attendance trigger.
+// Returns the status instead of throwing, so a refusal can be asserted.
+async function postAs(token, pathAndQuery, body) {
+  const res = await fetch(`${apiUrl}${pathAndQuery}`, {
+    method: 'POST',
+    headers: { apikey: anonKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+    body: JSON.stringify(body),
+  });
+  return { status: res.status, text: await res.text() };
+}
+const inviteActive = await postAs(admin.token, '/rest/v1/meeting_attendances', [
   { meeting_id: meeting.id, user_id: member2.id, user_name: 'Cert member2' },
+]);
+check('an active member can be invited to the meeting by the admin manager', inviteActive.status < 300, `${inviteActive.status}`);
+// A pending account cannot be invited: the attendance policy requires an active profile. That refusal is the check.
+const invitePending = await postAs(admin.token, '/rest/v1/meeting_attendances', [
   { meeting_id: meeting.id, user_id: pending.id, user_name: 'Cert pending' },
 ]);
+check('a pending account cannot be invited (refused by the attendance policy)', invitePending.status === 403, `${invitePending.status}`);
 await addSubscription(member2.id, 'ok');
 const meetingEvent = await createEvent(admin.id, 'meeting', meeting.id);
 const hitsBeforeMeeting = pushHits.length;
@@ -396,7 +418,7 @@ check('the event stays notified after a partial failure (no automatic re-send)',
 const noDeviceMeeting = (await rest('POST', '/rest/v1/meetings', {
   title: 'Cert empty cell', date: '2026-11-03', time: '18:00', created_by: admin.id, visibility: 'public',
 }))[0];
-await rest('POST', '/rest/v1/meeting_attendances', [{ meeting_id: noDeviceMeeting.id, user_id: coordinator.id, user_name: 'Cert coord' }]);
+await rest('POST', '/rest/v1/meeting_attendances', [{ meeting_id: noDeviceMeeting.id, user_id: coordinator.id, user_name: 'Cert coord' }], admin.token);
 const noDeviceEvent = await createEvent(admin.id, 'meeting', noDeviceMeeting.id);
 r = await invoke(handler, { token: admin.token, body: { event_id: noDeviceEvent.id } });
 check('an audience with no push devices returns devices 0', r.status === 200 && r.json?.devices === 0, JSON.stringify(r.json));
