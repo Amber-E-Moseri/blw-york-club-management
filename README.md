@@ -107,7 +107,7 @@ src/
 │   ├── queries/       # Typed Supabase query modules, one per domain
 │   ├── audience/      # Event and message audience resolution
 │   ├── cells/         # Cell (small group) logic
-│   ├── communications/# Announcements and messaging
+│   ├── communications/ # Announcements and messaging
 │   ├── email/         # Templates, composer, send service
 │   ├── tasks/         # Task management
 │   ├── zoom/          # Zoom integration
@@ -115,8 +115,6 @@ src/
 │   ├── push/          # Web Push helpers
 │   ├── permissions.ts # Admin permission catalogue
 │   └── supabase.ts    # Client
-├── components/
-├── hooks/
 ├── types/             # Shared TypeScript types
 ├── i18n/              # Locale strings
 └── __tests__/         # Unit and contract tests
@@ -128,7 +126,7 @@ supabase/
 │                      # dispatch-message, unsubscribe, _shared
 └── verification/      # Release certification suite (see Testing)
 e2e/                   # Playwright specs
-docs/                  # Architecture, data model, authorization, deployment, security
+docs/                  # Architecture, data model, authorization, deployment, security (superseded: docs/archive/)
 scripts/               # Certification runners, VAPID key generator, seed scripts
 ```
 
@@ -148,7 +146,6 @@ scripts/               # Certification runners, VAPID key generator, seed script
 | `/events` | Events and RSVPs |
 | `/meetings` | Meetings hub |
 | `/announcements`, `/communications` | Announcements and communications |
-| `/contacts` | Outreach CRM |
 | `/profile`, `/email-preferences` | Account settings |
 | `/admin` | Admin hub, with `/admin/pending`, `/admin/roles`, `/admin/devotionals`, `/admin/testimonies`, `/admin/reports`, `/admin/contact-reports`, `/admin/exports`, `/admin/email-log`, `/admin/zoom` |
 
@@ -219,13 +216,13 @@ The full runbook, including cutover and rollback, is [docs/clean-production-depl
 | [docs/clean-production-deployment.md](docs/clean-production-deployment.md) | Production build, cutover, rollback |
 | [docs/blw-v2-product-map.md](docs/blw-v2-product-map.md) | Product scope |
 | [docs/blw-react-migration-plan.md](docs/blw-react-migration-plan.md) | Prototype-to-React migration plan |
-| [docs/blw-prototype-gap-audit.md](docs/blw-prototype-gap-audit.md) | Gaps between prototype and app |
+| [docs/archive/prototype/blw-prototype-gap-audit.md](docs/archive/prototype/blw-prototype-gap-audit.md) | Archived: prototype gap audit |
 | [docs/cell-admin-schema-requirements.md](docs/cell-admin-schema-requirements.md) | Cell administration schema requirements |
 | [docs/ops-shared-contracts.md](docs/ops-shared-contracts.md) | Shared operational contracts |
 | [docs/event-notifications.md](docs/event-notifications.md) | Event notification behaviour |
 | [docs/notification-deployment.md](docs/notification-deployment.md) | Notification deployment |
 | [docs/security/SECURITY_REMEDIATION_REPORT.md](docs/security/SECURITY_REMEDIATION_REPORT.md) | Security findings F-1 to F-5, remediation and re-certification |
-| [docs/release-remediation/REMEDIATION_REPORT.md](docs/release-remediation/REMEDIATION_REPORT.md) | Release remediation rounds |
+| [docs/archive/release-reports/release-remediation/REMEDIATION_REPORT.md](docs/archive/release-reports/release-remediation/REMEDIATION_REPORT.md) | Archived: release remediation rounds |
 | [supabase/verification/README.md](supabase/verification/README.md) | Release certification runbook |
 
-Historical release reports and their raw run logs live under `docs/release-consolidation/`, `docs/release-reconciliation/` and `docs/release-remediation/`.
+Superseded prototype notes, one-off branch migration notes and round-by-round release reports, with their raw run logs, are kept under `docs/archive/`.
