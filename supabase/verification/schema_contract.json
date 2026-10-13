@@ -31,7 +31,7 @@
     "SELECT": ["bsc_assignment_audit", "push_notification_log", "staff_profile_edit_audit", "zoom_attendance"],
     "": ["admin_bootstrap_audit", "scheduled_emails"]
   },
-  "serviceRoleNoAccess": ["admin_bootstrap_audit", "bsc_assignment_audit"],
+  "serviceRoleNoAccess": ["admin_bootstrap_audit", "bsc_assignment_audit", "cell_admin_audit", "member_cell_audit", "member_status_audit", "leadership_release_audit"],
   "forbiddenPrivileges": ["TRUNCATE", "REFERENCES", "TRIGGER"],
   "profilePolicyAllowList": {
     "profiles": ["profiles_coordinator_administer", "profiles_select_scoped", "profiles_self_onboarding_update", "profiles_self_update_active"],
