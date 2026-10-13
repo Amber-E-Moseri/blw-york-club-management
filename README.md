@@ -1,8 +1,8 @@
 # BLW York Hub
 
-The ministry operating hub for the BLW York campus: one place for member onboarding and approval, outreach follow-up, spiritual-growth tools, events, meetings and communications.
+The ministry operating hub for the BLW York campus: one place for member onboarding and approval, outreach follow-up, cells, spiritual-growth tools, events, meetings and communications.
 
-Built with React, TypeScript and Supabase, with row-level security and a repeatable security-certification suite as first-class parts of the project.
+Built with React, TypeScript and Supabase. Row-level security and a repeatable certification suite are part of the project, but see [Status](#status) before treating any gate as production-certified.
 
 ---
 
@@ -11,11 +11,13 @@ Built with React, TypeScript and Supabase, with row-level security and a repeata
 | Area | What members and leaders can do |
 |---|---|
 | **Members** | Sign up, wait for admin approval, manage a profile, browse the directory (by role and cell) |
+| **Cells** | Coordinators and admins manage cells and move members between them under server-side safeguards |
 | **Outreach** | Log contacts, tag them, assign follow-ups, track a pipeline, view an audit trail of changes |
-| **Growth** | Read monthly devotionals, track habits, log daily confessions, share testimonies, follow the book of the month and weekly messages |
-| **Events** | Create events, RSVP, send reminders |
-| **Meetings** | Record meetings, agenda items and attendance, with Zoom link and attendance integration |
-| **Communications** | Announcements, email (templates, composer, scheduling, unsubscribe) and web push notifications |
+| **Growth** | Read monthly devotionals, track habits, log daily confessions, share testimonies, follow the book of the month and weekly messages, and daily affirmations |
+| **Events** | Create events with audience targeting, RSVP, send reminders and calendar links |
+| **Meetings** | Record meetings, agenda items, invitations and attendance, with Zoom link and attendance integration |
+| **Tasks and assignments** | Assign work to members and track their progress |
+| **Communications** | Announcements, targeted messages with an inbox, email (templates, composer, scheduling, unsubscribe) and web push notifications |
 | **Admin** | Pending approvals, roles and fine-grained permissions, reports, CSV exports, email log, Zoom settings |
 
 ### Roles
@@ -51,7 +53,7 @@ The Gmail credentials exist only on Vercel. The relay rejects any request withou
 
 ## Getting started
 
-**Prerequisites:** Node 20+, a Supabase project (or the Supabase CLI for a local stack), and a Vercel project if you want email.
+**Prerequisites:** Node 20+ for the app (CI runs Node 22 for the certification job), a Supabase project or the Supabase CLI for a local stack, and a Vercel project if you want email.
 
 ```bash
 npm install
@@ -61,7 +63,7 @@ npm start                # http://localhost:3000
 
 ### Environment variables
 
-**Browser** (`.env`; every `REACT_APP_*` value is public in the built bundle):
+**Browser** (`.env`; every `REACT_APP_*` value is public in the built bundle), taken from `.env.example`:
 
 | Variable | Purpose |
 |---|---|
@@ -80,7 +82,7 @@ npm start                # http://localhost:3000
 
 ### Database
 
-`supabase/migrations/` (000 → 029) is the **only** place the schema changes. Apply it in order:
+`supabase/migrations/` (000 → 087) is the **only** place the schema changes. Apply it in order:
 
 ```bash
 npx supabase db push              # hosted project
@@ -91,25 +93,43 @@ Read [docs/database-and-identity.md](docs/database-and-identity.md) before writi
 
 ---
 
+## Development commands
+
+| Command | Purpose |
+|---|---|
+| `npm start` | Dev server on port 3000 |
+| `npm run build` | Production build into `build/` |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm test` | Jest unit and contract tests with coverage |
+| `npm run e2e` | Playwright end-to-end specs in `e2e/` |
+| `npm run e2e:ui` | Playwright UI mode |
+
+---
+
 ## Project structure
 
 ```
 src/
 ├── components/
+│   ├── cells/         # Cell administration components
+│   ├── dashboard/     # Dashboard cards and sections
+│   ├── feature/       # Domain components (ContactTable, EventCard, MeetingForm, …)
 │   ├── foundation/    # Button, Card, Input, Badge, Modal, Tag
 │   ├── layout/        # MainLayout, Sidebar, Header, Navigation, ProtectedRoute
-│   ├── feature/       # Domain components (ContactTable, EventCard, MeetingForm, …)
-│   ├── dashboard/     # Dashboard cards and sections
 │   └── people/        # Member directory and detail panel
 ├── pages/             # One file per route
-├── hooks/             # Data and UI hooks (useAuth, useContacts, useEvents, …)
+├── hooks/             # Data and UI hooks (useAuth, useAffirmations, useBookOfMonth, …)
 ├── lib/
-│   ├── queries/       # Typed Supabase query modules, one per domain
+│   ├── audience/      # Shared audience selection and resolution
+│   ├── cells/         # Cell administration logic
+│   ├── communications/ # Messaging and announcements
 │   ├── email/         # Templates, composer, send service
-│   ├── push/          # Web Push helpers
+│   ├── queries/       # Typed Supabase query modules, one per domain
+│   ├── tasks/         # Assignments and task progress
 │   ├── zoom/          # Zoom integration
 │   ├── csv/           # Contact import
 │   ├── permissions.ts # Admin permission catalogue
+│   ├── pushPrompt.ts  # Push permission prompt helpers
 │   └── supabase.ts    # Client
 ├── types/             # Shared TypeScript types
 ├── i18n/              # Locale strings
@@ -117,12 +137,14 @@ src/
 api/
 └── email-relay.ts     # Vercel function: authenticated Gmail SMTP relay
 supabase/
-├── migrations/        # Numbered, idempotent SQL
-├── functions/         # send-email, process-scheduled-emails, unsubscribe
+├── migrations/        # Numbered, idempotent SQL (000 → 087)
+├── functions/         # send-email, process-scheduled-emails, notify-event,
+│                      # dispatch-message, unsubscribe, _shared
 └── verification/      # Release certification suite (see Testing)
 e2e/                   # Playwright specs
-docs/                  # Architecture, data model, authorization, deployment
-scripts/               # VAPID key generator, seed script
+docs/                  # Current architecture, data model, authorization, deployment and security docs
+docs/archive/          # Superseded prototype notes, branch migration notes and round-by-round release reports
+scripts/               # Local and release certification runners, VAPID key generator, seed script
 ```
 
 ---
@@ -133,12 +155,14 @@ scripts/               # VAPID key generator, seed script
 |---|---|
 | `/` | Dashboard |
 | `/members` | Member directory |
+| `/cells` | Cell administration |
 | `/contacts` | Outreach CRM |
 | `/growth` | Growth hub |
-| `/devotionals`, `/habits`, `/confessions`, `/testimonies`, `/books`, `/messages` | Growth tools |
+| `/devotionals`, `/habits`, `/testimonies`, `/books`, `/messages`, `/affirmations` | Growth tools |
+| `/tasks` | Assignments and tasks |
 | `/events` | Events and RSVPs |
 | `/meetings` | Meetings hub |
-| `/announcements` | Announcements |
+| `/announcements`, `/communications` | Announcements and targeted communications |
 | `/profile`, `/email-preferences` | Account settings |
 | `/admin` | Admin hub, with `/admin/pending`, `/admin/roles`, `/admin/devotionals`, `/admin/testimonies`, `/admin/reports`, `/admin/contact-reports`, `/admin/exports`, `/admin/email-log`, `/admin/zoom` |
 
@@ -146,16 +170,18 @@ scripts/               # VAPID key generator, seed script
 
 ## Database overview
 
-Every table has RLS enabled, `anon` has no access, and `authenticated` privileges are granted explicitly rather than by default.
+Tables are listed in the reviewed schema contract (`supabase/verification/schema_contract.json`). Every table has RLS enabled, `anon` has no access, and `authenticated` privileges are granted explicitly rather than by default.
 
 | Domain | Tables |
 |---|---|
-| Identity and access | `profiles`, `memberships`, admin roles and permissions |
-| People and outreach | people records, `contacts`, `contact_tags`, `contact_follow_ups`, `contact_audit_log` |
+| Identity and access | `profiles`, `user_profiles`, `memberships`, `membership_transitions`, `admin_roles`, `admin_role_assignments`, `admin_role_permissions`, `admin_bootstrap_audit`, `member_status_audit`, `staff_profile_edit_audit` |
+| People, cells and outreach | `people`, `cells`, `cell_admin_audit`, `member_cell_audit`, `fellowships`, `bscs`, `bsc_assignment_audit`, `leadership_release_audit`, `assignments`, `attendance_imports`, `attendance_member_matches`, `contacts`, `contact_tags`, `contact_follow_ups`, `contact_audit_log`, `tags_settings`, `status_settings` |
+| Audience and saved groups | `audience_specs`, `audience_snapshots`, `audience_publications`, `saved_groups`, `saved_group_members` |
 | Events and meetings | `events`, `event_rsvps`, `meetings`, `meeting_attendances`, `zoom_settings`, `zoom_attendance` |
-| Growth | `monthly_devotionals`, `devotional_daily_pages`, `devotional_views`, `habit_templates`, `habit_entries`, `confessions`, `confession_declarations`, `testimonies`, `prayer_requests`, `books_of_month`, `weekly_messages` |
+| Growth | `monthly_devotionals`, `devotional_daily_pages`, `devotional_views`, `habit_templates`, `habit_entries`, `confessions`, `confession_declarations`, `testimonies`, `testimony_comments`, `testimony_reactions`, `prayer_requests`, `books_of_month`, `weekly_messages` |
 | Foundation school | `foundation_school_classes`, `foundation_school_enrollments`, `foundation_school_progress` |
-| Communications | `announcements`, `email_log`, `scheduled_emails`, `email_preferences`, `push_subscriptions`, `push_notification_log` |
+| Integrations | `drive_link_metadata` |
+| Communications | `announcements`, `communication_messages`, `communication_recipients`, `communication_deliveries`, `communication_audit`, `email_log`, `email_drafts`, `email_templates`, `email_notification_log`, `email_preferences`, `scheduled_emails`, `push_subscriptions`, `push_notification_log` |
 
 The data model is in [docs/blw-data-model.md](docs/blw-data-model.md).
 
@@ -171,7 +197,7 @@ npm run e2e:ui    # Playwright UI mode
 
 The Jest suite is heavy on security contracts: authorization, identity, approval flow, schema, email relay and export logic.
 
-**Release certification** is a separate, stricter layer that runs against a *local* Supabase stack with fake data. It replays every migration from empty, compares the schema against a golden fingerprint, and exercises auth, authorization, email and push, storage and Edge Function security with real accounts. The harnesses refuse to run against anything but localhost. The step-by-step runbook is [supabase/verification/README.md](supabase/verification/README.md).
+**Release certification** is a separate, stricter layer that runs against a *local* Supabase stack with fake data. It replays every migration from empty, compares the schema against the contract and a golden fingerprint, and exercises auth, authorization, email and push, storage and Edge Function security with real accounts. The harnesses refuse to run against anything but localhost. The entry point is `scripts/certify-local.sh`, and the step-by-step runbook is [supabase/verification/README.md](supabase/verification/README.md). CI runs this on pull requests in a separate `certification` job.
 
 ---
 
@@ -197,6 +223,12 @@ The full runbook, including cutover and rollback, is [docs/clean-production-depl
 
 ---
 
+## Status
+
+This README describes what the code and migrations on the branch contain. It does not by itself claim production certification. Certification results are recorded in the reports under `docs/`, and the active gate is the certification job in CI.
+
+---
+
 ## Documentation index
 
 | Doc | Topic |
@@ -205,7 +237,18 @@ The full runbook, including cutover and rollback, is [docs/clean-production-depl
 | [docs/database-and-identity.md](docs/database-and-identity.md) | Identity model, privileges, migration rules |
 | [docs/blw-data-model.md](docs/blw-data-model.md) | Tables and relationships |
 | [docs/blw-state-authority.md](docs/blw-state-authority.md) | Where each piece of state lives |
+| [docs/audience-shared-contract.md](docs/audience-shared-contract.md) | Shared audience contract (reconciled) |
+| [docs/audience-reconcile-certification.md](docs/audience-reconcile-certification.md) | Audience reconciliation certification report |
+| [docs/ops-shared-contracts.md](docs/ops-shared-contracts.md) | Operational workstream shared contracts |
+| [docs/cell-admin-schema-requirements.md](docs/cell-admin-schema-requirements.md) | Cell administration schema requirements and status |
+| [docs/event-notifications.md](docs/event-notifications.md) | Event notifications and calendar links |
+| [docs/notification-deployment.md](docs/notification-deployment.md) | Event notification production deployment runbook |
 | [docs/email-setup.md](docs/email-setup.md) | Gmail relay and Edge Function setup |
 | [docs/clean-production-deployment.md](docs/clean-production-deployment.md) | Production build, cutover, rollback |
 | [docs/blw-v2-product-map.md](docs/blw-v2-product-map.md) | Product scope |
+| [docs/blw-react-migration-plan.md](docs/blw-react-migration-plan.md) | React and Supabase migration plan |
+| [docs/ops-cert-phase2-report.md](docs/ops-cert-phase2-report.md) | Phase 2 operational database certification report |
+| [docs/security/SECURITY_REMEDIATION_REPORT.md](docs/security/SECURITY_REMEDIATION_REPORT.md) | Security findings F-1 to F-5, remediation and re-certification |
 | [supabase/verification/README.md](supabase/verification/README.md) | Release certification runbook |
+
+Superseded prototype notes, one-off branch migration notes and round-by-round release reports, with their raw run logs and golden JSON evidence, are kept under [docs/archive/](docs/archive/).
