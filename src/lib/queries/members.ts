@@ -79,3 +79,26 @@ export async function fetchMembersFiltered(filters: MemberFilters = {}): Promise
   if (error) throw new Error(error.message ?? 'Failed to load members.');
   return (data ?? []) as Member[];
 }
+
+export type ManagedMemberStatus = 'active' | 'inactive' | 'rejected' | 'pending';
+
+/**
+ * The one authorised way to change an account's status: the set_member_status RPC (migration 080). It checks the
+ * caller, the reason and the target, writes one row and its audit record in one transaction. A refusal from the
+ * database is thrown as-is, so the reason is shown to the user. A missing returned row is reported as not saved.
+ */
+export async function setMemberStatus(
+  memberId: string,
+  status: ManagedMemberStatus,
+  reason: string,
+): Promise<ManagedMemberStatus> {
+  const { data, error } = await supabase.rpc('set_member_status', {
+    p_member_id: memberId,
+    p_status: status,
+    p_reason: reason,
+  });
+  if (error) throw new Error(error.message);
+  const row = Array.isArray(data) ? data[0] : null;
+  if (!row) throw new Error('The status was not saved. Check that your account is still active.');
+  return row.status as ManagedMemberStatus;
+}

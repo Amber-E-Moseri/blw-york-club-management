@@ -3,13 +3,15 @@ import { toCreateSpecArgs } from '../audience/spec';
 import type { AudienceCandidate, AudienceCell, AudienceSavedGroup, AudienceSpecDraft } from '../../types/audience';
 import type { Member } from '../../types';
 
-// Data access for the shared audience model (migrations 059, 068, 071, 072). Staff only for writes.
+// Data access for the shared audience model (migrations 059, 068, 072, 073, 075, 076). Staff only for writes.
 // The database re-checks every rule; nothing here is authoritative.
 
+/** Active (not archived) cells with their leader. An archived cell takes no members and cannot be targeted (074). */
 export async function fetchAudienceCells(): Promise<AudienceCell[]> {
   const { data, error } = await supabase
     .from('cells')
     .select('id, name, leader_id')
+    .is('archived_at', null)
     .order('name', { ascending: true });
   if (error) throw new Error(error.message);
   return ((data ?? []) as { id: string; name: string; leader_id: string | null }[]).map((c) => ({
@@ -37,7 +39,7 @@ export async function fetchSavedGroups(): Promise<AudienceSavedGroup[]> {
   }));
 }
 
-/** Creates a group and its members in one call (create_saved_group, migration 071). Returns the new id. */
+/** Creates a group and its members in one call (create_saved_group, migrations 076 and 077). Returns the new id. */
 export async function createSavedGroup(input: { name: string; memberIds: string[] }): Promise<string> {
   const { data, error } = await supabase.rpc('create_saved_group', {
     p_name: input.name.trim(),
@@ -47,9 +49,29 @@ export async function createSavedGroup(input: { name: string; memberIds: string[
   return data as string;
 }
 
-/** Freezes an audience as a spec (create_audience_spec, migration 071). Returns the spec id. */
+/** Freezes an audience as a spec (create_audience_spec, migration 075). Returns the spec id. */
 export async function createAudienceSpec(draft: AudienceSpecDraft): Promise<string> {
   const { data, error } = await supabase.rpc('create_audience_spec', toCreateSpecArgs(draft));
+  if (error) throw new Error(error.message);
+  return data as string;
+}
+
+/**
+ * Creates one affirmation with its frozen audience, in one transaction (create_targeted_affirmation, 076).
+ * The spec argument names match create_audience_spec(), so the draft goes through unchanged.
+ */
+export async function createTargetedAffirmation(input: {
+  title: string;
+  body: string;
+  scheduledDate: string;
+  audience: AudienceSpecDraft;
+}): Promise<string> {
+  const { data, error } = await supabase.rpc('create_targeted_affirmation', {
+    p_title: input.title,
+    p_body: input.body,
+    p_scheduled_date: input.scheduledDate,
+    ...toCreateSpecArgs(input.audience),
+  });
   if (error) throw new Error(error.message);
   return data as string;
 }

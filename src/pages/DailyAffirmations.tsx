@@ -8,12 +8,10 @@ import { useAffirmations } from '../hooks/useAffirmations';
 import { parseAffirmationImport } from '../lib/affirmationImport';
 import { createAffirmations } from '../lib/queries/affirmations';
 import {
-  createSavedAudienceGroup,
+  createSavedGroup,
   createTargetedAffirmation,
   fetchAudienceCells,
-  fetchSavedAudienceGroups,
-  type AudienceCell,
-  type SavedAudienceGroup,
+  fetchSavedGroups,
 } from '../lib/queries/audience';
 import { getMembers } from '../lib/queries';
 import { canTargetAffirmations } from '../lib/audience/audienceRules';
@@ -22,6 +20,7 @@ import { validateAudienceSpec } from '../lib/audience/resolveAudience';
 import { AudienceSelector, ERROR_TEXT } from '../components/feature/AudienceSelector';
 import type {
   AudienceCandidate,
+  AudienceCell,
   AudienceSavedGroup,
   AudienceScope,
   AudienceSpecDraft,
@@ -50,7 +49,7 @@ export const DailyAffirmations: React.FC<Props> = ({ user }) => {
 
   const [audience, setAudience] = useState<AudienceSpecDraft>(emptySpecDraft());
   const [cells, setCells] = useState<AudienceCell[]>([]);
-  const [groups, setGroups] = useState<SavedAudienceGroup[]>([]);
+  const [groups, setGroups] = useState<AudienceSavedGroup[]>([]);
   const [people, setPeople] = useState<Member[]>([]);
   const [audienceLoadError, setAudienceLoadError] = useState('');
 
@@ -75,12 +74,7 @@ export const DailyAffirmations: React.FC<Props> = ({ user }) => {
     cellId: p.cell_id ?? null,
     status: 'active' as const,
   })), [people]);
-  const savedGroupsForSelector = useMemo<AudienceSavedGroup[]>(() => groups.map((g) => ({
-    id: g.id,
-    name: g.name,
-    isActive: g.is_active,
-    memberIds: g.member_ids,
-  })), [groups]);
+  const savedGroupsForSelector = groups;
   const canAddressAudience = canTargetAffirmations(user?.role ?? 'member');
   const audienceScope: AudienceScope = { canUseEveryone: canAddressAudience, ledCellIds: [], canExclude: canAddressAudience };
   const audienceData = { candidates: audienceCandidates, groups: savedGroupsForSelector, cells };
@@ -115,7 +109,7 @@ export const DailyAffirmations: React.FC<Props> = ({ user }) => {
     if (!canTarget || (!addOpen && !groupsOpen)) return;
     let cancelled = false;
     setAudienceLoadError('');
-    Promise.all([fetchAudienceCells(), fetchSavedAudienceGroups(), getMembers()])
+    Promise.all([fetchAudienceCells(), fetchSavedGroups(), getMembers()])
       .then(([c, g, m]) => {
         if (cancelled) return;
         setCells(c);
@@ -172,10 +166,10 @@ export const DailyAffirmations: React.FC<Props> = ({ user }) => {
     setGroupError('');
     setGroupSaving(true);
     try {
-      await createSavedAudienceGroup({ name: groupName, memberIds: groupMemberIds });
+      await createSavedGroup({ name: groupName, memberIds: groupMemberIds });
       setGroupName('');
       setGroupMemberIds([]);
-      setGroups(await fetchSavedAudienceGroups());
+      setGroups(await fetchSavedGroups());
     } catch (e) {
       setGroupError(e instanceof Error ? e.message : 'Could not save the group.');
     } finally {
@@ -414,7 +408,7 @@ export const DailyAffirmations: React.FC<Props> = ({ user }) => {
               {groups.map((g) => (
                 <li key={g.id} className="flex justify-between px-3 py-2">
                   <span>{g.name}</span>
-                  <span className="text-gray-500 dark:text-slate-400">{g.member_ids.length} people</span>
+                  <span className="text-gray-500 dark:text-slate-400">{g.memberIds.length} people</span>
                 </li>
               ))}
             </ul>

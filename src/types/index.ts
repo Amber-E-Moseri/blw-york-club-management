@@ -16,7 +16,8 @@ export interface User {
 
 export type EventCategory = 'Bible Study' | 'Worship' | 'Fellowship' | 'Outreach' | 'Prayer' | 'Other';
 
-export type EventAudience = 'all' | 'meeting';
+/** Event audience. The database accepts these modes (060; composite added by 077). */
+export type EventAudience = 'all' | 'meeting' | 'cells' | 'saved_groups' | 'explicit' | 'composite';
 
 export interface Event {
   id: string;

@@ -6,6 +6,7 @@ import { Button } from '../foundation/Button';
 import { Input } from '../foundation/Input';
 import { PersonStatusBadge } from './PersonStatusBadge';
 import type { AuthUser } from '../../lib/auth';
+import { setMemberStatus, type ManagedMemberStatus } from '../../lib/queries/members';
 
 const ROLE_LEVEL: Record<AuthUser['role'], number> = {
   member: 0, cell_leader: 1, admin: 2, coordinator: 3,
@@ -33,7 +34,7 @@ function safeFormat(dateStr?: string): string {
 export const PersonDetailPanel: React.FC<PersonDetailPanelProps> = ({
   memberId, onClose, currentUser, onSaved,
 }) => {
-  const { profile, loading, saving, error, notFound, updateProfile } = useUserProfile(memberId ?? undefined);
+  const { profile, loading, saving, error, notFound, updateProfile, refetch } = useUserProfile(memberId ?? undefined);
   const level = ROLE_LEVEL[currentUser.role] ?? 0;
   const isAdmin = level >= 2;
   const isCoordinator = currentUser.role === 'coordinator';
@@ -195,6 +196,13 @@ export const PersonDetailPanel: React.FC<PersonDetailPanelProps> = ({
                   <CheckCircle className="w-3.5 h-3.5" aria-hidden="true" />
                   {success}
                 </div>
+              )}
+              {isAdmin && !isOwnProfile && (
+                <MemberStatusControl
+                  memberId={profile.userId}
+                  status={profile.status}
+                  onChanged={(message) => { setSuccess(message); refetch(); onSaved?.(); }}
+                />
               )}
             </div>
 
@@ -394,3 +402,87 @@ const ReadOnlyField: React.FC<{ label: string; value: string }> = ({ label, valu
     <p className="mt-1 capitalize text-gray-700 dark:text-slate-200">{value}</p>
   </div>
 );
+
+// ─── Account status (admins and coordinators) ─────────────────────────────────
+
+const STATUS_CHOICES: { value: ManagedMemberStatus; label: string }[] = [
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' },
+  { value: 'rejected', label: 'Rejected' },
+];
+
+interface MemberStatusControlProps {
+  memberId: string;
+  status: string;
+  onChanged: (message: string) => void;
+}
+
+/**
+ * Changes an account's status through set_member_status (migration 080). Every change needs a reason, which the
+ * database records in member_status_audit. Pending accounts are approved from the approvals page, not here.
+ * The database's refusal message is shown as-is.
+ */
+const MemberStatusControl: React.FC<MemberStatusControlProps> = ({ memberId, status, onChanged }) => {
+  const [next, setNext] = useState<ManagedMemberStatus | ''>('');
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (status === 'pending') {
+    return (
+      <p className="mt-4 text-xs text-gray-500 dark:text-slate-400">
+        Pending accounts are approved from the Pending approvals page.
+      </p>
+    );
+  }
+
+  const choices = STATUS_CHOICES.filter((c) => c.value !== status);
+  const canSubmit = next !== '' && reason.trim().length > 0 && !saving;
+
+  async function submit() {
+    if (next === '') return;
+    setSaving(true);
+    setError(null);
+    try {
+      const saved = await setMemberStatus(memberId, next, reason.trim());
+      onChanged(`Status changed to ${saved}.`);
+      setNext('');
+      setReason('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'The status was not changed.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="mt-4 space-y-2 rounded-lg border border-gray-200 dark:border-slate-700 p-3">
+      <p className="text-xs font-semibold text-gray-700 dark:text-slate-300">Account status</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          aria-label="New status"
+          value={next}
+          onChange={(e) => setNext(e.target.value as ManagedMemberStatus | '')}
+          className="h-8 px-2 text-xs border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100"
+        >
+          <option value="">Change to…</option>
+          {choices.map((c) => (
+            <option key={c.value} value={c.value}>{c.label}</option>
+          ))}
+        </select>
+        <input
+          aria-label="Reason for the change"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="Reason (required)"
+          maxLength={300}
+          className="h-8 min-w-0 flex-1 px-2 text-xs border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100"
+        />
+        <Button type="button" variant="secondary" size="small" onClick={submit} disabled={!canSubmit} loading={saving}>
+          Change status
+        </Button>
+      </div>
+      {error && <p role="alert" className="text-xs text-red-600 dark:text-red-400">{error}</p>}
+    </div>
+  );
+};
