@@ -269,6 +269,21 @@ begin
   -- PostgreSQL 17.6 backend (signal 11) in the denial path of the error handler. The same contract is asserted below by
   -- direct function-privilege checks, which do not execute the function. Reduced coverage: the run-time denial itself is
   -- no longer exercised by this harness. The privilege checks are the enforced control (no EXECUTE for any API role).
+
+  -- The exact signature must exist exactly once, so the privilege checks cannot pass against another overload.
+  select (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public' and p.proname = 'bootstrap_first_administrator')::text into state;
+  if state = '1' and to_regprocedure('public.bootstrap_first_administrator(text,text)') is not null then
+    perform pg_temp.cert_pass('Bootstrap', 'exact signature bootstrap_first_administrator(text,text) exists exactly once', state);
+  else perform pg_temp.cert_fail('Bootstrap', 'exact signature bootstrap_first_administrator(text,text) exists exactly once', coalesce(state, 'null')); end if;
+
+  -- PUBLIC holds EXECUTE through the ACL when proacl is NULL (the default), so the default is covered too.
+  select exists (select 1 from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+                 where p.oid = to_regprocedure('public.bootstrap_first_administrator(text,text)')
+                   and a.grantee = 0 and a.privilege_type = 'EXECUTE')::text into state;
+  if state = 'false' then perform pg_temp.cert_pass('Bootstrap', 'PUBLIC holds no EXECUTE on the bootstrap function (catalogue)', state);
+  else perform pg_temp.cert_fail('Bootstrap', 'PUBLIC holds no EXECUTE on the bootstrap function (catalogue)', state); end if;
+
   select (not has_function_privilege('anon', 'public.bootstrap_first_administrator(text,text)', 'EXECUTE')
           and not has_function_privilege('authenticated', 'public.bootstrap_first_administrator(text,text)', 'EXECUTE')
           and not has_function_privilege('service_role', 'public.bootstrap_first_administrator(text,text)', 'EXECUTE'))::text into state;
