@@ -72,8 +72,10 @@ try {
   // ─── E2E-05: Excluded member cannot access explicit meeting ────────────────
 
   const explicitMeeting = await mkMeeting('explicit', coordinator.id, cellId);
-  // Only memberA is invited
-  await admin.from('meeting_attendances').insert({ meeting_id: explicitMeeting, user_id: memberA.id, user_name: 'MemberA' });
+  // Only memberA is invited. The coordinator is the meeting manager, so this is the authorised path. A service-role
+  // insert is refused by the attendance trigger (meeting_audience_spec requires a manager), so it is not used here.
+  const invite = await coordinator.client.from('meeting_attendances').insert({ meeting_id: explicitMeeting, user_id: memberA.id, user_name: 'MemberA' });
+  if (invite.error) throw new Error(`E2E-05 setup: invite insert refused: ${invite.error.message}`);
 
   // memberA (invitee) should see the meeting
   const { data: meetingA } = await memberA.client.from('meetings').select('id').eq('id', explicitMeeting);
