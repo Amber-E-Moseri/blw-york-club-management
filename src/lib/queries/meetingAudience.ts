@@ -59,12 +59,13 @@ export async function fetchActiveAudiencePeople(): Promise<AudiencePerson[]> {
 
 export async function fetchMemberGroups(): Promise<MemberGroup[]> {
   const { data, error } = await supabase
-    .from('member_groups')
-    .select('id, name, created_by, created_at, member_group_members(count)')
+    .from('saved_groups')
+    .select('id, name, created_by, created_at, saved_group_members(count)')
+    .eq('is_active', true)
     .order('name', { ascending: true });
   if (error) throw new Error(error.message);
   return (data ?? []).map((row: Record<string, unknown>) => {
-    const counts = row.member_group_members as Array<{ count: number }> | undefined;
+    const counts = row.saved_group_members as Array<{ count: number }> | undefined;
     return {
       id: row.id as string,
       name: row.name as string,
@@ -79,8 +80,8 @@ export async function createMemberGroup(name: string, createdBy: string): Promis
   const trimmed = name.trim();
   if (!trimmed) throw new Error('Give the group a name.');
   const { data, error } = await supabase
-    .from('member_groups')
-    .insert({ name: trimmed, created_by: createdBy })
+    .from('saved_groups')
+    .insert({ name: trimmed, created_by: createdBy, is_active: true })
     .select('id, name, created_by, created_at')
     .single();
   if (error) throw new Error(error.message);
@@ -103,22 +104,22 @@ export async function setMemberGroupMembers(
 
   if (toAdd.length > 0) {
     const { error } = await supabase
-      .from('member_group_members')
-      .insert(toAdd.map((user_id) => ({ group_id: groupId, user_id, added_by: addedBy })));
+      .from('saved_group_members')
+      .insert(toAdd.map((profile_id) => ({ group_id: groupId, profile_id, added_by: addedBy })));
     if (error) throw new Error(error.message);
   }
   if (toRemove.length > 0) {
     const { error } = await supabase
-      .from('member_group_members')
+      .from('saved_group_members')
       .delete()
       .eq('group_id', groupId)
-      .in('user_id', toRemove);
+      .in('profile_id', toRemove);
     if (error) throw new Error(error.message);
   }
 }
 
 export async function fetchGroupMemberIds(groupId: string): Promise<string[]> {
-  const { data, error } = await supabase.from('member_group_members').select('user_id').eq('group_id', groupId);
+  const { data, error } = await supabase.from('saved_group_members').select('profile_id').eq('group_id', groupId);
   if (error) throw new Error(error.message);
-  return (data ?? []).map((row) => row.user_id as string);
+  return (data ?? []).map((row) => row.profile_id as string);
 }
