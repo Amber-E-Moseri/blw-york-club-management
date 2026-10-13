@@ -75,7 +75,7 @@ try {
   for (const [key, spec] of Object.entries({
     memberLeader: { role: 'member', status: 'active' },      // ordinary role, leads BSC A
     memberInBscA: { role: 'member', status: 'active' },      // member of BSC A
-    pendingInBscA: { role: 'member', status: 'pending' },    // onboarding, member of BSC A
+    pendingInBscA: { role: 'member', status: 'active' },      // onboarding, member of BSC A; set pending after linking (below)
     outsiderInBscB: { role: 'member', status: 'active' },    // member of BSC B (another leader)
     bscBLeader: { role: 'member', status: 'active' },        // leads BSC B
     unassigned: { role: 'member', status: 'active' },        // no BSC, not a leader
@@ -115,6 +115,9 @@ try {
   const setBsc = (id, bscId) => sRest('PATCH', `/profiles?id=eq.${id}`, { bsc_id: bscId, cell_id: cell1.id });
   await setBsc(people.memberInBscA.id, bscA);
   await setBsc(people.pendingInBscA.id, bscA);
+  // The member keeps their cell and BSC, and only the status changes to pending. A pending profile cannot be given a
+  // cell (guard 072), so the link has to be made while active. This is the state a status-only update reaches.
+  { const r = await sRest('PATCH', `/profiles?id=eq.${people.pendingInBscA.id}`, { status: 'pending' }); if (r.status >= 300) throw new Error(`pending link: ${r.status}`); }
   await setBsc(people.outsiderInBscB.id, bscB);
   await setBsc(people.memberInBscD.id, bscD);
   await sRest('PATCH', `/profiles?id=eq.${people.memberOtherFellowship.id}`, { bsc_id: bscF, cell_id: cell2.id });
@@ -156,8 +159,11 @@ try {
   check('L1 member-role leader can read BSC rows (own assignment is visible)', leaderBscs.length >= 1, `sees ${leaderBscs.length} BSCs`);
   const leaderMembers = await members(t('memberLeader'));
   const leaderIds = leaderMembers.map((m) => m.id);
-  check('L2 member-role leader sees own BSC members, including the pending onboarding member',
-    leaderIds.includes(people.memberInBscA.id) && leaderIds.includes(people.pendingInBscA.id), `sees ${leaderMembers.length}`);
+  // Approved rule: pending onboarding members stay hidden from ordinary BSC leaders. Admins and coordinators may see them.
+  check('L2 member-role leader sees an approved active member of their BSC (positive)',
+    leaderIds.includes(people.memberInBscA.id), `sees ${leaderMembers.length}`);
+  check('L2F member-role leader does NOT see a pending onboarding member of their BSC (forbidden, approved rule)',
+    !leaderIds.includes(people.pendingInBscA.id), `sees ${leaderMembers.length}`);
   check('L3 member-role leader does not see a member of another BSC (cross-BSC)',
     !leaderIds.includes(people.outsiderInBscB.id) && !leaderIds.includes(people.memberInBscD.id), `sees ${leaderMembers.length}`);
   check('L4 member-role leader can read the Rhapsody read of an own BSC member',
