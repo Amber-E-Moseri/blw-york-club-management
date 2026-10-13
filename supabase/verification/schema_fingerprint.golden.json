@@ -3442,7 +3442,7 @@
             },
             "security": "invoker",
             "volatility": "v",
-            "definition_md5": "7cf710f00baf3e126b656511fb1edbdc"
+            "definition_md5": "deccdd37dce8f472a29229839e56e430"
         },
         "assignments_guard_assignee_changes()": {
             "owner": "postgres",
