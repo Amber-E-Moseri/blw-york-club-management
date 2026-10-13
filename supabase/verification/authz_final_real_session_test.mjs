@@ -1,6 +1,6 @@
 // authz_final_real_session_test.mjs
 //
-// Real authenticated-session tests for migrations 089-092 and the contact-logging rule. Each actor signs in through
+// Real authenticated-session tests for migrations 089-094 and the contact-logging rule. Each actor signs in through
 // GoTrue and calls PostgREST or an RPC with its own bearer token, which is the path the application uses. A forbidden
 // action is judged by the DATABASE STATE after the attempt, not by the HTTP status alone.
 //
@@ -11,7 +11,7 @@
 //   * Applicants register through GoTrue signup and become pending through the database's own signup trigger.
 //   * Applicants are approved only through approve_pending_member() by a coordinator.
 //   * Cells and placement use the authorised paths: transfer_member_cell() for active members,
-//     assign_pending_applicant_to_cell() (migration 092) for pending applicants.
+//     assign_pending_applicant_to_cell() (migration 093) for pending applicants.
 //   * Role changes use direct PATCH by a coordinator (allowed by the role guard).
 //   * The one owner-level step is the first coordinator. It is performed by OWNER_BOOTSTRAP_SQL before this script,
 //     against the same local stack, and this script only verifies that the coordinator exists and is active.
@@ -120,7 +120,7 @@ async function main() {
   mustOk('place member A', await rpc('transfer_member_cell', coord.token, { p_member_id: memberA.id, p_cell_id: cellA.id }), false);
   const bscA = mustOk('BSC A', await svc('POST', '/bscs', { name: `${run} BSC A`, cell_id: cellA.id, leader_id: bscOnly.id }), true)[0];
   created.bscs.push(bscA.id);
-  mustOk('BSC A place', await svc('PATCH', `/profiles?id=eq.${bscOnly.id}`, { bsc_id: bscA.id }), true);
+  mustOk('BSC A place (approved RPC)', await rpc('assign_member_to_bsc', coord.token, { p_member_id: bscOnly.id, p_bsc_id: bscA.id }), false);
 
   // Cell B (other cell) with its own leader, so cross-cell denial is tested with a real leader.
   const leaderB = await registerApplicant('leaderb');
@@ -130,10 +130,10 @@ async function main() {
   mustOk('cell B leader', await svc('PATCH', `/cells?id=eq.${cellB.id}`, { leader_id: leaderB.id }), true);
   mustOk('place leader B', await rpc('transfer_member_cell', coord.token, { p_member_id: leaderB.id, p_cell_id: cellB.id }), false);
 
-  // Pending applicant placed in cell A through the audited RPC (migration 092), and a second applicant left unplaced.
+  // Pending applicant placed in cell A through the audited RPC (migration 093), and a second applicant left unplaced.
   mustOk('admin places pending A', await rpc('assign_pending_applicant_to_cell', admin.token, { p_member_id: pendingA.id, p_cell_id: cellA.id }), false);
 
-  // ── Pending visibility (migration 090 and profiles RLS) ─────────────────────────────────────────────────────────────
+  // ── Pending visibility (migration 091 and profiles RLS) ─────────────────────────────────────────────────────────────
   const visibleTo = async (who, targetId) => {
     const r = await call('GET', `/rest/v1/profiles?id=eq.${targetId}&select=id`, who.token);
     return Array.isArray(r.data) && r.data.length === 1;
@@ -153,7 +153,7 @@ async function main() {
   pass('Pending visibility', 'Admin sees pending applicant A', await visibleTo(admin, pendingA.id));
   pass('Pending visibility', 'Coordinator sees pending applicant A', await visibleTo(coord, pendingA.id));
 
-  // ── Coordinator direct status PATCH denial (migration 089) ──────────────────────────────────────────────────────────
+  // ── Coordinator direct status PATCH denial (migrations 089, 090, 094) ──────────────────────────────────────────────────────────
   const patch = await call('PATCH', `/rest/v1/profiles?id=eq.${memberB.id}`, coord.token, { status: 'inactive' }, 'return=minimal');
   const afterPatch = mustOk('read after direct PATCH', await svc('GET', `/profiles?id=eq.${memberB.id}&select=status`), true)[0];
   pass('Status', 'Coordinator direct status PATCH is refused (state unchanged)', afterPatch.status === 'active', `HTTP ${patch.status}; status=${afterPatch.status}`);
@@ -166,7 +166,7 @@ async function main() {
   pass('Status', 'member_status_audit records the change with the coordinator as actor',
     Array.isArray(audit) && audit.some((a) => a.from_status === 'active' && a.to_status === 'inactive' && a.actor_id === coord.id));
 
-  // ── Contact logging (migration 091) ─────────────────────────────────────────────────────────────────────────────────
+  // ── Contact logging (migration 092) ─────────────────────────────────────────────────────────────────────────────────
   const personFor = async (who, name) => {
     const r = await call('POST', '/rest/v1/people', who.token, { full_name: `${run} ${name}` }, 'return=representation');
     if (!Array.isArray(r.data) || !r.data[0]?.id) return null;
@@ -223,7 +223,7 @@ async function main() {
   const pendingTry = await logContact(pendingB, { ...basePayload(pendingContact, pendingB, null), person_id: pOwn ?? undefined });
   pass('Contacts', 'Pending applicant cannot log a contact', (await contactRow(pendingContact)).length === 0, `HTTP ${pendingTry.status}`);
 
-  // ── Placement (migration 092) ───────────────────────────────────────────────────────────────────────────────────────
+  // ── Placement (migration 093) ───────────────────────────────────────────────────────────────────────────────────────
   const placeAsLeader = await rpc('assign_pending_applicant_to_cell', leaderA.token, { p_member_id: pendingB.id, p_cell_id: cellA.id });
   const pbAfterLeader = mustOk('read pendingB after leader attempt', await svc('GET', `/profiles?id=eq.${pendingB.id}&select=cell_id`), true)[0];
   pass('Placement', 'Cell Leader cannot place a pending applicant', pbAfterLeader.cell_id === null, `HTTP ${placeAsLeader.status}`);
@@ -245,6 +245,39 @@ async function main() {
   const audited = mustOk('member_cell_audit', await svc('GET', `/member_cell_audit?member_id=eq.${pendingB.id}&select=to_cell_id,actor_id`), false);
   pass('Placement', 'member_cell_audit records the admin placement with the admin as actor',
     Array.isArray(audited) && audited.some((a) => a.to_cell_id === cellA.id && a.actor_id === admin.id));
+
+  // ── Rejected applicants (migration 092 denial; rejection keeps placement history) ───────────────────────────────────
+  const rejected = await registerApplicant('rejected');
+  mustOk('reject applicant', await rpc('reject_pending_member', coord.token, { target_member_id: rejected.id }), false);
+  const rejectedName = `${run} rejected contact`;
+  const rejectedTry = await logContact(rejected, { ...basePayload(rejectedName, rejected, null), person_id: pOwn ?? undefined });
+  pass('Contacts', 'Rejected member cannot insert a contact', (await contactRow(rejectedName)).length === 0, `HTTP ${rejectedTry.status}`);
+
+  // ── Ordinary-member cell list (own cell only, through RLS) ──────────────────────────────────────────────────────────
+  const cellList = await call('GET', '/rest/v1/cells?select=id,name', memberA.token);
+  const listIds = Array.isArray(cellList.data) ? cellList.data.map((c) => c.id) : [];
+  pass('Contacts', 'Ordinary member reads own cell in the cell list', listIds.includes(cellA.id), `HTTP ${cellList.status}`);
+
+  // ── Direct coordinator bypasses (migration 094) ─────────────────────────────────────────────────────────────────────
+  const delDirect = await call('DELETE', `/rest/v1/profiles?id=eq.${memberB.id}`, coord.token, undefined, 'return=minimal');
+  const stillThere = mustOk('read after direct DELETE', await svc('GET', `/profiles?id=eq.${memberB.id}&select=id`), true);
+  pass('Bypass', 'Coordinator direct DELETE on profiles is refused (row still exists)', stillThere.length === 1, `HTTP ${delDirect.status}`);
+
+  const moveDirect = await call('PATCH', `/rest/v1/profiles?id=eq.${memberA.id}`, coord.token, { cell_id: cellB.id }, 'return=minimal');
+  const memberAAfter = mustOk('read after direct cell PATCH', await svc('GET', `/profiles?id=eq.${memberA.id}&select=cell_id`), true)[0];
+  pass('Bypass', 'Coordinator direct cell_id PATCH on an active member is refused (cell unchanged)', memberAAfter.cell_id === cellA.id, `HTTP ${moveDirect.status}`);
+
+  const bscDirect = await call('PATCH', `/rest/v1/profiles?id=eq.${memberA.id}`, coord.token, { bsc_id: bscA.id }, 'return=minimal');
+  const memberABsc = mustOk('read after direct BSC PATCH', await svc('GET', `/profiles?id=eq.${memberA.id}&select=bsc_id`), true)[0];
+  pass('Bypass', 'Coordinator direct bsc_id PATCH is refused (BSC unchanged)', memberABsc.bsc_id === null, `HTTP ${bscDirect.status}`);
+
+  const svcStatus = await call('PATCH', `/rest/v1/profiles?id=eq.${memberA.id}`, service, { status: 'inactive' }, 'return=minimal');
+  const memberAStatus = mustOk('read after service status PATCH', await svc('GET', `/profiles?id=eq.${memberA.id}&select=status`), true)[0];
+  pass('Bypass', 'service_role direct status PATCH is refused (status unchanged)', memberAStatus.status === 'active', `HTTP ${svcStatus.status}`);
+
+  const svcCell = await call('PATCH', `/rest/v1/profiles?id=eq.${memberA.id}`, service, { cell_id: cellB.id }, 'return=minimal');
+  const memberACellSvc = mustOk('read after service cell PATCH', await svc('GET', `/profiles?id=eq.${memberA.id}&select=cell_id`), true)[0];
+  pass('Bypass', 'service_role direct cell_id PATCH is refused (cell unchanged)', memberACellSvc.cell_id === cellA.id, `HTTP ${svcCell.status}`);
 
   // ── Cleanup (only rows created by this run) ─────────────────────────────────────────────────────────────────────────
   for (const id of created.contacts) await svc('DELETE', `/contacts?id=eq.${id}`, undefined, 'return=minimal');

@@ -29,7 +29,7 @@ describe('Quick Add cell authorization', () => {
     expect(policies).toContain('public.is_cell_leader_of(cell_id)');
   });
 
-  test('active ordinary members can log contacts to their own cell or unassigned (approved rule, migration 091)', () => {
+  test('active ordinary members can log contacts to their own cell or unassigned (approved rule, migration 092)', () => {
     const quickAdd = read('src/components/feature/QuickAddModal.tsx');
 
     expect(quickAdd).toContain("const canLogContact = user.status === 'active';");

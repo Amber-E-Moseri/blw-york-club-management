@@ -23,7 +23,7 @@ interface QuickAddContentProps {
 const QuickAddContent: React.FC<QuickAddContentProps> = ({ user, onClose }) => {
   const role = effectiveRole(user);
   // Approved rule: active ordinary members can log outreach contacts. Pending, inactive and rejected accounts cannot.
-  // The database enforces the same rule (contacts_insert_scoped, migration 091).
+  // The database enforces the same rule (contacts_insert_scoped, migration 092).
   const canLogContact = user.status === 'active';
 
   const [tab, setTab] = useState<Tab>(canLogContact ? 'contact' : 'meeting');
@@ -51,12 +51,12 @@ const QuickAddContent: React.FC<QuickAddContentProps> = ({ user, onClose }) => {
   const manageableCells = useMemo(() => {
     if (role === 'coordinator' || role === 'admin') return cells;
     if (role === 'cell_leader') return cells.filter((cell) => cell.leader_id === user.id);
-    // An ordinary active member may attribute a contact to their own cell only (contacts_insert_scoped, migration 091).
+    // An ordinary active member may attribute a contact to their own cell only (contacts_insert_scoped, migration 092).
     if (user.status === 'active' && user.cellId) return cells.filter((cell) => cell.id === user.cellId);
     return [];
   }, [cells, user.id, user.cellId, user.status, role]);
 
-  // An active account may log a contact with no cell (contacts_insert_scoped, migration 091: cell_id is null).
+  // An active account may log a contact with no cell (contacts_insert_scoped, migration 092: cell_id is null).
   const canLogUnassignedContact = user.status === 'active';
   const contactCellOptions = canLogUnassignedContact
     ? [...manageableCells, { id: UNASSIGNED_CELL, name: 'No cell (unassigned)' }]
