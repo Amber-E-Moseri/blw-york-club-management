@@ -236,8 +236,8 @@ describe('064: announcement audience targeting', () => {
 // ─── Cross-migration contract invariants ─────────────────────────────────────
 
 describe('operational workstream contract invariants', () => {
-  test('all new migrations are numbered 059-064 with no gaps', () => {
-    for (let n = 59; n <= 64; n++) {
+  test('all new migrations are numbered 059-067 with no gaps', () => {
+    for (let n = 59; n <= 67; n++) {
       const pad = String(n).padStart(3, '0');
       const files = fs.readdirSync(path.join(root, 'supabase/migrations'))
         .filter(f => f.startsWith(pad + '_'));
@@ -246,7 +246,7 @@ describe('operational workstream contract invariants', () => {
   });
 
   test('all new security definer functions pin search_path to public, pg_temp', () => {
-    const newMigs = [59, 60, 61, 62, 63, 64].map(n =>
+    const newMigs = [59, 60, 61, 62, 63, 64, 65, 66, 67].map(n =>
       mig(`${String(n).padStart(3, '0')}_${fs.readdirSync(path.join(root, 'supabase/migrations'))
         .find(f => f.startsWith(String(n).padStart(3, '0') + '_'))!.replace(/^\d+_/, '')}`)
     );
@@ -259,7 +259,7 @@ describe('operational workstream contract invariants', () => {
 
   test('no new migration grants execute to public or anon on security definer functions', () => {
     const newMigFiles = fs.readdirSync(path.join(root, 'supabase/migrations'))
-      .filter(f => /^(059|060|061|062|063|064)_/.test(f));
+      .filter(f => /^(059|060|061|062|063|064|065|066|067)_/.test(f));
     for (const file of newMigFiles) {
       const sql = mig(`${file}`);
       expect(sql).not.toMatch(/grant execute on function[^;]+to\s+public\b/i);
@@ -272,7 +272,7 @@ describe('operational workstream contract invariants', () => {
     // What is prohibited: inlining the full recipient JOIN (saved_group_members or profile_ids
     // iteration) outside of resolve_audience() itself.
     const newMigFiles = fs.readdirSync(path.join(root, 'supabase/migrations'))
-      .filter(f => /^(060|061|062|063|064)_/.test(f));
+      .filter(f => /^(060|061|062|063|064|065|066|067)_/.test(f));
     for (const file of newMigFiles) {
       const sql = mig(`${file}`);
       // No inline join to saved_group_members for recipient resolution
@@ -324,5 +324,51 @@ describe('065: audience grants and policy fixes', () => {
   test('replaces saved_group_members_read with is_active_member() gate', () => {
     expect(sql).toContain('drop policy if exists saved_group_members_read on public.saved_group_members');
     expect(sql).toContain('create policy saved_group_members_read on public.saved_group_members');
+  });
+});
+
+// ─── Migration 066: Meeting invitee read fix ──────────────────────────────────
+
+describe('066: meeting invitee read fix', () => {
+  const sql = mig('066_meeting_invitee_read_fix.sql');
+
+  test('is_meeting_invitee() is security definer with pinned search_path', () => {
+    expect(sql).toContain('create or replace function public.is_meeting_invitee(p_meeting_id uuid)');
+    expect(sql).toContain('security definer');
+    expect(sql).toContain('set search_path = public, pg_temp');
+  });
+
+  test('is_meeting_invitee() reads meeting_attendances directly (bypasses RLS loop)', () => {
+    expect(sql).toContain('from public.meeting_attendances');
+    expect(sql).toContain('meeting_id = p_meeting_id');
+    expect(sql).toContain('user_id = auth.uid()');
+  });
+
+  test('is_meeting_invitee() is revoked from public and anon', () => {
+    expect(sql).toContain('revoke all on function public.is_meeting_invitee(uuid) from public, anon');
+    expect(sql).toContain('grant execute on function public.is_meeting_invitee(uuid) to authenticated, service_role');
+  });
+
+  test('meetings_explicit_invitee_read is replaced to use is_meeting_invitee()', () => {
+    expect(sql).toContain('drop policy if exists meetings_explicit_invitee_read on public.meetings');
+    expect(sql).toContain('create policy meetings_explicit_invitee_read on public.meetings');
+    expect(sql).toContain('public.is_meeting_invitee(id)');
+  });
+});
+
+// ─── Migration 067: Fix trigger execute grants ────────────────────────────────
+
+describe('067: fix trigger execute grants', () => {
+  const sql = mig('067_fix_trigger_execute_grants.sql');
+
+  test('revokes PUBLIC execute from assignments_completed_at_stamp()', () => {
+    expect(sql).toContain('revoke all on function public.assignments_completed_at_stamp()');
+    expect(sql).toContain('from public');
+    expect(sql).toContain('anon');
+  });
+
+  test('revoke includes authenticated and service_role (trigger needs no direct-call grant)', () => {
+    expect(sql).toContain('authenticated');
+    expect(sql).toContain('service_role');
   });
 });

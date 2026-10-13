@@ -2,15 +2,17 @@
   "_comment": "The reviewed, human-readable security contract for the database. check_schema_contract.mjs asserts every item against schema_fingerprint.sql output. Changing this file is a security decision.",
   "tables": [
     "admin_bootstrap_audit", "admin_role_assignments", "admin_role_permissions", "admin_roles", "announcements",
-    "attendance_imports", "attendance_member_matches", "books_of_month", "bsc_assignment_audit", "bscs", "cells",
+    "assignments", "attendance_imports", "attendance_member_matches", "audience_specs", "books_of_month",
+    "bsc_assignment_audit", "bscs", "cells",
     "confession_declarations", "confessions", "contact_audit_log", "contact_follow_ups", "contact_tags", "contacts",
     "devotional_daily_pages", "devotional_views", "drive_link_metadata", "email_drafts", "email_log",
     "email_notification_log", "email_preferences", "email_templates", "event_rsvps", "events", "fellowships",
     "foundation_school_classes", "foundation_school_enrollments", "foundation_school_progress", "habit_entries",
     "habit_templates", "meeting_attendances", "meetings", "membership_transitions", "memberships",
     "monthly_devotionals", "people", "prayer_requests", "profiles", "push_notification_log", "push_subscriptions",
-    "scheduled_emails", "staff_profile_edit_audit", "status_settings", "tags_settings", "testimonies",
-    "testimony_comments", "testimony_reactions", "user_profiles", "weekly_messages", "zoom_attendance", "zoom_settings"
+    "scheduled_emails", "saved_group_members", "saved_groups", "staff_profile_edit_audit", "status_settings",
+    "tags_settings", "testimonies", "testimony_comments", "testimony_reactions", "user_profiles",
+    "weekly_messages", "zoom_attendance", "zoom_settings"
   ],
   "views": ["member_directory"],
   "authenticatedPrivileges": {
@@ -20,11 +22,11 @@
       "devotional_daily_pages", "devotional_views", "drive_link_metadata", "email_drafts", "email_log", "email_templates", "event_rsvps", "events",
       "fellowships", "foundation_school_classes", "foundation_school_enrollments", "foundation_school_progress", "habit_entries",
       "habit_templates", "meeting_attendances", "meetings", "monthly_devotionals", "people", "prayer_requests", "profiles",
-      "push_subscriptions", "status_settings", "tags_settings", "testimonies", "user_profiles", "weekly_messages",
-      "zoom_settings"
+      "push_subscriptions", "saved_group_members", "saved_groups", "status_settings", "tags_settings", "testimonies",
+      "user_profiles", "weekly_messages", "zoom_settings"
     ],
-    "INSERT,SELECT": ["contact_audit_log", "email_notification_log", "membership_transitions"],
-    "INSERT,SELECT,UPDATE": ["contact_follow_ups", "email_preferences", "memberships"],
+    "INSERT,SELECT": ["audience_specs", "contact_audit_log", "email_notification_log", "membership_transitions"],
+    "INSERT,SELECT,UPDATE": ["assignments", "contact_follow_ups", "email_preferences", "memberships"],
     "DELETE,INSERT,SELECT": ["contact_tags", "testimony_comments", "testimony_reactions"],
     "SELECT": ["bsc_assignment_audit", "push_notification_log", "staff_profile_edit_audit", "zoom_attendance"],
     "": ["admin_bootstrap_audit", "scheduled_emails"]
@@ -74,7 +76,11 @@
     "set_updated_at()": { "security": "invoker", "execute": [] },
     "guard_bsc_leader_eligibility()": { "security": "definer", "execute": [] },
     "guard_bsc_delete_empty()": { "security": "definer", "execute": [] },
-    "assign_member_to_bsc(uuid,uuid)": { "security": "definer", "execute": ["authenticated"] }
+    "assign_member_to_bsc(uuid,uuid)": { "security": "definer", "execute": ["authenticated"] },
+    "resolve_audience(uuid)": { "security": "definer", "execute": ["authenticated", "service_role"] },
+    "can_see_affirmation(uuid)": { "security": "definer", "execute": ["authenticated", "service_role"] },
+    "is_meeting_invitee(uuid)": { "security": "definer", "execute": ["authenticated", "service_role"] },
+    "assignments_completed_at_stamp()": { "security": "definer", "execute": [] }
   },
   "definerSearchPath": "search_path=public, pg_temp",
   "storage": {
