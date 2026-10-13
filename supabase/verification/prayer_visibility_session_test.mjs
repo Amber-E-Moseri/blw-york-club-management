@@ -93,8 +93,8 @@ try {
   const people = {};
   for (const [key, spec] of Object.entries({
     authorActive:   { role: 'member', status: 'active', cell_id: cellA },
-    authorPending:  { role: 'member', status: 'pending', cell_id: cellA },
-    authorRejected: { role: 'member', status: 'rejected', cell_id: cellA },
+    authorPending:  { role: 'member', status: 'pending', cell_id: null },
+    authorRejected: { role: 'member', status: 'rejected', cell_id: null },
     authorInactive: { role: 'member', status: 'active', cell_id: cellA }, // deactivated after posting
     authorCellB:    { role: 'member', status: 'active', cell_id: cellB },
     memberA:        { role: 'member', status: 'active', cell_id: cellA },

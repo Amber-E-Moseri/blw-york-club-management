@@ -175,6 +175,9 @@ async function main() {
   r = await readCount(tokens.member_b_leader, `/rest/v1/meetings?select=id&id=eq.${meetB.id}`);
   check('meetings: deactivated assigned leader reads no leaders meeting of own cell', r.count === 0, r.error ?? `${r.count}`);
   await setStatus(actors.member_b_leader.id, { status: 'active' });
+  // Rejection released the cell leadership (072, release_cell_leadership_on_deactivation). Re-assign it, so the later
+  // checks test the restored leader rather than a cell with no leader.
+  await fixture('PATCH', `/rest/v1/cells?id=eq.${cellB.id}`, { leader_id: actors.member_b_leader.id });
 
   // 5. Prayers (047/049): leadership visibility via assigned leader of the author's cell
   const prayerId = prayer.count === 1 ? (await readCount(tokens.member_a, `/rest/v1/prayer_requests?select=id&author_id=eq.${actors.member_a.id}&content=eq.leadership%20prayer`)).rows?.[0]?.id : null;
