@@ -12,6 +12,7 @@ interface Props {
   onCancel: (id: string) => void;
   onEdit?: (m: Meeting) => void;
   onDelete?: (id: string) => void;
+  onManageAudience?: (m: Meeting) => void;
 }
 
 function formatTime(t: string) {
@@ -39,7 +40,7 @@ const CAT_BADGE: Record<string, { variant: string; label: string; icon: LucideIc
 };
 
 export const MeetingCard: React.FC<Props> = ({
-  meeting: m, canManage, onConfirm, onCancel, onEdit, onDelete,
+  meeting: m, canManage, onConfirm, onCancel, onEdit, onDelete, onManageAudience,
 }) => (
   <div
     className={cn(
@@ -81,6 +82,11 @@ export const MeetingCard: React.FC<Props> = ({
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
+            </button>
+          )}
+          {onManageAudience && (
+            <button onClick={() => onManageAudience(m)} className="p-1.5 rounded text-gray-400 dark:text-slate-400 hover:text-york-600 hover:bg-york-50 dark:hover:bg-york-900/40 transition-colors" title="Invitations and attendance">
+              <Users className="w-4 h-4" aria-hidden="true" />
             </button>
           )}
         </div>

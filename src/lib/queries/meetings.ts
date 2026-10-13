@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import type { Meeting, MeetingInput, MeetingAttendance } from '../../types';
+import type { Meeting, MeetingInput, MeetingAttendance, MeetingAttendanceStatus } from '../../types';
 
 export async function fetchMeetings(upcoming = true): Promise<Meeting[]> {
   const today = new Date().toISOString().split('T')[0];
@@ -106,6 +106,19 @@ export async function fetchAttendances(meetingId: string): Promise<MeetingAttend
     .order('confirmed_at', { ascending: true });
   if (error) throw new Error(error.message);
   return data ?? [];
+}
+
+/** Records a staff outcome for one invitee or attendee. The legacy boolean is kept in step by the database. */
+export async function markAttendanceStatus(
+  meetingId: string,
+  userId: string,
+  status: MeetingAttendanceStatus,
+): Promise<void> {
+  const { error } = await supabase
+    .from('meeting_attendances')
+    .update({ attendance_status: status })
+    .match({ meeting_id: meetingId, user_id: userId });
+  if (error) throw new Error(error.message);
 }
 
 export async function markAttended(

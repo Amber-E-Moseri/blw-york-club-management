@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  Calendar, CalendarDays, LayoutDashboard, Plus, Sparkles, Users,
+  Calendar, CalendarDays, ClipboardList, LayoutDashboard, Plus, Sparkles, Users,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { AuthUser } from '../../lib/auth';
@@ -20,6 +20,7 @@ const LEADER_TABS: TabItem[] = [
   { label: 'Home',     path: '/',         icon: LayoutDashboard },
   { label: 'Members',  path: '/members',  icon: Users           },
   { label: 'Meetings', path: '/meetings', icon: Calendar        },
+  { label: 'Tasks',    path: '/tasks',    icon: ClipboardList   },
   { label: 'Growth',   path: '/growth',   icon: Sparkles        },
 ];
 
@@ -27,6 +28,7 @@ const MEMBER_TABS: TabItem[] = [
   { label: 'Home',     path: '/',         icon: LayoutDashboard },
   { label: 'Meetings', path: '/meetings', icon: Calendar        },
   { label: 'Events',   path: '/events',   icon: CalendarDays    },
+  { label: 'Tasks',    path: '/tasks',    icon: ClipboardList   },
   { label: 'Growth',   path: '/growth',   icon: Sparkles        },
 ];
 

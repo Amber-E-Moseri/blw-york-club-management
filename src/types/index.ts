@@ -47,6 +47,7 @@ export interface Member {
   phone?: string;
   student_number?: string;
   cell_id?: string;
+  status?: 'pending' | 'active' | 'inactive' | 'rejected';
 }
 
 // ─── Announcements ───────────────────────────────────────────────────────────
@@ -315,6 +316,8 @@ export interface BookOfMonthInput {
 
 export type MeetingVisibility = 'public' | 'leaders' | 'cell' | 'explicit';
 export type MeetingCategory = 'general' | 'bsc' | 'cell' | 'leadership';
+export type MeetingAttendanceStatus = 'invited' | 'confirmed' | 'attended' | 'absent' | 'excused';
+export type MeetingInvitationSource = 'self' | 'member' | 'group' | 'cell' | 'all';
 
 export interface Meeting {
   id: string;
@@ -339,6 +342,8 @@ export interface Meeting {
   reminder_sent: boolean;
   attendance_count?: number;
   user_confirmed?: boolean;
+  user_attendance_status?: MeetingAttendanceStatus | null;
+  published_at?: string | null;
 }
 
 export interface MeetingInput {
@@ -353,6 +358,7 @@ export interface MeetingInput {
   category: MeetingCategory;
   cell_id?: string;
   allow_join_requests?: boolean;
+  draft?: boolean;
 }
 
 export interface MeetingAttendance {
@@ -362,6 +368,24 @@ export interface MeetingAttendance {
   user_name: string;
   confirmed_at: string;
   attended?: boolean;
+  attendance_status: MeetingAttendanceStatus;
+  invited_via: MeetingInvitationSource;
+  invited_by?: string | null;
+}
+
+export interface MemberGroup {
+  id: string;
+  name: string;
+  created_by: string;
+  created_at: string;
+  member_count?: number;
+}
+
+export interface AudiencePerson {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  cell_id: string | null;
 }
 
 // ─── Message of the Week ─────────────────────────────────────────────────────
