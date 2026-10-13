@@ -34,6 +34,8 @@ const MODE_LABEL: Record<AudienceMode, string> = {
 
 interface Props {
   user: AuthUser;
+  /** Cells the caller leads (cells.leader_id = caller). Leadership is assignment, not profiles.cell_id. */
+  ledCellIds: string[];
   onSent: (result: SendResult) => void;
 }
 
@@ -48,8 +50,9 @@ function toggle(list: string[], id: string): string[] {
   return list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
 }
 
-export const MessageComposer: React.FC<Props> = ({ user, onSent }) => {
-  const modes = allowedModes(user.role, user.cellId);
+export const MessageComposer: React.FC<Props> = ({ user, ledCellIds, onSent }) => {
+  const modes = allowedModes(user.role, ledCellIds);
+  const isStaff = user.role === 'admin' || user.role === 'coordinator';
   const externalAllowed = canSendExternal(user.role);
   const [selection, setSelection] = useState<AudienceSelection>(() => emptySelection(modes[0] ?? 'explicit'));
   const [subject, setSubject] = useState('');
@@ -73,7 +76,7 @@ export const MessageComposer: React.FC<Props> = ({ user, onSent }) => {
     if (modes.includes('explicit')) listActiveMembersForComposer().then(setMembers).catch((e) => setError(e.message));
     // modes depends only on the signed-in role, which does not change while the composer is open.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user.role, user.cellId]);
+  }, [user.role, ledCellIds.join(',')]);
 
   const visibleMembers = useMemo(() => {
     const q = memberFilter.trim().toLowerCase();
@@ -82,7 +85,7 @@ export const MessageComposer: React.FC<Props> = ({ user, onSent }) => {
 
   const draft = { subject, body, selection, channels };
   const errors = validateDraft(draft);
-  const problem = selectionProblem(user.role, user.cellId, selection);
+  const problem = selectionProblem(user.role, ledCellIds, selection);
   const previewIsCurrent = !!preview && sameSelection(preview.selection, selection);
 
   function changeSelection(next: AudienceSelection) {
@@ -168,7 +171,7 @@ export const MessageComposer: React.FC<Props> = ({ user, onSent }) => {
           <fieldset className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <legend className="sr-only">Cells</legend>
             {cells
-              .filter((c) => user.role !== 'cell_leader' || c.id === user.cellId)
+              .filter((c) => isStaff || ledCellIds.includes(c.id))
               .map((c) => (
                 <label key={c.id} className="flex items-center gap-2 rounded-md border border-gray-200 dark:border-slate-600 px-3 py-2 min-h-[44px] text-sm">
                   <input

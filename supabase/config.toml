@@ -398,6 +398,11 @@ verify_jwt = false
 [functions.unsubscribe]
 verify_jwt = false
 
+# dispatch-message is called only by a signed-in sender or staff. The gateway verifies the JWT, and the function
+# checks the sender or staff role again before claiming any delivery.
+[functions.dispatch-message]
+verify_jwt = true
+
 [analytics]
 enabled = true
 port = 60627

@@ -29,10 +29,14 @@ export function emptySelection(mode: AudienceMode = 'explicit'): AudienceSelecti
   return { mode, cellIds: [], groupIds: [], profileIds: [] };
 }
 
-/** Which audience modes a signed-in role may offer in the composer. The database decides the same thing. */
-export function allowedModes(role: UserRole, ownCellId?: string): AudienceMode[] {
+/**
+ * Leadership is an assignment (migration 054): cells.leader_id = the caller, on an active account. It is not a role
+ * label and not profiles.cell_id (membership). `ledCellIds` is the list of cells the caller leads, read from cells.
+ * The database applies the same rule in assert_can_send_message (migration 067).
+ */
+export function allowedModes(role: UserRole, ledCellIds: string[]): AudienceMode[] {
   if (role === 'admin' || role === 'coordinator') return ['all', 'cells', 'saved_groups', 'explicit'];
-  if (role === 'cell_leader' && ownCellId) return ['cells'];
+  if (ledCellIds.length > 0) return ['cells'];
   return [];
 }
 
@@ -41,13 +45,17 @@ export function canSendExternal(role: UserRole): boolean {
   return role === 'admin' || role === 'coordinator';
 }
 
-/** A cell leader may only pick their own cell. Returns a message to show, or null when the selection is allowed. */
-export function selectionProblem(role: UserRole, ownCellId: string | undefined, selection: AudienceSelection): string | null {
-  if (!allowedModes(role, ownCellId).includes(selection.mode)) return 'You cannot send to this audience.';
+/**
+ * Returns a message to show, or null when the selection is allowed. A leader may pick only cells they lead.
+ * Staff are not limited by ledCellIds.
+ */
+export function selectionProblem(role: UserRole, ledCellIds: string[], selection: AudienceSelection): string | null {
+  if (!allowedModes(role, ledCellIds).includes(selection.mode)) return 'You cannot send to this audience.';
   if (selection.mode === 'cells') {
     if (selection.cellIds.length === 0) return 'Choose a cell.';
-    if (role === 'cell_leader' && (selection.cellIds.length !== 1 || selection.cellIds[0] !== ownCellId)) {
-      return 'Cell leaders can message only their own cell.';
+    const isStaff = role === 'admin' || role === 'coordinator';
+    if (!isStaff && selection.cellIds.some((id) => !ledCellIds.includes(id))) {
+      return 'You can message only the cells you lead.';
     }
   }
   if (selection.mode === 'saved_groups' && selection.groupIds.length === 0) return 'Choose at least one group.';

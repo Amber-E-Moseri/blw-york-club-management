@@ -65,7 +65,7 @@ async function flush() {
 describe('MessageComposer', () => {
   test('a cell leader is offered only the cells audience', async () => {
     await act(async () => {
-      root.render(<MessageComposer user={leader} onSent={() => undefined} />);
+      root.render(<MessageComposer user={leader} ledCellIds={['cell-a']} onSent={() => undefined} />);
     });
     await flush();
     const modes = Array.from(container.querySelectorAll('[role="radio"]')).map((el) => el.textContent);
@@ -75,7 +75,7 @@ describe('MessageComposer', () => {
 
   test('a cell leader sees only their own cell in the picker', async () => {
     await act(async () => {
-      root.render(<MessageComposer user={leader} onSent={() => undefined} />);
+      root.render(<MessageComposer user={leader} ledCellIds={['cell-a']} onSent={() => undefined} />);
     });
     await flush();
     const labels = Array.from(container.querySelectorAll('fieldset label')).map((el) => el.textContent);
@@ -84,7 +84,7 @@ describe('MessageComposer', () => {
 
   test('Send is disabled until recipients have been previewed', async () => {
     await act(async () => {
-      root.render(<MessageComposer user={leader} onSent={() => undefined} />);
+      root.render(<MessageComposer user={leader} ledCellIds={['cell-a']} onSent={() => undefined} />);
     });
     await flush();
     const send = Array.from(container.querySelectorAll('button')).find((b) => b.textContent === 'Send message') as HTMLButtonElement;
@@ -94,7 +94,7 @@ describe('MessageComposer', () => {
 
   test('previewing a cell calls the preview service with that cell only', async () => {
     await act(async () => {
-      root.render(<MessageComposer user={leader} onSent={() => undefined} />);
+      root.render(<MessageComposer user={leader} ledCellIds={['cell-a']} onSent={() => undefined} />);
     });
     await flush();
     const cellBox = container.querySelector('fieldset input[type="checkbox"]') as HTMLInputElement;
@@ -115,7 +115,7 @@ describe('MessageComposer', () => {
   test('a member without a composer role sees no compose controls', async () => {
     const member: AuthUser = { ...leader, role: 'member', cellId: undefined };
     await act(async () => {
-      root.render(<MessageComposer user={member} onSent={() => undefined} />);
+      root.render(<MessageComposer user={member} ledCellIds={[]} onSent={() => undefined} />);
     });
     await flush();
     expect(container.textContent).toMatch(/Only leaders and staff can send messages/);

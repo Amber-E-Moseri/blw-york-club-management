@@ -157,6 +157,13 @@ export async function markMessageRead(messageId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/** Cells the signed-in account leads. This is the leadership authority (migration 054), not profiles.cell_id. */
+export async function listLedCellIds(userId: string): Promise<string[]> {
+  const { data, error } = await supabase.from('cells').select('id').eq('leader_id', userId);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => row.id as string);
+}
+
 export async function listCellsForComposer(): Promise<Array<{ id: string; name: string }>> {
   const { data, error } = await supabase.from('cells').select('id, name').order('name');
   if (error) throw new Error(error.message);

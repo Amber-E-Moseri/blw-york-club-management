@@ -4,6 +4,7 @@ import { PageHeader } from '../components/foundation/PageHeader';
 import { allowedModes, deliveryLabel, MESSAGE_STATUS_LABEL, messageStatusFor } from '../lib/communications/messaging';
 import {
   listInbox,
+  listLedCellIds,
   listSentMessages,
   markMessageRead,
   type InboxMessage,
@@ -20,7 +21,8 @@ interface Props {
 type Tab = 'inbox' | 'compose' | 'sent';
 
 export const Communications: React.FC<Props> = ({ user }) => {
-  const canCompose = !!user && allowedModes(user.role, user.cellId).length > 0;
+  const [ledCellIds, setLedCellIds] = useState<string[]>([]);
+  const canCompose = !!user && allowedModes(user.role, ledCellIds).length > 0;
   const [tab, setTab] = useState<Tab>('inbox');
   const [inbox, setInbox] = useState<InboxMessage[]>([]);
   const [sent, setSent] = useState<SentMessage[]>([]);
@@ -51,7 +53,13 @@ export const Communications: React.FC<Props> = ({ user }) => {
   useEffect(() => {
     if (!user) return;
     refreshInbox();
-    if (canCompose) refreshSent();
+    // Leadership comes from cells.leader_id. Load it first, then decide whether the compose and sent tabs apply.
+    listLedCellIds(user.id)
+      .then((ids) => {
+        setLedCellIds(ids);
+        if (allowedModes(user.role, ids).length > 0) refreshSent();
+      })
+      .catch((e) => setLoadError(e instanceof Error ? e.message : 'Could not load your cells.'));
     // Reload only when the signed-in user changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
@@ -138,7 +146,7 @@ export const Communications: React.FC<Props> = ({ user }) => {
 
         {tab === 'compose' && canCompose && user && (
           <div className="card">
-            <MessageComposer user={user} onSent={handleSent} />
+            <MessageComposer user={user} ledCellIds={ledCellIds} onSent={handleSent} />
           </div>
         )}
 

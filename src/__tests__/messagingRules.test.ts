@@ -10,8 +10,9 @@ import {
   type DraftInput,
 } from '../lib/communications/messaging';
 
-const OWN_CELL = 'cell-a';
-const OTHER_CELL = 'cell-b';
+// Leadership is cells.leader_id (migration 054). These tests pass the cells the caller leads, not a profile cell.
+const LED_A = ['cell-a'];
+const CELL_B = 'cell-b';
 
 function draft(overrides: Partial<DraftInput> = {}): DraftInput {
   return {
@@ -25,46 +26,69 @@ function draft(overrides: Partial<DraftInput> = {}): DraftInput {
 
 describe('who may pick which audience (UX gate; the database re-checks)', () => {
   test('admin and coordinator may use every mode', () => {
-    expect(allowedModes('admin')).toEqual(['all', 'cells', 'saved_groups', 'explicit']);
-    expect(allowedModes('coordinator')).toEqual(['all', 'cells', 'saved_groups', 'explicit']);
+    expect(allowedModes('admin', [])).toEqual(['all', 'cells', 'saved_groups', 'explicit']);
+    expect(allowedModes('coordinator', [])).toEqual(['all', 'cells', 'saved_groups', 'explicit']);
   });
 
-  test('cell leader may use only cells', () => {
-    expect(allowedModes('cell_leader', OWN_CELL)).toEqual(['cells']);
+  test('a leader of at least one cell may use cells only', () => {
+    expect(allowedModes('member', LED_A)).toEqual(['cells']);
   });
 
-  test('a cell leader with no cell has no audience at all', () => {
-    expect(allowedModes('cell_leader')).toEqual([]);
+  test('a role label alone grants nothing: cell_leader with no led cell has no audience', () => {
+    expect(allowedModes('cell_leader', [])).toEqual([]);
   });
 
-  test('members cannot compose', () => {
-    expect(allowedModes('member', OWN_CELL)).toEqual([]);
+  test('a plain member with no led cell cannot compose', () => {
+    expect(allowedModes('member', [])).toEqual([]);
   });
 });
 
-describe('cell-leader scope', () => {
-  test('leader sends within their own cell', () => {
-    expect(selectionProblem('cell_leader', OWN_CELL, { ...emptySelection('cells'), cellIds: [OWN_CELL] })).toBeNull();
+describe('leader scope follows the cells the caller leads', () => {
+  test('a leader sends to a cell they lead', () => {
+    expect(selectionProblem('member', LED_A, { ...emptySelection('cells'), cellIds: ['cell-a'] })).toBeNull();
   });
 
-  test('leader cannot pick another cell', () => {
-    expect(selectionProblem('cell_leader', OWN_CELL, { ...emptySelection('cells'), cellIds: [OTHER_CELL] })).toBe(
-      'Cell leaders can message only their own cell.',
+  test('a leader cannot send to a cell they do not lead', () => {
+    expect(selectionProblem('member', LED_A, { ...emptySelection('cells'), cellIds: [CELL_B] })).toBe(
+      'You can message only the cells you lead.',
     );
   });
 
-  test('leader cannot add a second cell alongside their own', () => {
-    expect(selectionProblem('cell_leader', OWN_CELL, { ...emptySelection('cells'), cellIds: [OWN_CELL, OTHER_CELL] })).toBe(
-      'Cell leaders can message only their own cell.',
+  test('a leader of several cells may select several of them', () => {
+    expect(
+      selectionProblem('member', ['cell-a', CELL_B], { ...emptySelection('cells'), cellIds: ['cell-a', CELL_B] }),
+    ).toBeNull();
+  });
+
+  test('a leader cannot add an unled cell alongside a led one', () => {
+    expect(
+      selectionProblem('member', LED_A, { ...emptySelection('cells'), cellIds: ['cell-a', CELL_B] }),
+    ).toBe('You can message only the cells you lead.');
+  });
+
+  test('a leader cannot switch to everyone', () => {
+    expect(selectionProblem('member', LED_A, emptySelection('all'))).toBe('You cannot send to this audience.');
+  });
+
+  test('a leader cannot target saved groups or individual people', () => {
+    expect(selectionProblem('member', LED_A, { ...emptySelection('explicit'), profileIds: ['p1'] })).toBe(
+      'You cannot send to this audience.',
+    );
+    expect(selectionProblem('member', LED_A, { ...emptySelection('saved_groups'), groupIds: ['g1'] })).toBe(
+      'You cannot send to this audience.',
     );
   });
 
-  test('leader cannot switch to everyone', () => {
-    expect(selectionProblem('cell_leader', OWN_CELL, emptySelection('all'))).toBe('You cannot send to this audience.');
+  test('staff may pick any cell combination, whether or not they lead it', () => {
+    expect(
+      selectionProblem('admin', [], { ...emptySelection('cells'), cellIds: ['cell-a', CELL_B] }),
+    ).toBeNull();
   });
 
-  test('staff may pick any cell combination', () => {
-    expect(selectionProblem('admin', undefined, { ...emptySelection('cells'), cellIds: [OWN_CELL, OTHER_CELL] })).toBeNull();
+  test('a former leader (no longer in led cells) is refused', () => {
+    expect(selectionProblem('member', [], { ...emptySelection('cells'), cellIds: ['cell-a'] })).toBe(
+      'You cannot send to this audience.',
+    );
   });
 });
 
@@ -76,7 +100,7 @@ describe('request shape sent to send_message', () => {
 
   test('only the id list for the chosen mode is populated', () => {
     const args = toSendArgs(
-      draft({ selection: { mode: 'explicit', cellIds: [OWN_CELL], groupIds: ['g1'], profileIds: ['p1', 'p2'] } }),
+      draft({ selection: { mode: 'explicit', cellIds: [CELL_B], groupIds: ['g1'], profileIds: ['p1', 'p2'] } }),
       'key-2',
     );
     expect(args.p_mode).toBe('explicit');
