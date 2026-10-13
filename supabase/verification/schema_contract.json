@@ -47,6 +47,8 @@
     ]
   },
   "serviceRoleNoAccess": ["admin_bootstrap_audit", "bsc_assignment_audit", "cell_admin_audit", "member_cell_audit", "member_status_audit", "leadership_release_audit"],
+  "serviceRoleExact": { "communication_audit": "INSERT" },
+  "restrictivePolicies": { "meetings": ["meetings_publication_gate"] },
   "forbiddenPrivileges": ["TRUNCATE", "REFERENCES", "TRIGGER"],
   "profilePolicyAllowList": {
     "profiles": ["profiles_coordinator_administer", "profiles_select_scoped", "profiles_self_onboarding_update", "profiles_self_update_active"],
@@ -140,7 +142,8 @@
     "set_meeting_audience_apply(uuid,text,uuid[],uuid[],uuid[],boolean)": { "security": "definer", "execute": [] },
     "create_audience_spec(text,uuid[],uuid[],uuid[],uuid[],uuid[],uuid[])": { "security": "definer", "execute": ["authenticated"] },
     "audience_resolve_fields(text,uuid[],uuid[],uuid[],uuid[],uuid[],uuid[])": { "security": "definer", "execute": [] },
-    "create_targeted_affirmation(text,text,date,text,uuid[],uuid[],uuid[],uuid[],uuid[],uuid[])": { "security": "invoker", "execute": ["authenticated"] }
+    "create_targeted_affirmation(text,text,date,text,uuid[],uuid[],uuid[],uuid[],uuid[],uuid[])": { "security": "invoker", "execute": ["authenticated"] },
+    "communication_audit_block_change()": { "security": "invoker", "execute": [] }
   },
   "definerSearchPath": "search_path=public, pg_temp",
   "storage": {

@@ -30,7 +30,7 @@ tbl as (
                   where a.attrelid = t.oid and a.attnum > 0 and not a.attisdropped), '[]'::jsonb),
       'constraints', coalesce((select jsonb_agg(conname || ' ' || pg_get_constraintdef(oid) order by conname) from pg_constraint where conrelid = t.oid), '[]'::jsonb),
       'indexes', coalesce((select jsonb_agg(indexname || ' ' || indexdef order by indexname) from pg_indexes where schemaname = 'public' and tablename = t.relname), '[]'::jsonb),
-      'policies', coalesce((select jsonb_agg(policyname || ' | ' || cmd || ' | ' || roles::text || ' | using=' || coalesce(qual, '') || ' | check=' || coalesce(with_check, '') order by policyname)
+      'policies', coalesce((select jsonb_agg(policyname || ' | ' || cmd || ' | ' || roles::text || ' | using=' || coalesce(qual, '') || ' | check=' || coalesce(with_check, '') || ' | ' || upper(permissive) order by policyname)
                    from pg_policies where schemaname = 'public' and tablename = t.relname), '[]'::jsonb),
       'triggers', coalesce((select jsonb_agg(pg_get_triggerdef(tg.oid) order by tg.tgname) from pg_trigger tg where tg.tgrelid = t.oid and not tg.tgisinternal), '[]'::jsonb),
       'privileges', (
@@ -78,7 +78,7 @@ select jsonb_pretty(jsonb_build_object(
     from pg_default_acl d
     where d.defaclrole::regrole::text in ('postgres', 'supabase_admin') and d.defaclnamespace in (0, 'public'::regnamespace)),
   'storage_buckets', (select jsonb_agg(id || ' | public=' || public::text || ' | max=' || coalesce(file_size_limit::text, '-') || ' | mime=' || coalesce(array_to_string(allowed_mime_types, ','), '-') order by id) from storage.buckets),
-  'storage_policies', (select jsonb_agg(policyname || ' | ' || cmd || ' | ' || roles::text || ' | using=' || coalesce(qual, '') || ' | check=' || coalesce(with_check, '') order by policyname)
+  'storage_policies', (select jsonb_agg(policyname || ' | ' || cmd || ' | ' || roles::text || ' | using=' || coalesce(qual, '') || ' | check=' || coalesce(with_check, '') || ' | ' || upper(permissive) order by policyname)
                        from pg_policies where schemaname = 'storage' and tablename = 'objects'),
   'auth_user_triggers', (select jsonb_agg(pg_get_triggerdef(oid) order by tgname) from pg_trigger where tgrelid = 'auth.users'::regclass and not tgisinternal),
   'extensions', (select jsonb_agg(extname order by extname) from pg_extension),

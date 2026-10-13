@@ -58,8 +58,12 @@ const authMismatch = tableNames.filter((t) => fp.tables[t].privileges.authentica
 check('grants: authenticated privileges match the reviewed matrix exactly', authMismatch.length === 0,
   authMismatch.map((t) => `${t}: have '${fp.tables[t].privileges.authenticated}' want '${expectedAuth[t]}'`).join('; '));
 
-const svcMismatch = tableNames.filter((t) => fp.tables[t].privileges.service_role !== (contract.serviceRoleNoAccess.includes(t) ? '' : 'DELETE,INSERT,SELECT,UPDATE'));
-check('grants: service_role has only SELECT/INSERT/UPDATE/DELETE (none on owner-only tables)', svcMismatch.length === 0, svcMismatch.join(','));
+// service_role: no access on serviceRoleNoAccess tables; an exact reviewed set where serviceRoleExact names the table
+// (for example INSERT only); the full DML set everywhere else.
+const svcExpected = (t) => (contract.serviceRoleNoAccess.includes(t) ? '' : (contract.serviceRoleExact?.[t] ?? 'DELETE,INSERT,SELECT,UPDATE'));
+const svcMismatch = tableNames.filter((t) => fp.tables[t].privileges.service_role !== svcExpected(t));
+check('grants: service_role matches the reviewed per-table set (none, exact, or full DML)', svcMismatch.length === 0,
+  svcMismatch.map((t) => `${t}: have '${fp.tables[t].privileges.service_role}' want '${svcExpected(t)}'`).join('; '));
 check('grants: member_directory is read-only for authenticated and unreachable by anon',
   fp.views.member_directory?.privileges.authenticated === 'SELECT' && fp.views.member_directory?.privileges.anon === '', JSON.stringify(fp.views.member_directory?.privileges));
 check('views: security_invoker', (fp.views.member_directory?.options ?? '').includes('security_invoker=true'), fp.views.member_directory?.options);
@@ -67,6 +71,18 @@ check('views: security_invoker', (fp.views.member_directory?.options ?? '').incl
 const pgDefaults = (fp.default_privileges ?? []).filter((d) => d.startsWith('postgres |'));
 const leaking = pgDefaults.filter((d) => /\b(anon|authenticated|service_role)=/.test(d));
 check('default ACLs: objects created by postgres in public grant nothing to API roles', leaking.length === 0, leaking.join(' || '));
+
+// --- policy mode (PERMISSIVE or RESTRICTIVE) -------------------------------------------------------------------------
+// Every policy line ends with its mode. The reviewed RESTRICTIVE set is exact: a restrictive policy changed to
+// permissive (or a new restrictive one) fails here.
+const policyMode = (p) => p.split(' | ').at(-1);
+check('policies: every policy records its mode (PERMISSIVE or RESTRICTIVE)',
+  tableNames.every((t) => fp.tables[t].policies.every((p) => ['PERMISSIVE', 'RESTRICTIVE'].includes(policyMode(p)))), '');
+const restrictiveNow = [];
+for (const t of tableNames) for (const p of fp.tables[t].policies) if (policyMode(p) === 'RESTRICTIVE') restrictiveNow.push(`${t}.${p.split(' | ')[0]}`);
+const restrictiveWant = Object.entries(contract.restrictivePolicies ?? {}).flatMap(([t, names]) => names.map((n) => `${t}.${n}`));
+check('policies: the RESTRICTIVE set equals the reviewed set (restrictive changed to permissive fails)',
+  eq(restrictiveNow, restrictiveWant), JSON.stringify(diff(restrictiveNow, restrictiveWant)));
 
 // --- authorization of profiles ---------------------------------------------------------------------------------------
 for (const [table, allowed] of Object.entries(contract.profilePolicyAllowList)) {
