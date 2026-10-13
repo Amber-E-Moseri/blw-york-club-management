@@ -104,8 +104,13 @@ src, dst, project, prefix, inspector = sys.argv[1:6]
 s = open(src, encoding="utf-8").read()
 s, n = re.subn(r'project_id = "[^"]*"', f'project_id = "{project}"', s, count=1)
 assert n == 1, "project_id not found"
-s = re.sub(r"\b5832(\d)\b", lambda m: prefix + m.group(1), s)
-s = re.sub(r"\b58320\b", prefix + "0", s)
+# Auto-detect the port base: any `port = NNNNN` line. Replace every occurrence of that
+# base prefix with the cert prefix (e.g. 6062x -> 5852x). This handles projects that
+# use a non-default port range without hardcoding the base.
+port_nums = [int(m) for m in re.findall(r'^(?:shadow_)?port = (\d{4,6})\b', s, re.M)]
+if port_nums:
+    base = str(min(port_nums))[:-1]  # e.g. "6062" from 60620
+    s = re.sub(rf'\b{re.escape(base)}(\d)\b', lambda m: prefix + m.group(1), s)
 s = re.sub(r"inspector_port = \d+", f"inspector_port = {inspector}", s)
 # Services the release tests do not use are disabled in the run copy only (Studio, analytics, Edge runtime and
 # realtime). Edge functions run through the host Deno router. This keeps a shared Docker host from starving the
