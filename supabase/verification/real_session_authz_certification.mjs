@@ -209,8 +209,11 @@ async function main() {
   const bscVisible = await rpc(tokens.bsc_leader, 'bsc_members_visible', {});
   const sawMemberB = Array.isArray(bscVisible.json) && bscVisible.json.some((m) => m.id === actors.member_b.id);
   check('bsc: active assigned BSC leader with member role sees BSC members', bscVisible.status === 200 && sawMemberB, `${bscVisible.status} rows=${Array.isArray(bscVisible.json) ? bscVisible.json.length : 'n/a'}`);
+  // Migration 055 added is_cell_leader_of(b.cell_id) to bsc_members_visible: an assigned cell leader can see
+  // BSC members in their cell even without a BSC leader assignment of their own.
   const bscOther = await rpc(tokens.member_b_leader, 'bsc_members_visible', {});
-  check('bsc: cell leader of a cell without BSC assignment sees no BSC members', bscOther.status === 200 && (bscOther.json?.length ?? 0) === 0, `${bscOther.status} rows=${Array.isArray(bscOther.json) ? bscOther.json.length : 'n/a'}`);
+  const sawMemberBByCell = Array.isArray(bscOther.json) && bscOther.json.some((m) => m.id === actors.member_b.id);
+  check('bsc: cell leader (no BSC assignment) sees BSC members of BSCs in their cell (migration 055)', bscOther.status === 200 && sawMemberBByCell, `${bscOther.status} rows=${Array.isArray(bscOther.json) ? bscOther.json.length : 'n/a'}`);
   // Rejected former BSC leader: deactivate the leader and confirm loss of BSC access
   await setStatus(actors.bsc_leader.id, { status: 'rejected' });
   const bscAfter = await rpc(tokens.bsc_leader, 'bsc_members_visible', {});
