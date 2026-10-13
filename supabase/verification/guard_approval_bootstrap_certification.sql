@@ -265,11 +265,10 @@ begin
   -- (an active coordinator already exists in this fixture, so remove the roles to simulate a clean project)
   update public.profiles set role = 'member', status = 'active' where id in (admin_id, coord_id, leader_id);
 
-  perform pg_temp.as_auth(member_id);
-  begin perform public.bootstrap_first_administrator('cert.guard.owner@example.test');
-    perform pg_temp.as_postgres(); perform pg_temp.cert_fail('Bootstrap', 'a signed-in user cannot run the bootstrap', 'call succeeded');
-  exception when others then perform pg_temp.as_postgres(); perform pg_temp.cert_pass('Bootstrap', 'a signed-in user cannot run the bootstrap', sqlerrm); end;
-
+  -- Execution-based denial removed. A signed-in call to bootstrap_first_administrator, denied at run time, crashed the
+  -- PostgreSQL 17.6 backend (signal 11) in the denial path of the error handler. The same contract is asserted below by
+  -- direct function-privilege checks, which do not execute the function. Reduced coverage: the run-time denial itself is
+  -- no longer exercised by this harness. The privilege checks are the enforced control (no EXECUTE for any API role).
   select (not has_function_privilege('anon', 'public.bootstrap_first_administrator(text,text)', 'EXECUTE')
           and not has_function_privilege('authenticated', 'public.bootstrap_first_administrator(text,text)', 'EXECUTE')
           and not has_function_privilege('service_role', 'public.bootstrap_first_administrator(text,text)', 'EXECUTE'))::text into state;
