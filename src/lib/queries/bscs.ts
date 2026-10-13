@@ -50,7 +50,7 @@ function fail(error: { message: string } | null): void {
 }
 
 export async function listCells(): Promise<CellOption[]> {
-  const { data, error } = await supabase.from('cells').select('id, name').order('name');
+  const { data, error } = await supabase.from('cells').select('id, name').is('archived_at', null).order('name');
   fail(error);
   return data ?? [];
 }

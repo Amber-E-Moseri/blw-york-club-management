@@ -47,6 +47,9 @@ export interface Member {
   phone?: string;
   student_number?: string;
   cell_id?: string;
+  status?: 'pending' | 'active' | 'inactive' | 'rejected';
+  /** Bible Study Class the member is in, when the viewer can see it. A cell change is blocked while it is set. */
+  bsc_name?: string | null;
 }
 
 // ─── Announcements ───────────────────────────────────────────────────────────
