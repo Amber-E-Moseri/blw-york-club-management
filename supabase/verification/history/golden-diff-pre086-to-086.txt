@@ -1,0 +1,1252 @@
+57a58
+>                 "archived_at:timestamp with time zone:null:",
+70c71
+<                 "cells_manage | ALL | {public} | using=is_coordinator() | check=is_coordinator()",
+---
+>                 "cells_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
+73a75
+>                 "CREATE TRIGGER cells_admin_audit AFTER INSERT OR DELETE OR UPDATE ON public.cells FOR EACH ROW EXECUTE FUNCTION audit_cell_admin_change()",
+74a77
+>                 "CREATE TRIGGER cells_guard_lifecycle BEFORE DELETE OR UPDATE ON public.cells FOR EACH ROW EXECUTE FUNCTION guard_cell_lifecycle()",
+115c118
+<                 "events_read | SELECT | {public} | using=is_active_member() | check="
+---
+>                 "events_read | SELECT | {public} | using=(((audience = 'all'::text) AND (audience_spec_id IS NULL)) OR is_admin_or_coordinator() OR (is_active_member() AND (((audience_spec_id IS NULL) AND (audience = 'meeting'::text) AND (audience_meeting_id IS NOT NULL) AND (is_meeting_manager(audience_meeting_id) OR is_meeting_participant(audience_meeting_id))) OR ((audience_spec_id IS NOT NULL) AND is_audience_recipient('event'::text, id))))) | check="
+117a121,122
+>                 "CREATE TRIGGER events_block_audience_change BEFORE UPDATE ON public.events FOR EACH ROW EXECUTE FUNCTION block_targeted_audience_change()",
+>                 "CREATE TRIGGER events_snapshot_audience AFTER INSERT ON public.events FOR EACH ROW WHEN ((new.audience_spec_id IS NOT NULL)) EXECUTE FUNCTION snapshot_event_audience()"
+126c131
+<                 "events_audience_check CHECK ((audience = ANY (ARRAY['all'::text, 'meeting'::text, 'cells'::text, 'saved_groups'::text, 'explicit'::text])))",
+---
+>                 "events_audience_check CHECK ((audience = ANY (ARRAY['all'::text, 'meeting'::text, 'cells'::text, 'saved_groups'::text, 'explicit'::text, 'composite'::text])))",
+128c133
+<                 "events_audience_spec_id_fkey FOREIGN KEY (audience_spec_id) REFERENCES audience_specs(id) ON DELETE SET NULL",
+---
+>                 "events_audience_spec_id_fkey FOREIGN KEY (audience_spec_id) REFERENCES audience_specs(id) ON DELETE RESTRICT",
+240a246
+>                 "audience_spec_id:uuid:null:",
+249a256
+>                 "published_at:timestamp with time zone:null:now()",
+267c274
+<                 "meetings_explicit_invitee_read | SELECT | {authenticated} | using=((visibility = 'explicit'::text) AND is_active_member() AND is_meeting_invitee(id)) | check=",
+---
+>                 "meetings_explicit_invitee_read | SELECT | {authenticated} | using=((visibility = 'explicit'::text) AND is_meeting_participant(id)) | check=",
+270c277,278
+<                 "meetings_public_read | SELECT | {public} | using=(is_active_member() AND (visibility = 'public'::text)) | check="
+---
+>                 "meetings_public_read | SELECT | {public} | using=(is_active_member() AND (visibility = 'public'::text)) | check=",
+>                 "meetings_publication_gate | SELECT | {authenticated} | using=(is_meeting_manager(id) OR (is_active_member() AND (published_at IS NOT NULL))) | check="
+281a290
+>                 "meetings_audience_spec_id_fkey FOREIGN KEY (audience_spec_id) REFERENCES audience_specs(id) ON DELETE SET NULL",
+320a330
+>                 "CREATE TRIGGER profiles_guard_member_cell_placement BEFORE INSERT OR UPDATE OF cell_id ON public.profiles FOR EACH ROW EXECUTE FUNCTION guard_member_cell_placement()",
+321a332,334
+>                 "CREATE TRIGGER profiles_member_cell_audit AFTER UPDATE OF cell_id ON public.profiles FOR EACH ROW WHEN ((old.cell_id IS DISTINCT FROM new.cell_id)) EXECUTE FUNCTION audit_member_cell_change()",
+>                 "CREATE TRIGGER profiles_release_bsc_leadership AFTER UPDATE OF status ON public.profiles FOR EACH ROW EXECUTE FUNCTION release_bsc_leadership_on_deactivation()",
+>                 "CREATE TRIGGER profiles_release_cell_leadership AFTER UPDATE OF status ON public.profiles FOR EACH ROW EXECUTE FUNCTION release_cell_leadership_on_deactivation()",
+374,375c387
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+431a444
+>                 "batch_id:uuid:null:",
+436a450,451
+>                 "priority:text:NOT NULL:'normal'::text",
+>                 "reviewed_at:timestamp with time zone:null:",
+443a459
+>                 "assignments_batch_idx CREATE INDEX assignments_batch_idx ON public.assignments USING btree (batch_id)",
+454a471
+>                 "CREATE TRIGGER assignments_guard_assignee_changes BEFORE UPDATE ON public.assignments FOR EACH ROW EXECUTE FUNCTION assignments_guard_assignee_changes()",
+466a484
+>                 "assignments_priority_check CHECK ((priority = ANY (ARRAY['low'::text, 'normal'::text, 'high'::text, 'urgent'::text])))",
+490c508
+<                 "confessions_read | SELECT | {public} | using=((is_active = true) AND is_active_member() AND ((audience_spec_id IS NULL) OR is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM resolve_audience(confessions.audience_spec_id) ra(profile_id)\n  WHERE (ra.profile_id = auth.uid()))))) | check="
+---
+>                 "confessions_read | SELECT | {public} | using=((is_active = true) AND is_active_member() AND ((audience_spec_id IS NULL) OR is_admin_or_coordinator() OR is_audience_recipient('affirmation'::text, id))) | check="
+492a511,512
+>                 "CREATE TRIGGER confessions_block_audience_change BEFORE UPDATE ON public.confessions FOR EACH ROW EXECUTE FUNCTION block_targeted_audience_change()",
+>                 "CREATE TRIGGER confessions_snapshot_audience AFTER INSERT ON public.confessions FOR EACH ROW WHEN ((new.audience_spec_id IS NOT NULL)) EXECUTE FUNCTION snapshot_affirmation_audience()"
+501c521
+<                 "confessions_audience_spec_id_fkey FOREIGN KEY (audience_spec_id) REFERENCES audience_specs(id) ON DELETE SET NULL",
+---
+>                 "confessions_audience_spec_id_fkey FOREIGN KEY (audience_spec_id) REFERENCES audience_specs(id) ON DELETE RESTRICT",
+524,525c544
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+554,555c573
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+681,682c699
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+755c772
+<                 "saved_groups_read | SELECT | {authenticated} | using=(is_active_member() AND (is_active = true)) | check="
+---
+>                 "saved_groups_read | SELECT | {authenticated} | using=is_admin_or_coordinator() | check="
+764c781
+<                 "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+---
+>                 "authenticated": "INSERT,SELECT,UPDATE"
+791,792c808,809
+<                 "announcements_manage | ALL | {authenticated} | using=(is_admin_or_coordinator() OR (is_active_member() AND (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'cell_leader'::text) AND (profiles.status = 'active'::text)))) AND ((author_id = auth.uid()) OR ((audience_spec_id IS NOT NULL) AND (EXISTS ( SELECT 1\n   FROM audience_specs s\n  WHERE ((s.id = announcements.audience_spec_id) AND (s.mode = 'cells'::text) AND (EXISTS ( SELECT 1\n           FROM cells c\n          WHERE ((c.id = ANY (s.cell_ids)) AND (c.leader_id = auth.uid()))))))))))) | check=(is_admin_or_coordinator() OR (is_active_member() AND (author_id = auth.uid()) AND (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'cell_leader'::text) AND (profiles.status = 'active'::text)))) AND ((audience_spec_id IS NULL) OR (EXISTS ( SELECT 1\n   FROM audience_specs s\n  WHERE ((s.id = announcements.audience_spec_id) AND (s.mode = 'cells'::text) AND (EXISTS ( SELECT 1\n           FROM cells c\n          WHERE ((c.id = ANY (s.cell_ids)) AND (c.leader_id = auth.uid()))))))))))",
+<                 "announcements_read | SELECT | {public} | using=((is_active = true) AND is_active_member() AND ((audience_spec_id IS NULL) OR is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM resolve_audience(announcements.audience_spec_id) ra(profile_id)\n  WHERE (ra.profile_id = auth.uid()))))) | check="
+---
+>                 "announcements_manage | ALL | {authenticated} | using=(is_admin_or_coordinator() OR (is_active_member() AND (author_id = auth.uid()) AND (audience_spec_id IS NOT NULL) AND audience_caller_can_target(audience_spec_id))) | check=(is_admin_or_coordinator() OR (is_active_member() AND (author_id = auth.uid()) AND (audience_spec_id IS NOT NULL) AND audience_caller_can_target(audience_spec_id)))",
+>                 "announcements_read | SELECT | {public} | using=((is_active = true) AND is_active_member() AND ((audience_spec_id IS NULL) OR is_admin_or_coordinator() OR (author_id = auth.uid()) OR is_audience_recipient('announcement'::text, id))) | check="
+794a812,813
+>                 "CREATE TRIGGER announcements_block_audience_change BEFORE UPDATE ON public.announcements FOR EACH ROW EXECUTE FUNCTION block_targeted_audience_change()",
+>                 "CREATE TRIGGER announcements_snapshot_audience AFTER INSERT ON public.announcements FOR EACH ROW WHEN ((new.audience_spec_id IS NOT NULL)) EXECUTE FUNCTION snapshot_announcement_audience()"
+803c822
+<                 "announcements_audience_spec_id_fkey FOREIGN KEY (audience_spec_id) REFERENCES audience_specs(id) ON DELETE SET NULL",
+---
+>                 "announcements_audience_spec_id_fkey FOREIGN KEY (audience_spec_id) REFERENCES audience_specs(id) ON DELETE RESTRICT",
+830,831c849
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+865,866c883
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+961a979,981
+>                 "excluded_cell_ids:uuid[]:null:",
+>                 "excluded_group_ids:uuid[]:null:",
+>                 "excluded_profile_ids:uuid[]:null:",
+971c991
+<                 "audience_specs_insert | INSERT | {public} | using= | check=is_admin_or_coordinator()",
+---
+>                 "audience_specs_insert | INSERT | {authenticated} | using= | check=(is_admin_or_coordinator() OR (is_active_member() AND (created_by = auth.uid()) AND (mode = 'cells'::text) AND (array_length(cell_ids, 1) = 1) AND (EXISTS ( SELECT 1\n   FROM cells c\n  WHERE ((c.id = audience_specs.cell_ids[1]) AND (c.leader_id = auth.uid()))))))",
+974a995
+>                 "CREATE TRIGGER audience_specs_immutable BEFORE DELETE OR UPDATE ON public.audience_specs FOR EACH ROW EXECUTE FUNCTION audience_specs_block_change()"
+980c1001
+<                 "authenticated": "INSERT,SELECT"
+---
+>                 "authenticated": "SELECT"
+983a1005
+>                 "audience_composite_requires_include CHECK (((mode <> 'composite'::text) OR (((COALESCE(cardinality(cell_ids), 0) + COALESCE(cardinality(group_ids), 0)) + COALESCE(cardinality(profile_ids), 0)) > 0)))",
+987c1009
+<                 "audience_specs_mode_check CHECK ((mode = ANY (ARRAY['all'::text, 'cells'::text, 'saved_groups'::text, 'explicit'::text])))",
+---
+>                 "audience_specs_mode_check CHECK ((mode = ANY (ARRAY['all'::text, 'cells'::text, 'saved_groups'::text, 'explicit'::text, 'composite'::text])))",
+1094,1095c1116
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+1170,1171c1191
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+1257,1258c1277
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+1271a1291,1322
+>         "cell_admin_audit": {
+>             "rls": true,
+>             "owner": "postgres",
+>             "columns": [
+>                 "action:text:NOT NULL:",
+>                 "actor_id:uuid:null:",
+>                 "after_values:jsonb:null:",
+>                 "before_values:jsonb:null:",
+>                 "cell_id:uuid:NOT NULL:",
+>                 "changed_at:timestamp with time zone:NOT NULL:now()",
+>                 "id:bigint:NOT NULL:"
+>             ],
+>             "indexes": [
+>                 "cell_admin_audit_cell_idx CREATE INDEX cell_admin_audit_cell_idx ON public.cell_admin_audit USING btree (cell_id, changed_at DESC)",
+>                 "cell_admin_audit_pkey CREATE UNIQUE INDEX cell_admin_audit_pkey ON public.cell_admin_audit USING btree (id)"
+>             ],
+>             "policies": [
+>                 "cell_admin_audit_read | SELECT | {public} | using=is_admin_or_coordinator() | check="
+>             ],
+>             "triggers": [],
+>             "force_rls": false,
+>             "privileges": {
+>                 "anon": "",
+>                 "service_role": "",
+>                 "authenticated": "SELECT"
+>             },
+>             "constraints": [
+>                 "cell_admin_audit_action_check CHECK ((action = ANY (ARRAY['insert'::text, 'update'::text, 'delete'::text])))",
+>                 "cell_admin_audit_pkey PRIMARY KEY (id)"
+>             ],
+>             "maintain_acl": 0
+>         },
+1296,1297c1347
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+1333,1336c1383,1384
+<             "policies": [
+<             ],
+<             "triggers": [
+<             ],
+---
+>             "policies": [],
+>             "triggers": [],
+1369,1370c1417
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+1423a1471,1500
+>         "member_cell_audit": {
+>             "rls": true,
+>             "owner": "postgres",
+>             "columns": [
+>                 "actor_id:uuid:null:",
+>                 "changed_at:timestamp with time zone:NOT NULL:now()",
+>                 "from_cell_id:uuid:null:",
+>                 "id:bigint:NOT NULL:",
+>                 "member_id:uuid:NOT NULL:",
+>                 "to_cell_id:uuid:null:"
+>             ],
+>             "indexes": [
+>                 "member_cell_audit_member_idx CREATE INDEX member_cell_audit_member_idx ON public.member_cell_audit USING btree (member_id, changed_at DESC)",
+>                 "member_cell_audit_pkey CREATE UNIQUE INDEX member_cell_audit_pkey ON public.member_cell_audit USING btree (id)"
+>             ],
+>             "policies": [
+>                 "member_cell_audit_read | SELECT | {public} | using=is_admin_or_coordinator() | check="
+>             ],
+>             "triggers": [],
+>             "force_rls": false,
+>             "privileges": {
+>                 "anon": "",
+>                 "service_role": "",
+>                 "authenticated": "SELECT"
+>             },
+>             "constraints": [
+>                 "member_cell_audit_pkey PRIMARY KEY (id)"
+>             ],
+>             "maintain_acl": 0
+>         },
+1441,1442c1518
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+1454a1531,1558
+>         "audience_snapshots": {
+>             "rls": true,
+>             "owner": "postgres",
+>             "columns": [
+>                 "profile_id:uuid:NOT NULL:",
+>                 "publication_id:uuid:NOT NULL:"
+>             ],
+>             "indexes": [
+>                 "audience_snapshots_pkey CREATE UNIQUE INDEX audience_snapshots_pkey ON public.audience_snapshots USING btree (publication_id, profile_id)",
+>                 "audience_snapshots_profile_idx CREATE INDEX audience_snapshots_profile_idx ON public.audience_snapshots USING btree (profile_id)"
+>             ],
+>             "policies": [
+>                 "audience_snapshots_select | SELECT | {authenticated} | using=(is_admin_or_coordinator() OR ((profile_id = auth.uid()) AND is_active_member())) | check="
+>             ],
+>             "triggers": [],
+>             "force_rls": false,
+>             "privileges": {
+>                 "anon": "",
+>                 "service_role": "DELETE,INSERT,SELECT,UPDATE",
+>                 "authenticated": "SELECT"
+>             },
+>             "constraints": [
+>                 "audience_snapshots_pkey PRIMARY KEY (publication_id, profile_id)",
+>                 "audience_snapshots_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE RESTRICT",
+>                 "audience_snapshots_publication_id_fkey FOREIGN KEY (publication_id) REFERENCES audience_publications(id) ON DELETE CASCADE"
+>             ],
+>             "maintain_acl": 0
+>         },
+1479,1480c1583
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+1522,1523c1625
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+1573a1676,1711
+>         "communication_audit": {
+>             "rls": true,
+>             "owner": "postgres",
+>             "columns": [
+>                 "action:text:NOT NULL:",
+>                 "actor_id:uuid:NOT NULL:",
+>                 "actor_role:text:NOT NULL:",
+>                 "audience_mode:text:NOT NULL:",
+>                 "created_at:timestamp with time zone:NOT NULL:now()",
+>                 "id:uuid:NOT NULL:gen_random_uuid()",
+>                 "message_id:uuid:NOT NULL:",
+>                 "recipient_count:integer:NOT NULL:"
+>             ],
+>             "indexes": [
+>                 "communication_audit_pkey CREATE UNIQUE INDEX communication_audit_pkey ON public.communication_audit USING btree (id)"
+>             ],
+>             "policies": [
+>                 "communication_audit_select | SELECT | {public} | using=is_admin_or_coordinator() | check="
+>             ],
+>             "triggers": [],
+>             "force_rls": false,
+>             "privileges": {
+>                 "anon": "",
+>                 "service_role": "DELETE,INSERT,SELECT,UPDATE",
+>                 "authenticated": "SELECT"
+>             },
+>             "constraints": [
+>                 "communication_audit_action_check CHECK ((action = ANY (ARRAY['send'::text, 'dispatch'::text])))",
+>                 "communication_audit_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES profiles(id)",
+>                 "communication_audit_audience_mode_check CHECK ((audience_mode = ANY (ARRAY['all'::text, 'cells'::text, 'saved_groups'::text, 'explicit'::text])))",
+>                 "communication_audit_message_id_fkey FOREIGN KEY (message_id) REFERENCES communication_messages(id) ON DELETE CASCADE",
+>                 "communication_audit_pkey PRIMARY KEY (id)",
+>                 "communication_audit_recipient_count_check CHECK ((recipient_count >= 0))"
+>             ],
+>             "maintain_acl": 0
+>         },
+1619a1758
+>                 "attendance_status:text:NOT NULL:'confirmed'::text",
+1620a1760
+>                 "audience_spec_id:uuid:null:",
+1622a1763,1764
+>                 "invited_by:uuid:null:",
+>                 "invited_via:text:NOT NULL:'self'::text",
+1632,1635c1774,1777
+<                 "meeting_attendances_delete_own_or_manager | DELETE | {authenticated} | using=(is_active_member() AND ((user_id = auth.uid()) OR has_admin_permission('attendance.view_all'::text) OR (EXISTS ( SELECT 1\n   FROM meetings m\n  WHERE ((m.id = meeting_attendances.meeting_id) AND ((m.created_by = auth.uid()) OR is_cell_leader_of(m.cell_id))))))) | check=",
+<                 "meeting_attendances_insert_own_visible | INSERT | {authenticated} | using= | check=(is_active_member() AND (EXISTS ( SELECT 1\n   FROM meetings m\n  WHERE ((m.id = meeting_attendances.meeting_id) AND ((meeting_attendances.user_id = auth.uid()) OR (is_active_profile(meeting_attendances.user_id) AND (is_admin_or_coordinator() OR (m.created_by = auth.uid()) OR is_cell_leader_of(m.cell_id))))))))",
+<                 "meeting_attendances_select_scoped | SELECT | {authenticated} | using=(is_active_member() AND (is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM meetings m\n  WHERE ((m.id = meeting_attendances.meeting_id) AND ((m.created_by = auth.uid()) OR is_cell_leader_of(m.cell_id))))) OR ((user_id = auth.uid()) AND (EXISTS ( SELECT 1\n   FROM meetings m\n  WHERE (m.id = meeting_attendances.meeting_id)))))) | check=",
+<                 "meeting_attendances_update_manager | UPDATE | {authenticated} | using=(is_active_member() AND (has_admin_permission('attendance.view_all'::text) OR (EXISTS ( SELECT 1\n   FROM meetings m\n  WHERE ((m.id = meeting_attendances.meeting_id) AND ((m.created_by = auth.uid()) OR is_cell_leader_of(m.cell_id))))))) | check=(is_active_member() AND (has_admin_permission('attendance.view_all'::text) OR (EXISTS ( SELECT 1\n   FROM meetings m\n  WHERE ((m.id = meeting_attendances.meeting_id) AND ((m.created_by = auth.uid()) OR is_cell_leader_of(m.cell_id)))))))"
+---
+>                 "meeting_attendances_delete_own_or_manager | DELETE | {authenticated} | using=(is_active_member() AND (((user_id = auth.uid()) AND (invited_via = 'self'::text)) OR has_admin_permission('attendance.view_all'::text) OR is_meeting_manager(meeting_id) OR is_meeting_creator(meeting_id))) | check=",
+>                 "meeting_attendances_insert_own_visible | INSERT | {authenticated} | using= | check=(is_active_member() AND (((user_id = auth.uid()) AND (invited_via = 'self'::text) AND (attendance_status = ANY (ARRAY['confirmed'::text, 'excused'::text])) AND can_view_meeting(meeting_id)) OR ((user_id <> auth.uid()) AND is_active_profile(user_id) AND (invited_via <> 'self'::text) AND (is_meeting_manager(meeting_id) OR is_meeting_creator(meeting_id)) AND ((audience_spec_id IS NULL) OR meeting_roster_allowed(meeting_id, audience_spec_id, user_id)))))",
+>                 "meeting_attendances_select_scoped | SELECT | {authenticated} | using=(is_active_member() AND (is_admin_or_coordinator() OR is_meeting_manager(meeting_id) OR is_meeting_creator(meeting_id) OR ((user_id = auth.uid()) AND can_view_meeting(meeting_id)))) | check=",
+>                 "meeting_attendances_update_manager | UPDATE | {authenticated} | using=(is_active_member() AND (has_admin_permission('attendance.view_all'::text) OR is_meeting_manager(meeting_id) OR is_meeting_creator(meeting_id))) | check=(is_active_member() AND (has_admin_permission('attendance.view_all'::text) OR is_meeting_manager(meeting_id) OR is_meeting_creator(meeting_id)))"
+1637a1780,1781
+>                 "CREATE TRIGGER meeting_attendances_guard_delete BEFORE DELETE ON public.meeting_attendances FOR EACH ROW EXECUTE FUNCTION meeting_attendance_guard_delete()",
+>                 "CREATE TRIGGER meeting_attendances_normalise BEFORE INSERT OR UPDATE ON public.meeting_attendances FOR EACH ROW EXECUTE FUNCTION meeting_attendance_normalise()"
+1645a1790,1792
+>                 "meeting_attendances_audience_spec_id_fkey FOREIGN KEY (audience_spec_id) REFERENCES audience_specs(id) ON DELETE SET NULL",
+>                 "meeting_attendances_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES profiles(id) ON DELETE SET NULL",
+>                 "meeting_attendances_invited_via_check CHECK ((invited_via = ANY (ARRAY['self'::text, 'member'::text, 'group'::text, 'cell'::text, 'all'::text])))",
+1648a1796
+>                 "meeting_attendances_status_check CHECK ((attendance_status = ANY (ARRAY['invited'::text, 'confirmed'::text, 'attended'::text, 'absent'::text, 'excused'::text])))",
+1652a1801,1832
+>         "member_status_audit": {
+>             "rls": true,
+>             "owner": "postgres",
+>             "columns": [
+>                 "actor_id:uuid:null:",
+>                 "changed_at:timestamp with time zone:NOT NULL:now()",
+>                 "from_status:text:NOT NULL:",
+>                 "id:bigint:NOT NULL:",
+>                 "member_id:uuid:NOT NULL:",
+>                 "reason:text:NOT NULL:",
+>                 "to_status:text:NOT NULL:"
+>             ],
+>             "indexes": [
+>                 "member_status_audit_member_idx CREATE INDEX member_status_audit_member_idx ON public.member_status_audit USING btree (member_id, changed_at DESC)",
+>                 "member_status_audit_pkey CREATE UNIQUE INDEX member_status_audit_pkey ON public.member_status_audit USING btree (id)"
+>             ],
+>             "policies": [
+>                 "member_status_audit_read | SELECT | {public} | using=is_admin_or_coordinator() | check="
+>             ],
+>             "triggers": [],
+>             "force_rls": false,
+>             "privileges": {
+>                 "anon": "",
+>                 "service_role": "",
+>                 "authenticated": "SELECT"
+>             },
+>             "constraints": [
+>                 "member_status_audit_pkey PRIMARY KEY (id)",
+>                 "member_status_audit_to_status_check CHECK ((to_status = ANY (ARRAY['pending'::text, 'active'::text, 'inactive'::text, 'rejected'::text])))"
+>             ],
+>             "maintain_acl": 0
+>         },
+1714c1894
+<                 "saved_group_members_read | SELECT | {authenticated} | using=is_active_member() | check="
+---
+>                 "saved_group_members_read | SELECT | {authenticated} | using=is_admin_or_coordinator() | check="
+1716a1897
+>                 "CREATE TRIGGER saved_group_members_require_active BEFORE INSERT ON public.saved_group_members FOR EACH ROW EXECUTE FUNCTION saved_group_members_require_active()"
+1751,1752c1932
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+1786,1787c1966
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+1816,1819c1995,1996
+<             "policies": [
+<             ],
+<             "triggers": [
+<             ],
+---
+>             "policies": [],
+>             "triggers": [],
+1831a2009,2044
+>         "audience_publications": {
+>             "rls": true,
+>             "owner": "postgres",
+>             "columns": [
+>                 "content_id:uuid:NOT NULL:",
+>                 "content_type:text:NOT NULL:",
+>                 "created_at:timestamp with time zone:NOT NULL:now()",
+>                 "id:uuid:NOT NULL:gen_random_uuid()",
+>                 "published_by:uuid:null:",
+>                 "recipient_count:integer:NOT NULL:",
+>                 "spec_id:uuid:NOT NULL:"
+>             ],
+>             "indexes": [
+>                 "audience_publications_content_type_content_id_key CREATE UNIQUE INDEX audience_publications_content_type_content_id_key ON public.audience_publications USING btree (content_type, content_id)",
+>                 "audience_publications_pkey CREATE UNIQUE INDEX audience_publications_pkey ON public.audience_publications USING btree (id)"
+>             ],
+>             "policies": [
+>                 "audience_publications_select | SELECT | {authenticated} | using=is_admin_or_coordinator() | check="
+>             ],
+>             "triggers": [],
+>             "force_rls": false,
+>             "privileges": {
+>                 "anon": "",
+>                 "service_role": "DELETE,INSERT,SELECT,UPDATE",
+>                 "authenticated": "SELECT"
+>             },
+>             "constraints": [
+>                 "audience_publications_content_type_check CHECK ((content_type = ANY (ARRAY['announcement'::text, 'affirmation'::text, 'event'::text])))",
+>                 "audience_publications_content_type_content_id_key UNIQUE (content_type, content_id)",
+>                 "audience_publications_pkey PRIMARY KEY (id)",
+>                 "audience_publications_published_by_fkey FOREIGN KEY (published_by) REFERENCES profiles(id) ON DELETE RESTRICT",
+>                 "audience_publications_recipient_count_check CHECK ((recipient_count > 0))",
+>                 "audience_publications_spec_id_fkey FOREIGN KEY (spec_id) REFERENCES audience_specs(id) ON DELETE RESTRICT"
+>             ],
+>             "maintain_acl": 0
+>         },
+1856,1857c2069
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+1890,1891c2102
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+1922,1923c2133
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+1936a2147,2189
+>         "communication_messages": {
+>             "rls": true,
+>             "owner": "postgres",
+>             "columns": [
+>                 "audience_spec_id:uuid:NOT NULL:",
+>                 "body:text:NOT NULL:",
+>                 "channels:text[]:NOT NULL:",
+>                 "created_at:timestamp with time zone:NOT NULL:now()",
+>                 "id:uuid:NOT NULL:gen_random_uuid()",
+>                 "idempotency_key:uuid:NOT NULL:",
+>                 "recipient_count:integer:NOT NULL:",
+>                 "sender_id:uuid:NOT NULL:",
+>                 "sender_role:text:NOT NULL:",
+>                 "subject:text:NOT NULL:"
+>             ],
+>             "indexes": [
+>                 "communication_messages_pkey CREATE UNIQUE INDEX communication_messages_pkey ON public.communication_messages USING btree (id)",
+>                 "communication_messages_sender_id_idempotency_key_key CREATE UNIQUE INDEX communication_messages_sender_id_idempotency_key_key ON public.communication_messages USING btree (sender_id, idempotency_key)",
+>                 "communication_messages_sender_idx CREATE INDEX communication_messages_sender_idx ON public.communication_messages USING btree (sender_id, created_at DESC)"
+>             ],
+>             "policies": [
+>                 "communication_messages_select | SELECT | {public} | using=(is_admin_or_coordinator() OR is_message_sender(id) OR is_message_recipient(id)) | check="
+>             ],
+>             "triggers": [],
+>             "force_rls": false,
+>             "privileges": {
+>                 "anon": "",
+>                 "service_role": "DELETE,INSERT,SELECT,UPDATE",
+>                 "authenticated": "SELECT"
+>             },
+>             "constraints": [
+>                 "communication_messages_audience_spec_id_fkey FOREIGN KEY (audience_spec_id) REFERENCES audience_specs(id)",
+>                 "communication_messages_body_check CHECK (((char_length(btrim(body)) >= 1) AND (char_length(btrim(body)) <= 10000)))",
+>                 "communication_messages_channels_check CHECK (((channels @> ARRAY['inbox'::text]) AND (channels <@ ARRAY['inbox'::text, 'email'::text, 'push'::text])))",
+>                 "communication_messages_pkey PRIMARY KEY (id)",
+>                 "communication_messages_recipient_count_check CHECK ((recipient_count >= 1))",
+>                 "communication_messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES profiles(id)",
+>                 "communication_messages_sender_id_idempotency_key_key UNIQUE (sender_id, idempotency_key)",
+>                 "communication_messages_sender_role_check CHECK ((sender_role = ANY (ARRAY['admin'::text, 'coordinator'::text, 'cell_leader'::text, 'member'::text])))",
+>                 "communication_messages_subject_check CHECK (((char_length(btrim(subject)) >= 1) AND (char_length(btrim(subject)) <= 200)))"
+>             ],
+>             "maintain_acl": 0
+>         },
+1958,1959c2211
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+1997,1998c2249
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+2033,2034c2284
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+2066,2067c2316
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+2080a2330,2432
+>         "communication_deliveries": {
+>             "rls": true,
+>             "owner": "postgres",
+>             "columns": [
+>                 "attempted_at:timestamp with time zone:null:",
+>                 "attempts:integer:NOT NULL:0",
+>                 "channel:text:NOT NULL:",
+>                 "message_id:uuid:NOT NULL:",
+>                 "provider_ref:text:null:",
+>                 "reason:text:null:",
+>                 "retryable:boolean:NOT NULL:false",
+>                 "status:text:NOT NULL:",
+>                 "updated_at:timestamp with time zone:NOT NULL:now()",
+>                 "user_id:uuid:NOT NULL:"
+>             ],
+>             "indexes": [
+>                 "communication_deliveries_pkey CREATE UNIQUE INDEX communication_deliveries_pkey ON public.communication_deliveries USING btree (message_id, user_id, channel)"
+>             ],
+>             "policies": [
+>                 "communication_deliveries_select | SELECT | {public} | using=(is_admin_or_coordinator() OR is_message_sender(message_id) OR ((user_id = auth.uid()) AND is_active_member())) | check="
+>             ],
+>             "triggers": [
+>                 "CREATE TRIGGER communication_deliveries_updated_at BEFORE UPDATE ON public.communication_deliveries FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+>             ],
+>             "force_rls": false,
+>             "privileges": {
+>                 "anon": "",
+>                 "service_role": "DELETE,INSERT,SELECT,UPDATE",
+>                 "authenticated": "SELECT"
+>             },
+>             "constraints": [
+>                 "communication_deliveries_accepted_external_only CHECK (((status <> 'accepted'::text) OR (channel = ANY (ARRAY['email'::text, 'push'::text]))))",
+>                 "communication_deliveries_attempts_check CHECK ((attempts >= 0))",
+>                 "communication_deliveries_channel_check CHECK ((channel = ANY (ARRAY['inbox'::text, 'email'::text, 'push'::text])))",
+>                 "communication_deliveries_message_id_user_id_fkey FOREIGN KEY (message_id, user_id) REFERENCES communication_recipients(message_id, user_id) ON DELETE CASCADE",
+>                 "communication_deliveries_pkey PRIMARY KEY (message_id, user_id, channel)",
+>                 "communication_deliveries_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'sending'::text, 'stored'::text, 'accepted'::text, 'failed'::text, 'skipped'::text])))",
+>                 "communication_deliveries_stored_inbox_only CHECK (((status <> 'stored'::text) OR (channel = 'inbox'::text)))",
+>                 "communication_deliveries_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id)"
+>             ],
+>             "maintain_acl": 0
+>         },
+>         "communication_recipients": {
+>             "rls": true,
+>             "owner": "postgres",
+>             "columns": [
+>                 "created_at:timestamp with time zone:NOT NULL:now()",
+>                 "message_id:uuid:NOT NULL:",
+>                 "read_at:timestamp with time zone:null:",
+>                 "user_id:uuid:NOT NULL:"
+>             ],
+>             "indexes": [
+>                 "communication_recipients_pkey CREATE UNIQUE INDEX communication_recipients_pkey ON public.communication_recipients USING btree (message_id, user_id)",
+>                 "communication_recipients_user_idx CREATE INDEX communication_recipients_user_idx ON public.communication_recipients USING btree (user_id)"
+>             ],
+>             "policies": [
+>                 "communication_recipients_select | SELECT | {public} | using=(is_admin_or_coordinator() OR is_message_sender(message_id) OR ((user_id = auth.uid()) AND is_active_member())) | check="
+>             ],
+>             "triggers": [],
+>             "force_rls": false,
+>             "privileges": {
+>                 "anon": "",
+>                 "service_role": "DELETE,INSERT,SELECT,UPDATE",
+>                 "authenticated": "SELECT"
+>             },
+>             "constraints": [
+>                 "communication_recipients_message_id_fkey FOREIGN KEY (message_id) REFERENCES communication_messages(id) ON DELETE CASCADE",
+>                 "communication_recipients_pkey PRIMARY KEY (message_id, user_id)",
+>                 "communication_recipients_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id)"
+>             ],
+>             "maintain_acl": 0
+>         },
+>         "leadership_release_audit": {
+>             "rls": true,
+>             "owner": "postgres",
+>             "columns": [
+>                 "actor_id:uuid:null:",
+>                 "id:bigint:NOT NULL:",
+>                 "profile_id:uuid:NOT NULL:",
+>                 "released_at:timestamp with time zone:NOT NULL:now()",
+>                 "target_id:uuid:NOT NULL:",
+>                 "target_type:text:NOT NULL:"
+>             ],
+>             "indexes": [
+>                 "leadership_release_audit_pkey CREATE UNIQUE INDEX leadership_release_audit_pkey ON public.leadership_release_audit USING btree (id)",
+>                 "leadership_release_audit_profile_idx CREATE INDEX leadership_release_audit_profile_idx ON public.leadership_release_audit USING btree (profile_id, released_at DESC)"
+>             ],
+>             "policies": [
+>                 "leadership_release_audit_read | SELECT | {public} | using=is_admin_or_coordinator() | check="
+>             ],
+>             "triggers": [],
+>             "force_rls": false,
+>             "privileges": {
+>                 "anon": "",
+>                 "service_role": "",
+>                 "authenticated": "SELECT"
+>             },
+>             "constraints": [
+>                 "leadership_release_audit_pkey PRIMARY KEY (id)",
+>                 "leadership_release_audit_target_type_check CHECK ((target_type = 'bsc'::text))"
+>             ],
+>             "maintain_acl": 0
+>         },
+2101,2102c2453
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+2138,2139c2489
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+2214,2215c2564
+<             "triggers": [
+<             ],
+---
+>             "triggers": [],
+2392a2742,2780
+>         "publish_meeting(uuid)": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": true
+>             },
+>             "security": "definer",
+>             "volatility": "v",
+>             "definition_md5": "eabe564eb0fec291be1631c8b8ab918e"
+>         },
+>         "can_view_meeting(uuid)": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": true
+>             },
+>             "security": "definer",
+>             "volatility": "s",
+>             "definition_md5": "655186ff46f01d78a410965971d039c2"
+>         },
+>         "guard_cell_lifecycle()": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": false
+>             },
+>             "security": "invoker",
+>             "volatility": "v",
+>             "definition_md5": "a77638fc691c793101e531c69a76e104"
+>         },
+2417c2805
+<             "definition_md5": "8b0b47d4ed479678bf8207f11cc17271"
+---
+>             "definition_md5": "00f6b48b6821adbd83c854915be63607"
+2444a2833,2858
+>         "is_message_sender(uuid)": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": true,
+>                 "authenticated": true
+>             },
+>             "security": "definer",
+>             "volatility": "s",
+>             "definition_md5": "fd157bbe39a991afa49f23ff9329b0b1"
+>         },
+>         "mark_message_read(uuid)": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": true
+>             },
+>             "security": "definer",
+>             "volatility": "v",
+>             "definition_md5": "0fb09f61f3ea571ac4ac47443d54e520"
+>         },
+2457a2872,2884
+>         "is_meeting_creator(uuid)": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": true
+>             },
+>             "security": "definer",
+>             "volatility": "s",
+>             "definition_md5": "e1811d6b46c791d74d39dabde79bf82a"
+>         },
+2470a2898,2923
+>         "is_meeting_manager(uuid)": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": true
+>             },
+>             "security": "definer",
+>             "volatility": "s",
+>             "definition_md5": "460b84caef8bbfc1f8224172b3c8cb25"
+>         },
+>         "audit_cell_admin_change()": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": false
+>             },
+>             "security": "definer",
+>             "volatility": "v",
+>             "definition_md5": "3af33a640b9df71df4218a6a2e03cb53"
+>         },
+2482c2935
+<             "definition_md5": "a907dcb762c76d1601e1527d168081b5"
+---
+>             "definition_md5": "2afd0abb7dbda2493a729500869354df"
+2509a2963,2988
+>         "snapshot_event_audience()": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": false
+>             },
+>             "security": "definer",
+>             "volatility": "v",
+>             "definition_md5": "a8205247484de275f98aa5bb3a809440"
+>         },
+>         "audit_member_cell_change()": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": false
+>             },
+>             "security": "definer",
+>             "volatility": "v",
+>             "definition_md5": "d5749801319d7243ac8d3a748e4e455c"
+>         },
+2535a3015,3040
+>         "is_message_recipient(uuid)": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": true,
+>                 "authenticated": true
+>             },
+>             "security": "definer",
+>             "volatility": "s",
+>             "definition_md5": "bb0eddcd135798f9b7976a6c25a8cbbb"
+>         },
+>         "resolve_audience_all(uuid)": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": false
+>             },
+>             "security": "definer",
+>             "volatility": "s",
+>             "definition_md5": "dac4f1d5dbea0d6c6cbe7f4480c5a2a6"
+>         },
+2548a3054,3079
+>         "claim_deliveries(uuid,text)": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": true,
+>                 "authenticated": false
+>             },
+>             "security": "definer",
+>             "volatility": "v",
+>             "definition_md5": "7885861ca3c41f27727d15f3a00469fe"
+>         },
+>         "meeting_audience_spec(uuid)": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": true
+>             },
+>             "security": "definer",
+>             "volatility": "s",
+>             "definition_md5": "158e7e341e6717d08561e49c1ad1bc02"
+>         },
+2587a3119,3131
+>         "is_meeting_participant(uuid)": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": true
+>             },
+>             "security": "definer",
+>             "volatility": "s",
+>             "definition_md5": "bba6eb513a3b1086de3e7c7565762413"
+>         },
+2600a3145,3170
+>         "audience_specs_block_change()": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": false
+>             },
+>             "security": "invoker",
+>             "volatility": "v",
+>             "definition_md5": "04ebc2b3e7493d9f6a8f18324dd85853"
+>         },
+>         "guard_member_cell_placement()": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": false
+>             },
+>             "security": "invoker",
+>             "volatility": "v",
+>             "definition_md5": "5ec2b0e25d10515db0d92d6d793a05dc"
+>         },
+2626a3197,3209
+>         "meeting_attendance_normalise()": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": false
+>             },
+>             "security": "invoker",
+>             "volatility": "v",
+>             "definition_md5": "49e4b211a3b6eb291c112f80f1d60af4"
+>         },
+2665a3249,3261
+>         "create_saved_group(text,uuid[])": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": true
+>             },
+>             "security": "invoker",
+>             "volatility": "v",
+>             "definition_md5": "2a28e221c2cb4a6cffedb19c805bbf6f"
+>         },
+2678a3275,3300
+>         "snapshot_affirmation_audience()": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": false
+>             },
+>             "security": "definer",
+>             "volatility": "v",
+>             "definition_md5": "9c900814cbf641ecb1db1ff138c93ab5"
+>         },
+>         "transfer_member_cell(uuid,uuid)": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": true
+>             },
+>             "security": "definer",
+>             "volatility": "v",
+>             "definition_md5": "6b7e0f55a03d0c84b6748abbbb79dd03"
+>         },
+2691a3314,3352
+>         "audience_caller_can_target(uuid)": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": true,
+>                 "authenticated": true
+>             },
+>             "security": "definer",
+>             "volatility": "s",
+>             "definition_md5": "8039fff52108f444df86c75a33da9d16"
+>         },
+>         "block_targeted_audience_change()": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": false
+>             },
+>             "security": "invoker",
+>             "volatility": "v",
+>             "definition_md5": "70684d3e7adc63ab52c37fe44c6524bf"
+>         },
+>         "is_audience_recipient(text,uuid)": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": true,
+>                 "authenticated": true
+>             },
+>             "security": "definer",
+>             "volatility": "s",
+>             "definition_md5": "c5edf4ca0d4fb4d749381873b06c9614"
+>         },
+2704a3366,3417
+>         "snapshot_announcement_audience()": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": false
+>             },
+>             "security": "definer",
+>             "volatility": "v",
+>             "definition_md5": "9da158a428eb7e63fd1a4fac7e0ec234"
+>         },
+>         "expire_stuck_deliveries(interval)": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": true,
+>                 "authenticated": false
+>             },
+>             "security": "definer",
+>             "volatility": "v",
+>             "definition_md5": "532174466eb16cc5cba8fc25e1918226"
+>         },
+>         "meeting_attendance_guard_delete()": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": false
+>             },
+>             "security": "invoker",
+>             "volatility": "v",
+>             "definition_md5": "742c794955b7ac49e410f2e0cc788e93"
+>         },
+>         "set_member_status(uuid,text,text)": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": true
+>             },
+>             "security": "definer",
+>             "volatility": "v",
+>             "definition_md5": "c91ab1dcafded5b2b0cfe45782684676"
+>         },
+2717a3431,3456
+>         "assignments_guard_assignee_changes()": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": false
+>             },
+>             "security": "invoker",
+>             "volatility": "v",
+>             "definition_md5": "def52eceeb296f1078a6aace969eeda9"
+>         },
+>         "saved_group_members_require_active()": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": false
+>             },
+>             "security": "definer",
+>             "volatility": "v",
+>             "definition_md5": "22b56d9fef8cdd6508ff53f055f1b80c"
+>         },
+2730a3470,3495
+>         "audience_content_recipients(text,uuid)": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": true,
+>                 "authenticated": false
+>             },
+>             "security": "definer",
+>             "volatility": "s",
+>             "definition_md5": "cd81f010b843d3715ea907b37413844e"
+>         },
+>         "meeting_roster_allowed(uuid,uuid,uuid)": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": true
+>             },
+>             "security": "definer",
+>             "volatility": "s",
+>             "definition_md5": "c603eb5ffff78dca808f247a0820ed29"
+>         },
+2743a3509,3573
+>         "release_bsc_leadership_on_deactivation()": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": false
+>             },
+>             "security": "definer",
+>             "volatility": "v",
+>             "definition_md5": "14ffc9ea8236bfac39f1000471cd2518"
+>         },
+>         "respond_to_meeting_invitation(uuid,text)": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": true
+>             },
+>             "security": "definer",
+>             "volatility": "v",
+>             "definition_md5": "18ef6c458a3f584755a8cd095fbe47e3"
+>         },
+>         "audience_snapshot_content(text,uuid,uuid)": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": false
+>             },
+>             "security": "definer",
+>             "volatility": "v",
+>             "definition_md5": "54c35eb32a8686a23b2b25792fc60516"
+>         },
+>         "release_cell_leadership_on_deactivation()": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": false
+>             },
+>             "security": "definer",
+>             "volatility": "v",
+>             "definition_md5": "d3729e56a09711748cd359c5164bfe85"
+>         },
+>         "preview_audience(text,uuid[],uuid[],uuid[])": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": true
+>             },
+>             "security": "definer",
+>             "volatility": "v",
+>             "definition_md5": "5c8fbda0fed9bbfb13c9f536dfce0367"
+>         },
+2756a3587,3599
+>         "create_assignments(text,text,date,text,uuid[])": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": true
+>             },
+>             "security": "invoker",
+>             "volatility": "v",
+>             "definition_md5": "8f166124028f8f4b8634b4a1e8c18d85"
+>         },
+2768a3612,3702
+>         },
+>         "assert_can_send_message(text,uuid[],uuid[],uuid[])": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": true,
+>                 "authenticated": true
+>             },
+>             "security": "definer",
+>             "volatility": "s",
+>             "definition_md5": "e12a1c51e8d393b1a1883a92c237b206"
+>         },
+>         "set_meeting_audience(uuid,text,uuid[],uuid[],uuid[],boolean)": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": true
+>             },
+>             "security": "definer",
+>             "volatility": "v",
+>             "definition_md5": "5d43d7d27f9733afe6cc97d12805e8b8"
+>         },
+>         "send_message(text,text,text,uuid[],uuid[],uuid[],text[],uuid)": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": true
+>             },
+>             "security": "definer",
+>             "volatility": "v",
+>             "definition_md5": "d2b5d70299a5b74a1c8002b1b02034f4"
+>         },
+>         "set_meeting_audience_apply(uuid,text,uuid[],uuid[],uuid[],boolean)": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": false
+>             },
+>             "security": "definer",
+>             "volatility": "v",
+>             "definition_md5": "99ef18e910d4f1391d3517dd5b089796"
+>         },
+>         "create_audience_spec(text,uuid[],uuid[],uuid[],uuid[],uuid[],uuid[])": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": true
+>             },
+>             "security": "definer",
+>             "volatility": "v",
+>             "definition_md5": "899d9dba4791dcd2e171ac7746236242"
+>         },
+>         "audience_resolve_fields(text,uuid[],uuid[],uuid[],uuid[],uuid[],uuid[])": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": false
+>             },
+>             "security": "definer",
+>             "volatility": "s",
+>             "definition_md5": "22fae2045289a50a811b701edbaf604e"
+>         },
+>         "create_targeted_affirmation(text,text,date,text,uuid[],uuid[],uuid[],uuid[],uuid[],uuid[])": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": true
+>             },
+>             "security": "invoker",
+>             "volatility": "v",
+>             "definition_md5": "8aff7b4faebe75d20c25f4e878b44653"
+2780,2781c3714
+<     "extra_schemas": [
+<     ],
+---
+>     "extra_schemas": [],
