@@ -23,12 +23,12 @@
       "contacts", "devotional_daily_pages", "devotional_views", "drive_link_metadata", "email_drafts", "email_log",
       "email_templates", "event_rsvps", "events", "fellowships", "foundation_school_classes",
       "foundation_school_enrollments", "foundation_school_progress", "habit_entries", "habit_templates",
-      "meeting_attendances", "meetings", "monthly_devotionals", "people", "prayer_requests", "profiles",
+      "meeting_attendances", "meetings", "monthly_devotionals", "people", "prayer_requests",
       "push_subscriptions", "saved_group_members", "status_settings", "tags_settings", "testimonies", "user_profiles",
       "weekly_messages", "zoom_settings"
     ],
     "INSERT,SELECT": [
-      "contact_audit_log", "email_notification_log", "membership_transitions"
+      "contact_audit_log", "email_notification_log", "membership_transitions", "profiles"
     ],
     "INSERT,SELECT,UPDATE": [
       "assignments", "contact_follow_ups", "email_preferences", "memberships", "saved_groups"
