@@ -19,12 +19,27 @@ describe('Supabase migration architecture', () => {
     expect(new Set(prefixes).size).toBe(prefixes.length);
   });
 
+  // Matches executable statements only: comments are removed first, and a keyword counts only at the start of a
+  // statement. A word such as "truncate" in a REVOKE list, a trigger name or a comment is not a truncation.
+  const destructiveStatement = /(^|;)\s*(drop\s+table|drop\s+schema|truncate)\b/im;
+  const executableSql = (sql: string) => sql.replace(/\/\*[\s\S]*?\*\//g, '').replace(/--[^\n]*/g, '');
+
   test('canonical migrations do not destructively drop tables or schemas', () => {
     const destructive = migrationFiles()
       .map((file) => [file, fs.readFileSync(path.join(migrationsDir, file), 'utf8')] as const)
-      .filter(([, sql]) => /\b(drop\s+table|drop\s+schema|truncate)\b/i.test(sql));
+      .filter(([, sql]) => destructiveStatement.test(executableSql(sql)));
 
     expect(destructive).toEqual([]);
+  });
+
+  test('the destructive-statement rule still catches a real drop or truncate', () => {
+    expect(destructiveStatement.test(executableSql('begin;\ndrop table public.x;'))).toBe(true);
+    expect(destructiveStatement.test(executableSql('select 1;\n  truncate public.x;'))).toBe(true);
+    expect(destructiveStatement.test(executableSql('drop schema s cascade;'))).toBe(true);
+    // Not destructive: a keyword inside a comment, a privilege list, or a trigger definition.
+    expect(destructiveStatement.test(executableSql('-- truncate nothing\nselect 1;'))).toBe(false);
+    expect(destructiveStatement.test(executableSql('revoke truncate on t from r;'))).toBe(false);
+    expect(destructiveStatement.test(executableSql('create trigger t before truncate on x for each statement execute function f();'))).toBe(false);
   });
 
   test('verification scripts are kept outside executable migration history', () => {
