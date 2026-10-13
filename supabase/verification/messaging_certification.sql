@@ -1,4 +1,4 @@
--- Targeted messaging certification (migration 066). Run by the certification owner (Agent 6) against an isolated,
+-- Targeted messaging certification (migration 067). Run by the certification owner (Agent 6) against an isolated,
 -- replayed local database. Transactional: every fixture is rolled back. Not run by the unit test suite.
 --
 -- Scenarios covered (each reports PASS or FAIL in cert_results):
@@ -246,6 +246,77 @@ begin
   else
     perform pg_temp.cert_fail('rls', 'member does not see another member’s recipient row', seen::text);
   end if;
+end $$;
+
+-- 13-16. Enumeration and grant checks (migration 066). Own fixture, so this block does not depend on the one above.
+do $$
+declare
+  admin_id uuid := gen_random_uuid();
+  in_id uuid := gen_random_uuid();
+  out_id uuid := gen_random_uuid();
+  grp uuid := gen_random_uuid();
+  msg uuid;
+  spec uuid;
+  seen integer;
+begin
+  insert into auth.users (id, email, encrypted_password, aud, role, created_at, updated_at)
+  values
+    (admin_id, 'enum-admin@example.invalid', 'x', 'authenticated', 'authenticated', now(), now()),
+    (in_id,    'enum-in@example.invalid',    'x', 'authenticated', 'authenticated', now(), now()),
+    (out_id,   'enum-out@example.invalid',   'x', 'authenticated', 'authenticated', now(), now());
+  update public.profiles set status = 'active', role = 'admin' where id = admin_id;
+  update public.profiles set status = 'active', role = 'member' where id in (in_id, out_id);
+  insert into public.saved_groups (id, name, created_by) values (grp, 'Enum group', admin_id);
+  insert into public.saved_group_members (group_id, profile_id, added_by) values (grp, in_id, admin_id);
+
+  perform pg_temp.as_auth(admin_id);
+  msg := public.send_message('Enum', 'Private', 'explicit', null, null, array[in_id], array['inbox'], gen_random_uuid());
+  perform pg_temp.as_postgres();
+  select audience_spec_id into spec from public.communication_messages where id = msg;
+
+  -- 13. A member outside the audience learns nothing: resolve_audience returns no rows for them.
+  perform pg_temp.as_auth(out_id);
+  select count(*) into seen from public.resolve_audience(spec);
+  perform pg_temp.as_postgres();
+  if seen = 0 then
+    perform pg_temp.cert_pass('authorization', 'outsider cannot enumerate an audience via resolve_audience');
+  else
+    perform pg_temp.cert_fail('authorization', 'outsider cannot enumerate an audience via resolve_audience', seen::text || ' rows');
+  end if;
+
+  -- 14. A member inside the audience sees only their own row, not the whole list.
+  perform pg_temp.as_auth(in_id);
+  select count(*) into seen from public.resolve_audience(spec);
+  perform pg_temp.as_postgres();
+  if seen = 1 then
+    perform pg_temp.cert_pass('authorization', 'member sees only own row from resolve_audience');
+  else
+    perform pg_temp.cert_fail('authorization', 'member sees only own row from resolve_audience', seen::text || ' rows');
+  end if;
+
+  -- 15. Members cannot read saved-group membership.
+  perform pg_temp.as_auth(in_id);
+  select count(*) into seen from public.saved_group_members;
+  perform pg_temp.as_postgres();
+  if seen = 0 then
+    perform pg_temp.cert_pass('authorization', 'member cannot read saved_group_members');
+  else
+    perform pg_temp.cert_fail('authorization', 'member cannot read saved_group_members', seen::text || ' rows');
+  end if;
+
+  -- 16. Clients cannot run the internal resolver or the service-only delivery functions.
+  perform pg_temp.as_auth(in_id);
+  if pg_temp.expect_error(format('select count(*) from public.resolve_audience_all(%L)', spec), 'permission denied') then
+    perform pg_temp.cert_pass('grants', 'resolve_audience_all is not executable by authenticated');
+  else
+    perform pg_temp.cert_fail('grants', 'resolve_audience_all is not executable by authenticated', 'call succeeded');
+  end if;
+  if pg_temp.expect_error(format('select * from public.claim_deliveries(%L, ''email'')', msg), 'permission denied') then
+    perform pg_temp.cert_pass('grants', 'claim_deliveries is not executable by authenticated');
+  else
+    perform pg_temp.cert_fail('grants', 'claim_deliveries is not executable by authenticated', 'call succeeded');
+  end if;
+  perform pg_temp.as_postgres();
 end $$;
 
 select area, check_name, result, evidence from cert_results order by area, check_name;

@@ -6,7 +6,7 @@ import {
   type DraftInput,
 } from '../communications/messaging';
 
-// Thin service layer over migration 066. Every authorization decision happens in the database (RLS and the
+// Thin service layer over migration 067. Every authorization decision happens in the database (RLS and the
 // security definer functions). This module never builds a recipient list on the client.
 
 export interface PreviewRecipient {

@@ -1,7 +1,7 @@
 // Client-side message rules: draft validation, the shape sent to send_message, which audience modes a role may
 // pick (UX only), and how a delivery outcome is labelled.
 //
-// Nothing here is authoritative. send_message and preview_audience (migration 066) re-check every rule in the
+// Nothing here is authoritative. send_message and preview_audience (migration 067) re-check every rule in the
 // database. These helpers exist so the composer can explain a problem before a round trip.
 
 export type AudienceMode = 'all' | 'cells' | 'saved_groups' | 'explicit';

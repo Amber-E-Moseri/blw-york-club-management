@@ -1,4 +1,4 @@
--- 066_targeted_messages.sql
+-- 067_targeted_messages.sql
 --
 -- Owner workstream: Targeted messages (communications)
 -- Dependencies:    016 (is_admin_or_coordinator), 022 (is_active_member), 059 (audience_specs, resolve_audience,
@@ -20,7 +20,7 @@
 --   admin / coordinator: any audience (all, cells, saved_groups, explicit).
 --   cell_leader:         mode 'cells' with exactly one cell, which must be the leader's own profiles.cell_id.
 --   everyone else:       denied. Pending and rejected accounts are denied and can read nothing here.
--- Recipients are re-resolved through resolve_audience(), which only returns active profiles.
+-- Recipients are re-resolved through resolve_audience_all() (066), which only returns active profiles.
 
 -- ─── 1. Tables ───────────────────────────────────────────────────────────────
 
@@ -58,6 +58,8 @@ create table if not exists public.communication_deliveries (
   status       text        not null
                  check (status in ('pending','sending','stored','accepted','failed','skipped')),
   reason       text,
+  attempts     integer     not null default 0 check (attempts >= 0),
+  retryable    boolean     not null default false,
   provider_ref text,
   attempted_at timestamptz,
   updated_at   timestamptz not null default now(),
@@ -238,7 +240,7 @@ $$;
 -- ─── 6. Preview: what would this audience reach? ─────────────────────────────
 
 -- Returns the active recipients the caller may address, for the composer's preview step.
--- Creates one audience_specs row so resolve_audience() stays the only resolution path. Specs are immutable and tiny.
+-- Creates one audience_specs row so resolve_audience_all() stays the only resolution path. Specs are immutable and tiny.
 create or replace function public.preview_audience(
   p_mode        text,
   p_cell_ids    uuid[] default null,
@@ -273,7 +275,7 @@ begin
   )
   into v_result
   from public.profiles p
-  where p.id in (select profile_id from public.resolve_audience(v_spec));
+  where p.id in (select profile_id from public.resolve_audience_all(v_spec));
 
   return v_result;
 end;
@@ -332,7 +334,7 @@ begin
   )
   returning id into v_spec;
 
-  select count(distinct profile_id) into v_count from public.resolve_audience(v_spec);
+  select count(distinct profile_id) into v_count from public.resolve_audience_all(v_spec);
   if v_count = 0 then
     raise exception 'empty_audience' using errcode = '22023';
   end if;
@@ -345,7 +347,7 @@ begin
 
   -- Snapshot. A person is recorded once, even if several selected groups or cells contain them.
   insert into public.communication_recipients (message_id, user_id)
-  select v_message, profile_id from (select distinct profile_id from public.resolve_audience(v_spec)) r;
+  select v_message, profile_id from (select distinct profile_id from public.resolve_audience_all(v_spec)) r;
 
   -- Inbox is written in this transaction, so it is stored or not at all.
   insert into public.communication_deliveries (message_id, user_id, channel, status, attempted_at)
@@ -397,3 +399,53 @@ grant execute on function public.assert_can_send_message(text, uuid[], uuid[], u
 grant execute on function public.preview_audience(text, uuid[], uuid[], uuid[])        to authenticated;
 grant execute on function public.send_message(text, text, text, uuid[], uuid[], uuid[], text[], uuid) to authenticated;
 grant execute on function public.mark_message_read(uuid)              to authenticated;
+
+-- ─── 10. Delivery claiming and recovery (service role only) ──────────────────
+
+-- Atomically moves rows to 'sending' and counts the attempt. Returns only the rows this call claimed.
+-- Eligible: 'pending' rows, and 'failed' rows the provider definitively did not accept ('retryable'), capped at
+-- three attempts. Retries happen only when a sender triggers dispatch again. Nothing retries automatically.
+create or replace function public.claim_deliveries(p_message_id uuid, p_channel text)
+returns setof public.communication_deliveries
+language sql
+security definer
+set search_path = public, pg_temp
+as $$
+  update public.communication_deliveries d
+     set status = 'sending',
+         attempts = d.attempts + 1,
+         attempted_at = now()
+   where d.message_id = p_message_id
+     and d.channel = p_channel
+     and (
+       d.status = 'pending'
+       or (d.status = 'failed' and d.retryable and d.attempts < 3)
+     )
+  returning d.*;
+$$;
+
+-- A row stuck in 'sending' means the dispatcher stopped before it recorded an outcome. The provider may already have
+-- accepted the message, so the row is marked 'failed' with an 'outcome-unknown' reason and is NOT retryable.
+-- Re-sending it could duplicate external delivery.
+create or replace function public.expire_stuck_deliveries(p_older_than interval default interval '15 minutes')
+returns integer
+language sql
+security definer
+set search_path = public, pg_temp
+as $$
+  with expired as (
+    update public.communication_deliveries d
+       set status = 'failed',
+           reason = 'outcome-unknown: dispatch stopped before the provider answered',
+           retryable = false
+     where d.status = 'sending'
+       and d.attempted_at < now() - p_older_than
+    returning 1
+  )
+  select count(*)::integer from expired;
+$$;
+
+revoke all on function public.claim_deliveries(uuid, text)         from public, anon, authenticated;
+revoke all on function public.expire_stuck_deliveries(interval)    from public, anon, authenticated;
+grant execute on function public.claim_deliveries(uuid, text)      to service_role;
+grant execute on function public.expire_stuck_deliveries(interval) to service_role;

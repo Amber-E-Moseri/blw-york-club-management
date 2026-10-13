@@ -5,13 +5,20 @@ import { classifyPushError } from '../_shared/event-notification.ts';
 
 // Delivers the external channels (email, push) of one message that send_message already wrote to the database.
 // The inbox is written by send_message in its own transaction, so this function never decides who receives a message.
-// It only delivers rows that are 'pending' for that message.
 //
-// Idempotency: each pending row is claimed by an UPDATE ... WHERE status = 'pending' (set to 'sending') before any
-// provider call. A retry or a second click finds no pending rows and sends nothing again.
-//
-// Outcome honesty: 'accepted' means the email relay or the push service accepted the request. It is not proof that
-// the member read or received it. Nothing here writes 'delivered'.
+// Delivery rules:
+//   - Claiming is atomic in the database (claim_deliveries). A row is claimed once, moves to 'sending', and counts
+//     one attempt. A second dispatch cannot claim a row that is already 'sending' or 'accepted'.
+//   - 'accepted' means the email relay or push service accepted the request. It does not mean the member received it.
+//   - Retryable failures are only those the provider definitively refused or that were never attempted (config
+//     missing, relay 4xx). Network errors and 5xx responses are NOT retryable, because the provider may have accepted
+//     the message anyway. Re-sending in that case could duplicate delivery.
+//   - Nothing retries automatically. A sender triggers a retry by calling dispatch again. Attempts are capped at 3
+//     in claim_deliveries.
+//   - Rows left in 'sending' by a crashed dispatch are closed by expire_stuck_deliveries as 'outcome-unknown' and are
+//     never retried.
+//   - Email uses the 'message_notification' preference. Only messages use it, so admin-announcement opt-outs do not
+//     silence direct messages.
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,12 +38,26 @@ const supabase = createClient(supabaseUrl, serviceRoleKey);
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_REASON = 200;
+const PREFERENCE_TYPE = 'message_notification';
 
 class HttpError extends Error {
   constructor(message: string, readonly status: number) {
     super(message);
   }
 }
+
+/** The relay answered with a definitive refusal (HTTP 4xx). The message was not accepted, so a retry cannot duplicate it. */
+class RelayRefused extends Error {}
+
+/** The email relay is not configured here. Nothing was attempted, so a later dispatch may try again. */
+class NotConfigured extends Error {}
+
+interface ClaimedRow { user_id: string }
+
+type Outcome =
+  | { status: 'accepted'; providerRef: string | null }
+  | { status: 'skipped'; reason: string }
+  | { status: 'failed'; reason: string; retryable: boolean };
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -45,8 +66,8 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-/** Returns the caller and the message they may dispatch: the sender, or any active admin or coordinator. */
-async function authorizeDispatch(req: Request, messageId: string): Promise<{ senderId: string }> {
+/** Returns the caller's id after checking they may dispatch this message: its sender, or an active admin or coordinator. */
+async function authorizeDispatch(req: Request, messageId: string): Promise<void> {
   const authHeader = req.headers.get('Authorization') ?? '';
   const jwt = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
   if (!jwt) throw new HttpError('Authentication required', 401);
@@ -68,35 +89,24 @@ async function authorizeDispatch(req: Request, messageId: string): Promise<{ sen
 
   const isStaff = caller.role === 'admin' || caller.role === 'coordinator';
   if (!isStaff && message.sender_id !== callerId) throw new HttpError('Not authorised to dispatch this message', 403);
-  return { senderId: message.sender_id };
 }
 
-/** Claim pending rows for one channel. Only rows still 'pending' are returned; each becomes 'sending'. */
-async function claimPending(messageId: string, channel: 'email' | 'push'): Promise<string[]> {
-  const { data, error } = await supabase
-    .from('communication_deliveries')
-    .update({ status: 'sending', attempted_at: new Date().toISOString() })
-    .eq('message_id', messageId)
-    .eq('channel', channel)
-    .eq('status', 'pending')
-    .select('user_id');
+async function claim(messageId: string, channel: 'email' | 'push'): Promise<string[]> {
+  const { data, error } = await supabase.rpc('claim_deliveries', { p_message_id: messageId, p_channel: channel });
   if (error) throw new Error(error.message);
-  return (data ?? []).map((row: { user_id: string }) => row.user_id);
+  return ((data ?? []) as ClaimedRow[]).map((row) => row.user_id);
 }
 
-async function finish(
-  messageId: string,
-  userId: string,
-  channel: 'email' | 'push',
-  outcome: { status: 'accepted' | 'failed' | 'skipped'; reason?: string | null; providerRef?: string | null },
-): Promise<void> {
+async function record(messageId: string, userId: string, channel: 'email' | 'push', outcome: Outcome): Promise<void> {
+  const update =
+    outcome.status === 'accepted'
+      ? { status: 'accepted', provider_ref: outcome.providerRef, reason: null, retryable: false }
+      : outcome.status === 'skipped'
+        ? { status: 'skipped', reason: outcome.reason.slice(0, MAX_REASON), retryable: false }
+        : { status: 'failed', reason: outcome.reason.slice(0, MAX_REASON), retryable: outcome.retryable };
   const { error } = await supabase
     .from('communication_deliveries')
-    .update({
-      status: outcome.status,
-      reason: outcome.reason ? outcome.reason.slice(0, MAX_REASON) : null,
-      provider_ref: outcome.providerRef ?? null,
-    })
+    .update(update)
     .eq('message_id', messageId)
     .eq('user_id', userId)
     .eq('channel', channel)
@@ -108,20 +118,41 @@ function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] ?? c));
 }
 
-async function sendEmailViaRelay(to: string, subject: string, html: string): Promise<{ id: string }> {
-  if (!emailRelayUrl || !emailRelaySecret) throw new Error('EMAIL_PROVIDER_NOT_CONFIGURED');
-  const res = await fetch(emailRelayUrl, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${emailRelaySecret}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ to, subject, html }),
-  });
+/**
+ * Sends one email through the relay. The Idempotency-Key lets a relay that honours it recognise a repeated request.
+ * Whether the relay honours it is NOT verified here.
+ */
+async function sendEmailViaRelay(to: string, subject: string, html: string, idempotencyKey: string): Promise<{ id: string }> {
+  if (!emailRelayUrl || !emailRelaySecret) throw new NotConfigured('EMAIL_PROVIDER_NOT_CONFIGURED');
+  let res: Response;
+  try {
+    res = await fetch(emailRelayUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${emailRelaySecret}`,
+        'Content-Type': 'application/json',
+        'Idempotency-Key': idempotencyKey,
+      },
+      body: JSON.stringify({ to, subject, html }),
+    });
+  } catch (err) {
+    // The request may have reached the relay before the connection failed. Treat it as uncertain, not refused.
+    throw new Error(`Relay unreachable: ${err instanceof Error ? err.message : 'network error'}`);
+  }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.message ?? `Email relay error ${res.status}`);
-  return { id: data.messageId ?? crypto.randomUUID() };
+  if (res.ok) return { id: data.messageId ?? crypto.randomUUID() };
+  if (res.status >= 400 && res.status < 500) throw new RelayRefused(data?.message ?? `Relay refused (${res.status})`);
+  throw new Error(data?.message ?? `Relay error ${res.status} (outcome unknown)`);
+}
+
+function outcomeForEmailError(err: unknown): Outcome {
+  if (err instanceof NotConfigured) return { status: 'failed', reason: err.message, retryable: true };
+  if (err instanceof RelayRefused) return { status: 'failed', reason: err.message, retryable: true };
+  return { status: 'failed', reason: err instanceof Error ? err.message : 'Email error', retryable: false };
 }
 
 async function dispatchEmail(messageId: string, subject: string, body: string): Promise<{ accepted: number; failed: number; skipped: number }> {
-  const userIds = await claimPending(messageId, 'email');
+  const userIds = await claim(messageId, 'email');
   const counts = { accepted: 0, failed: 0, skipped: 0 };
   if (userIds.length === 0) return counts;
 
@@ -137,37 +168,38 @@ async function dispatchEmail(messageId: string, subject: string, body: string): 
 
   for (const userId of userIds) {
     const profile = profileById.get(userId);
+    let outcome: Outcome;
     if (!profile || profile.status !== 'active' || !profile.email) {
-      await finish(messageId, userId, 'email', { status: 'skipped', reason: 'not-active-or-no-address' });
-      counts.skipped++;
-      continue;
+      outcome = { status: 'skipped', reason: 'not-active-or-no-address' };
+    } else {
+      const decision = evaluatePreference(PREFERENCE_TYPE, prefsById.get(userId) ?? null, userId);
+      if (!decision.send) {
+        outcome = { status: 'skipped', reason: decision.reason };
+      } else {
+        try {
+          const sent = await sendEmailViaRelay(profile.email, subject, html, `${messageId}:${userId}:email`);
+          outcome = { status: 'accepted', providerRef: sent.id };
+        } catch (err) {
+          outcome = outcomeForEmailError(err);
+        }
+      }
     }
-    const decision = evaluatePreference('generic', prefsById.get(userId) ?? null, userId);
-    if (!decision.send) {
-      await finish(messageId, userId, 'email', { status: 'skipped', reason: decision.reason });
-      counts.skipped++;
-      continue;
-    }
-    try {
-      const sent = await sendEmailViaRelay(profile.email, subject, html);
-      await finish(messageId, userId, 'email', { status: 'accepted', providerRef: sent.id });
-      counts.accepted++;
-    } catch (err) {
-      await finish(messageId, userId, 'email', { status: 'failed', reason: err instanceof Error ? err.message : 'Email error' });
-      counts.failed++;
-    }
+    await record(messageId, userId, 'email', outcome);
+    if (outcome.status === 'accepted') counts.accepted++;
+    else if (outcome.status === 'skipped') counts.skipped++;
+    else counts.failed++;
   }
   return counts;
 }
 
 async function dispatchPush(messageId: string): Promise<{ accepted: number; failed: number; skipped: number }> {
-  const userIds = await claimPending(messageId, 'push');
+  const userIds = await claim(messageId, 'push');
   const counts = { accepted: 0, failed: 0, skipped: 0 };
   if (userIds.length === 0) return counts;
 
   if (!vapidPublicKey || !vapidPrivateKey || !vapidSubject) {
     for (const userId of userIds) {
-      await finish(messageId, userId, 'push', { status: 'failed', reason: 'PUSH_NOT_CONFIGURED' });
+      await record(messageId, userId, 'push', { status: 'failed', reason: 'PUSH_NOT_CONFIGURED', retryable: true });
       counts.failed++;
     }
     return counts;
@@ -197,32 +229,32 @@ async function dispatchPush(messageId: string): Promise<{ accepted: number; fail
 
   for (const userId of userIds) {
     const devices = subsByUser.get(userId) ?? [];
+    let outcome: Outcome;
     if (devices.length === 0) {
-      await finish(messageId, userId, 'push', { status: 'skipped', reason: 'no-active-subscription' });
-      counts.skipped++;
-      continue;
-    }
-    let anyAccepted = false;
-    let lastError: string | null = null;
-    for (const sub of devices) {
-      try {
-        await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload, { TTL: 60 * 60 * 24 });
-        anyAccepted = true;
-      } catch (err) {
-        const statusCode = (err as { statusCode?: number }).statusCode;
-        const message = err instanceof Error ? err.message : String(err);
-        const { status, error } = classifyPushError(statusCode, message);
-        if (status === 'expired') await supabase.from('push_subscriptions').update({ is_active: false }).eq('id', sub.id);
-        lastError = error;
-      }
-    }
-    if (anyAccepted) {
-      await finish(messageId, userId, 'push', { status: 'accepted' });
-      counts.accepted++;
+      outcome = { status: 'skipped', reason: 'no-active-subscription' };
     } else {
-      await finish(messageId, userId, 'push', { status: 'failed', reason: lastError ?? 'Push error' });
-      counts.failed++;
+      let anyAccepted = false;
+      let lastError: string | null = null;
+      for (const sub of devices) {
+        try {
+          await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload, { TTL: 60 * 60 * 24 });
+          anyAccepted = true;
+        } catch (err) {
+          const statusCode = (err as { statusCode?: number }).statusCode;
+          const message = err instanceof Error ? err.message : String(err);
+          const { status, error } = classifyPushError(statusCode, message);
+          if (status === 'expired') await supabase.from('push_subscriptions').update({ is_active: false }).eq('id', sub.id);
+          lastError = error;
+        }
+      }
+      outcome = anyAccepted
+        ? { status: 'accepted', providerRef: null }
+        : { status: 'failed', reason: lastError ?? 'Push error', retryable: false };
     }
+    await record(messageId, userId, 'push', outcome);
+    if (outcome.status === 'accepted') counts.accepted++;
+    else if (outcome.status === 'skipped') counts.skipped++;
+    else counts.failed++;
   }
   return counts;
 }
@@ -237,6 +269,9 @@ Deno.serve(async (req) => {
     if (!UUID.test(messageId)) throw new HttpError('message_id must be a UUID', 400);
 
     await authorizeDispatch(req, messageId);
+
+    // Close rows a crashed earlier dispatch left in 'sending'. They are never retried (see header).
+    await supabase.rpc('expire_stuck_deliveries', { p_older_than: '15 minutes' });
 
     const { data: message, error } = await supabase
       .from('communication_messages')
