@@ -1,51 +1,36 @@
-// Shared meeting audience contract.
+import { emptySelection, type AudienceMode, type AudienceSelection } from '../communications/messaging';
+
+export type { AudienceMode, AudienceSelection };
+
+// Shared audience contract (docs/ops-shared-contracts.md §1–4).
 //
-// This module is the client side of the single audience system described in
-// supabase/migrations/039_meeting_audience_and_invitations.sql and docs/meeting-audience-contract.md.
-// The database is authoritative: every rule here is repeated in set_meeting_audience() and the RLS policies, and
-// is only used to give organizers immediate feedback before a request is sent.
+// Every audience-aware feature uses these four modes and this selection shape. Meetings use it through
+// set_meeting_audience(); events, announcements, assignments and affirmations use the same audience_specs rows through
+// their own RPCs. The database is authoritative. The checks here only give immediate feedback and mirror the RPCs.
 //
-// It has no Supabase import, so it can be unit tested and reused by other feature areas.
+// No Supabase import, so this module can be unit tested and used by any feature area.
 
-export const MEETING_INVITATION_SOURCES = ['member', 'group', 'cell', 'all', 'self'] as const;
-export type MeetingInvitationSource = (typeof MEETING_INVITATION_SOURCES)[number];
+/**
+ * Meeting audiences use the shared model from the messaging module (the same four modes and selection shape as
+ * send_message, preview_audience and the audience_specs rows). Only the meeting-specific role rules live here.
+ */
+export const AUDIENCE_MODES: readonly AudienceMode[] = ['all', 'cells', 'saved_groups', 'explicit'];
 
-export const MEETING_ATTENDANCE_STATES = ['invited', 'confirmed', 'attended', 'absent', 'excused'] as const;
-export type MeetingAttendanceState = (typeof MEETING_ATTENDANCE_STATES)[number];
-
-/** States a staff member may record. Invitees may only choose 'confirmed' or 'excused' for themselves. */
-export const STAFF_ATTENDANCE_STATES: readonly MeetingAttendanceState[] = MEETING_ATTENDANCE_STATES;
-export const INVITEE_RESPONSE_STATES = ['confirmed', 'excused'] as const;
-export type InviteeResponseState = (typeof INVITEE_RESPONSE_STATES)[number];
-
-export const MEETING_ATTENDANCE_LABELS: Record<MeetingAttendanceState, string> = {
-  invited: 'Invited',
-  confirmed: 'Confirmed',
-  attended: 'Attended',
-  absent: 'Absent',
-  excused: 'Excused',
+export const AUDIENCE_MODE_LABELS: Record<AudienceMode, string> = {
+  all: 'Every active member',
+  cells: 'Cells',
+  saved_groups: 'Saved groups',
+  explicit: 'Specific members',
 };
 
-/** The audience an organizer is building. Empty arrays and false mean "not included". */
-export interface MeetingAudienceSelection {
-  allMembers: boolean;
-  cellIds: string[];
-  groupIds: string[];
-  memberIds: string[];
+export function emptyMeetingAudience(mode: AudienceMode = 'all'): AudienceSelection {
+  return emptySelection(mode);
 }
 
-export const emptyMeetingAudience = (): MeetingAudienceSelection => ({
-  allMembers: false,
-  cellIds: [],
-  groupIds: [],
-  memberIds: [],
-});
-
-export function isAudienceEmpty(selection: MeetingAudienceSelection): boolean {
-  return !selection.allMembers
-    && selection.cellIds.length === 0
-    && selection.groupIds.length === 0
-    && selection.memberIds.length === 0;
+/** Modes a meeting organiser may use. A cell leader may invite their own cells, and members of their own cells. */
+export function meetingAllowedModes(isStaff: boolean, ledCellIds: readonly string[]): AudienceMode[] {
+  if (isStaff) return [...AUDIENCE_MODES];
+  return ledCellIds.length > 0 ? ['cells', 'explicit'] : [];
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -53,60 +38,78 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export interface AudienceCaller {
   /** Admins and coordinators. */
   isStaff: boolean;
-  /** Cells the caller leads. Used only when the caller is not staff. */
+  /** Cells the caller leads (cells.leader_id = caller). Only used when the caller is not staff. */
   ledCellIds: string[];
+  /** Cell of each profile the caller may invite, when known. Used for the explicit-mode check by cell leaders. */
+  profileCellById?: Record<string, string | null>;
 }
 
 /**
- * Returns the reasons a selection cannot be sent, or an empty list when it can. Mirrors set_meeting_audience():
- *   - all members, saved groups and specific members are staff-only;
- *   - a cell leader may only pick cells they lead;
- *   - every id must be a UUID.
- * Whether a specific member is active is checked by the database, not here.
+ * Reasons a selection cannot be sent, or an empty list when it can. Mirrors set_meeting_audience() (migration 066):
+ *   all, saved_groups: admins and coordinators;
+ *   cells: at least one cell; a cell leader may only pick cells they lead;
+ *   explicit: at least one member; a cell leader may only pick members of their own cells;
+ *   every id must be a UUID.
+ * Whether a profile is active is decided by the database.
  */
-export function validateAudienceSelection(selection: MeetingAudienceSelection, caller: AudienceCaller): string[] {
+export function validateAudienceSelection(selection: AudienceSelection, caller: AudienceCaller): string[] {
   const errors: string[] = [];
-
-  if (isAudienceEmpty(selection)) {
-    // An empty selection is valid: it removes every invitation that has no recorded attendance.
-    return errors;
-  }
-
-  const ids = [...selection.cellIds, ...selection.groupIds, ...selection.memberIds];
+  const ids = [...selection.cellIds, ...selection.groupIds, ...selection.profileIds];
   if (ids.some((id) => !UUID.test(id))) errors.push('The audience contains an unknown reference.');
 
-  if (!caller.isStaff) {
-    if (selection.allMembers) errors.push('Only admins and coordinators can invite all members.');
-    if (selection.groupIds.length > 0) errors.push('Only admins and coordinators can invite a saved group.');
-    if (selection.memberIds.length > 0) errors.push('Only admins and coordinators can invite selected members.');
-    const led = new Set(caller.ledCellIds);
-    if (selection.cellIds.some((id) => !led.has(id))) errors.push('You can only invite members of cells you lead.');
+  switch (selection.mode) {
+    case 'all':
+      if (!caller.isStaff) errors.push('Only admins and coordinators can invite all members.');
+      break;
+    case 'saved_groups':
+      if (!caller.isStaff) errors.push('Only admins and coordinators can invite a saved group.');
+      if (selection.groupIds.length === 0) errors.push('Choose at least one saved group.');
+      break;
+    case 'cells': {
+      if (selection.cellIds.length === 0) errors.push('Choose at least one cell.');
+      const led = new Set(caller.ledCellIds);
+      if (!caller.isStaff && selection.cellIds.some((id) => !led.has(id))) {
+        errors.push('You can only invite members of cells you lead.');
+      }
+      break;
+    }
+    case 'explicit': {
+      if (selection.profileIds.length === 0) errors.push('Choose at least one member.');
+      if (!caller.isStaff && caller.profileCellById) {
+        const led = new Set(caller.ledCellIds);
+        const outside = selection.profileIds.some((id) => {
+          const cell = caller.profileCellById?.[id];
+          return !cell || !led.has(cell);
+        });
+        if (outside) errors.push('You can only invite members of your own cells.');
+      }
+      break;
+    }
   }
-
   return errors;
 }
 
-/** Parameters for the set_meeting_audience RPC. */
-export function toSetAudienceParams(meetingId: string, selection: MeetingAudienceSelection, dryRun: boolean) {
+/** Parameters for set_meeting_audience(). Arrays not used by the mode are sent empty. */
+export function toSetAudienceParams(meetingId: string, selection: AudienceSelection, dryRun: boolean) {
   return {
     p_meeting_id: meetingId,
-    p_all_members: selection.allMembers,
-    p_cell_ids: selection.cellIds,
-    p_group_ids: selection.groupIds,
-    p_member_ids: selection.memberIds,
+    p_mode: selection.mode,
+    p_cell_ids: selection.mode === 'cells' ? selection.cellIds : [],
+    p_group_ids: selection.mode === 'saved_groups' ? selection.groupIds : [],
+    p_profile_ids: selection.mode === 'explicit' ? selection.profileIds : [],
     p_dry_run: dryRun,
   };
 }
 
-/** The result shape returned by set_meeting_audience(). */
+/** The result of set_meeting_audience(). */
 export interface AudienceChangeResult {
   dry_run: boolean;
   recipients: number;
   added: number;
   removed: number;
+  audience_spec_id?: string;
 }
 
-/** A one-line preview for the organizer, written before anything is published. */
 export function describeAudienceChange(result: AudienceChangeResult): string {
   const people = (n: number) => `${n} ${n === 1 ? 'person' : 'people'}`;
   const change = [
@@ -118,12 +121,43 @@ export function describeAudienceChange(result: AudienceChangeResult): string {
     : `This meeting will be sent to ${people(result.recipients)}. No changes.`;
 }
 
-/** Parameters for the publish_meeting RPC. */
-export function toPublishParams(meetingId: string) {
-  return { p_meeting_id: meetingId };
+/** Recipient provenance, as stored in meeting_attendances.invited_via. Self means the person registered themselves. */
+export const INVITATION_SOURCES = ['self', 'member', 'group', 'cell', 'all'] as const;
+export type InvitationSource = (typeof INVITATION_SOURCES)[number];
+
+/** The invited_via value that a spec mode produces. */
+export function invitationSourceFor(mode: AudienceMode): Exclude<InvitationSource, 'self'> {
+  switch (mode) {
+    case 'all': return 'all';
+    case 'cells': return 'cell';
+    case 'saved_groups': return 'group';
+    case 'explicit': return 'member';
+  }
 }
 
-/** Whether a stored attendance row still belongs to a person who was invited (rather than registered themselves). */
-export function isInvitation(row: { invited_via?: MeetingInvitationSource | null }): boolean {
+export const INVITATION_SOURCE_LABELS: Record<InvitationSource, string> = {
+  self: 'Registered',
+  member: 'Selected',
+  group: 'Saved group',
+  cell: 'Cell',
+  all: 'All members',
+};
+
+export function isInvitation(row: { invited_via?: InvitationSource | null }): boolean {
   return !!row.invited_via && row.invited_via !== 'self';
 }
+
+/** Attendance states, as stored in meeting_attendances.attendance_status. */
+export const MEETING_ATTENDANCE_STATES = ['invited', 'confirmed', 'attended', 'absent', 'excused'] as const;
+export type MeetingAttendanceState = (typeof MEETING_ATTENDANCE_STATES)[number];
+
+export const MEETING_ATTENDANCE_LABELS: Record<MeetingAttendanceState, string> = {
+  invited: 'Invited',
+  confirmed: 'Confirmed',
+  attended: 'Attended',
+  absent: 'Absent',
+  excused: 'Excused',
+};
+
+/** Recorded outcomes. Once set by staff these cannot be reset to an invitation or confirmation. */
+export const RECORDED_OUTCOME_STATES: readonly MeetingAttendanceState[] = ['attended', 'absent'];

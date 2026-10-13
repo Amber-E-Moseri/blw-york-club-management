@@ -1,28 +1,34 @@
-// Shared audience model. The contract lives in docs/audience-infrastructure-contract.md.
-// Recipients are always profiles.id values derived from terms. Clients never supply recipient ids as authority.
+// Canonical audience model. Mirrors public.audience_specs (migrations 059, 068) and the contract in
+// docs/audience-shared-contract.md. Field names follow the database (camelCase here, snake_case in SQL).
+//
+// Clients send a SPEC (kinds and exclusions). The database derives recipients. A client never sends
+// recipient ids as authority.
 
-export type AudienceTermType = 'everyone' | 'cell' | 'saved_group' | 'member';
-export type AudienceEffect = 'include' | 'exclude';
-export type AudienceResolutionMode = 'dynamic' | 'snapshot';
-export type AudienceConsumerType =
-  | 'meeting'
-  | 'event'
-  | 'announcement'
-  | 'message'
-  | 'assignment'
-  | 'affirmation';
-export type AudienceGroupVisibility = 'owner' | 'organisation';
+export type AudienceMode = 'all' | 'cells' | 'saved_groups' | 'explicit' | 'composite';
 
-export interface AudienceTerm {
-  type: AudienceTermType;
-  /** null for 'everyone'; cell id, group id or profile id otherwise. */
-  refId: string | null;
-  effect: AudienceEffect;
+export type AudienceConsumerType = 'announcement' | 'affirmation' | 'event' | 'message';
+
+/** What the composer edits. Matches the create_audience_spec() arguments one-to-one. */
+export interface AudienceSpecDraft {
+  mode: AudienceMode;
+  cellIds: string[];
+  groupIds: string[];
+  profileIds: string[];
+  excludedCellIds: string[];
+  excludedGroupIds: string[];
+  excludedProfileIds: string[];
 }
 
-export interface AudienceDraft {
-  terms: AudienceTerm[];
-  resolutionMode: AudienceResolutionMode;
+/** Row shape returned for an audience_specs record (read by staff only). */
+export interface AudienceSpecRecord {
+  id: string;
+  mode: AudienceMode;
+  cell_ids: string[] | null;
+  group_ids: string[] | null;
+  profile_ids: string[] | null;
+  excluded_cell_ids: string[] | null;
+  excluded_group_ids: string[] | null;
+  excluded_profile_ids: string[] | null;
 }
 
 export interface AudienceCandidate {
@@ -32,39 +38,42 @@ export interface AudienceCandidate {
   email: string | null;
   /** profiles.cell_id */
   cellId: string | null;
-  status: 'active' | 'pending' | 'rejected' | 'inactive';
+  status: 'active' | 'pending' | 'rejected';
 }
 
 export interface AudienceCell {
   id: string;
   name: string;
+  /** cells.leader_id; used to scope a cell leader's choices. */
+  leaderId?: string | null;
 }
 
 export interface AudienceSavedGroup {
   id: string;
   name: string;
-  ownerId: string;
-  visibility: AudienceGroupVisibility;
-  archivedAt: string | null;
+  isActive: boolean;
   memberIds: string[];
 }
 
-/** What the actor may use. Computed server-side; the client copy only shapes the UI. */
+/** What the actor may use. The server enforces this; the client copy only shapes the UI. */
 export interface AudienceScope {
-  /** true only for core admin / coordinator */
+  /** true only for admin / coordinator */
   canUseEveryone: boolean;
   /** cells where cells.leader_id = actor */
   ledCellIds: string[];
+  /** a cell leader may target only their own cell, with no exclusions */
+  canExclude: boolean;
 }
 
 export type AudienceValidationError =
-  | 'no_include_terms'
+  | 'no_include'
+  | 'mode_mismatch'
   | 'empty_audience'
   | 'everyone_not_permitted'
-  | 'out_of_scope_member'
+  | 'exclusions_not_permitted'
   | 'out_of_scope_cell'
-  | 'unknown_group'
-  | 'malformed_term';
+  | 'out_of_scope_member'
+  | 'unknown_group';
 
 export interface AudienceData {
   candidates: AudienceCandidate[];
@@ -73,7 +82,7 @@ export interface AudienceData {
 }
 
 export interface AudienceResolution {
-  /** Sorted, unique. Empty whenever any hard error is present (the server rejects the whole request). */
+  /** Sorted, unique. Empty whenever a hard error is present (the server rejects the whole request). */
   recipientIds: string[];
   errors: AudienceValidationError[];
 }

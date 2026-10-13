@@ -17,7 +17,7 @@ describe('meeting attendance access hardening', () => {
     const meetings = read('src/lib/queries/meetings.ts');
 
     expect(meetings).toContain(".from('meeting_attendances')");
-    expect(meetings).toContain(".select('meeting_id')");
+    expect(meetings).toContain(".select('meeting_id, attendance_status')");
     expect(meetings).toContain(".eq('user_id', userId)");
     expect(meetings).toContain('attendanceError');
   });

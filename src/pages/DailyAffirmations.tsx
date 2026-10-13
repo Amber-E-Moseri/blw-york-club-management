@@ -6,23 +6,24 @@ import { Input } from '../components/foundation/Input';
 import { Modal } from '../components/foundation/Modal';
 import { useAffirmations } from '../hooks/useAffirmations';
 import { parseAffirmationImport } from '../lib/affirmationImport';
-import { createAffirmations } from '../lib/queries/affirmations';
+import { createAffirmation, createAffirmations } from '../lib/queries/affirmations';
 import {
-  createSavedAudienceGroup,
-  createTargetedAffirmation,
+  audienceCandidatesFromMembers,
+  createAudienceSpec,
+  createSavedGroup,
   fetchAudienceCells,
-  fetchSavedAudienceGroups,
-  type AudienceCell,
-  type SavedAudienceGroup,
+  fetchSavedGroups,
 } from '../lib/queries/audience';
 import { getMembers } from '../lib/queries';
-import {
-  AUDIENCE_KINDS,
-  canTargetAffirmations,
-  validateAudience,
-  type AudienceDraft,
-  type AudienceKind,
-} from '../lib/audience/audienceRules';
+import { AudienceSelector } from '../components/feature/AudienceSelector';
+import { emptySpecDraft } from '../lib/audience/spec';
+import type {
+  AudienceCell,
+  AudienceSavedGroup,
+  AudienceScope,
+  AudienceSpecDraft,
+  AudienceValidationError,
+} from '../types/audience';
 import type { AuthUser } from '../lib/auth';
 import type { Member } from '../types';
 
@@ -30,15 +31,13 @@ interface Props { user: AuthUser | null; }
 
 const canManage = (role: string) => ['coordinator', 'admin'].includes(role);
 
-const AUDIENCE_LABEL: Record<AudienceKind, string> = {
-  all: 'Everyone',
-  cell: 'A cell',
-  group: 'A saved group',
-  individuals: 'Selected people',
-};
+/** Fellowship-wide. Staff only. Stored as NULL (live broadcast) unless exclusions are added. */
+function everyoneDraft(): AudienceSpecDraft {
+  return { ...emptySpecDraft(), mode: 'all' };
+}
 
-const selectClass =
-  'w-full rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-gray-900 dark:text-slate-100';
+/** Staff may use every audience and exclusions, so the scope is unrestricted for this page. */
+const STAFF_SCOPE: AudienceScope = { canUseEveryone: true, ledCellIds: [], canExclude: true };
 
 export const DailyAffirmations: React.FC<Props> = ({ user }) => {
   const today = new Date().toISOString().split('T')[0];
@@ -52,9 +51,10 @@ export const DailyAffirmations: React.FC<Props> = ({ user }) => {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
 
-  const [audience, setAudience] = useState<AudienceDraft>({ kind: 'all', cellId: null, groupId: null, userIds: [] });
+  const [audience, setAudience] = useState<AudienceSpecDraft>(everyoneDraft);
+  const [audienceErrors, setAudienceErrors] = useState<AudienceValidationError[]>([]);
   const [cells, setCells] = useState<AudienceCell[]>([]);
-  const [groups, setGroups] = useState<SavedAudienceGroup[]>([]);
+  const [groups, setGroups] = useState<AudienceSavedGroup[]>([]);
   const [people, setPeople] = useState<Member[]>([]);
   const [audienceLoadError, setAudienceLoadError] = useState('');
 
@@ -93,14 +93,15 @@ export const DailyAffirmations: React.FC<Props> = ({ user }) => {
     }
   };
 
-  const canTarget = canTargetAffirmations(user?.role ?? 'member');
+  const canTarget = canManage(user?.role ?? 'member');
+  const candidates = useMemo(() => audienceCandidatesFromMembers(people), [people]);
 
   // Audience data is loaded only for staff, when the form or groups modal opens.
   useEffect(() => {
     if (!canTarget || (!addOpen && !groupsOpen)) return;
     let cancelled = false;
     setAudienceLoadError('');
-    Promise.all([fetchAudienceCells(), fetchSavedAudienceGroups(), getMembers()])
+    Promise.all([fetchAudienceCells(), fetchSavedGroups(), getMembers()])
       .then(([c, g, m]) => {
         if (cancelled) return;
         setCells(c);
@@ -117,24 +118,37 @@ export const DailyAffirmations: React.FC<Props> = ({ user }) => {
     setNewTitle('');
     setNewBody('');
     setNewDate(today);
-    setAudience({ kind: 'all', cellId: null, groupId: null, userIds: [] });
+    setAudience(everyoneDraft());
+  };
+
+  /**
+   * Everyone with no exclusions is saved as NULL: a live broadcast, so people who join later still see it.
+   * Anything else is saved as a spec, whose recipients are frozen at save time (see migration 072).
+   */
+  const audienceSpecIdFor = async (draft: AudienceSpecDraft): Promise<string | null> => {
+    const isPlainEveryone =
+      draft.mode === 'all' &&
+      draft.excludedCellIds.length + draft.excludedGroupIds.length + draft.excludedProfileIds.length === 0;
+    if (isPlainEveryone) return null;
+    return createAudienceSpec(draft);
   };
 
   const handleAdd = async () => {
     if (!newTitle.trim() || !newBody.trim() || !user) return;
-    const audienceError = validateAudience(audience);
-    if (audienceError) {
-      setFormError(audienceError);
+    if (canTarget && audienceErrors.length > 0) {
+      setFormError('Fix the audience before saving. Nothing was saved.');
       return;
     }
     setFormError('');
     setSaving(true);
     try {
-      await createTargetedAffirmation({
+      const audienceSpecId = canTarget ? await audienceSpecIdFor(audience) : null;
+      await createAffirmation({
         title: newTitle.trim(),
         body: newBody.trim(),
-        scheduledDate: newDate,
-        audience,
+        scheduled_date: newDate,
+        created_by: user.id,
+        audience_spec_id: audienceSpecId,
       });
       setAddOpen(false);
       resetAddForm();
@@ -157,10 +171,10 @@ export const DailyAffirmations: React.FC<Props> = ({ user }) => {
     setGroupError('');
     setGroupSaving(true);
     try {
-      await createSavedAudienceGroup({ name: groupName, memberIds: groupMemberIds });
+      await createSavedGroup({ name: groupName, memberIds: groupMemberIds });
       setGroupName('');
       setGroupMemberIds([]);
-      setGroups(await fetchSavedAudienceGroups());
+      setGroups(await fetchSavedGroups());
     } catch (e) {
       setGroupError(e instanceof Error ? e.message : 'Could not save the group.');
     } finally {
@@ -357,64 +371,22 @@ export const DailyAffirmations: React.FC<Props> = ({ user }) => {
           />
 
           {canTarget && (
-            <fieldset className="space-y-3 rounded-md border border-gray-200 dark:border-slate-700 p-3">
-              <legend className="px-1 text-sm font-medium text-gray-700 dark:text-slate-300">Who receives this</legend>
-              <div>
-                <label className="sr-only" htmlFor="affirmation-audience">Audience</label>
-                <select
-                  id="affirmation-audience"
-                  className={selectClass}
-                  value={audience.kind}
-                  onChange={(e) => setAudience((a) => ({ ...a, kind: e.target.value as AudienceKind }))}
-                >
-                  {AUDIENCE_KINDS.map((k) => <option key={k} value={k}>{AUDIENCE_LABEL[k]}</option>)}
-                </select>
-              </div>
-
-              {audience.kind === 'cell' && (
-                <select
-                  aria-label="Cell"
-                  className={selectClass}
-                  value={audience.cellId ?? ''}
-                  onChange={(e) => setAudience((a) => ({ ...a, cellId: e.target.value || null }))}
-                >
-                  <option value="">Choose a cell…</option>
-                  {cells.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              )}
-
-              {audience.kind === 'group' && (
-                <select
-                  aria-label="Saved group"
-                  className={selectClass}
-                  value={audience.groupId ?? ''}
-                  onChange={(e) => setAudience((a) => ({ ...a, groupId: e.target.value || null }))}
-                >
-                  <option value="">Choose a saved group…</option>
-                  {groups.map((g) => <option key={g.id} value={g.id}>{g.name} ({g.member_ids.length})</option>)}
-                </select>
-              )}
-
-              {audience.kind === 'individuals' && (
-                <div className="max-h-48 overflow-y-auto rounded-md border border-gray-200 dark:border-slate-700 divide-y divide-gray-100 dark:divide-slate-700">
-                  {people.map((p) => (
-                    <label key={p.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={audience.userIds.includes(p.id)}
-                        onChange={() => setAudience((a) => ({ ...a, userIds: toggleIn(a.userIds, p.id) }))}
-                      />
-                      <span>{p.full_name || p.id}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-
+            <div className="space-y-3 rounded-md border border-gray-200 dark:border-slate-700 p-3">
+              <AudienceSelector
+                label="Who receives this"
+                value={audience}
+                onChange={setAudience}
+                candidates={candidates}
+                cells={cells}
+                savedGroups={groups}
+                scope={STAFF_SCOPE}
+                onValidityChange={setAudienceErrors}
+              />
               {audienceLoadError && <p className="text-xs text-york-600 dark:text-york-400">{audienceLoadError}</p>}
               <p className="text-xs text-gray-500 dark:text-slate-400">
                 Only the people you choose can see this affirmation. Who declared it is never shown in targeting.
               </p>
-            </fieldset>
+            </div>
           )}
 
           {formError && <p className="text-sm text-york-600 dark:text-york-400"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{formError}</p>}
@@ -441,7 +413,7 @@ export const DailyAffirmations: React.FC<Props> = ({ user }) => {
               {groups.map((g) => (
                 <li key={g.id} className="flex justify-between px-3 py-2">
                   <span>{g.name}</span>
-                  <span className="text-gray-500 dark:text-slate-400">{g.member_ids.length} people</span>
+                  <span className="text-gray-500 dark:text-slate-400">{g.memberIds.length} people</span>
                 </li>
               ))}
             </ul>

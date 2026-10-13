@@ -68,6 +68,8 @@ export async function createAffirmation(input: {
   body: string;
   scheduled_date: string;
   created_by: string;
+  /** null = fellowship-wide broadcast (live); otherwise the frozen audience spec (migration 072). */
+  audience_spec_id?: string | null;
 }): Promise<Affirmation> {
   const { data, error } = await supabase
     .from('confessions').insert(input).select().single();

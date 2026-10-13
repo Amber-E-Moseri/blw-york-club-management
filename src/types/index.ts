@@ -48,6 +48,8 @@ export interface Member {
   student_number?: string;
   cell_id?: string;
   status?: 'pending' | 'active' | 'inactive' | 'rejected';
+  /** Bible Study Class the member is in, when the viewer can see it. A cell change is blocked while it is set. */
+  bsc_name?: string | null;
 }
 
 // ─── Announcements ───────────────────────────────────────────────────────────
@@ -377,6 +379,17 @@ export interface MemberGroup {
   id: string;
   name: string;
   created_by: string;
+  created_at: string;
+  member_count?: number;
+}
+
+/** Named, reusable group of members (operational table saved_groups, migration 059). */
+export interface SavedGroup {
+  id: string;
+  name: string;
+  description?: string | null;
+  created_by: string;
+  is_active: boolean;
   created_at: string;
   member_count?: number;
 }

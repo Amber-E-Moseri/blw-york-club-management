@@ -42,14 +42,15 @@ export function useMeetings(upcoming = true) {
     setMeetings((prev) => prev.filter((m) => m.id !== id));
   }, []);
 
-  const confirm = useCallback(async (meetingId: string, userId: string, userName: string) => {
-    await confirmAttendance(meetingId, userId, userName);
+  const confirm = useCallback(async (meetingId: string) => {
+    await confirmAttendance(meetingId);
     setMeetings((prev) =>
       prev.map((m) =>
         m.id === meetingId
           ? {
               ...m,
               user_confirmed: true,
+              user_attendance_status: 'confirmed',
               attendance_count:
                 typeof m.attendance_count === 'number' ? m.attendance_count + 1 : m.attendance_count,
             }
@@ -58,14 +59,15 @@ export function useMeetings(upcoming = true) {
     );
   }, []);
 
-  const cancel = useCallback(async (meetingId: string, userId: string) => {
-    await cancelAttendance(meetingId, userId);
+  const cancel = useCallback(async (meetingId: string) => {
+    await cancelAttendance(meetingId);
     setMeetings((prev) =>
       prev.map((m) =>
         m.id === meetingId
           ? {
               ...m,
               user_confirmed: false,
+              user_attendance_status: 'excused',
               attendance_count:
                 typeof m.attendance_count === 'number'
                   ? Math.max(0, m.attendance_count - 1)

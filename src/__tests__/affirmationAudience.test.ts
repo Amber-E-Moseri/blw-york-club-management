@@ -1,62 +1,9 @@
 import fs from 'fs';
 import path from 'path';
-import {
-  canTargetAffirmations,
-  describeAudience,
-  toAudiencePayload,
-  uniqueIds,
-  validateAudience,
-  type AudienceDraft,
-} from '../lib/audience/audienceRules';
 
-const base: AudienceDraft = { kind: 'all', cellId: null, groupId: null, userIds: [] };
-
-describe('validateAudience', () => {
-  test('everyone needs no further choice', () => {
-    expect(validateAudience(base)).toBeNull();
-  });
-
-  test('a cell, a saved group or a person must be chosen', () => {
-    expect(validateAudience({ ...base, kind: 'cell' })).toMatch(/cell/);
-    expect(validateAudience({ ...base, kind: 'group' })).toMatch(/group/);
-    expect(validateAudience({ ...base, kind: 'individuals', userIds: ['  ', ''] })).toMatch(/person/);
-    expect(validateAudience({ ...base, kind: 'individuals', userIds: ['u1'] })).toBeNull();
-  });
-});
-
-describe('toAudiencePayload', () => {
-  test('only the field for the chosen kind is sent; the rest are null', () => {
-    expect(toAudiencePayload({ ...base, kind: 'cell', cellId: 'c1', groupId: 'g1', userIds: ['u1'] })).toEqual({
-      p_audience: 'cell',
-      p_cell_id: 'c1',
-      p_group_id: null,
-      p_user_ids: null,
-    });
-  });
-
-  test('individual recipients are de-duplicated before they are sent', () => {
-    expect(toAudiencePayload({ ...base, kind: 'individuals', userIds: ['u1', 'u1', 'u2'] }).p_user_ids).toEqual(['u1', 'u2']);
-  });
-});
-
-describe('authorisation and labels', () => {
-  test('only admins and coordinators may target affirmations', () => {
-    expect(canTargetAffirmations('coordinator')).toBe(true);
-    expect(canTargetAffirmations('admin')).toBe(true);
-    expect(canTargetAffirmations('cell_leader')).toBe(false);
-    expect(canTargetAffirmations('member')).toBe(false);
-  });
-
-  test('labels describe the audience without naming anyone who declared', () => {
-    expect(describeAudience({ audience: 'all' })).toBe('Everyone');
-    expect(describeAudience({ audience: 'cell', audience_cell_id: 'c1' }, { cells: { c1: 'Riverside' } })).toBe('Cell: Riverside');
-    expect(describeAudience({ audience: 'individuals' })).toBe('Selected people');
-  });
-
-  test('uniqueIds keeps the first occurrence and drops blanks', () => {
-    expect(uniqueIds([' a ', 'b', 'a', ''])).toEqual(['a', 'b']);
-  });
-});
+// The affirmation audience rules now live in the canonical model (src/lib/audience). Their guarantees are tested in
+// src/__tests__/audienceResolution.test.ts: validation of an empty or mismatched audience, the payload with
+// duplicate ids removed, and staff-only "everyone" targeting. This file keeps the migration 063 invariants.
 
 describe('migration 063 affirmation audience targeting invariants', () => {
   // The assignments branch combined assignments + affirmation targeting in a single file.

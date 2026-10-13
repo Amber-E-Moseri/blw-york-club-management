@@ -3,6 +3,7 @@ import {
   canManageCells,
   validateCellName,
   validateLeaderCandidate,
+  validateArchive,
   validateMemberPlacement,
   type CellActor,
 } from '../cells/cellAdmin';
@@ -13,8 +14,8 @@ import type { Cell, Member } from '../../types';
  *   1. checks the acting user can manage cells (UX guard),
  *   2. validates the input against the current cell and member lists,
  *   3. performs one write and checks that exactly one row was saved.
- * RLS is the authority: cells_manage (admins and coordinators, migration 065) and the profile and cell guards decide
- * what the database accepts.
+ * RLS is the authority: cells_manage (admins and coordinators, migration 073), the transfer RPC and the profile and
+ * cell guards decide what the database accepts.
  * A silent zero-row update is reported as a failure, because RLS denial returns no error.
  */
 
@@ -90,7 +91,9 @@ export async function setCellLeader(
 
 /**
  * Places a member in a cell (add or transfer), or removes them from their cell when `targetCellId` is null.
- * One profile row is written; the profile guard and staff-edit audit trigger record the change in the database.
+ * Goes through transfer_member_cell (migration 073), which checks authorization, active status, Bible Study Class
+ * membership and cell leadership, then writes the row and its audit record in one transaction. The RPC returns the
+ * saved row, so a refused or unsaved write is reported as a failure.
  */
 export async function setMemberCell(
   member: Member,
@@ -102,12 +105,64 @@ export async function setMemberCell(
   const problem = validateMemberPlacement(member, targetCellId, cells);
   if (problem) throw new Error(problem);
 
+  const { data, error } = await supabase.rpc('transfer_member_cell', {
+    p_member_id: member.id,
+    p_cell_id: targetCellId,
+  });
+  if (error) fail(error.message, 'Could not change the member’s cell.');
+  if (!Array.isArray(data) || data.length !== 1) {
+    fail(undefined, 'The member’s cell was not changed. Check that your account is still active.');
+  }
+}
+
+/**
+ * Archives a cell, or restores it when `archived` is false. Archiving is refused while members are in the cell. Bible
+ * Study Classes are checked by the database, and the message it returns is shown as-is.
+ */
+export async function setCellArchived(
+  cell: Cell,
+  archived: boolean,
+  actor: CellActor,
+  members: Member[],
+): Promise<void> {
+  requireManager(actor);
+  if (archived) {
+    const problem = validateArchive(cell.name, members.filter((m) => m.cell_id === cell.id).length);
+    if (problem) throw new Error(problem);
+  }
+
   const { data, error } = await supabase
-    .from('profiles')
-    .update({ cell_id: targetCellId })
-    .eq('id', member.id)
-    .select('id, cell_id')
+    .from('cells')
+    .update({ archived_at: archived ? new Date().toISOString() : null })
+    .eq('id', cell.id)
+    .select('id')
     .maybeSingle();
-  if (error) fail(error.message, 'Could not update the member’s cell.');
-  if (!data) fail(undefined, 'The member’s cell was not changed. Check that your account is still active.');
+  if (error) fail(error.message, archived ? 'Could not archive the cell.' : 'Could not restore the cell.');
+  if (!data) fail(undefined, 'The cell was not saved. It may have been removed.');
+}
+
+/** Archived cells, for the restore list. Active cells come from fetchCells, which excludes archived ones. */
+export async function fetchArchivedCells(): Promise<Cell[]> {
+  const { data, error } = await supabase
+    .from('cells')
+    .select('id, name, leader_id')
+    .not('archived_at', 'is', null)
+    .order('name', { ascending: true });
+  if (error) throw new Error(error.message ?? 'Could not load archived cells.');
+  return (data ?? []) as Cell[];
+}
+
+/**
+ * Bible Study Class names by member id, for the members the viewer can see. The database returns only rows the viewer
+ * is allowed to see (bsc_members_visible, migration 058). A missing entry therefore does not prove that a member has no
+ * class; the transfer RPC still refuses the change.
+ */
+export async function fetchBscMembershipNames(): Promise<Record<string, string>> {
+  const { data, error } = await supabase.rpc('bsc_members_visible');
+  if (error) throw new Error(error.message ?? 'Could not load Bible Study Class memberships.');
+  const names: Record<string, string> = {};
+  for (const row of (data ?? []) as Array<{ id: string; bsc_name: string }>) {
+    names[row.id] = row.bsc_name;
+  }
+  return names;
 }

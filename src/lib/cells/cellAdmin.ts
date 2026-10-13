@@ -45,21 +45,44 @@ export function validateLeaderCandidate(member: Pick<Member, 'full_name' | 'stat
 }
 
 /**
- * Checks a placement of a member into a cell (add or transfer). `targetCellId` null means remove from cell.
+ * Checks a placement of a member into a cell (add, transfer or removal). `targetCellId` null means remove from cell.
  * Only active members may be placed. Pending and rejected accounts gain no cell scope.
+ * A member in a Bible Study Class cannot change cell until they leave the class. A member who leads a cell cannot
+ * change cell until another leader is assigned. The database enforces both rules too (migration 073 and 058).
  */
 export function validateMemberPlacement(
-  member: Pick<Member, 'full_name' | 'status' | 'cell_id'>,
+  member: Pick<Member, 'id' | 'full_name' | 'status' | 'cell_id' | 'bsc_name'>,
   targetCellId: string | null,
-  cells: Pick<Cell, 'id' | 'name'>[],
+  cells: Pick<Cell, 'id' | 'name' | 'leader_id'>[],
 ): string | null {
   if (targetCellId === null) {
-    return member.cell_id ? null : `${member.full_name} is not in a cell.`;
+    if (!member.cell_id) return `${member.full_name} is not in a cell.`;
+  } else {
+    if (member.status !== 'active') {
+      return `Only active members can be added to a cell. ${member.full_name} is ${member.status ?? 'not active'}.`;
+    }
+    if (!cells.some((c) => c.id === targetCellId)) return 'Choose a cell that exists.';
+    if (member.cell_id === targetCellId) return `${member.full_name} is already in this cell.`;
   }
-  if (member.status !== 'active') {
-    return `Only active members can be added to a cell. ${member.full_name} is ${member.status ?? 'not active'}.`;
+
+  if (member.cell_id && member.bsc_name) {
+    return `${member.full_name} is in the Bible Study Class “${member.bsc_name}”. Remove them from that class on the Bible Study Classes page, then change their cell.`;
   }
-  if (!cells.some((c) => c.id === targetCellId)) return 'Choose a cell that exists.';
-  if (member.cell_id === targetCellId) return `${member.full_name} is already in this cell.`;
+
+  const leads = cells.filter((c) => c.leader_id === member.id);
+  if (member.cell_id && leads.length > 0) {
+    const names = leads.map((c) => `“${c.name}”`).join(', ');
+    const target = leads.length === 1 ? 'that cell' : 'those cells';
+    return `${member.full_name} leads ${names}. Assign a new leader to ${target} before changing their cell.`;
+  }
+
+  return null;
+}
+
+/** A cell can be archived only when no members are in it. Bible Study Classes are checked by the database. */
+export function validateArchive(cellName: string, memberCount: number): string | null {
+  if (memberCount > 0) {
+    return `Move or remove the ${memberCount} ${memberCount === 1 ? 'member' : 'members'} in “${cellName}” before archiving it.`;
+  }
   return null;
 }

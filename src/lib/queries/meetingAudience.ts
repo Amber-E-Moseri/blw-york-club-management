@@ -1,19 +1,18 @@
 import { supabase } from '../supabase';
 import {
   type AudienceChangeResult,
-  type MeetingAudienceSelection,
-  toPublishParams,
+  type AudienceSelection,
   toSetAudienceParams,
 } from '../audience/meetingAudience';
-import type { AudiencePerson, Cell, MemberGroup } from '../../types';
+import type { AudiencePerson, Cell, SavedGroup } from '../../types';
 
 /**
- * Previews an audience without writing anything. The database returns the recipient count and what would change.
- * The organizer sees this before anything is sent or published.
+ * Previews an audience without changing invitations. The database returns the recipient count and what would change.
+ * Nothing is written, not even the audience spec.
  */
 export async function previewMeetingAudience(
   meetingId: string,
-  selection: MeetingAudienceSelection,
+  selection: AudienceSelection,
 ): Promise<AudienceChangeResult> {
   const { data, error } = await supabase.rpc('set_meeting_audience', toSetAudienceParams(meetingId, selection, true));
   if (error) throw new Error(error.message);
@@ -21,12 +20,12 @@ export async function previewMeetingAudience(
 }
 
 /**
- * Applies an audience. One transaction in the database: invitations are added, invitees who fall out of the audience
- * are removed (unless they already have a recorded outcome), and access follows immediately.
+ * Applies an audience. In one transaction the database writes a new immutable audience spec, reconciles invitations to
+ * it, and points the meeting at it. Recipients who have a recorded outcome cannot be removed.
  */
 export async function setMeetingAudience(
   meetingId: string,
-  selection: MeetingAudienceSelection,
+  selection: AudienceSelection,
 ): Promise<AudienceChangeResult> {
   const { data, error } = await supabase.rpc('set_meeting_audience', toSetAudienceParams(meetingId, selection, false));
   if (error) throw new Error(error.message);
@@ -35,7 +34,7 @@ export async function setMeetingAudience(
 
 /** Publishes a draft. The database refuses an invite-only meeting that has no invitees yet. */
 export async function publishMeeting(meetingId: string): Promise<{ published_at: string; recipients: number }> {
-  const { data, error } = await supabase.rpc('publish_meeting', toPublishParams(meetingId));
+  const { data, error } = await supabase.rpc('publish_meeting', { p_meeting_id: meetingId });
   if (error) throw new Error(error.message);
   return data as { published_at: string; recipients: number };
 }
@@ -57,10 +56,11 @@ export async function fetchActiveAudiencePeople(): Promise<AudiencePerson[]> {
   return (data ?? []) as AudiencePerson[];
 }
 
-export async function fetchMemberGroups(): Promise<MemberGroup[]> {
+/** Saved groups (operational table saved_groups). Staff only, enforced by RLS. */
+export async function fetchSavedGroups(): Promise<SavedGroup[]> {
   const { data, error } = await supabase
     .from('saved_groups')
-    .select('id, name, created_by, created_at, saved_group_members(count)')
+    .select('id, name, description, created_by, is_active, created_at, saved_group_members(count)')
     .eq('is_active', true)
     .order('name', { ascending: true });
   if (error) throw new Error(error.message);
@@ -69,37 +69,41 @@ export async function fetchMemberGroups(): Promise<MemberGroup[]> {
     return {
       id: row.id as string,
       name: row.name as string,
+      description: (row.description as string | null) ?? null,
       created_by: row.created_by as string,
+      is_active: row.is_active as boolean,
       created_at: row.created_at as string,
       member_count: counts?.[0]?.count ?? 0,
     };
   });
 }
 
-export async function createMemberGroup(name: string, createdBy: string): Promise<MemberGroup> {
+export async function createSavedGroup(name: string, createdBy: string): Promise<SavedGroup> {
   const trimmed = name.trim();
   if (!trimmed) throw new Error('Give the group a name.');
   const { data, error } = await supabase
     .from('saved_groups')
-    .insert({ name: trimmed, created_by: createdBy, is_active: true })
-    .select('id, name, created_by, created_at')
+    .insert({ name: trimmed, created_by: createdBy })
+    .select('id, name, description, created_by, is_active, created_at')
     .single();
   if (error) throw new Error(error.message);
-  return data as MemberGroup;
+  return data as SavedGroup;
+}
+
+export async function fetchSavedGroupMemberIds(groupId: string): Promise<string[]> {
+  const { data, error } = await supabase.from('saved_group_members').select('profile_id').eq('group_id', groupId);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => row.profile_id as string);
 }
 
 /**
- * Makes the group's membership equal to userIds. Only the difference is written, so a failed write never empties the
- * group. Each write is still a separate statement. The database rejects inactive accounts (the policy requires them).
+ * Makes the group's membership equal to profileIds. Only the difference is written, so a failed write never empties the
+ * group. The database accepts members through the staff-only policy on saved_group_members.
  */
-export async function setMemberGroupMembers(
-  groupId: string,
-  userIds: string[],
-  addedBy: string,
-): Promise<void> {
-  const current = new Set(await fetchGroupMemberIds(groupId));
-  const wanted = new Set(userIds);
-  const toAdd = userIds.filter((id, i) => userIds.indexOf(id) === i && !current.has(id));
+export async function setSavedGroupMembers(groupId: string, profileIds: string[], addedBy: string): Promise<void> {
+  const current = new Set(await fetchSavedGroupMemberIds(groupId));
+  const wanted = new Set(profileIds);
+  const toAdd = profileIds.filter((id, i) => profileIds.indexOf(id) === i && !current.has(id));
   const toRemove = Array.from(current).filter((id) => !wanted.has(id));
 
   if (toAdd.length > 0) {
@@ -116,10 +120,4 @@ export async function setMemberGroupMembers(
       .in('profile_id', toRemove);
     if (error) throw new Error(error.message);
   }
-}
-
-export async function fetchGroupMemberIds(groupId: string): Promise<string[]> {
-  const { data, error } = await supabase.from('saved_group_members').select('profile_id').eq('group_id', groupId);
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((row) => row.profile_id as string);
 }
