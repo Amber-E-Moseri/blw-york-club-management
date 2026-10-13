@@ -64,7 +64,43 @@ tightens `meeting_attendances_select_scoped` to gate non-invitee probing.
   `can_see_affirmation()`.
 - `can_see_affirmation` is revoked from `public` and `anon`.
 
----
+<!-- Meetings contract (ported from 4dd1bfb; see migration 074) -->
+### Rules
+
+- `visibility = 'public'` — any authenticated user can see and join.
+- `visibility = 'leaders'` — only `role IN ('cell_leader','admin','coordinator')`.
+- `visibility = 'cell'` — members whose `profiles.cell_id = meetings.cell_id`.
+- `visibility = 'explicit'` — only users who have a row in `meeting_attendances` for this meeting
+  (plus admins/coordinators for operational access).
+
+### Migration 061 repaired (migration 066)
+
+Migration 061 added `meetings_explicit_invitee_read` and a `meeting_attendances` select policy that reference each other.
+Postgres rejects that with `42P17 infinite recursion detected in policy`, so every read of `meetings` failed for every
+role. Migration 066 keeps 061's predicates, evaluates them through SECURITY DEFINER helpers, and leaves 061 unedited:
+
+- `can_view_meeting(meeting)`: the single read rule. Managers always; everyone else when the meeting is published and
+  one of the visibility rules holds, or the caller holds a row for it. Pending, rejected and inactive accounts never.
+- `is_meeting_participant(meeting)`, `is_meeting_manager(meeting)`, `is_meeting_creator(meeting)`.
+- A RESTRICTIVE policy `meetings_publication_gate` applies on top of every permissive read policy: a draft is readable
+  by its managers only.
+
+**Test requirement** (E2E-05): a member not in `meeting_attendances` for an `explicit` meeting cannot SELECT that meeting
+row or its attendance rows.
+
+### Meeting audience and invitations (migration 066)
+
+- `meetings.audience_spec_id` points at the current `audience_specs` row. Each audience change writes a new immutable
+  spec through `set_meeting_audience()`. Old specs stay as history.
+- `meeting_attendances` is the live invitation list (§4). Every non-self row records `audience_spec_id` and
+  `invited_via` (`all`, `cell`, `group`, `member`, or `self` for a registration). After any change, every non-self row
+  resolves through `resolve_audience(audience_spec_id)`. Certified by E2E-10.
+- Attendance states: `invited`, `confirmed`, `attended`, `absent`, `excused`. The legacy `attended` boolean is derived
+  from the state. Invitees respond through `respond_to_meeting_invitation()` (confirmed or excused only).
+- A recorded outcome (`attended` or `absent`) cannot be reset to `invited` or `confirmed`, and the row cannot be
+  deleted, so a meeting with recorded attendance cannot be deleted either. An outcome is withdrawn by recording the
+  person as `excused`.
+- `publish_meeting()` refuses an invite-only meeting that has no invitees. Drafts are created with `published_at` null.
 
 ## §6 Announcements audience targeting (064)
 
@@ -110,6 +146,8 @@ removing the policy.
 
 - Trigger functions need no direct-call grant; service_role is also revoked since
   the trigger fires on its own.
+
+> Renumbering: the meeting work from ops/meetings-integration is migration **074** and the event read gate is folded into **075** (see the unified migration chain, 072–075). Source numbers 066/067 are not used.
 
 ---
 

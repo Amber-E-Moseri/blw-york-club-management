@@ -12,6 +12,7 @@ interface Props {
   onCancel: (id: string) => void;
   onEdit?: (m: Meeting) => void;
   onDelete?: (id: string) => void;
+  onManageAudience?: (m: Meeting) => void;
 }
 
 function formatTime(t: string) {
@@ -39,7 +40,7 @@ const CAT_BADGE: Record<string, { variant: string; label: string; icon: LucideIc
 };
 
 export const MeetingCard: React.FC<Props> = ({
-  meeting: m, canManage, onConfirm, onCancel, onEdit, onDelete,
+  meeting: m, canManage, onConfirm, onCancel, onEdit, onDelete, onManageAudience,
 }) => (
   <div
     className={cn(
@@ -64,11 +65,28 @@ export const MeetingCard: React.FC<Props> = ({
           {m.allow_join_requests && (
             <Badge variant="gray" size="small">Open to join</Badge>
           )}
+          {m.visibility === 'explicit' && (
+            <Badge variant="gray" size="small">Invite only</Badge>
+          )}
+          {canManage && m.published_at === null && (
+            <Badge variant="warning" size="small">Draft</Badge>
+          )}
+          {m.user_attendance_status === 'invited' && (
+            <Badge variant="primary" size="small">You&apos;re invited</Badge>
+          )}
         </div>
         <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">{m.title}</h3>
       </div>
       {canManage && (
         <div className="flex gap-1 shrink-0">
+          {onManageAudience && (
+            <button onClick={() => onManageAudience(m)} className="p-1.5 rounded text-gray-400 hover:text-york-600 hover:bg-red-50 transition-colors" title="Invitations and attendance">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 00-5-3.87M9 20H4v-2a4 4 0 015-3.87m6-4.13a4 4 0 11-8 0 4 4 0 018 0zm6 0a3 3 0 11-6 0 3 3 0 016 0zM7 10a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span className="sr-only">Invitations and attendance</span>
+            </button>
+          )}
           {onEdit && (
             <button onClick={() => onEdit(m)} className="p-1.5 rounded text-gray-400 dark:text-slate-400 hover:text-york-600 hover:bg-york-50 dark:hover:bg-york-900/40 transition-colors" title="Edit">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

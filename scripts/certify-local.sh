@@ -48,6 +48,7 @@ psql_harness release_rls_people_certification "$DB"
 psql_harness guard_approval_bootstrap_certification "$DB"
 psql_harness cert_031_032_active_guard "$DB"
 psql_harness meeting_attendance_access_certification "$DB"
+psql_harness meeting_integration_certification "$DB"
 
 step "4. Second independent replay must match the first byte for byte"
 npx supabase db reset --local
