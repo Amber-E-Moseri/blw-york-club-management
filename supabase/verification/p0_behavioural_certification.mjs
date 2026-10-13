@@ -210,8 +210,17 @@ try {
   expect('B9 coordinator can reverse a correction', !unmark.error && unmark.data?.[0]?.attended === false);
   const addMissing = await coordinator.client.from('meeting_attendances').insert(attend(meetA, leader2)).select();
   expect('B10 EXPECTED: coordinator can add a person who attended but never confirmed (roster correction)', !addMissing.error, addMissing.error?.message ?? '');
+  // A recorded outcome (attended or absent) cannot be deleted through ordinary roster deletion (migration 074,
+  // meeting_attendance_guard_delete, SQLSTATE 23514). The person is recorded as excused instead. The denial and the
+  // preserved outcome are asserted together, so a silent delete or a silent status change would fail.
   const removeWrong = await coordinator.client.from('meeting_attendances').delete().eq('meeting_id', meetA).eq('user_id', member2.id).select();
-  expect('B11 coordinator can remove a wrong roster entry', !removeWrong.error && removeWrong.data?.length === 1, removeWrong.error?.message ?? `rows=${removeWrong.data?.length}`);
+  expect('B11 coordinator cannot delete a recorded attendance outcome (guard refuses, SQLSTATE 23514)',
+    !!removeWrong.error && removeWrong.error.code === '23514' && (removeWrong.data ?? []).length === 0,
+    removeWrong.error ? `${removeWrong.error.code} ${removeWrong.error.message}` : `rows=${removeWrong.data?.length}`);
+  const outcomeAfter = await coordinator.client.from('meeting_attendances').select('attendance_status').eq('meeting_id', meetA).eq('user_id', member2.id);
+  expect('B11 the recorded outcome is preserved after the refused delete (status still absent)',
+    !outcomeAfter.error && outcomeAfter.data?.length === 1 && outcomeAfter.data[0].attendance_status === 'absent',
+    outcomeAfter.error?.message ?? `rows=${outcomeAfter.data?.length} status=${outcomeAfter.data?.[0]?.attendance_status}`);
   await admin.from('meeting_attendances').upsert(attend(meetA, member2), { onConflict: 'meeting_id,user_id' });
   await admin.from('meeting_attendances').upsert(attend(meetB, member2), { onConflict: 'meeting_id,user_id' });
 
