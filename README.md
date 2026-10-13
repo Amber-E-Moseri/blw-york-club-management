@@ -80,7 +80,7 @@ npm start                # http://localhost:3000
 
 ### Database
 
-`supabase/migrations/` (000 → 029) is the **only** place the schema changes. Apply it in order:
+`supabase/migrations/` (000 → 075) is the **only** place the schema changes. Apply it in order:
 
 ```bash
 npx supabase db push              # hosted project
@@ -105,24 +105,31 @@ src/
 ├── hooks/             # Data and UI hooks (useAuth, useContacts, useEvents, …)
 ├── lib/
 │   ├── queries/       # Typed Supabase query modules, one per domain
+│   ├── audience/      # Event and message audience resolution
+│   ├── cells/         # Cell (small group) logic
+│   ├── communications/# Announcements and messaging
 │   ├── email/         # Templates, composer, send service
-│   ├── push/          # Web Push helpers
+│   ├── tasks/         # Task management
 │   ├── zoom/          # Zoom integration
 │   ├── csv/           # Contact import
+│   ├── push/          # Web Push helpers
 │   ├── permissions.ts # Admin permission catalogue
 │   └── supabase.ts    # Client
+├── components/
+├── hooks/
 ├── types/             # Shared TypeScript types
 ├── i18n/              # Locale strings
 └── __tests__/         # Unit and contract tests
 api/
 └── email-relay.ts     # Vercel function: authenticated Gmail SMTP relay
 supabase/
-├── migrations/        # Numbered, idempotent SQL
-├── functions/         # send-email, process-scheduled-emails, unsubscribe
+├── migrations/        # Numbered, idempotent SQL (000 → 075)
+├── functions/         # send-email, process-scheduled-emails, notify-event,
+│                      # dispatch-message, unsubscribe, _shared
 └── verification/      # Release certification suite (see Testing)
 e2e/                   # Playwright specs
-docs/                  # Architecture, data model, authorization, deployment
-scripts/               # VAPID key generator, seed script
+docs/                  # Architecture, data model, authorization, deployment, security
+scripts/               # Certification runners, VAPID key generator, seed scripts
 ```
 
 ---
@@ -135,10 +142,13 @@ scripts/               # VAPID key generator, seed script
 | `/members` | Member directory |
 | `/contacts` | Outreach CRM |
 | `/growth` | Growth hub |
-| `/devotionals`, `/habits`, `/confessions`, `/testimonies`, `/books`, `/messages` | Growth tools |
+| `/devotionals`, `/habits`, `/testimonies`, `/books`, `/messages`, `/affirmations` | Growth tools |
+| `/cells` | Cells (small groups) |
+| `/tasks` | Task management |
 | `/events` | Events and RSVPs |
 | `/meetings` | Meetings hub |
-| `/announcements` | Announcements |
+| `/announcements`, `/communications` | Announcements and communications |
+| `/contacts` | Outreach CRM |
 | `/profile`, `/email-preferences` | Account settings |
 | `/admin` | Admin hub, with `/admin/pending`, `/admin/roles`, `/admin/devotionals`, `/admin/testimonies`, `/admin/reports`, `/admin/contact-reports`, `/admin/exports`, `/admin/email-log`, `/admin/zoom` |
 
@@ -208,4 +218,14 @@ The full runbook, including cutover and rollback, is [docs/clean-production-depl
 | [docs/email-setup.md](docs/email-setup.md) | Gmail relay and Edge Function setup |
 | [docs/clean-production-deployment.md](docs/clean-production-deployment.md) | Production build, cutover, rollback |
 | [docs/blw-v2-product-map.md](docs/blw-v2-product-map.md) | Product scope |
+| [docs/blw-react-migration-plan.md](docs/blw-react-migration-plan.md) | Prototype-to-React migration plan |
+| [docs/blw-prototype-gap-audit.md](docs/blw-prototype-gap-audit.md) | Gaps between prototype and app |
+| [docs/cell-admin-schema-requirements.md](docs/cell-admin-schema-requirements.md) | Cell administration schema requirements |
+| [docs/ops-shared-contracts.md](docs/ops-shared-contracts.md) | Shared operational contracts |
+| [docs/event-notifications.md](docs/event-notifications.md) | Event notification behaviour |
+| [docs/notification-deployment.md](docs/notification-deployment.md) | Notification deployment |
+| [docs/security/SECURITY_REMEDIATION_REPORT.md](docs/security/SECURITY_REMEDIATION_REPORT.md) | Security findings F-1 to F-5, remediation and re-certification |
+| [docs/release-remediation/REMEDIATION_REPORT.md](docs/release-remediation/REMEDIATION_REPORT.md) | Release remediation rounds |
 | [supabase/verification/README.md](supabase/verification/README.md) | Release certification runbook |
+
+Historical release reports and their raw run logs live under `docs/release-consolidation/`, `docs/release-reconciliation/` and `docs/release-remediation/`.
