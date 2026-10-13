@@ -85,6 +85,7 @@ writeFileSync(path.join(buildDir, 'index.mjs'), fnSource);
 
 // Module-level code reads Deno.env at import time, so each configuration is a separate import.
 let capturedHandler = null;
+/* global globalThis -- declares a standard ES2020 global for ESLint; no runtime change */
 globalThis.Deno = {
   env: { get: (key) => process.env[key] },
   serve: (handler) => {

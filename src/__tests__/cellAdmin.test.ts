@@ -49,9 +49,8 @@ describe('validateCellName', () => {
   });
 
   it('rejects a name already used by another cell, ignoring case', () => {
-    const result = validateCellName('  north ', cells);
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toContain('already exists');
+    // One assertion, no branch: a result that is accepted (ok: true) fails here instead of passing silently.
+    expect(validateCellName('  north ', cells)).toMatchObject({ ok: false, error: expect.stringContaining('already exists') });
   });
 
   it('lets a cell keep its own name when renaming', () => {

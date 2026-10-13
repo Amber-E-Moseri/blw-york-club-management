@@ -40,12 +40,8 @@ describe('event notification routing (fails closed)', () => {
   });
 
   test('the refusal message says why, and never says the event was sent', () => {
-    try {
-      routeEventAudience({ ...base, audience: 'cells', audience_spec_id: null });
-      throw new Error('expected refusal');
-    } catch (e) {
-      expect((e as Error).message).toMatch(/Not sent/);
-    }
+    // A single assertion: if the router does not throw, the test fails rather than skipping the expectation.
+    expect(() => routeEventAudience({ ...base, audience: 'cells', audience_spec_id: null })).toThrow(/Not sent/);
   });
 });
 
