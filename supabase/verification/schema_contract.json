@@ -62,6 +62,7 @@
   "functions": {
     "approve_pending_member(uuid)": { "security": "definer", "execute": ["authenticated"] },
     "reject_pending_member(uuid)": { "security": "definer", "execute": ["authenticated"] },
+    "assign_pending_applicant_to_cell(uuid,uuid)": { "security": "definer", "execute": ["authenticated"] },
     "export_members_authorized(text)": { "security": "definer", "execute": ["authenticated"] },
     "merge_people(uuid,uuid,text)": { "security": "definer", "execute": ["authenticated"] },
     "bootstrap_first_administrator(text,text)": { "security": "definer", "execute": [] },
