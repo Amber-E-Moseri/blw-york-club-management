@@ -93,15 +93,18 @@ begin
     (rejected_id, 'msg-rejected@example.invalid', 'x', 'authenticated', 'authenticated', now(), now());
 
   -- Leadership is cells.leader_id (migration 054). Cell A is led by leader_a; cell B has no leader.
-  insert into public.cells (id, name, leader_id) values (cell_a, 'Msg Cell A', leader_a_id), (cell_b, 'Msg Cell B', null);
-
+  -- Activate before placing. A cell leader must be an active account (migration 049), and a pending or rejected account
+  -- cannot be placed in a cell (migration 074). Those two are placed while active, then moved to their status.
   update public.profiles set status = 'active', role = 'admin' where id = admin_id;
   update public.profiles set status = 'active', role = 'coordinator' where id = coord_id;
-  update public.profiles set status = 'active', role = 'cell_leader', cell_id = cell_a where id = leader_a_id;
-  update public.profiles set status = 'active', role = 'member', cell_id = cell_a where id in (member_a1, member_a2);
-  update public.profiles set status = 'active', role = 'member', cell_id = cell_b where id in (member_b1, member_b2);
-  update public.profiles set status = 'pending', role = 'member', cell_id = cell_a where id = pending_id;
-  update public.profiles set status = 'rejected', role = 'member', cell_id = cell_a where id = rejected_id;
+  update public.profiles set status = 'active', role = 'cell_leader', cell_id = null where id = leader_a_id;
+  update public.profiles set status = 'active', role = 'member', cell_id = null
+    where id in (member_a1, member_a2, member_b1, member_b2, pending_id, rejected_id);
+  insert into public.cells (id, name, leader_id) values (cell_a, 'Msg Cell A', leader_a_id), (cell_b, 'Msg Cell B', null);
+  update public.profiles set cell_id = cell_a where id in (leader_a_id, member_a1, member_a2, pending_id, rejected_id);
+  update public.profiles set cell_id = cell_b where id in (member_b1, member_b2);
+  update public.profiles set status = 'pending', role = 'member' where id = pending_id;
+  update public.profiles set status = 'rejected', role = 'member' where id = rejected_id;
 
   insert into public.saved_groups (id, name, created_by) values (group_id, 'Msg Prayer Team', coord_id);
   insert into public.saved_group_members (group_id, profile_id, added_by)
@@ -239,14 +242,17 @@ begin
     perform pg_temp.cert_pass('delivery', 'inbox rows are stored at send');
   end if;
 
-  -- 12. A member sees only their own recipient row.
+  -- 12. A member sees only their own recipient row. member_b1 is a recipient of msg_many (sent to a1 and b1), so the
+  -- correct result is exactly their own row, and no row for anyone else.
   perform pg_temp.as_auth(member_b1);
-  select count(*) into seen from public.communication_recipients where message_id = msg_many;
+  select count(*) into seen from public.communication_recipients where message_id = msg_many and user_id <> member_b1;
   perform pg_temp.as_postgres();
-  if seen = 0 then
-    perform pg_temp.cert_pass('rls', 'member does not see another member’s recipient row');
+  if seen = 0 and exists (
+    select 1 from public.communication_recipients where message_id = msg_many and user_id = member_b1
+  ) then
+    perform pg_temp.cert_pass('rls', 'member sees only their own recipient row');
   else
-    perform pg_temp.cert_fail('rls', 'member does not see another member’s recipient row', seen::text);
+    perform pg_temp.cert_fail('rls', 'member sees only their own recipient row', seen::text || ' other rows visible');
   end if;
 end $$;
 
@@ -336,10 +342,11 @@ begin
     (staff_id,  'bc-staff@example.invalid',  'x', 'authenticated', 'authenticated', now(), now()),
     (leader_id, 'bc-leader@example.invalid', 'x', 'authenticated', 'authenticated', now(), now()),
     (member_id, 'bc-member@example.invalid', 'x', 'authenticated', 'authenticated', now(), now());
-  insert into public.cells (id, name, leader_id) values (cell_x, 'BC Cell', leader_id);
   update public.profiles set status = 'active', role = 'admin' where id = staff_id;
-  update public.profiles set status = 'active', role = 'cell_leader', cell_id = cell_x where id = leader_id;
-  update public.profiles set status = 'active', role = 'member', cell_id = cell_x where id = member_id;
+  update public.profiles set status = 'active', role = 'cell_leader', cell_id = null where id = leader_id;
+  update public.profiles set status = 'active', role = 'member', cell_id = null where id = member_id;
+  insert into public.cells (id, name, leader_id) values (cell_x, 'BC Cell', leader_id);
+  update public.profiles set cell_id = cell_x where id in (leader_id, member_id);
 
   -- 17. A cell leader cannot write a fellowship-wide announcement (null spec).
   perform pg_temp.as_auth(leader_id);
@@ -367,11 +374,14 @@ begin
 
   -- 19. An audience spec that an announcement depends on cannot be deleted; deletion must not broaden the row.
   perform pg_temp.as_auth(staff_id);
-  insert into public.audience_specs (mode, cell_ids, created_by) values ('cells', array[cell_x], staff_id) returning id into spec_x;
+  -- Specs are written only through create_audience_spec() (migration 072). Direct INSERT is revoked for clients.
+  spec_x := public.create_audience_spec('cells', array[cell_x]::uuid[]);
   perform pg_temp.as_postgres();
   insert into public.announcements (title, body, author_id, author_name, audience_spec_id)
   values ('Cell only', 'x', staff_id, 'Staff', spec_x);
-  if pg_temp.expect_error(format('delete from public.audience_specs where id = %L', spec_x), 'foreign key') then
+  -- Specs are immutable (migration 072 trigger, which fires before the foreign key). Either refusal protects the row;
+  -- the trigger message is what the database reports, so that is what is expected here.
+  if pg_temp.expect_error(format('delete from public.audience_specs where id = %L', spec_x), 'immutable') then
     perform pg_temp.cert_pass('broadcast', 'audience spec in use cannot be deleted');
   else
     perform pg_temp.cert_fail('broadcast', 'audience spec in use cannot be deleted', 'delete succeeded');
@@ -401,16 +411,15 @@ begin
     (former,    'ld-former@example.invalid', 'x', 'authenticated', 'authenticated', now(), now()),
     (member_x,  'ld-member@example.invalid', 'x', 'authenticated', 'authenticated', now(), now()),
     (new_leader,'ld-new@example.invalid',    'x', 'authenticated', 'authenticated', now(), now());
-  update public.profiles set status = 'active', role = 'member', cell_id = cell_x where id = lead_ab;
-  update public.profiles set status = 'active', role = 'member', cell_id = cell_x where id = lead_b;
-  update public.profiles set status = 'active', role = 'cell_leader', cell_id = null where id = role_only;
-  update public.profiles set status = 'active', role = 'cell_leader', cell_id = cell_z where id = former;
-  update public.profiles set status = 'active', role = 'member', cell_id = cell_x where id = member_x;
-  update public.profiles set status = 'active', role = 'member', cell_id = null where id = new_leader;
+  -- Leaders are activated before their cells exist (migration 049). Members are placed after the cells exist.
+  update public.profiles set status = 'active', role = 'member', cell_id = null where id in (lead_ab, lead_b, member_x, new_leader);
+  update public.profiles set status = 'active', role = 'cell_leader', cell_id = null where id in (role_only, former);
   insert into public.cells (id, name, leader_id) values
     (cell_x, 'Ld Cell X', lead_ab),
     (cell_y, 'Ld Cell Y', lead_ab),
     (cell_z, 'Ld Cell Z', former);
+  update public.profiles set cell_id = cell_x where id in (lead_ab, lead_b, member_x);
+  update public.profiles set cell_id = cell_z where id = former;
 
   -- 20. Leader belongs to and leads the same cell: may send to it.
   perform pg_temp.as_auth(lead_ab);
