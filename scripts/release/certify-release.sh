@@ -131,6 +131,9 @@ if [[ ! -s "$ENV_FILE" ]]; then say "FAIL  supabase status: no environment"; exi
 set -a; . "$ENV_FILE"; set +a
 export SUPABASE_URL="$API_URL" SUPABASE_ANON_KEY="$ANON_KEY" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
 export CERT_SUPABASE_URL="$API_URL" CERT_SUPABASE_ANON_KEY="$ANON_KEY" CERT_SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+# REACT_APP_ vars are read by the CRA dev server spawned by Playwright's webServer; they must point to the cert stack
+# so that sign-ins during Playwright tests hit the same Supabase instance where test accounts were created.
+export REACT_APP_SUPABASE_URL="$API_URL" REACT_APP_SUPABASE_ANON_KEY="$ANON_KEY"
 say "PASS  isolated stack reachable at $API_URL (container $DB)"
 
 # ─── 4. Migration replay, determinism, golden ──────────────────────────────────────────────────────────────────────────

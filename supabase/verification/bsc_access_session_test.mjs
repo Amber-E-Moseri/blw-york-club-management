@@ -79,9 +79,9 @@ try {
     outsiderInBscB: { role: 'member', status: 'active' },    // member of BSC B (another leader)
     bscBLeader: { role: 'member', status: 'active' },        // leads BSC B
     unassigned: { role: 'member', status: 'active' },        // no BSC, not a leader
-    pendingLeader: { role: 'member', status: 'pending' },    // leads BSC C but is pending
+    pendingLeader: { role: 'member', status: 'active' },     // leads BSC C, set pending after BSC is created
     inactiveLeader: { role: 'member', status: 'active' },    // leads BSC D, set inactive afterwards
-    rejectedLeader: { role: 'member', status: 'rejected' },  // leads BSC E but is rejected
+    rejectedLeader: { role: 'member', status: 'active' },    // leads BSC E, set rejected after BSC is created
     memberInBscD: { role: 'member', status: 'active' },      // member of BSC D (led by the inactive leader)
     memberOtherFellowship: { role: 'member', status: 'active' }, // member of cell 2 (other fellowship)
   })) {
@@ -90,6 +90,13 @@ try {
     const r = await sRest('PATCH', `/profiles?id=eq.${u.id}`, { role: spec.role, status: spec.status });
     if (r.status >= 300) throw new Error(`profile ${key}: ${r.status}`);
     people[key] = u;
+  }
+
+  // guard_bsc_leader_eligibility (055) requires profiles.cell_id = bscs.cell_id at BSC insert time.
+  // Set cell1 membership on all leaders that will be assigned to BSCs in cell1 before any BSC insert.
+  for (const key of ['memberLeader', 'bscBLeader', 'pendingLeader', 'inactiveLeader', 'rejectedLeader']) {
+    const r = await sRest('PATCH', `/profiles?id=eq.${people[key].id}`, { cell_id: cell1.id });
+    if (r.status >= 300) throw new Error(`cell_id ${key}: ${r.status}`);
   }
 
   const bsc = async (name, cell, leader) => {
@@ -124,6 +131,9 @@ try {
     reads[key] = r.data[0].id;
   }
 
+  // Downgrade leader statuses after BSC creation (guard_bsc_leader_eligibility requires active at insert time).
+  await sRest('PATCH', `/profiles?id=eq.${people.pendingLeader.id}`, { status: 'pending' });
+  await sRest('PATCH', `/profiles?id=eq.${people.rejectedLeader.id}`, { status: 'rejected' });
   // Inactive leader: active while the BSC was set up, then deactivated.
   await sRest('PATCH', `/profiles?id=eq.${people.inactiveLeader.id}`, { status: 'inactive' });
 

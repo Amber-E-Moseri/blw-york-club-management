@@ -91,8 +91,10 @@ begin
   -- profile cell membership (does not, by itself, grant leadership)
   update public.profiles set cell_id = '00000000-0000-0000-0000-00000000ca01'
     where id in (select user_id from fixture where actor in ('lead_active', 'lead_unassigned', 'member_a'));
+  -- bsc_leader and bsc_leader_rejected lead BSCs in cell B: they must have cell_id = ca02 so that
+  -- guard_bsc_leader_eligibility (055) allows the BSC insert (trigger requires profiles.cell_id = bscs.cell_id).
   update public.profiles set cell_id = '00000000-0000-0000-0000-00000000ca02'
-    where id in (select user_id from fixture where actor in ('member_b_leader', 'member_b'));
+    where id in (select user_id from fixture where actor in ('member_b_leader', 'member_b', 'bsc_leader', 'bsc_leader_rejected'));
 
   insert into public.bscs (id, cell_id, name, leader_id) values
     ('00000000-0000-0000-0000-00000000bb01', '00000000-0000-0000-0000-00000000ca02', 'bsc one', (select user_id from fixture where actor = 'bsc_leader')),

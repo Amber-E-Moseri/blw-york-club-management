@@ -250,7 +250,9 @@ try {
     expect(`C3 pending account cannot change protected field "${field}"`, !!r.error || (r.data ?? []).length === 0 || now[field] !== value, `now=${JSON.stringify(now)}`);
   }
   const aName = await profileUpdate(member, { full_name: 'Member Edited' });
-  expect('C4 (design) an active member has no direct UPDATE on profiles (self-edit is limited to pending onboarding; active edits go through user_profiles)', (aName.data ?? []).length === 0, `rows=${aName.data?.length}`);
+  // Migration 051 added profiles_self_update_active: active members may update their own non-privileged fields
+  // directly. Privileged field protection remains with guard_profile_privileged_columns (covered by C6).
+  expect('C4 active member can update their own non-privileged profile field directly (migration 051)', !aName.error && (aName.data ?? []).length === 1, aName.error?.message ?? `rows=${aName.data?.length}`);
   const aUp = await userProfileUpsert(member, { first_name: 'Mem', last_name: 'Ber', phone: '+14165550111', bio: 'hello' });
   expect('C5 active member can save own user_profiles details', !aUp.error, aUp.error?.message);
   for (const [field, value] of [['role', 'admin'], ['status', 'inactive'], ['cell_id', cellB]]) {

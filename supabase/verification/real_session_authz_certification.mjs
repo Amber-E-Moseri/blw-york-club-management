@@ -110,6 +110,8 @@ async function main() {
   await setStatus(actors.member_a.id, { cell_id: cellA.id });
   await setStatus(actors.member_b_leader.id, { cell_id: cellB.id });
   await setStatus(actors.member_b.id, { cell_id: cellB.id });
+  // guard_bsc_leader_eligibility (055) requires profiles.cell_id = bscs.cell_id at insert time.
+  await setStatus(actors.bsc_leader.id, { cell_id: cellB.id });
   const [bsc1] = await fixture('POST', '/rest/v1/bscs', [{ cell_id: cellB.id, name: `bsc one ${RUN}`, leader_id: actors.bsc_leader.id }]);
   await setStatus(actors.member_b.id, { bsc_id: bsc1.id });
 

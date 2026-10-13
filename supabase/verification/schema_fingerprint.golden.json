@@ -205,12 +205,9 @@
                 "contacts_pkey CREATE UNIQUE INDEX contacts_pkey ON public.contacts USING btree (id)"
             ],
             "policies": [
-                "contacts_delete | DELETE | {public} | using=(is_core_admin() OR (logged_by = auth.uid())) | check=",
                 "contacts_delete_admin_only | DELETE | {public} | using=is_admin_or_coordinator() | check=",
-                "contacts_insert | INSERT | {public} | using= | check=(is_core_admin() OR is_cell_leader_of(cell_id))",
                 "contacts_insert_scoped | INSERT | {authenticated} | using= | check=((logged_by = auth.uid()) AND (is_admin_or_coordinator() OR is_cell_leader_of(cell_id)))",
                 "contacts_read | SELECT | {public} | using=(is_core_admin() OR is_cell_leader_of(cell_id) OR (logged_by = auth.uid())) | check=",
-                "contacts_update | UPDATE | {public} | using=(is_core_admin() OR is_cell_leader_of(cell_id) OR (logged_by = auth.uid())) | check=(is_core_admin() OR is_cell_leader_of(cell_id) OR (logged_by = auth.uid()))",
                 "contacts_update_scoped | UPDATE | {public} | using=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id)) | check=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id))"
             ],
             "triggers": [
@@ -240,7 +237,6 @@
                 "allow_join_requests:boolean:NOT NULL:false",
                 "category:text:NOT NULL:'general'::text",
                 "cell_id:uuid:null:",
-                "cmp_attendance_id:text:null:",
                 "created_at:timestamp with time zone:NOT NULL:now()",
                 "created_by:uuid:NOT NULL:",
                 "date:date:NOT NULL:",
@@ -248,7 +244,6 @@
                 "end_time:time without time zone:null:",
                 "id:uuid:NOT NULL:gen_random_uuid()",
                 "location:text:null:",
-                "meeting_type:text:null:",
                 "reminder_sent:boolean:NOT NULL:false",
                 "time:time without time zone:NOT NULL:",
                 "title:text:NOT NULL:",
@@ -259,8 +254,7 @@
                 "zoom_link:text:null:",
                 "zoom_meeting_id:character varying:null:",
                 "zoom_password:character varying:null:",
-                "zoom_start_url:character varying:null:",
-                "zoom_synced_at:timestamp with time zone:null:"
+                "zoom_start_url:character varying:null:"
             ],
             "indexes": [
                 "meetings_pkey CREATE UNIQUE INDEX meetings_pkey ON public.meetings USING btree (id)"
@@ -406,7 +400,6 @@
             ],
             "policies": [
                 "admin_roles_manage | ALL | {public} | using=is_coordinator() | check=is_coordinator()",
-                "admin_roles_read | SELECT | {public} | using=is_core_admin() | check=",
                 "admin_roles_read_explicit | SELECT | {public} | using=is_admin_or_coordinator() | check="
             ],
             "triggers": [
@@ -851,7 +844,6 @@
                 "zoom_settings_pkey CREATE UNIQUE INDEX zoom_settings_pkey ON public.zoom_settings USING btree (id)"
             ],
             "policies": [
-                "zoom_settings_admin | ALL | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['admin'::text, 'coordinator'::text]))))) | check=",
                 "zoom_settings_admin_explicit | ALL | {public} | using=has_admin_permission('integrations.manage'::text) | check=has_admin_permission('integrations.manage'::text)"
             ],
             "triggers": [
@@ -1243,9 +1235,7 @@
                 "contact_audit_log_pkey CREATE UNIQUE INDEX contact_audit_log_pkey ON public.contact_audit_log USING btree (id)"
             ],
             "policies": [
-                "contact_audit_log_insert | INSERT | {public} | using= | check=(changed_by = auth.uid())",
                 "contact_audit_log_insert_admin | INSERT | {public} | using= | check=(is_admin_or_coordinator() AND (changed_by = auth.uid()))",
-                "contact_audit_log_read | SELECT | {public} | using=is_core_admin() | check=",
                 "contact_audit_log_read_admin | SELECT | {public} | using=is_admin_or_coordinator() | check="
             ],
             "triggers": [
@@ -1354,10 +1344,8 @@
                 "contact_follow_ups_pkey CREATE UNIQUE INDEX contact_follow_ups_pkey ON public.contact_follow_ups USING btree (id)"
             ],
             "policies": [
-                "contact_follow_ups_insert | INSERT | {public} | using= | check=(is_core_admin() OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_follow_ups.contact_id) AND (is_cell_leader_of(c.cell_id) OR (c.logged_by = auth.uid()))))))",
                 "contact_follow_ups_insert_scoped | INSERT | {public} | using= | check=(is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_follow_ups.contact_id) AND is_cell_leader_of(c.cell_id)))))",
                 "contact_follow_ups_read | SELECT | {public} | using=(is_core_admin() OR (assigned_to = auth.uid()) OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_follow_ups.contact_id) AND (is_cell_leader_of(c.cell_id) OR (c.logged_by = auth.uid())))))) | check=",
-                "contact_follow_ups_update | UPDATE | {public} | using=(is_core_admin() OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_follow_ups.contact_id) AND (is_cell_leader_of(c.cell_id) OR (c.logged_by = auth.uid())))))) | check=",
                 "contact_follow_ups_update_scoped | UPDATE | {public} | using=(is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_follow_ups.contact_id) AND is_cell_leader_of(c.cell_id))))) | check=(is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_follow_ups.contact_id) AND is_cell_leader_of(c.cell_id)))))"
             ],
             "triggers": [
@@ -1735,7 +1723,6 @@
             ],
             "policies": [
                 "admin_role_assignments_manage | ALL | {public} | using=is_coordinator() | check=is_coordinator()",
-                "admin_role_assignments_read | SELECT | {public} | using=(is_core_admin() OR (auth.uid() = user_id)) | check=",
                 "admin_role_assignments_read_explicit | SELECT | {public} | using=(is_admin_or_coordinator() OR (auth.uid() = user_id)) | check="
             ],
             "triggers": [
@@ -1768,7 +1755,6 @@
             ],
             "policies": [
                 "admin_role_permissions_manage | ALL | {public} | using=is_coordinator() | check=is_coordinator()",
-                "admin_role_permissions_read | SELECT | {public} | using=is_core_admin() | check=",
                 "admin_role_permissions_read_explicit | SELECT | {public} | using=is_admin_or_coordinator() | check="
             ],
             "triggers": [
