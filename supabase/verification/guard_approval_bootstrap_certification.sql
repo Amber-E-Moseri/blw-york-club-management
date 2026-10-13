@@ -48,6 +48,7 @@ declare
   observed text;
   state text;
   cert_cell uuid;
+  leader_spec_id uuid;
 begin
   insert into auth.users (id, email, encrypted_password, aud, role, created_at, updated_at) values
     (member_id,  'cert.guard.member@example.test',  'x', 'authenticated', 'authenticated', now(), now()),
@@ -225,15 +226,34 @@ begin
   else perform pg_temp.cert_fail('Announcements', 'rejected cell leader delete returns 0 rows (F-1)', visible::text); end if;
 
   -- Regression: active cell leader must still be able to insert announcements.
+  -- Migration 068 requires cell leaders to supply a cells-mode audience spec for their own cell;
+  -- a broadcast insert (no spec) is now blocked at DB level. The two-step flow is:
+  --   1. INSERT an audience_spec (allowed by migration 070 for their own cell)
+  --   2. INSERT the announcement referencing that spec
   perform pg_temp.as_auth(leader_id);
   begin
-    insert into public.announcements (title, body, author_id, author_name)
-      values ('Cert Active Insert', 'cert body', leader_id, 'Cert Leader');
+    insert into public.audience_specs (mode, cell_ids, created_by)
+      values ('cells', array[cert_cell], leader_id)
+      returning id into leader_spec_id;
+    insert into public.announcements (title, body, author_id, author_name, audience_spec_id)
+      values ('Cert Active Insert', 'cert body', leader_id, 'Cert Leader', leader_spec_id);
     perform pg_temp.as_postgres();
     perform pg_temp.cert_pass('Announcements', 'active cell leader can still insert announcement (F-1 regression)', 'insert succeeded');
   exception when others then
     perform pg_temp.as_postgres();
     perform pg_temp.cert_fail('Announcements', 'active cell leader can still insert announcement (F-1 regression)', sqlerrm);
+  end;
+
+  -- Broadcast insert must be denied for a cell leader (migration 068 closed this loophole)
+  perform pg_temp.as_auth(leader_id);
+  begin
+    insert into public.announcements (title, body, author_id, author_name)
+      values ('Cert Broadcast Insert', 'cert body', leader_id, 'Cert Leader');
+    perform pg_temp.as_postgres();
+    perform pg_temp.cert_fail('Announcements', 'cell leader broadcast insert is denied (068 regression)', 'insert succeeded — should have been blocked');
+  exception when others then
+    perform pg_temp.as_postgres();
+    perform pg_temp.cert_pass('Announcements', 'cell leader broadcast insert is denied (068 regression)', sqlerrm);
   end;
 
   -- Restore rejected_id role to member for remaining tests.

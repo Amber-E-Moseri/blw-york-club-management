@@ -28,12 +28,12 @@ import { AdminZoomSettings } from './pages/AdminZoomSettings';
 import { AdminDataExport } from './pages/AdminDataExport';
 import { AdminEmailLog } from './pages/AdminEmailLog';
 import { Growth } from './pages/Growth';
+import { Communications } from './pages/Communications';
+import { Tasks } from './pages/Tasks';
 import { PushPermissionPrompt } from './components/feature/PushPermissionPrompt';
 import { usePushNotifications } from './hooks/usePushNotifications';
 import { PendingApproval } from './pages/PendingApproval';
 import { AdminPendingApprovals } from './pages/AdminPendingApprovals';
-import { AdminBscs } from './pages/AdminBscs';
-import { MyBsc } from './pages/MyBsc';
 import { useTheme } from './hooks/useTheme';
 
 function AppShell() {
@@ -79,17 +79,16 @@ function AppShell() {
         <Route path="/admin/exports" element={<AdminDataExport user={user} />} />
         <Route path="/admin/email-log" element={<AdminEmailLog user={user} />} />
         <Route path="/admin/pending" element={<AdminPendingApprovals user={user} />} />
-        <Route path="/admin/bscs" element={<AdminBscs user={user} />} />
-        <Route path="/my-bsc" element={<MyBsc user={user} />} />
         <Route path="/books" element={<BookOfMonthPage user={user} />} />
         <Route path="/contacts" element={<Outreach user={user} />} />
         <Route path="/affirmations" element={<DailyAffirmations user={user} />} />
-        <Route path="/confessions" element={<Navigate to="/affirmations" replace />} />
         <Route path="/testimonies" element={<TestimonyLog user={user} />} />
         <Route path="/meetings" element={<MeetingsHub user={user} />} />
         <Route path="/messages" element={<WeeklyMessages user={user} />} />
         <Route path="/habits" element={<HabitTracker user={user} />} />
         <Route path="/growth" element={<Growth user={user} />} />
+        <Route path="/communications" element={<Communications user={user} />} />
+        <Route path="/tasks" element={<Tasks user={user} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { BookOpen, AlertCircle } from 'lucide-react';
 import { AffirmationCard } from '../components/feature/AffirmationCard';
 import { Button } from '../components/foundation/Button';
@@ -7,16 +7,43 @@ import { Modal } from '../components/foundation/Modal';
 import { useAffirmations } from '../hooks/useAffirmations';
 import { parseAffirmationImport } from '../lib/affirmationImport';
 import { createAffirmations } from '../lib/queries/affirmations';
+import {
+  createSavedAudienceGroup,
+  createTargetedAffirmation,
+  fetchAudienceCells,
+  fetchSavedAudienceGroups,
+  type AudienceCell,
+  type SavedAudienceGroup,
+} from '../lib/queries/audience';
+import { getMembers } from '../lib/queries';
+import {
+  AUDIENCE_KINDS,
+  canTargetAffirmations,
+  validateAudience,
+  type AudienceDraft,
+  type AudienceKind,
+} from '../lib/audience/audienceRules';
 import type { AuthUser } from '../lib/auth';
+import type { Member } from '../types';
 
 interface Props { user: AuthUser | null; }
 
 const canManage = (role: string) => ['coordinator', 'admin'].includes(role);
 
+const AUDIENCE_LABEL: Record<AudienceKind, string> = {
+  all: 'Everyone',
+  cell: 'A cell',
+  group: 'A saved group',
+  individuals: 'Selected people',
+};
+
+const selectClass =
+  'w-full rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-gray-900 dark:text-slate-100';
+
 export const DailyAffirmations: React.FC<Props> = ({ user }) => {
   const today = new Date().toISOString().split('T')[0];
   const [viewDate, setViewDate] = useState(today);
-  const { affirmations, loading, error, declare, undeclare, add, remove, refetch } = useAffirmations(viewDate);
+  const { affirmations, loading, error, declare, undeclare, remove, refetch } = useAffirmations(viewDate);
 
   const [addOpen, setAddOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -24,6 +51,18 @@ export const DailyAffirmations: React.FC<Props> = ({ user }) => {
   const [newDate, setNewDate] = useState(today);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+
+  const [audience, setAudience] = useState<AudienceDraft>({ kind: 'all', cellId: null, groupId: null, userIds: [] });
+  const [cells, setCells] = useState<AudienceCell[]>([]);
+  const [groups, setGroups] = useState<SavedAudienceGroup[]>([]);
+  const [people, setPeople] = useState<Member[]>([]);
+  const [audienceLoadError, setAudienceLoadError] = useState('');
+
+  const [groupsOpen, setGroupsOpen] = useState(false);
+  const [groupName, setGroupName] = useState('');
+  const [groupMemberIds, setGroupMemberIds] = useState<string[]>([]);
+  const [groupSaving, setGroupSaving] = useState(false);
+  const [groupError, setGroupError] = useState('');
 
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState('');
@@ -54,20 +93,78 @@ export const DailyAffirmations: React.FC<Props> = ({ user }) => {
     }
   };
 
+  const canTarget = canTargetAffirmations(user?.role ?? 'member');
+
+  // Audience data is loaded only for staff, when the form or groups modal opens.
+  useEffect(() => {
+    if (!canTarget || (!addOpen && !groupsOpen)) return;
+    let cancelled = false;
+    setAudienceLoadError('');
+    Promise.all([fetchAudienceCells(), fetchSavedAudienceGroups(), getMembers()])
+      .then(([c, g, m]) => {
+        if (cancelled) return;
+        setCells(c);
+        setGroups(g);
+        setPeople(m.filter((p) => (p as Member & { status?: string }).status === 'active'));
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) setAudienceLoadError(e instanceof Error ? e.message : 'Could not load audiences.');
+      });
+    return () => { cancelled = true; };
+  }, [canTarget, addOpen, groupsOpen]);
+
+  const resetAddForm = () => {
+    setNewTitle('');
+    setNewBody('');
+    setNewDate(today);
+    setAudience({ kind: 'all', cellId: null, groupId: null, userIds: [] });
+  };
+
   const handleAdd = async () => {
     if (!newTitle.trim() || !newBody.trim() || !user) return;
+    const audienceError = validateAudience(audience);
+    if (audienceError) {
+      setFormError(audienceError);
+      return;
+    }
     setFormError('');
     setSaving(true);
     try {
-      await add({ title: newTitle.trim(), body: newBody.trim(), scheduled_date: newDate, created_by: user.id });
+      await createTargetedAffirmation({
+        title: newTitle.trim(),
+        body: newBody.trim(),
+        scheduledDate: newDate,
+        audience,
+      });
       setAddOpen(false);
-      setNewTitle('');
-      setNewBody('');
-      setNewDate(today);
+      resetAddForm();
+      await refetch();
     } catch (e) {
       setFormError(e instanceof Error ? e.message : 'Failed to save.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const toggleIn = (list: string[], id: string) =>
+    list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
+
+  const handleSaveGroup = async () => {
+    if (!groupName.trim() || groupMemberIds.length === 0 || !user) {
+      setGroupError('Name the group and choose at least one person.');
+      return;
+    }
+    setGroupError('');
+    setGroupSaving(true);
+    try {
+      await createSavedAudienceGroup({ name: groupName, memberIds: groupMemberIds });
+      setGroupName('');
+      setGroupMemberIds([]);
+      setGroups(await fetchSavedAudienceGroups());
+    } catch (e) {
+      setGroupError(e instanceof Error ? e.message : 'Could not save the group.');
+    } finally {
+      setGroupSaving(false);
     }
   };
 
@@ -82,6 +179,7 @@ export const DailyAffirmations: React.FC<Props> = ({ user }) => {
         {isManager && (
           <div className="flex gap-2">
             <Button variant="secondary" onClick={() => setImportOpen(true)}>Bulk Import</Button>
+            {canTarget && <Button variant="secondary" onClick={() => setGroupsOpen(true)}>Saved Groups</Button>}
             <Button variant="primary" onClick={() => setAddOpen(true)}>+ New Affirmation</Button>
           </div>
         )}
@@ -257,7 +355,115 @@ export const DailyAffirmations: React.FC<Props> = ({ user }) => {
             onChange={setNewDate}
             required
           />
+
+          {canTarget && (
+            <fieldset className="space-y-3 rounded-md border border-gray-200 dark:border-slate-700 p-3">
+              <legend className="px-1 text-sm font-medium text-gray-700 dark:text-slate-300">Who receives this</legend>
+              <div>
+                <label className="sr-only" htmlFor="affirmation-audience">Audience</label>
+                <select
+                  id="affirmation-audience"
+                  className={selectClass}
+                  value={audience.kind}
+                  onChange={(e) => setAudience((a) => ({ ...a, kind: e.target.value as AudienceKind }))}
+                >
+                  {AUDIENCE_KINDS.map((k) => <option key={k} value={k}>{AUDIENCE_LABEL[k]}</option>)}
+                </select>
+              </div>
+
+              {audience.kind === 'cell' && (
+                <select
+                  aria-label="Cell"
+                  className={selectClass}
+                  value={audience.cellId ?? ''}
+                  onChange={(e) => setAudience((a) => ({ ...a, cellId: e.target.value || null }))}
+                >
+                  <option value="">Choose a cell…</option>
+                  {cells.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              )}
+
+              {audience.kind === 'group' && (
+                <select
+                  aria-label="Saved group"
+                  className={selectClass}
+                  value={audience.groupId ?? ''}
+                  onChange={(e) => setAudience((a) => ({ ...a, groupId: e.target.value || null }))}
+                >
+                  <option value="">Choose a saved group…</option>
+                  {groups.map((g) => <option key={g.id} value={g.id}>{g.name} ({g.member_ids.length})</option>)}
+                </select>
+              )}
+
+              {audience.kind === 'individuals' && (
+                <div className="max-h-48 overflow-y-auto rounded-md border border-gray-200 dark:border-slate-700 divide-y divide-gray-100 dark:divide-slate-700">
+                  {people.map((p) => (
+                    <label key={p.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={audience.userIds.includes(p.id)}
+                        onChange={() => setAudience((a) => ({ ...a, userIds: toggleIn(a.userIds, p.id) }))}
+                      />
+                      <span>{p.full_name || p.id}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              {audienceLoadError && <p className="text-xs text-york-600 dark:text-york-400">{audienceLoadError}</p>}
+              <p className="text-xs text-gray-500 dark:text-slate-400">
+                Only the people you choose can see this affirmation. Who declared it is never shown in targeting.
+              </p>
+            </fieldset>
+          )}
+
           {formError && <p className="text-sm text-york-600 dark:text-york-400"><AlertCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />{formError}</p>}
+        </div>
+      </Modal>
+
+      {/* Saved groups modal */}
+      <Modal
+        isOpen={groupsOpen}
+        onClose={() => setGroupsOpen(false)}
+        title="Saved Groups"
+        subtitle="Reusable groups for targeting affirmations"
+        size="medium"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setGroupsOpen(false)}>Close</Button>
+            <Button variant="primary" loading={groupSaving} onClick={handleSaveGroup}>Save group</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {groups.length > 0 && (
+            <ul className="text-sm divide-y divide-gray-100 dark:divide-slate-700 rounded-md border border-gray-200 dark:border-slate-700">
+              {groups.map((g) => (
+                <li key={g.id} className="flex justify-between px-3 py-2">
+                  <span>{g.name}</span>
+                  <span className="text-gray-500 dark:text-slate-400">{g.member_ids.length} people</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <Input label="New group name" value={groupName} onChange={setGroupName} maxLength={100} placeholder="e.g. Sunday ushers" />
+          <fieldset className="space-y-1">
+            <legend className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">People in this group</legend>
+            <div className="max-h-56 overflow-y-auto rounded-md border border-gray-200 dark:border-slate-700 divide-y divide-gray-100 dark:divide-slate-700">
+              {people.map((p) => (
+                <label key={p.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={groupMemberIds.includes(p.id)}
+                    onChange={() => setGroupMemberIds((ids) => toggleIn(ids, p.id))}
+                  />
+                  <span>{p.full_name || p.id}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          {groupError && <p className="text-sm text-york-600 dark:text-york-400">{groupError}</p>}
+          {audienceLoadError && <p className="text-xs text-york-600 dark:text-york-400">{audienceLoadError}</p>}
         </div>
       </Modal>
     </div>

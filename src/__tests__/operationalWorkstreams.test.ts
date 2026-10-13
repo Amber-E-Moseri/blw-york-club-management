@@ -236,8 +236,8 @@ describe('064: announcement audience targeting', () => {
 // ─── Cross-migration contract invariants ─────────────────────────────────────
 
 describe('operational workstream contract invariants', () => {
-  test('all new migrations are numbered 059-067 with no gaps', () => {
-    for (let n = 59; n <= 67; n++) {
+  test('all new migrations are numbered 059-070 with no gaps', () => {
+    for (let n = 59; n <= 70; n++) {
       const pad = String(n).padStart(3, '0');
       const files = fs.readdirSync(path.join(root, 'supabase/migrations'))
         .filter(f => f.startsWith(pad + '_'));
@@ -246,20 +246,20 @@ describe('operational workstream contract invariants', () => {
   });
 
   test('all new security definer functions pin search_path to public, pg_temp', () => {
-    const newMigs = [59, 60, 61, 62, 63, 64, 65, 66, 67].map(n =>
+    const newMigs = [59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70].map(n =>
       mig(`${String(n).padStart(3, '0')}_${fs.readdirSync(path.join(root, 'supabase/migrations'))
         .find(f => f.startsWith(String(n).padStart(3, '0') + '_'))!.replace(/^\d+_/, '')}`)
     );
     for (const sql of newMigs) {
-      const definerFns = [...sql.matchAll(/security definer/g)];
-      const searchPathMatches = [...sql.matchAll(/set search_path = public, pg_temp/g)];
+      const definerFns = Array.from(sql.matchAll(/security definer/g));
+      const searchPathMatches = Array.from(sql.matchAll(/set search_path = public, pg_temp/g));
       expect(searchPathMatches.length).toBeGreaterThanOrEqual(definerFns.length);
     }
   });
 
   test('no new migration grants execute to public or anon on security definer functions', () => {
     const newMigFiles = fs.readdirSync(path.join(root, 'supabase/migrations'))
-      .filter(f => /^(059|060|061|062|063|064|065|066|067)_/.test(f));
+      .filter(f => /^(059|060|061|062|063|064|065|066|067|068|069|070)_/.test(f));
     for (const file of newMigFiles) {
       const sql = mig(`${file}`);
       expect(sql).not.toMatch(/grant execute on function[^;]+to\s+public\b/i);
@@ -267,24 +267,21 @@ describe('operational workstream contract invariants', () => {
     }
   });
 
-  test('recipient expansion never inlines saved_group_members or profile_id arrays', () => {
-    // Checking audience_specs.mode for access-control is fine.
-    // What is prohibited: inlining the full recipient JOIN (saved_group_members or profile_ids
-    // iteration) outside of resolve_audience() itself.
+  test('recipient expansion never inlines saved_group_members or profile_id arrays outside resolvers', () => {
+    // Migrations 059 and 068 ARE the resolvers — they may join saved_group_members.
+    // All other operational migrations must delegate to resolve_audience / resolve_audience_all.
     const newMigFiles = fs.readdirSync(path.join(root, 'supabase/migrations'))
-      .filter(f => /^(060|061|062|063|064|065|066|067)_/.test(f));
+      .filter(f => /^(060|061|062|063|064|065|066|067|069|070)_/.test(f));
     for (const file of newMigFiles) {
       const sql = mig(`${file}`);
-      // No inline join to saved_group_members for recipient resolution
       expect(sql).not.toMatch(/from public\.saved_group_members\b/i);
-      // No inline unnest of profile_ids for recipient resolution
       expect(sql).not.toMatch(/unnest\s*\(\s*profile_ids\s*\)/i);
     }
   });
 
-  test('migration contracts document exists and references all six migrations', () => {
+  test('migration contracts document exists and references all operational migrations', () => {
     const contracts = read('docs/ops-shared-contracts.md');
-    for (let n = 59; n <= 64; n++) {
+    for (let n = 59; n <= 70; n++) {
       expect(contracts).toContain(String(n));
     }
   });
@@ -370,5 +367,90 @@ describe('067: fix trigger execute grants', () => {
   test('revoke includes authenticated and service_role (trigger needs no direct-call grant)', () => {
     expect(sql).toContain('authenticated');
     expect(sql).toContain('service_role');
+  });
+});
+
+// ─── Migration 068: Audience resolution scope ─────────────────────────────────
+
+describe('068: audience resolution scope', () => {
+  const sql = mig('068_audience_resolution_scope.sql');
+
+  test('resolve_audience_all() is security definer with pinned search_path', () => {
+    expect(sql).toContain('create or replace function public.resolve_audience_all(p_spec_id uuid)');
+    expect(sql).toContain('security definer');
+    expect(sql).toContain('set search_path = public, pg_temp');
+  });
+
+  test('resolve_audience_all() is owner-only (revoked from all roles including service_role)', () => {
+    // Callable only internally from other security-definer functions (resolve_audience, send_message).
+    // No direct-call grant is needed or issued.
+    expect(sql).toContain('revoke all on function public.resolve_audience_all(uuid) from public, anon, authenticated, service_role');
+  });
+
+  test('caller-scoped resolve_audience() returns own row only for non-staff', () => {
+    const resolveAll = sql.match(/create or replace function public\.resolve_audience\(p_spec_id uuid\)[\s\S]*?^\$\$/m)?.[0] ?? '';
+    expect(resolveAll).toContain('is_admin_or_coordinator()');
+  });
+
+  test('saved_groups and saved_group_members restricted to admin/coordinator', () => {
+    expect(sql).toContain('drop policy if exists saved_groups_read on public.saved_groups');
+    expect(sql).toContain('public.is_admin_or_coordinator()');
+    expect(sql).toContain('drop policy if exists saved_group_members_read on public.saved_group_members');
+  });
+});
+
+// ─── Migration 069: Targeted messages ────────────────────────────────────────
+
+describe('069: targeted messages', () => {
+  const sql = mig('069_targeted_messages.sql');
+
+  test('communication_messages table created with RLS enabled', () => {
+    expect(sql).toContain('create table if not exists public.communication_messages');
+    expect(sql).toMatch(/alter table public\.communication_messages\s+enable row level security/);
+  });
+
+  test('communication_recipients, communication_deliveries and communication_audit tables exist', () => {
+    expect(sql).toContain('create table if not exists public.communication_recipients');
+    expect(sql).toContain('create table if not exists public.communication_deliveries');
+    expect(sql).toContain('create table if not exists public.communication_audit');
+  });
+
+  test('send_message() uses resolve_audience_all() — never the caller-scoped variant', () => {
+    const sendFn = sql.match(/create or replace function public\.send_message[\s\S]*?^\$\$/m)?.[0] ?? '';
+    expect(sendFn).toContain('resolve_audience_all(');
+    expect(sendFn).not.toMatch(/(?<!_all)\bresolve_audience\s*\(/);
+  });
+
+  test('assert_can_send_message() gates cell_leader authority to profiles.cell_id', () => {
+    expect(sql).toContain("v_profile.role = 'cell_leader'");
+    expect(sql).toContain('v_profile.cell_id');
+  });
+
+  test('claim_deliveries() is security definer with pinned search_path', () => {
+    expect(sql).toContain('create or replace function public.claim_deliveries(');
+    expect(sql).toContain('security definer');
+    expect(sql).toContain('set search_path = public, pg_temp');
+  });
+});
+
+// ─── Migration 070: Cell leader audience spec create ─────────────────────────
+
+describe('070: cell leader audience spec create', () => {
+  const sql = mig('070_cell_leader_audience_spec_create.sql');
+
+  test('audience_specs_insert policy is replaced to include cell leaders', () => {
+    expect(sql).toContain('drop policy if exists audience_specs_insert on public.audience_specs');
+    expect(sql).toContain('create policy audience_specs_insert on public.audience_specs');
+    expect(sql).toContain('public.is_admin_or_coordinator()');
+  });
+
+  test('cell leader can only insert cells-mode spec for exactly one cell they lead', () => {
+    expect(sql).toContain("mode = 'cells'");
+    expect(sql).toContain('array_length(cell_ids, 1) = 1');
+    expect(sql).toContain('c.leader_id = auth.uid()');
+  });
+
+  test('cell leader spec insert is still gated on is_active_member()', () => {
+    expect(sql).toContain('public.is_active_member()');
   });
 });
