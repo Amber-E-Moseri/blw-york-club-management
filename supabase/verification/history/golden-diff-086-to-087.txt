@@ -1,0 +1,502 @@
+30,33c30,33
+<                 "bscs_delete_staff | DELETE | {authenticated} | using=is_admin_or_coordinator() | check=",
+<                 "bscs_insert_scoped | INSERT | {authenticated} | using= | check=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id))",
+<                 "bscs_read | SELECT | {public} | using=is_active_member() | check=",
+<                 "bscs_update_scoped | UPDATE | {authenticated} | using=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id)) | check=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id))"
+---
+>                 "bscs_delete_staff | DELETE | {authenticated} | using=is_admin_or_coordinator() | check= | PERMISSIVE",
+>                 "bscs_insert_scoped | INSERT | {authenticated} | using= | check=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id)) | PERMISSIVE",
+>                 "bscs_read | SELECT | {public} | using=is_active_member() | check= | PERMISSIVE",
+>                 "bscs_update_scoped | UPDATE | {authenticated} | using=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id)) | check=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id)) | PERMISSIVE"
+71,72c71,72
+<                 "cells_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
+<                 "cells_read | SELECT | {public} | using=is_active_member() | check="
+---
+>                 "cells_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator() | PERMISSIVE",
+>                 "cells_read | SELECT | {public} | using=is_active_member() | check= | PERMISSIVE"
+117,118c117,118
+<                 "events_manage | ALL | {public} | using=is_admin_or_coordinator() | check=(is_admin_or_coordinator() AND (created_by = auth.uid()))",
+<                 "events_read | SELECT | {public} | using=(((audience = 'all'::text) AND (audience_spec_id IS NULL)) OR is_admin_or_coordinator() OR (is_active_member() AND (((audience_spec_id IS NULL) AND (audience = 'meeting'::text) AND (audience_meeting_id IS NOT NULL) AND (is_meeting_manager(audience_meeting_id) OR is_meeting_participant(audience_meeting_id))) OR ((audience_spec_id IS NOT NULL) AND is_audience_recipient('event'::text, id))))) | check="
+---
+>                 "events_manage | ALL | {public} | using=is_admin_or_coordinator() | check=(is_admin_or_coordinator() AND (created_by = auth.uid())) | PERMISSIVE",
+>                 "events_read | SELECT | {public} | using=(((audience = 'all'::text) AND (audience_spec_id IS NULL)) OR is_admin_or_coordinator() OR (is_active_member() AND (((audience_spec_id IS NULL) AND (audience = 'meeting'::text) AND (audience_meeting_id IS NOT NULL) AND (is_meeting_manager(audience_meeting_id) OR is_meeting_participant(audience_meeting_id))) OR ((audience_spec_id IS NOT NULL) AND is_audience_recipient('event'::text, id))))) | check= | PERMISSIVE"
+160,163c160,163
+<                 "people_delete | DELETE | {public} | using=is_coordinator() | check=",
+<                 "people_insert | INSERT | {public} | using= | check=is_active_member()",
+<                 "people_read | SELECT | {public} | using=is_active_member() | check=",
+<                 "people_update | UPDATE | {public} | using=is_core_admin() | check=is_core_admin()"
+---
+>                 "people_delete | DELETE | {public} | using=is_coordinator() | check= | PERMISSIVE",
+>                 "people_insert | INSERT | {public} | using= | check=is_active_member() | PERMISSIVE",
+>                 "people_read | SELECT | {public} | using=is_active_member() | check= | PERMISSIVE",
+>                 "people_update | UPDATE | {public} | using=is_core_admin() | check=is_core_admin() | PERMISSIVE"
+216,219c216,219
+<                 "contacts_delete_admin_only | DELETE | {public} | using=is_admin_or_coordinator() | check=",
+<                 "contacts_insert_scoped | INSERT | {authenticated} | using= | check=((logged_by = auth.uid()) AND (is_admin_or_coordinator() OR is_cell_leader_of(cell_id)))",
+<                 "contacts_read | SELECT | {public} | using=(is_core_admin() OR is_cell_leader_of(cell_id) OR (logged_by = auth.uid())) | check=",
+<                 "contacts_update_scoped | UPDATE | {public} | using=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id)) | check=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id))"
+---
+>                 "contacts_delete_admin_only | DELETE | {public} | using=is_admin_or_coordinator() | check= | PERMISSIVE",
+>                 "contacts_insert_scoped | INSERT | {authenticated} | using= | check=((logged_by = auth.uid()) AND (is_admin_or_coordinator() OR is_cell_leader_of(cell_id))) | PERMISSIVE",
+>                 "contacts_read | SELECT | {public} | using=(is_core_admin() OR is_cell_leader_of(cell_id) OR (logged_by = auth.uid())) | check= | PERMISSIVE",
+>                 "contacts_update_scoped | UPDATE | {public} | using=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id)) | check=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id)) | PERMISSIVE"
+273,278c273,278
+<                 "meetings_cell_read | SELECT | {public} | using=((visibility = 'cell'::text) AND is_active_member() AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.cell_id = meetings.cell_id))))) | check=",
+<                 "meetings_explicit_invitee_read | SELECT | {authenticated} | using=((visibility = 'explicit'::text) AND is_meeting_participant(id)) | check=",
+<                 "meetings_leaders_read | SELECT | {authenticated} | using=((visibility = 'leaders'::text) AND (is_admin_or_coordinator() OR is_cell_leader_of(cell_id))) | check=",
+<                 "meetings_manage_scoped | ALL | {authenticated} | using=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id) OR ((current_user_role() = 'cell_leader'::text) AND (created_by = auth.uid()))) | check=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id))",
+<                 "meetings_public_read | SELECT | {public} | using=(is_active_member() AND (visibility = 'public'::text)) | check=",
+<                 "meetings_publication_gate | SELECT | {authenticated} | using=(is_meeting_manager(id) OR (is_active_member() AND (published_at IS NOT NULL))) | check="
+---
+>                 "meetings_cell_read | SELECT | {public} | using=((visibility = 'cell'::text) AND is_active_member() AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.cell_id = meetings.cell_id))))) | check= | PERMISSIVE",
+>                 "meetings_explicit_invitee_read | SELECT | {authenticated} | using=((visibility = 'explicit'::text) AND is_meeting_participant(id)) | check= | PERMISSIVE",
+>                 "meetings_leaders_read | SELECT | {authenticated} | using=((visibility = 'leaders'::text) AND (is_admin_or_coordinator() OR is_cell_leader_of(cell_id))) | check= | PERMISSIVE",
+>                 "meetings_manage_scoped | ALL | {authenticated} | using=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id) OR ((current_user_role() = 'cell_leader'::text) AND (created_by = auth.uid()))) | check=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id)) | PERMISSIVE",
+>                 "meetings_public_read | SELECT | {public} | using=(is_active_member() AND (visibility = 'public'::text)) | check= | PERMISSIVE",
+>                 "meetings_publication_gate | SELECT | {authenticated} | using=(is_meeting_manager(id) OR (is_active_member() AND (published_at IS NOT NULL))) | check= | RESTRICTIVE"
+323,326c323,326
+<                 "profiles_coordinator_administer | ALL | {public} | using=is_coordinator() | check=is_coordinator()",
+<                 "profiles_select_scoped | SELECT | {public} | using=((id = auth.uid()) OR is_admin_or_coordinator() OR is_cell_leader_for_profile(id)) | check=",
+<                 "profiles_self_onboarding_update | UPDATE | {authenticated} | using=((id = auth.uid()) AND (status = 'pending'::text)) | check=((id = auth.uid()) AND (status = 'pending'::text))",
+<                 "profiles_self_update_active | UPDATE | {authenticated} | using=((id = auth.uid()) AND (status = 'active'::text)) | check=((id = auth.uid()) AND (status = 'active'::text))"
+---
+>                 "profiles_coordinator_administer | ALL | {public} | using=is_coordinator() | check=is_coordinator() | PERMISSIVE",
+>                 "profiles_select_scoped | SELECT | {public} | using=((id = auth.uid()) OR is_admin_or_coordinator() OR is_cell_leader_for_profile(id)) | check= | PERMISSIVE",
+>                 "profiles_self_onboarding_update | UPDATE | {authenticated} | using=((id = auth.uid()) AND (status = 'pending'::text)) | check=((id = auth.uid()) AND (status = 'pending'::text)) | PERMISSIVE",
+>                 "profiles_self_update_active | UPDATE | {authenticated} | using=((id = auth.uid()) AND (status = 'active'::text)) | check=((id = auth.uid()) AND (status = 'active'::text)) | PERMISSIVE"
+383,385c383,385
+<                 "email_log_admin_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
+<                 "email_log_admin_read | SELECT | {public} | using=is_admin_or_coordinator() | check=",
+<                 "email_log_own_read | SELECT | {public} | using=(auth.uid() = member_id) | check="
+---
+>                 "email_log_admin_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator() | PERMISSIVE",
+>                 "email_log_admin_read | SELECT | {public} | using=is_admin_or_coordinator() | check= | PERMISSIVE",
+>                 "email_log_own_read | SELECT | {public} | using=(auth.uid() = member_id) | check= | PERMISSIVE"
+418,419c418,419
+<                 "admin_roles_manage | ALL | {public} | using=is_coordinator() | check=is_coordinator()",
+<                 "admin_roles_read_explicit | SELECT | {public} | using=is_admin_or_coordinator() | check="
+---
+>                 "admin_roles_manage | ALL | {public} | using=is_coordinator() | check=is_coordinator() | PERMISSIVE",
+>                 "admin_roles_read_explicit | SELECT | {public} | using=is_admin_or_coordinator() | check= | PERMISSIVE"
+464,467c464,467
+<                 "assignments_insert | INSERT | {authenticated} | using= | check=(is_active_member() AND (assigned_by = auth.uid()) AND is_active_profile(assigned_to) AND (is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = assignments.assigned_to) AND is_cell_leader_of(p.cell_id))))))",
+<                 "assignments_select | SELECT | {authenticated} | using=(is_active_member() AND ((assigned_to = auth.uid()) OR is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = assignments.assigned_to) AND is_cell_leader_of(p.cell_id)))))) | check=",
+<                 "assignments_update_manager | UPDATE | {authenticated} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
+<                 "assignments_update_own_status | UPDATE | {authenticated} | using=(is_active_member() AND (assigned_to = auth.uid()) AND (status <> ALL (ARRAY['completed'::text, 'cancelled'::text]))) | check=((assigned_to = auth.uid()) AND (status = ANY (ARRAY['pending'::text, 'in_progress'::text, 'completed'::text])))"
+---
+>                 "assignments_insert | INSERT | {authenticated} | using= | check=(is_active_member() AND (assigned_by = auth.uid()) AND is_active_profile(assigned_to) AND (is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = assignments.assigned_to) AND is_cell_leader_of(p.cell_id)))))) | PERMISSIVE",
+>                 "assignments_select | SELECT | {authenticated} | using=(is_active_member() AND ((assigned_to = auth.uid()) OR is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = assignments.assigned_to) AND is_cell_leader_of(p.cell_id)))))) | check= | PERMISSIVE",
+>                 "assignments_update_manager | UPDATE | {authenticated} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator() | PERMISSIVE",
+>                 "assignments_update_own_status | UPDATE | {authenticated} | using=(is_active_member() AND (assigned_to = auth.uid()) AND (status <> ALL (ARRAY['completed'::text, 'cancelled'::text]))) | check=((assigned_to = auth.uid()) AND (status = ANY (ARRAY['pending'::text, 'in_progress'::text, 'completed'::text]))) | PERMISSIVE"
+507,508c507,508
+<                 "confessions_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
+<                 "confessions_read | SELECT | {public} | using=((is_active = true) AND is_active_member() AND ((audience_spec_id IS NULL) OR is_admin_or_coordinator() OR is_audience_recipient('affirmation'::text, id))) | check="
+---
+>                 "confessions_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator() | PERMISSIVE",
+>                 "confessions_read | SELECT | {public} | using=((is_active = true) AND is_active_member() AND ((audience_spec_id IS NULL) OR is_admin_or_coordinator() OR is_audience_recipient('affirmation'::text, id))) | check= | PERMISSIVE"
+539,542c539,542
+<                 "event_rsvps_delete_own | DELETE | {public} | using=((auth.uid() = user_id) AND is_active_member()) | check=",
+<                 "event_rsvps_read_own | SELECT | {public} | using=(auth.uid() = user_id) | check=",
+<                 "event_rsvps_update_own | UPDATE | {public} | using=((auth.uid() = user_id) AND is_active_member()) | check=((auth.uid() = user_id) AND is_active_member())",
+<                 "event_rsvps_write_own | INSERT | {public} | using= | check=((auth.uid() = user_id) AND is_active_member())"
+---
+>                 "event_rsvps_delete_own | DELETE | {public} | using=((auth.uid() = user_id) AND is_active_member()) | check= | PERMISSIVE",
+>                 "event_rsvps_read_own | SELECT | {public} | using=(auth.uid() = user_id) | check= | PERMISSIVE",
+>                 "event_rsvps_update_own | UPDATE | {public} | using=((auth.uid() = user_id) AND is_active_member()) | check=((auth.uid() = user_id) AND is_active_member()) | PERMISSIVE",
+>                 "event_rsvps_write_own | INSERT | {public} | using= | check=((auth.uid() = user_id) AND is_active_member()) | PERMISSIVE"
+570,571c570,571
+<                 "fellowships_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
+<                 "fellowships_read | SELECT | {public} | using=is_active_member() | check="
+---
+>                 "fellowships_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator() | PERMISSIVE",
+>                 "fellowships_read | SELECT | {public} | using=is_active_member() | check= | PERMISSIVE"
+607,609c607,609
+<                 "memberships_insert | INSERT | {public} | using= | check=is_core_admin()",
+<                 "memberships_read | SELECT | {public} | using=is_active_member() | check=",
+<                 "memberships_update | UPDATE | {public} | using=is_core_admin() | check=is_core_admin()"
+---
+>                 "memberships_insert | INSERT | {public} | using= | check=is_core_admin() | PERMISSIVE",
+>                 "memberships_read | SELECT | {public} | using=is_active_member() | check= | PERMISSIVE",
+>                 "memberships_update | UPDATE | {public} | using=is_core_admin() | check=is_core_admin() | PERMISSIVE"
+652,655c652,655
+<                 "testimonies_delete | DELETE | {authenticated} | using=((author_id = auth.uid()) AND is_active_member()) | check=",
+<                 "testimonies_insert | INSERT | {authenticated} | using= | check=((author_id = auth.uid()) AND is_active_member())",
+<                 "testimonies_select | SELECT | {public} | using=((author_id = auth.uid()) OR ((status = 'approved'::text) AND ((visibility = 'public'::text) OR ((visibility = 'members'::text) AND is_active_member()) OR ((visibility = 'cell'::text) AND is_active_member()))) OR (is_active_member() AND (EXISTS ( SELECT 1\n   FROM user_profiles\n  WHERE (user_profiles.user_id = auth.uid()))))) | check=",
+<                 "testimonies_update | UPDATE | {authenticated} | using=((author_id = auth.uid()) AND is_active_member()) | check=((author_id = auth.uid()) AND is_active_member())"
+---
+>                 "testimonies_delete | DELETE | {authenticated} | using=((author_id = auth.uid()) AND is_active_member()) | check= | PERMISSIVE",
+>                 "testimonies_insert | INSERT | {authenticated} | using= | check=((author_id = auth.uid()) AND is_active_member()) | PERMISSIVE",
+>                 "testimonies_select | SELECT | {public} | using=((author_id = auth.uid()) OR ((status = 'approved'::text) AND ((visibility = 'public'::text) OR ((visibility = 'members'::text) AND is_active_member()) OR ((visibility = 'cell'::text) AND is_active_member()))) OR (is_active_member() AND (EXISTS ( SELECT 1\n   FROM user_profiles\n  WHERE (user_profiles.user_id = auth.uid()))))) | check= | PERMISSIVE",
+>                 "testimonies_update | UPDATE | {authenticated} | using=((author_id = auth.uid()) AND is_active_member()) | check=((author_id = auth.uid()) AND is_active_member()) | PERMISSIVE"
+695,697c695,697
+<                 "contact_tags_delete | DELETE | {public} | using=(is_core_admin() OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_tags.contact_id) AND (is_cell_leader_of(c.cell_id) OR (c.logged_by = auth.uid())))))) | check=",
+<                 "contact_tags_insert | INSERT | {public} | using= | check=(is_core_admin() OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_tags.contact_id) AND (is_cell_leader_of(c.cell_id) OR (c.logged_by = auth.uid()))))))",
+<                 "contact_tags_read | SELECT | {public} | using=(is_core_admin() OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_tags.contact_id) AND (is_cell_leader_of(c.cell_id) OR (c.logged_by = auth.uid())))))) | check="
+---
+>                 "contact_tags_delete | DELETE | {public} | using=(is_core_admin() OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_tags.contact_id) AND (is_cell_leader_of(c.cell_id) OR (c.logged_by = auth.uid())))))) | check= | PERMISSIVE",
+>                 "contact_tags_insert | INSERT | {public} | using= | check=(is_core_admin() OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_tags.contact_id) AND (is_cell_leader_of(c.cell_id) OR (c.logged_by = auth.uid())))))) | PERMISSIVE",
+>                 "contact_tags_read | SELECT | {public} | using=(is_core_admin() OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_tags.contact_id) AND (is_cell_leader_of(c.cell_id) OR (c.logged_by = auth.uid())))))) | check= | PERMISSIVE"
+734c734
+<                 "email_drafts_manage_notifications | ALL | {authenticated} | using=(is_active_member() AND has_admin_permission('notifications.send'::text) AND (created_by = auth.uid())) | check=(is_active_member() AND has_admin_permission('notifications.send'::text) AND (created_by = auth.uid()))"
+---
+>                 "email_drafts_manage_notifications | ALL | {authenticated} | using=(is_active_member() AND has_admin_permission('notifications.send'::text) AND (created_by = auth.uid())) | check=(is_active_member() AND has_admin_permission('notifications.send'::text) AND (created_by = auth.uid())) | PERMISSIVE"
+771,772c771,772
+<                 "saved_groups_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
+<                 "saved_groups_read | SELECT | {authenticated} | using=is_admin_or_coordinator() | check="
+---
+>                 "saved_groups_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator() | PERMISSIVE",
+>                 "saved_groups_read | SELECT | {authenticated} | using=is_admin_or_coordinator() | check= | PERMISSIVE"
+808,809c808,809
+<                 "announcements_manage | ALL | {authenticated} | using=(is_admin_or_coordinator() OR (is_active_member() AND (author_id = auth.uid()) AND (audience_spec_id IS NOT NULL) AND audience_caller_can_target(audience_spec_id))) | check=(is_admin_or_coordinator() OR (is_active_member() AND (author_id = auth.uid()) AND (audience_spec_id IS NOT NULL) AND audience_caller_can_target(audience_spec_id)))",
+<                 "announcements_read | SELECT | {public} | using=((is_active = true) AND is_active_member() AND ((audience_spec_id IS NULL) OR is_admin_or_coordinator() OR (author_id = auth.uid()) OR is_audience_recipient('announcement'::text, id))) | check="
+---
+>                 "announcements_manage | ALL | {authenticated} | using=(is_admin_or_coordinator() OR (is_active_member() AND (author_id = auth.uid()) AND (audience_spec_id IS NOT NULL) AND audience_caller_can_target(audience_spec_id))) | check=(is_admin_or_coordinator() OR (is_active_member() AND (author_id = auth.uid()) AND (audience_spec_id IS NOT NULL) AND audience_caller_can_target(audience_spec_id))) | PERMISSIVE",
+>                 "announcements_read | SELECT | {public} | using=((is_active = true) AND is_active_member() AND ((audience_spec_id IS NULL) OR is_admin_or_coordinator() OR (author_id = auth.uid()) OR is_audience_recipient('announcement'::text, id))) | check= | PERMISSIVE"
+846,847c846,847
+<                 "habit_entries_admin_read | SELECT | {public} | using=(((auth.uid() = user_id) AND is_active_member()) OR (is_admin_or_coordinator() AND is_active_profile(user_id))) | check=",
+<                 "habit_entries_own | ALL | {public} | using=((auth.uid() = user_id) AND is_active_member()) | check=((auth.uid() = user_id) AND is_active_member())"
+---
+>                 "habit_entries_admin_read | SELECT | {public} | using=(((auth.uid() = user_id) AND is_active_member()) OR (is_admin_or_coordinator() AND is_active_profile(user_id))) | check= | PERMISSIVE",
+>                 "habit_entries_own | ALL | {public} | using=((auth.uid() = user_id) AND is_active_member()) | check=((auth.uid() = user_id) AND is_active_member()) | PERMISSIVE"
+880,881c880,881
+<                 "tags_settings_manage | ALL | {public} | using=is_core_admin() | check=is_core_admin()",
+<                 "tags_settings_read | SELECT | {public} | using=is_active_member() | check="
+---
+>                 "tags_settings_manage | ALL | {public} | using=is_core_admin() | check=is_core_admin() | PERMISSIVE",
+>                 "tags_settings_read | SELECT | {public} | using=is_active_member() | check= | PERMISSIVE"
+915,920c915,920
+<                 "profiles_delete | DELETE | {authenticated} | using=((auth.uid() = user_id) AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.status = 'active'::text))))) | check=",
+<                 "profiles_insert | INSERT | {authenticated} | using= | check=((auth.uid() = user_id) AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.status = ANY (ARRAY['pending'::text, 'active'::text]))))))",
+<                 "profiles_update | UPDATE | {authenticated} | using=((auth.uid() = user_id) AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.status = ANY (ARRAY['pending'::text, 'active'::text])))))) | check=((auth.uid() = user_id) AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.status = ANY (ARRAY['pending'::text, 'active'::text]))))))",
+<                 "user_profiles_select_scoped | SELECT | {public} | using=((user_id = auth.uid()) OR is_admin_or_coordinator() OR is_cell_leader_for_profile(user_id)) | check=",
+<                 "user_profiles_staff_insert | INSERT | {authenticated} | using= | check=is_admin_or_coordinator()",
+<                 "user_profiles_staff_update | UPDATE | {authenticated} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()"
+---
+>                 "profiles_delete | DELETE | {authenticated} | using=((auth.uid() = user_id) AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.status = 'active'::text))))) | check= | PERMISSIVE",
+>                 "profiles_insert | INSERT | {authenticated} | using= | check=((auth.uid() = user_id) AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.status = ANY (ARRAY['pending'::text, 'active'::text])))))) | PERMISSIVE",
+>                 "profiles_update | UPDATE | {authenticated} | using=((auth.uid() = user_id) AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.status = ANY (ARRAY['pending'::text, 'active'::text])))))) | check=((auth.uid() = user_id) AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.status = ANY (ARRAY['pending'::text, 'active'::text])))))) | PERMISSIVE",
+>                 "user_profiles_select_scoped | SELECT | {public} | using=((user_id = auth.uid()) OR is_admin_or_coordinator() OR is_cell_leader_for_profile(user_id)) | check= | PERMISSIVE",
+>                 "user_profiles_staff_insert | INSERT | {authenticated} | using= | check=is_admin_or_coordinator() | PERMISSIVE",
+>                 "user_profiles_staff_update | UPDATE | {authenticated} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator() | PERMISSIVE"
+955c955
+<                 "zoom_settings_admin_explicit | ALL | {public} | using=has_admin_permission('integrations.manage'::text) | check=has_admin_permission('integrations.manage'::text)"
+---
+>                 "zoom_settings_admin_explicit | ALL | {public} | using=has_admin_permission('integrations.manage'::text) | check=has_admin_permission('integrations.manage'::text) | PERMISSIVE"
+991,992c991,992
+<                 "audience_specs_insert | INSERT | {authenticated} | using= | check=(is_admin_or_coordinator() OR (is_active_member() AND (created_by = auth.uid()) AND (mode = 'cells'::text) AND (array_length(cell_ids, 1) = 1) AND (EXISTS ( SELECT 1\n   FROM cells c\n  WHERE ((c.id = audience_specs.cell_ids[1]) AND (c.leader_id = auth.uid()))))))",
+<                 "audience_specs_read | SELECT | {public} | using=is_admin_or_coordinator() | check="
+---
+>                 "audience_specs_insert | INSERT | {authenticated} | using= | check=(is_admin_or_coordinator() OR (is_active_member() AND (created_by = auth.uid()) AND (mode = 'cells'::text) AND (array_length(cell_ids, 1) = 1) AND (EXISTS ( SELECT 1\n   FROM cells c\n  WHERE ((c.id = audience_specs.cell_ids[1]) AND (c.leader_id = auth.uid())))))) | PERMISSIVE",
+>                 "audience_specs_read | SELECT | {public} | using=is_admin_or_coordinator() | check= | PERMISSIVE"
+1035,1036c1035,1036
+<                 "books_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
+<                 "books_read | SELECT | {public} | using=is_active_member() | check="
+---
+>                 "books_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator() | PERMISSIVE",
+>                 "books_read | SELECT | {public} | using=is_active_member() | check= | PERMISSIVE"
+1073c1073
+<                 "email_templates_manage_notifications | ALL | {authenticated} | using=(is_active_member() AND has_admin_permission('notifications.send'::text)) | check=(is_active_member() AND has_admin_permission('notifications.send'::text))"
+---
+>                 "email_templates_manage_notifications | ALL | {authenticated} | using=(is_active_member() AND has_admin_permission('notifications.send'::text)) | check=(is_active_member() AND has_admin_permission('notifications.send'::text)) | PERMISSIVE"
+1113,1114c1113,1114
+<                 "habit_templates_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
+<                 "habit_templates_read | SELECT | {public} | using=is_active_member() | check="
+---
+>                 "habit_templates_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator() | PERMISSIVE",
+>                 "habit_templates_read | SELECT | {public} | using=is_active_member() | check= | PERMISSIVE"
+1151,1154c1151,1154
+<                 "prayers_coordinator_manage | UPDATE | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
+<                 "prayers_leadership_read | SELECT | {public} | using=((visibility = ANY (ARRAY['leadership'::text, 'shared'::text])) AND is_active_profile(author_id) AND (is_admin_or_coordinator() OR is_cell_leader_for_profile(author_id))) | check=",
+<                 "prayers_own | ALL | {public} | using=((auth.uid() = author_id) AND is_active_member()) | check=((auth.uid() = author_id) AND is_active_member())",
+<                 "prayers_shared_read | SELECT | {public} | using=((visibility = 'shared'::text) AND is_active_member() AND is_active_profile(author_id)) | check="
+---
+>                 "prayers_coordinator_manage | UPDATE | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator() | PERMISSIVE",
+>                 "prayers_leadership_read | SELECT | {public} | using=((visibility = ANY (ARRAY['leadership'::text, 'shared'::text])) AND is_active_profile(author_id) AND (is_admin_or_coordinator() OR is_cell_leader_for_profile(author_id))) | check= | PERMISSIVE",
+>                 "prayers_own | ALL | {public} | using=((auth.uid() = author_id) AND is_active_member()) | check=((auth.uid() = author_id) AND is_active_member()) | PERMISSIVE",
+>                 "prayers_shared_read | SELECT | {public} | using=((visibility = 'shared'::text) AND is_active_member() AND is_active_profile(author_id)) | check= | PERMISSIVE"
+1188,1189c1188,1189
+<                 "status_settings_manage | ALL | {public} | using=is_core_admin() | check=is_core_admin()",
+<                 "status_settings_read | SELECT | {public} | using=is_active_member() | check="
+---
+>                 "status_settings_manage | ALL | {public} | using=is_core_admin() | check=is_core_admin() | PERMISSIVE",
+>                 "status_settings_read | SELECT | {public} | using=is_active_member() | check= | PERMISSIVE"
+1231,1234c1231,1234
+<                 "weekly_messages_delete | DELETE | {authenticated} | using=(((auth.uid() = created_by) AND is_active_member()) OR is_admin_or_coordinator()) | check=",
+<                 "weekly_messages_insert | INSERT | {authenticated} | using= | check=((auth.uid() = created_by) AND is_active_member() AND (((scope)::text = 'personal'::text) OR is_admin_or_coordinator()))",
+<                 "weekly_messages_read | SELECT | {public} | using=(((scope)::text = 'org'::text) OR (auth.uid() = created_by)) | check=",
+<                 "weekly_messages_update | UPDATE | {authenticated} | using=(((auth.uid() = created_by) AND is_active_member()) OR is_admin_or_coordinator()) | check=(((auth.uid() = created_by) AND is_active_member()) OR is_admin_or_coordinator())"
+---
+>                 "weekly_messages_delete | DELETE | {authenticated} | using=(((auth.uid() = created_by) AND is_active_member()) OR is_admin_or_coordinator()) | check= | PERMISSIVE",
+>                 "weekly_messages_insert | INSERT | {authenticated} | using= | check=((auth.uid() = created_by) AND is_active_member() AND (((scope)::text = 'personal'::text) OR is_admin_or_coordinator())) | PERMISSIVE",
+>                 "weekly_messages_read | SELECT | {public} | using=(((scope)::text = 'org'::text) OR (auth.uid() = created_by)) | check= | PERMISSIVE",
+>                 "weekly_messages_update | UPDATE | {authenticated} | using=(((auth.uid() = created_by) AND is_active_member()) OR is_admin_or_coordinator()) | check=(((auth.uid() = created_by) AND is_active_member()) OR is_admin_or_coordinator()) | PERMISSIVE"
+1275c1275
+<                 "zoom_attendance_read_scoped | SELECT | {public} | using=(is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM meetings m\n  WHERE ((m.id = zoom_attendance.meeting_id) AND ((m.created_by = auth.uid()) OR is_cell_leader_of(m.cell_id)))))) | check="
+---
+>                 "zoom_attendance_read_scoped | SELECT | {public} | using=(is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM meetings m\n  WHERE ((m.id = zoom_attendance.meeting_id) AND ((m.created_by = auth.uid()) OR is_cell_leader_of(m.cell_id)))))) | check= | PERMISSIVE"
+1308c1308
+<                 "cell_admin_audit_read | SELECT | {public} | using=is_admin_or_coordinator() | check="
+---
+>                 "cell_admin_audit_read | SELECT | {public} | using=is_admin_or_coordinator() | check= | PERMISSIVE"
+1343,1345c1343,1345
+<                 "devotional_views_select_own_or_admin | SELECT | {public} | using=can_view_member(member_id) | check=",
+<                 "views_admin_read | SELECT | {public} | using=(is_devotional_admin() AND is_active_profile(member_id)) | check=",
+<                 "views_own | ALL | {public} | using=((auth.uid() = member_id) AND is_active_member()) | check=((auth.uid() = member_id) AND is_active_member())"
+---
+>                 "devotional_views_select_own_or_admin | SELECT | {public} | using=can_view_member(member_id) | check= | PERMISSIVE",
+>                 "views_admin_read | SELECT | {public} | using=(is_devotional_admin() AND is_active_profile(member_id)) | check= | PERMISSIVE",
+>                 "views_own | ALL | {public} | using=((auth.uid() = member_id) AND is_active_member()) | check=((auth.uid() = member_id) AND is_active_member()) | PERMISSIVE"
+1414,1415c1414,1415
+<                 "contact_audit_log_insert_admin | INSERT | {public} | using= | check=(is_admin_or_coordinator() AND (changed_by = auth.uid()))",
+<                 "contact_audit_log_read_admin | SELECT | {public} | using=is_admin_or_coordinator() | check="
+---
+>                 "contact_audit_log_insert_admin | INSERT | {public} | using= | check=(is_admin_or_coordinator() AND (changed_by = auth.uid())) | PERMISSIVE",
+>                 "contact_audit_log_read_admin | SELECT | {public} | using=is_admin_or_coordinator() | check= | PERMISSIVE"
+1452,1454c1452,1454
+<                 "email_preferences_insert_own | INSERT | {authenticated} | using= | check=((user_id = auth.uid()) AND is_active_member())",
+<                 "email_preferences_select_own | SELECT | {public} | using=(user_id = auth.uid()) | check=",
+<                 "email_preferences_update_own | UPDATE | {authenticated} | using=((user_id = auth.uid()) AND is_active_member()) | check=((user_id = auth.uid()) AND is_active_member())"
+---
+>                 "email_preferences_insert_own | INSERT | {authenticated} | using= | check=((user_id = auth.uid()) AND is_active_member()) | PERMISSIVE",
+>                 "email_preferences_select_own | SELECT | {public} | using=(user_id = auth.uid()) | check= | PERMISSIVE",
+>                 "email_preferences_update_own | UPDATE | {authenticated} | using=((user_id = auth.uid()) AND is_active_member()) | check=((user_id = auth.uid()) AND is_active_member()) | PERMISSIVE"
+1487c1487
+<                 "member_cell_audit_read | SELECT | {public} | using=is_admin_or_coordinator() | check="
+---
+>                 "member_cell_audit_read | SELECT | {public} | using=is_admin_or_coordinator() | check= | PERMISSIVE"
+1516c1516
+<                 "attendance_imports_admin | ALL | {public} | using=is_core_admin() | check=is_core_admin()"
+---
+>                 "attendance_imports_admin | ALL | {public} | using=is_core_admin() | check=is_core_admin() | PERMISSIVE"
+1543c1543
+<                 "audience_snapshots_select | SELECT | {authenticated} | using=(is_admin_or_coordinator() OR ((profile_id = auth.uid()) AND is_active_member())) | check="
+---
+>                 "audience_snapshots_select | SELECT | {authenticated} | using=(is_admin_or_coordinator() OR ((profile_id = auth.uid()) AND is_active_member())) | check= | PERMISSIVE"
+1579,1581c1579,1581
+<                 "contact_follow_ups_insert_scoped | INSERT | {public} | using= | check=(is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_follow_ups.contact_id) AND is_cell_leader_of(c.cell_id)))))",
+<                 "contact_follow_ups_read | SELECT | {public} | using=(is_core_admin() OR (assigned_to = auth.uid()) OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_follow_ups.contact_id) AND (is_cell_leader_of(c.cell_id) OR (c.logged_by = auth.uid())))))) | check=",
+<                 "contact_follow_ups_update_scoped | UPDATE | {public} | using=(is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_follow_ups.contact_id) AND is_cell_leader_of(c.cell_id))))) | check=(is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_follow_ups.contact_id) AND is_cell_leader_of(c.cell_id)))))"
+---
+>                 "contact_follow_ups_insert_scoped | INSERT | {public} | using= | check=(is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_follow_ups.contact_id) AND is_cell_leader_of(c.cell_id))))) | PERMISSIVE",
+>                 "contact_follow_ups_read | SELECT | {public} | using=(is_core_admin() OR (assigned_to = auth.uid()) OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_follow_ups.contact_id) AND (is_cell_leader_of(c.cell_id) OR (c.logged_by = auth.uid())))))) | check= | PERMISSIVE",
+>                 "contact_follow_ups_update_scoped | UPDATE | {public} | using=(is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_follow_ups.contact_id) AND is_cell_leader_of(c.cell_id))))) | check=(is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_follow_ups.contact_id) AND is_cell_leader_of(c.cell_id))))) | PERMISSIVE"
+1620,1623c1620,1623
+<                 "push_subscriptions_delete_own | DELETE | {public} | using=(user_id = auth.uid()) | check=",
+<                 "push_subscriptions_insert_own | INSERT | {authenticated} | using= | check=((user_id = auth.uid()) AND is_active_member())",
+<                 "push_subscriptions_select_own | SELECT | {public} | using=(user_id = auth.uid()) | check=",
+<                 "push_subscriptions_update_own | UPDATE | {authenticated} | using=((user_id = auth.uid()) AND is_active_member()) | check=((user_id = auth.uid()) AND is_active_member())"
+---
+>                 "push_subscriptions_delete_own | DELETE | {public} | using=(user_id = auth.uid()) | check= | PERMISSIVE",
+>                 "push_subscriptions_insert_own | INSERT | {authenticated} | using= | check=((user_id = auth.uid()) AND is_active_member()) | PERMISSIVE",
+>                 "push_subscriptions_select_own | SELECT | {public} | using=(user_id = auth.uid()) | check= | PERMISSIVE",
+>                 "push_subscriptions_update_own | UPDATE | {authenticated} | using=((user_id = auth.uid()) AND is_active_member()) | check=((user_id = auth.uid()) AND is_active_member()) | PERMISSIVE"
+1655,1657c1655,1657
+<                 "comments_delete | DELETE | {authenticated} | using=((author_id = auth.uid()) AND is_active_member()) | check=",
+<                 "comments_insert | INSERT | {authenticated} | using= | check=((author_id = auth.uid()) AND is_active_member())",
+<                 "comments_select | SELECT | {public} | using=is_active_member() | check="
+---
+>                 "comments_delete | DELETE | {authenticated} | using=((author_id = auth.uid()) AND is_active_member()) | check= | PERMISSIVE",
+>                 "comments_insert | INSERT | {authenticated} | using= | check=((author_id = auth.uid()) AND is_active_member()) | PERMISSIVE",
+>                 "comments_select | SELECT | {public} | using=is_active_member() | check= | PERMISSIVE"
+1693c1693,1697
+<                 "communication_audit_select | SELECT | {public} | using=is_admin_or_coordinator() | check="
+---
+>                 "communication_audit_select | SELECT | {public} | using=is_admin_or_coordinator() | check= | PERMISSIVE"
+>             ],
+>             "triggers": [
+>                 "CREATE TRIGGER communication_audit_append_only BEFORE DELETE OR UPDATE ON public.communication_audit FOR EACH ROW EXECUTE FUNCTION communication_audit_block_change()",
+>                 "CREATE TRIGGER communication_audit_no_truncate BEFORE TRUNCATE ON public.communication_audit FOR EACH STATEMENT EXECUTE FUNCTION communication_audit_block_change()"
+1695d1698
+<             "triggers": [],
+1699c1702
+<                 "service_role": "DELETE,INSERT,SELECT,UPDATE",
+---
+>                 "service_role": "INSERT",
+1734,1735c1737,1738
+<                 "drive_links_manage | ALL | {authenticated} | using=(((owner_id = auth.uid()) AND is_active_member()) OR is_core_admin()) | check=(((owner_id = auth.uid()) AND is_active_member()) OR is_core_admin())",
+<                 "drive_links_read | SELECT | {public} | using=is_active_member() | check="
+---
+>                 "drive_links_manage | ALL | {authenticated} | using=(((owner_id = auth.uid()) AND is_active_member()) OR is_core_admin()) | check=(((owner_id = auth.uid()) AND is_active_member()) OR is_core_admin()) | PERMISSIVE",
+>                 "drive_links_read | SELECT | {public} | using=is_active_member() | check= | PERMISSIVE"
+1774,1777c1777,1780
+<                 "meeting_attendances_delete_own_or_manager | DELETE | {authenticated} | using=(is_active_member() AND (((user_id = auth.uid()) AND (invited_via = 'self'::text)) OR has_admin_permission('attendance.view_all'::text) OR is_meeting_manager(meeting_id) OR is_meeting_creator(meeting_id))) | check=",
+<                 "meeting_attendances_insert_own_visible | INSERT | {authenticated} | using= | check=(is_active_member() AND (((user_id = auth.uid()) AND (invited_via = 'self'::text) AND (attendance_status = ANY (ARRAY['confirmed'::text, 'excused'::text])) AND can_view_meeting(meeting_id)) OR ((user_id <> auth.uid()) AND is_active_profile(user_id) AND (invited_via <> 'self'::text) AND (is_meeting_manager(meeting_id) OR is_meeting_creator(meeting_id)) AND ((audience_spec_id IS NULL) OR meeting_roster_allowed(meeting_id, audience_spec_id, user_id)))))",
+<                 "meeting_attendances_select_scoped | SELECT | {authenticated} | using=(is_active_member() AND (is_admin_or_coordinator() OR is_meeting_manager(meeting_id) OR is_meeting_creator(meeting_id) OR ((user_id = auth.uid()) AND can_view_meeting(meeting_id)))) | check=",
+<                 "meeting_attendances_update_manager | UPDATE | {authenticated} | using=(is_active_member() AND (has_admin_permission('attendance.view_all'::text) OR is_meeting_manager(meeting_id) OR is_meeting_creator(meeting_id))) | check=(is_active_member() AND (has_admin_permission('attendance.view_all'::text) OR is_meeting_manager(meeting_id) OR is_meeting_creator(meeting_id)))"
+---
+>                 "meeting_attendances_delete_own_or_manager | DELETE | {authenticated} | using=(is_active_member() AND (((user_id = auth.uid()) AND (invited_via = 'self'::text)) OR has_admin_permission('attendance.view_all'::text) OR is_meeting_manager(meeting_id) OR is_meeting_creator(meeting_id))) | check= | PERMISSIVE",
+>                 "meeting_attendances_insert_own_visible | INSERT | {authenticated} | using= | check=(is_active_member() AND (((user_id = auth.uid()) AND (invited_via = 'self'::text) AND (attendance_status = ANY (ARRAY['confirmed'::text, 'excused'::text])) AND can_view_meeting(meeting_id)) OR ((user_id <> auth.uid()) AND is_active_profile(user_id) AND (invited_via <> 'self'::text) AND (is_meeting_manager(meeting_id) OR is_meeting_creator(meeting_id)) AND ((audience_spec_id IS NULL) OR meeting_roster_allowed(meeting_id, audience_spec_id, user_id))))) | PERMISSIVE",
+>                 "meeting_attendances_select_scoped | SELECT | {authenticated} | using=(is_active_member() AND (is_admin_or_coordinator() OR is_meeting_manager(meeting_id) OR is_meeting_creator(meeting_id) OR ((user_id = auth.uid()) AND can_view_meeting(meeting_id)))) | check= | PERMISSIVE",
+>                 "meeting_attendances_update_manager | UPDATE | {authenticated} | using=(is_active_member() AND (has_admin_permission('attendance.view_all'::text) OR is_meeting_manager(meeting_id) OR is_meeting_creator(meeting_id))) | check=(is_active_member() AND (has_admin_permission('attendance.view_all'::text) OR is_meeting_manager(meeting_id) OR is_meeting_creator(meeting_id))) | PERMISSIVE"
+1818c1821
+<                 "member_status_audit_read | SELECT | {public} | using=is_admin_or_coordinator() | check="
+---
+>                 "member_status_audit_read | SELECT | {public} | using=is_admin_or_coordinator() | check= | PERMISSIVE"
+1855,1856c1858,1859
+<                 "devotional_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
+<                 "devotional_read | SELECT | {public} | using=is_active_member() | check="
+---
+>                 "devotional_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator() | PERMISSIVE",
+>                 "devotional_read | SELECT | {public} | using=is_active_member() | check= | PERMISSIVE"
+1893,1894c1896,1897
+<                 "saved_group_members_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
+<                 "saved_group_members_read | SELECT | {authenticated} | using=is_admin_or_coordinator() | check="
+---
+>                 "saved_group_members_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator() | PERMISSIVE",
+>                 "saved_group_members_read | SELECT | {authenticated} | using=is_admin_or_coordinator() | check= | PERMISSIVE"
+1928,1930c1931,1933
+<                 "reactions_delete | DELETE | {authenticated} | using=((user_id = auth.uid()) AND is_active_member()) | check=",
+<                 "reactions_insert | INSERT | {authenticated} | using= | check=((user_id = auth.uid()) AND is_active_member())",
+<                 "reactions_select | SELECT | {public} | using=is_active_member() | check="
+---
+>                 "reactions_delete | DELETE | {authenticated} | using=((user_id = auth.uid()) AND is_active_member()) | check= | PERMISSIVE",
+>                 "reactions_insert | INSERT | {authenticated} | using= | check=((user_id = auth.uid()) AND is_active_member()) | PERMISSIVE",
+>                 "reactions_select | SELECT | {public} | using=is_active_member() | check= | PERMISSIVE"
+1964c1967
+<                 "bsc_assignment_audit_read_staff | SELECT | {authenticated} | using=is_admin_or_coordinator() | check="
+---
+>                 "bsc_assignment_audit_read_staff | SELECT | {authenticated} | using=is_admin_or_coordinator() | check= | PERMISSIVE"
+2026c2029
+<                 "audience_publications_select | SELECT | {authenticated} | using=is_admin_or_coordinator() | check="
+---
+>                 "audience_publications_select | SELECT | {authenticated} | using=is_admin_or_coordinator() | check= | PERMISSIVE"
+2066,2067c2069,2070
+<                 "push_notification_log_select_admin | SELECT | {public} | using=is_admin_or_coordinator() | check=",
+<                 "push_notification_log_select_own | SELECT | {public} | using=(user_id = auth.uid()) | check="
+---
+>                 "push_notification_log_select_admin | SELECT | {public} | using=is_admin_or_coordinator() | check= | PERMISSIVE",
+>                 "push_notification_log_select_own | SELECT | {public} | using=(user_id = auth.uid()) | check= | PERMISSIVE"
+2099,2100c2102,2103
+<                 "admin_role_assignments_manage | ALL | {public} | using=is_coordinator() | check=is_coordinator()",
+<                 "admin_role_assignments_read_explicit | SELECT | {public} | using=(is_admin_or_coordinator() OR (auth.uid() = user_id)) | check="
+---
+>                 "admin_role_assignments_manage | ALL | {public} | using=is_coordinator() | check=is_coordinator() | PERMISSIVE",
+>                 "admin_role_assignments_read_explicit | SELECT | {public} | using=(is_admin_or_coordinator() OR (auth.uid() = user_id)) | check= | PERMISSIVE"
+2130,2131c2133,2134
+<                 "admin_role_permissions_manage | ALL | {public} | using=is_coordinator() | check=is_coordinator()",
+<                 "admin_role_permissions_read_explicit | SELECT | {public} | using=is_admin_or_coordinator() | check="
+---
+>                 "admin_role_permissions_manage | ALL | {public} | using=is_coordinator() | check=is_coordinator() | PERMISSIVE",
+>                 "admin_role_permissions_read_explicit | SELECT | {public} | using=is_admin_or_coordinator() | check= | PERMISSIVE"
+2168c2171
+<                 "communication_messages_select | SELECT | {public} | using=(is_admin_or_coordinator() OR is_message_sender(id) OR is_message_recipient(id)) | check="
+---
+>                 "communication_messages_select | SELECT | {public} | using=(is_admin_or_coordinator() OR is_message_sender(id) OR is_message_recipient(id)) | check= | PERMISSIVE"
+2208,2209c2211,2212
+<                 "daily_pages_manage | ALL | {public} | using=is_devotional_admin() | check=is_devotional_admin()",
+<                 "daily_pages_read | SELECT | {public} | using=is_active_member() | check="
+---
+>                 "daily_pages_manage | ALL | {public} | using=is_devotional_admin() | check=is_devotional_admin() | PERMISSIVE",
+>                 "daily_pages_read | SELECT | {public} | using=is_active_member() | check= | PERMISSIVE"
+2246,2247c2249,2250
+<                 "email_log_admin_write | INSERT | {public} | using= | check=is_core_admin()",
+<                 "email_log_read | SELECT | {public} | using=(is_core_admin() OR (user_id = auth.uid())) | check="
+---
+>                 "email_log_admin_write | INSERT | {public} | using= | check=is_core_admin() | PERMISSIVE",
+>                 "email_log_read | SELECT | {public} | using=(is_core_admin() OR (user_id = auth.uid())) | check= | PERMISSIVE"
+2281,2282c2284,2285
+<                 "membership_transitions_insert | INSERT | {public} | using= | check=is_active_member()",
+<                 "membership_transitions_read | SELECT | {public} | using=is_core_admin() | check="
+---
+>                 "membership_transitions_insert | INSERT | {public} | using= | check=is_active_member() | PERMISSIVE",
+>                 "membership_transitions_read | SELECT | {public} | using=is_core_admin() | check= | PERMISSIVE"
+2310,2314c2313,2317
+<                 "confession_declarations_delete_own | DELETE | {public} | using=((auth.uid() = user_id) AND is_active_member()) | check=",
+<                 "confession_declarations_read_own | SELECT | {authenticated} | using=((auth.uid() = user_id) AND is_active_member()) | check=",
+<                 "confession_declarations_read_staff | SELECT | {authenticated} | using=(is_admin_or_coordinator() AND is_active_profile(user_id)) | check=",
+<                 "confession_declarations_update_own | UPDATE | {public} | using=((auth.uid() = user_id) AND is_active_member()) | check=((auth.uid() = user_id) AND is_active_member())",
+<                 "confession_declarations_write_own | INSERT | {public} | using= | check=((auth.uid() = user_id) AND is_active_member() AND can_see_affirmation(confession_id))"
+---
+>                 "confession_declarations_delete_own | DELETE | {public} | using=((auth.uid() = user_id) AND is_active_member()) | check= | PERMISSIVE",
+>                 "confession_declarations_read_own | SELECT | {authenticated} | using=((auth.uid() = user_id) AND is_active_member()) | check= | PERMISSIVE",
+>                 "confession_declarations_read_staff | SELECT | {authenticated} | using=(is_admin_or_coordinator() AND is_active_profile(user_id)) | check= | PERMISSIVE",
+>                 "confession_declarations_update_own | UPDATE | {public} | using=((auth.uid() = user_id) AND is_active_member()) | check=((auth.uid() = user_id) AND is_active_member()) | PERMISSIVE",
+>                 "confession_declarations_write_own | INSERT | {public} | using= | check=((auth.uid() = user_id) AND is_active_member() AND can_see_affirmation(confession_id)) | PERMISSIVE"
+2349c2352
+<                 "communication_deliveries_select | SELECT | {public} | using=(is_admin_or_coordinator() OR is_message_sender(message_id) OR ((user_id = auth.uid()) AND is_active_member())) | check="
+---
+>                 "communication_deliveries_select | SELECT | {public} | using=(is_admin_or_coordinator() OR is_message_sender(message_id) OR ((user_id = auth.uid()) AND is_active_member())) | check= | PERMISSIVE"
+2386c2389
+<                 "communication_recipients_select | SELECT | {public} | using=(is_admin_or_coordinator() OR is_message_sender(message_id) OR ((user_id = auth.uid()) AND is_active_member())) | check="
+---
+>                 "communication_recipients_select | SELECT | {public} | using=(is_admin_or_coordinator() OR is_message_sender(message_id) OR ((user_id = auth.uid()) AND is_active_member())) | check= | PERMISSIVE"
+2418c2421
+<                 "leadership_release_audit_read | SELECT | {public} | using=is_admin_or_coordinator() | check="
+---
+>                 "leadership_release_audit_read | SELECT | {public} | using=is_admin_or_coordinator() | check= | PERMISSIVE"
+2451c2454
+<                 "staff_profile_edit_audit_admin_read | SELECT | {authenticated} | using=is_admin_or_coordinator() | check="
+---
+>                 "staff_profile_edit_audit_admin_read | SELECT | {authenticated} | using=is_admin_or_coordinator() | check= | PERMISSIVE"
+2487c2490
+<                 "attendance_matches_admin | ALL | {public} | using=is_core_admin() | check=is_core_admin()"
+---
+>                 "attendance_matches_admin | ALL | {public} | using=is_core_admin() | check=is_core_admin() | PERMISSIVE"
+2524,2525c2527,2528
+<                 "classes_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
+<                 "classes_read | SELECT | {public} | using=is_active_member() | check="
+---
+>                 "classes_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator() | PERMISSIVE",
+>                 "classes_read | SELECT | {public} | using=is_active_member() | check= | PERMISSIVE"
+2560,2562c2563,2565
+<                 "progress_coordinator | ALL | {public} | using=(is_admin_or_coordinator() AND (EXISTS ( SELECT 1\n   FROM foundation_school_enrollments e\n  WHERE ((e.id = foundation_school_progress.enrollment_id) AND is_active_profile(e.student_id))))) | check=(is_admin_or_coordinator() AND (EXISTS ( SELECT 1\n   FROM foundation_school_enrollments e\n  WHERE ((e.id = foundation_school_progress.enrollment_id) AND is_active_profile(e.student_id)))))",
+<                 "progress_own | SELECT | {public} | using=(is_active_member() AND (EXISTS ( SELECT 1\n   FROM foundation_school_enrollments e\n  WHERE ((e.id = foundation_school_progress.enrollment_id) AND (e.student_id = auth.uid()))))) | check=",
+<                 "progress_teacher_read | SELECT | {public} | using=(is_active_member() AND (EXISTS ( SELECT 1\n   FROM foundation_school_enrollments e\n  WHERE ((e.id = foundation_school_progress.enrollment_id) AND (e.teacher_id = auth.uid()) AND is_active_profile(e.student_id))))) | check="
+---
+>                 "progress_coordinator | ALL | {public} | using=(is_admin_or_coordinator() AND (EXISTS ( SELECT 1\n   FROM foundation_school_enrollments e\n  WHERE ((e.id = foundation_school_progress.enrollment_id) AND is_active_profile(e.student_id))))) | check=(is_admin_or_coordinator() AND (EXISTS ( SELECT 1\n   FROM foundation_school_enrollments e\n  WHERE ((e.id = foundation_school_progress.enrollment_id) AND is_active_profile(e.student_id))))) | PERMISSIVE",
+>                 "progress_own | SELECT | {public} | using=(is_active_member() AND (EXISTS ( SELECT 1\n   FROM foundation_school_enrollments e\n  WHERE ((e.id = foundation_school_progress.enrollment_id) AND (e.student_id = auth.uid()))))) | check= | PERMISSIVE",
+>                 "progress_teacher_read | SELECT | {public} | using=(is_active_member() AND (EXISTS ( SELECT 1\n   FROM foundation_school_enrollments e\n  WHERE ((e.id = foundation_school_progress.enrollment_id) AND (e.teacher_id = auth.uid()) AND is_active_profile(e.student_id))))) | check= | PERMISSIVE"
+2599,2604c2602,2607
+<                 "enrollments_own | SELECT | {public} | using=((auth.uid() = student_id) AND is_active_member()) | check=",
+<                 "enrollments_staff_delete | DELETE | {public} | using=(is_admin_or_coordinator() AND is_active_profile(student_id)) | check=",
+<                 "enrollments_staff_insert | INSERT | {public} | using= | check=(is_admin_or_coordinator() AND (EXISTS ( SELECT 1\n   FROM profiles s\n  WHERE ((s.id = foundation_school_enrollments.student_id) AND (s.status = ANY (ARRAY['pending'::text, 'active'::text]))))))",
+<                 "enrollments_staff_read | SELECT | {public} | using=(is_admin_or_coordinator() AND (EXISTS ( SELECT 1\n   FROM profiles s\n  WHERE ((s.id = foundation_school_enrollments.student_id) AND (s.status = ANY (ARRAY['pending'::text, 'active'::text])))))) | check=",
+<                 "enrollments_staff_update | UPDATE | {public} | using=(is_admin_or_coordinator() AND is_active_profile(student_id)) | check=(is_admin_or_coordinator() AND is_active_profile(student_id))",
+<                 "enrollments_teacher_read | SELECT | {public} | using=((auth.uid() = teacher_id) AND is_active_member() AND is_active_profile(student_id)) | check="
+---
+>                 "enrollments_own | SELECT | {public} | using=((auth.uid() = student_id) AND is_active_member()) | check= | PERMISSIVE",
+>                 "enrollments_staff_delete | DELETE | {public} | using=(is_admin_or_coordinator() AND is_active_profile(student_id)) | check= | PERMISSIVE",
+>                 "enrollments_staff_insert | INSERT | {public} | using= | check=(is_admin_or_coordinator() AND (EXISTS ( SELECT 1\n   FROM profiles s\n  WHERE ((s.id = foundation_school_enrollments.student_id) AND (s.status = ANY (ARRAY['pending'::text, 'active'::text])))))) | PERMISSIVE",
+>                 "enrollments_staff_read | SELECT | {public} | using=(is_admin_or_coordinator() AND (EXISTS ( SELECT 1\n   FROM profiles s\n  WHERE ((s.id = foundation_school_enrollments.student_id) AND (s.status = ANY (ARRAY['pending'::text, 'active'::text])))))) | check= | PERMISSIVE",
+>                 "enrollments_staff_update | UPDATE | {public} | using=(is_admin_or_coordinator() AND is_active_profile(student_id)) | check=(is_admin_or_coordinator() AND is_active_profile(student_id)) | PERMISSIVE",
+>                 "enrollments_teacher_read | SELECT | {public} | using=((auth.uid() = teacher_id) AND is_active_member() AND is_active_profile(student_id)) | check= | PERMISSIVE"
+3417a3421,3433
+>         "communication_audit_block_change()": {
+>             "owner": "postgres",
+>             "config": "search_path=public, pg_temp",
+>             "execute": {
+>                 "anon": false,
+>                 "public": false,
+>                 "service_role": false,
+>                 "authenticated": false
+>             },
+>             "security": "invoker",
+>             "volatility": "v",
+>             "definition_md5": "42432edfda2d89f9db5b65d7f37d5d66"
+>         },
+3721,3732c3737,3748
+<         "devotional_images_admin_delete | DELETE | {authenticated} | using=((bucket_id = 'devotional-images'::text) AND is_devotional_admin()) | check=",
+<         "devotional_images_admin_insert | INSERT | {authenticated} | using= | check=((bucket_id = 'devotional-images'::text) AND is_devotional_admin())",
+<         "devotional_images_admin_update | UPDATE | {authenticated} | using=((bucket_id = 'devotional-images'::text) AND is_devotional_admin()) | check=((bucket_id = 'devotional-images'::text) AND is_devotional_admin())",
+<         "devotional_images_read | SELECT | {authenticated} | using=((bucket_id = 'devotional-images'::text) AND is_active_member()) | check=",
+<         "testimony_images_owner_insert | INSERT | {authenticated} | using= | check=((bucket_id = 'testimony-images'::text) AND is_active_member() AND ((storage.foldername(name))[1] = (auth.uid())::text))",
+<         "testimony_images_owner_or_moderator_delete | DELETE | {authenticated} | using=((bucket_id = 'testimony-images'::text) AND (((storage.foldername(name))[1] = (auth.uid())::text) OR is_admin_or_coordinator())) | check=",
+<         "testimony_images_owner_update | UPDATE | {authenticated} | using=((bucket_id = 'testimony-images'::text) AND is_active_member() AND ((storage.foldername(name))[1] = (auth.uid())::text)) | check=((bucket_id = 'testimony-images'::text) AND is_active_member() AND ((storage.foldername(name))[1] = (auth.uid())::text))",
+<         "testimony_images_read | SELECT | {authenticated} | using=((bucket_id = 'testimony-images'::text) AND is_active_member()) | check=",
+<         "user_media_avatar_delete | DELETE | {authenticated} | using=((bucket_id = 'user-media'::text) AND ((storage.foldername(name))[1] = 'avatars'::text) AND (split_part(storage.filename(name), '.'::text, 1) = (auth.uid())::text)) | check=",
+<         "user_media_avatar_insert | INSERT | {authenticated} | using= | check=((bucket_id = 'user-media'::text) AND is_active_member() AND ((storage.foldername(name))[1] = 'avatars'::text) AND (split_part(storage.filename(name), '.'::text, 1) = (auth.uid())::text))",
+<         "user_media_avatar_update | UPDATE | {authenticated} | using=((bucket_id = 'user-media'::text) AND is_active_member() AND ((storage.foldername(name))[1] = 'avatars'::text) AND (split_part(storage.filename(name), '.'::text, 1) = (auth.uid())::text)) | check=((bucket_id = 'user-media'::text) AND is_active_member() AND ((storage.foldername(name))[1] = 'avatars'::text) AND (split_part(storage.filename(name), '.'::text, 1) = (auth.uid())::text))",
+<         "user_media_read | SELECT | {authenticated} | using=((bucket_id = 'user-media'::text) AND is_active_member()) | check="
+---
+>         "devotional_images_admin_delete | DELETE | {authenticated} | using=((bucket_id = 'devotional-images'::text) AND is_devotional_admin()) | check= | PERMISSIVE",
+>         "devotional_images_admin_insert | INSERT | {authenticated} | using= | check=((bucket_id = 'devotional-images'::text) AND is_devotional_admin()) | PERMISSIVE",
+>         "devotional_images_admin_update | UPDATE | {authenticated} | using=((bucket_id = 'devotional-images'::text) AND is_devotional_admin()) | check=((bucket_id = 'devotional-images'::text) AND is_devotional_admin()) | PERMISSIVE",
+>         "devotional_images_read | SELECT | {authenticated} | using=((bucket_id = 'devotional-images'::text) AND is_active_member()) | check= | PERMISSIVE",
+>         "testimony_images_owner_insert | INSERT | {authenticated} | using= | check=((bucket_id = 'testimony-images'::text) AND is_active_member() AND ((storage.foldername(name))[1] = (auth.uid())::text)) | PERMISSIVE",
+>         "testimony_images_owner_or_moderator_delete | DELETE | {authenticated} | using=((bucket_id = 'testimony-images'::text) AND (((storage.foldername(name))[1] = (auth.uid())::text) OR is_admin_or_coordinator())) | check= | PERMISSIVE",
+>         "testimony_images_owner_update | UPDATE | {authenticated} | using=((bucket_id = 'testimony-images'::text) AND is_active_member() AND ((storage.foldername(name))[1] = (auth.uid())::text)) | check=((bucket_id = 'testimony-images'::text) AND is_active_member() AND ((storage.foldername(name))[1] = (auth.uid())::text)) | PERMISSIVE",
+>         "testimony_images_read | SELECT | {authenticated} | using=((bucket_id = 'testimony-images'::text) AND is_active_member()) | check= | PERMISSIVE",
+>         "user_media_avatar_delete | DELETE | {authenticated} | using=((bucket_id = 'user-media'::text) AND ((storage.foldername(name))[1] = 'avatars'::text) AND (split_part(storage.filename(name), '.'::text, 1) = (auth.uid())::text)) | check= | PERMISSIVE",
+>         "user_media_avatar_insert | INSERT | {authenticated} | using= | check=((bucket_id = 'user-media'::text) AND is_active_member() AND ((storage.foldername(name))[1] = 'avatars'::text) AND (split_part(storage.filename(name), '.'::text, 1) = (auth.uid())::text)) | PERMISSIVE",
+>         "user_media_avatar_update | UPDATE | {authenticated} | using=((bucket_id = 'user-media'::text) AND is_active_member() AND ((storage.foldername(name))[1] = 'avatars'::text) AND (split_part(storage.filename(name), '.'::text, 1) = (auth.uid())::text)) | check=((bucket_id = 'user-media'::text) AND is_active_member() AND ((storage.foldername(name))[1] = 'avatars'::text) AND (split_part(storage.filename(name), '.'::text, 1) = (auth.uid())::text)) | PERMISSIVE",
+>         "user_media_read | SELECT | {authenticated} | using=((bucket_id = 'user-media'::text) AND is_active_member()) | check= | PERMISSIVE"
