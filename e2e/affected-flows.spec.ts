@@ -74,6 +74,11 @@ test.beforeAll(async ({}, testInfo) => {
   if (fErr) throw new Error(`fellowship: ${fErr.message}`);
   const { data: cell, error: cErr } = await admin.from('cells').insert({ name: `Flow cell ${run}`, fellowship_id: fellowship.id }).select().single();
   if (cErr) throw new Error(`cell: ${cErr.message}`);
+  // guard_bsc_leader_eligibility (055) requires profiles.cell_id = bscs.cell_id. Set cell membership for all
+  // test members now, before the BSC with leader_id is created. The leader is a BSC leader only (not a cell
+  // leader): cells.leader_id is left unset so is_cell_leader_of() returns false and the leader sees only their
+  // own BSC's members, not every BSC in the cell.
+  await admin.from('profiles').update({ cell_id: cell.id }).in('id', [ids.leader!, ids.member!, ids.pending!, ids.outsider!]);
   const bscA = await admin.from('bscs').insert({ cell_id: cell.id, name: `Flow BSC A ${run}`, leader_id: ids.leader }).select().single();
   const bscB = await admin.from('bscs').insert({ cell_id: cell.id, name: `Flow BSC B ${run}` }).select().single();
   if (bscA.error || bscB.error) throw new Error(`bsc: ${bscA.error?.message ?? bscB.error?.message}`);
@@ -144,7 +149,7 @@ test.describe('confessions (declaration privacy, T1 and T5)', () => {
     const errors = trackErrors(page);
     await signIn(page, people.member.email);
     await page.goto('/confessions');
-    await expect(page.getByRole('heading', { name: /Daily Confessions/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Daily Affirmations/ })).toBeVisible();
     await expect(page.getByText(`Flow confession ${run}`)).toBeVisible();
     await expect(page.getByText('2 declared')).toBeVisible();
     const body = (await page.locator('body').innerText());
@@ -167,7 +172,7 @@ test.describe('BSC leader view (scope, T2 and T4)', () => {
     const errors = trackErrors(page);
     await signIn(page, people.leader.email);
     await page.goto('/my-bsc');
-    await expect(page.getByText('My BSC', { exact: true })).toBeVisible();
+    await expect(page.getByText('My Bible Study Class', { exact: true })).toBeVisible();
     await expect(page.getByText(`Flow BSC A ${run}`)).toBeVisible();
     await expect(page.getByText(people.member.name)).toBeVisible();
     await expect(page.getByText(people.pending.name)).toBeVisible();
@@ -209,8 +214,8 @@ test.describe('phone width (375 x 812)', () => {
 
   test('confessions page does not scroll horizontally on a phone', async ({ page }) => {
     await signIn(page, people.member.email);
-    await page.goto('/confessions');
-    await expect(page.getByRole('heading', { name: /Daily Confessions/ })).toBeVisible();
+    await page.goto('/affirmations');
+    await expect(page.getByRole('heading', { name: /Daily Affirmations/ })).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });
 });
