@@ -334,11 +334,15 @@ export interface Meeting {
   category: MeetingCategory;
   cell_id?: string;
   allow_join_requests?: boolean;
+  /** null while the meeting is a draft. Only organizers can see a draft. */
+  published_at?: string | null;
   created_by: string;
   created_at: string;
   reminder_sent: boolean;
   attendance_count?: number;
   user_confirmed?: boolean;
+  /** The signed-in user's own attendance state for this meeting, if they have one. */
+  user_attendance_status?: MeetingAttendanceStatus | null;
 }
 
 export interface MeetingInput {
@@ -353,7 +357,12 @@ export interface MeetingInput {
   category: MeetingCategory;
   cell_id?: string;
   allow_join_requests?: boolean;
+  /** Create as an unpublished draft. Not stored as a column: the query layer maps it to published_at. */
+  draft?: boolean;
 }
+
+export type MeetingAttendanceStatus = 'invited' | 'confirmed' | 'attended' | 'absent' | 'excused';
+export type MeetingInvitationSource = 'self' | 'member' | 'group' | 'cell' | 'all';
 
 export interface MeetingAttendance {
   id: string;
@@ -362,6 +371,27 @@ export interface MeetingAttendance {
   user_name: string;
   confirmed_at: string;
   attended?: boolean;
+  attendance_status: MeetingAttendanceStatus;
+  invited_via: MeetingInvitationSource;
+  invited_by?: string | null;
+}
+
+/** Named, reusable group of members (operational table saved_groups, migration 059). */
+export interface SavedGroup {
+  id: string;
+  name: string;
+  description?: string | null;
+  created_by: string;
+  is_active: boolean;
+  created_at: string;
+  member_count?: number;
+}
+
+export interface AudiencePerson {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  cell_id: string | null;
 }
 
 // ─── Message of the Week ─────────────────────────────────────────────────────

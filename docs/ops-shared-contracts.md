@@ -131,22 +131,34 @@ The existing `meetings.visibility` enum includes `'explicit'` (already in migrat
 - `visibility = 'explicit'` — only users who have a row in `meeting_attendances` for this meeting
   (plus admins/coordinators for operational access).
 
-### RLS gap to close (migration 061)
+### Migration 061 repaired (migration 066)
 
-The current `meeting_attendances` policies do not restrict SELECT for `visibility = 'explicit'`.
-Migration 061 adds:
+Migration 061 added `meetings_explicit_invitee_read` and a `meeting_attendances` select policy that reference each other.
+Postgres rejects that with `42P17 infinite recursion detected in policy`, so every read of `meetings` failed for every
+role. Migration 066 keeps 061's predicates, evaluates them through SECURITY DEFINER helpers, and leaves 061 unedited:
 
-```sql
--- A user may see a meeting_attendances row if:
---   they are the attendee (user_id = auth.uid())
---   OR the meeting is not 'explicit'
---   OR they are admin/coordinator
-```
+- `can_view_meeting(meeting)`: the single read rule. Managers always; everyone else when the meeting is published and
+  one of the visibility rules holds, or the caller holds a row for it. Pending, rejected and inactive accounts never.
+- `is_meeting_participant(meeting)`, `is_meeting_manager(meeting)`, `is_meeting_creator(meeting)`.
+- A RESTRICTIVE policy `meetings_publication_gate` applies on top of every permissive read policy: a draft is readable
+  by its managers only.
 
-**Test requirement**: A member not in `meeting_attendances` for an `explicit` meeting
-cannot SELECT that meeting row or its attendance rows.
+**Test requirement** (E2E-05): a member not in `meeting_attendances` for an `explicit` meeting cannot SELECT that meeting
+row or its attendance rows.
 
----
+### Meeting audience and invitations (migration 066)
+
+- `meetings.audience_spec_id` points at the current `audience_specs` row. Each audience change writes a new immutable
+  spec through `set_meeting_audience()`. Old specs stay as history.
+- `meeting_attendances` is the live invitation list (§4). Every non-self row records `audience_spec_id` and
+  `invited_via` (`all`, `cell`, `group`, `member`, or `self` for a registration). After any change, every non-self row
+  resolves through `resolve_audience(audience_spec_id)`. Certified by E2E-10.
+- Attendance states: `invited`, `confirmed`, `attended`, `absent`, `excused`. The legacy `attended` boolean is derived
+  from the state. Invitees respond through `respond_to_meeting_invitation()` (confirmed or excused only).
+- A recorded outcome (`attended` or `absent`) cannot be reset to `invited` or `confirmed`, and the row cannot be
+  deleted, so a meeting with recorded attendance cannot be deleted either. An outcome is withdrawn by recording the
+  person as `excused`.
+- `publish_meeting()` refuses an invite-only meeting that has no invitees. Drafts are created with `published_at` null.
 
 ## 6. Assignment Status and Ownership Model
 
@@ -238,6 +250,8 @@ Migrations must be forward-only with unique numbers. Do not alter or reorder mig
 | 062 | Assignments | `assignments` table, RLS, status-transition trigger |
 | 063 | Affirmations | `confessions.audience_spec_id`, updated RLS |
 | 064 | Announcements | `announcements.audience_spec_id`, updated RLS |
+| 066 | Meetings/attendance | Repairs 061 recursion; publication gate; audience specs on meetings; attendance states; `set_meeting_audience`, `respond_to_meeting_invitation`, `publish_meeting` |
+| 067 | Shared audience | Event read gate for meeting, cell, saved-group and explicit audiences; revokes PUBLIC execute on the 062 trigger function |
 
 Each migration file must:
 - Open with a comment block naming its number, owner workstream, and dependencies.

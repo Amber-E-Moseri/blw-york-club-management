@@ -3,6 +3,7 @@ import { LayoutList, Building2, BookOpen, Users, Star, Calendar, Plus, type Luci
 import { Button } from '../components/foundation/Button';
 import { MeetingCard } from '../components/feature/MeetingCard';
 import { MeetingForm } from '../components/feature/MeetingForm';
+import { MeetingAudiencePanel } from '../components/feature/MeetingAudiencePanel';
 import { useMeetings } from '../hooks/useMeetings';
 import type { AuthUser } from '../lib/auth';
 import type { Meeting, MeetingInput, MeetingCategory } from '../types';
@@ -23,9 +24,10 @@ export const Meetings: React.FC<Props> = ({ user }) => {
   const [showPast, setShowPast] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Meeting | null>(null);
+  const [audienceMeeting, setAudienceMeeting] = useState<Meeting | null>(null);
   const [activeTab, setActiveTab] = useState<MeetingCategory | 'all'>('all');
 
-  const { meetings, loading, error, save, remove, confirm, cancel } = useMeetings(!showPast);
+  const { meetings, loading, error, save, remove, confirm, cancel, refetch } = useMeetings(!showPast);
 
   const isManager = canManage(user?.role ?? 'member');
   const isLeader = ['coordinator', 'admin', 'cell_leader'].includes(user?.role ?? '');
@@ -40,12 +42,12 @@ export const Meetings: React.FC<Props> = ({ user }) => {
 
   const handleConfirm = async (meetingId: string) => {
     if (!user) return;
-    await confirm(meetingId, user.id, user.name);
+    await confirm(meetingId);
   };
 
   const handleCancel = async (meetingId: string) => {
     if (!user) return;
-    await cancel(meetingId, user.id);
+    await cancel(meetingId);
   };
 
   // Filter by category; also hide leadership from non-leaders unless allow_join_requests
@@ -150,6 +152,7 @@ export const Meetings: React.FC<Props> = ({ user }) => {
               onCancel={handleCancel}
               onEdit={isManager ? handleEdit : undefined}
               onDelete={isManager ? remove : undefined}
+              onManageAudience={isManager ? setAudienceMeeting : undefined}
             />
           ))}
         </div>
@@ -160,6 +163,13 @@ export const Meetings: React.FC<Props> = ({ user }) => {
         onClose={() => { setFormOpen(false); setEditing(null); }}
         onSave={handleSave}
         meeting={editing}
+      />
+      <MeetingAudiencePanel
+        isOpen={audienceMeeting !== null}
+        onClose={() => setAudienceMeeting(null)}
+        meeting={audienceMeeting}
+        user={user}
+        onChanged={() => { void refetch(); }}
       />
     </div>
   );

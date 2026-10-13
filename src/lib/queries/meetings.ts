@@ -1,5 +1,8 @@
 import { supabase } from '../supabase';
-import type { Meeting, MeetingInput, MeetingAttendance } from '../../types';
+import type { Meeting, MeetingInput, MeetingAttendance, MeetingAttendanceStatus } from '../../types';
+
+/** Attendance states that count as "going" for the signed-in user's own button. */
+const GOING_STATES: MeetingAttendanceStatus[] = ['confirmed', 'attended'];
 
 export async function fetchMeetings(upcoming = true): Promise<Meeting[]> {
   const today = new Date().toISOString().split('T')[0];
@@ -13,6 +16,8 @@ export async function fetchMeetings(upcoming = true): Promise<Meeting[]> {
 
   if (upcoming) q = q.gte('date', today);
 
+  // Row-level security decides which meetings come back: drafts for organizers only, invite-only meetings for their
+  // invitees and organizers, and nothing for pending or rejected accounts.
   const { data, error } = await q;
   if (error) throw new Error(error.message);
 
@@ -21,20 +26,26 @@ export async function fetchMeetings(upcoming = true): Promise<Meeting[]> {
 
   const { data: ownAttendances, error: attendanceError } = await supabase
     .from('meeting_attendances')
-    .select('meeting_id')
+    .select('meeting_id, attendance_status')
     .eq('user_id', userId)
     .in('meeting_id', meetings.map((meeting) => meeting.id));
 
   if (attendanceError) {
     console.warn('Unable to load meeting attendance status', attendanceError.message);
-    return meetings.map((meeting) => ({ ...meeting, user_confirmed: false }));
+    return meetings.map((meeting) => ({ ...meeting, user_confirmed: false, user_attendance_status: null }));
   }
 
-  const confirmedMeetingIds = new Set((ownAttendances ?? []).map((row) => row.meeting_id as string));
-  return meetings.map((meeting) => ({
-    ...meeting,
-    user_confirmed: confirmedMeetingIds.has(meeting.id),
-  }));
+  const ownStatus = new Map(
+    (ownAttendances ?? []).map((row) => [row.meeting_id as string, row.attendance_status as MeetingAttendanceStatus]),
+  );
+  return meetings.map((meeting) => {
+    const status = ownStatus.get(meeting.id) ?? null;
+    return {
+      ...meeting,
+      user_attendance_status: status,
+      user_confirmed: status !== null && GOING_STATES.includes(status),
+    };
+  });
 }
 
 export async function fetchMeeting(id: string): Promise<Meeting | null> {
@@ -44,19 +55,23 @@ export async function fetchMeeting(id: string): Promise<Meeting | null> {
   return data;
 }
 
-function normalizeInput<T extends Partial<MeetingInput>>(input: T): T {
-  const out = { ...input };
+/** Table columns from the form input. The draft flag is not a column and is removed here. */
+function toColumns(input: Partial<MeetingInput>): Record<string, unknown> {
+  const { draft: _draft, ...columns } = input;
+  const out: Record<string, unknown> = { ...columns };
   if ('end_time' in out && !out.end_time) delete out.end_time;
-  if ('location' in out && !out.location) (out as Record<string, unknown>).location = null;
-  if ('zoom_link' in out && !out.zoom_link) (out as Record<string, unknown>).zoom_link = null;
+  if ('location' in out && !out.location) out.location = null;
+  if ('zoom_link' in out && !out.zoom_link) out.zoom_link = null;
   return out;
 }
 
 export async function createMeeting(
   input: MeetingInput & { created_by: string }
 ): Promise<Meeting> {
-  const { data, error } = await supabase
-    .from('meetings').insert(normalizeInput(input)).select().single();
+  // A new meeting is published straight away unless it was created as a draft. A draft is published later with
+  // publishMeeting(), once its invitations have been previewed.
+  const row = { ...toColumns(input), published_at: input.draft ? null : new Date().toISOString() };
+  const { data, error } = await supabase.from('meetings').insert(row).select().single();
   if (error) throw new Error(error.message);
   return data;
 }
@@ -65,8 +80,10 @@ export async function updateMeeting(
   id: string,
   input: Partial<MeetingInput>
 ): Promise<Meeting> {
-  const { data, error } = await supabase
-    .from('meetings').update(normalizeInput(input)).eq('id', id).select().single();
+  // Publication changes only through publishMeeting(), never through an edit.
+  const columns = toColumns(input);
+  delete columns.published_at;
+  const { data, error } = await supabase.from('meetings').update(columns).eq('id', id).select().single();
   if (error) throw new Error(error.message);
   return data;
 }
@@ -76,25 +93,27 @@ export async function deleteMeeting(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-export async function confirmAttendance(
-  meetingId: string,
-  userId: string,
-  userName: string
-): Promise<void> {
-  const { error } = await supabase
-    .from('meeting_attendances')
-    .upsert(
-      { meeting_id: meetingId, user_id: userId, user_name: userName },
-      { onConflict: 'meeting_id,user_id', ignoreDuplicates: true },
-    );
+/**
+ * The signed-in user says they are going. Works for a public meeting (creates a self registration) and for a meeting
+ * they were invited to (moves the invitation to confirmed). Staff-recorded outcomes cannot be overwritten.
+ */
+export async function confirmAttendance(meetingId: string): Promise<void> {
+  const { error } = await supabase.rpc('respond_to_meeting_invitation', {
+    p_meeting_id: meetingId,
+    p_response: 'confirmed',
+  });
   if (error) throw new Error(error.message);
 }
 
-export async function cancelAttendance(meetingId: string, userId: string): Promise<void> {
-  const { error } = await supabase
-    .from('meeting_attendances')
-    .delete()
-    .match({ meeting_id: meetingId, user_id: userId });
+/**
+ * The signed-in user says they will not attend. The row is kept as 'excused', so an invitation is not lost and the
+ * organizers can see the apology.
+ */
+export async function cancelAttendance(meetingId: string): Promise<void> {
+  const { error } = await supabase.rpc('respond_to_meeting_invitation', {
+    p_meeting_id: meetingId,
+    p_response: 'excused',
+  });
   if (error) throw new Error(error.message);
 }
 
@@ -103,19 +122,29 @@ export async function fetchAttendances(meetingId: string): Promise<MeetingAttend
     .from('meeting_attendances')
     .select('*')
     .eq('meeting_id', meetingId)
-    .order('confirmed_at', { ascending: true });
+    .order('user_name', { ascending: true });
   if (error) throw new Error(error.message);
-  return data ?? [];
+  return (data ?? []) as MeetingAttendance[];
 }
 
+/** Records a staff outcome for one invitee or attendee. The legacy boolean is kept in step by the database. */
+export async function markAttendanceStatus(
+  meetingId: string,
+  userId: string,
+  status: MeetingAttendanceStatus,
+): Promise<void> {
+  const { error } = await supabase
+    .from('meeting_attendances')
+    .update({ attendance_status: status })
+    .match({ meeting_id: meetingId, user_id: userId });
+  if (error) throw new Error(error.message);
+}
+
+/** Boolean form kept for existing callers: true is attended, false is absent. */
 export async function markAttended(
   meetingId: string,
   userId: string,
   attended: boolean
 ): Promise<void> {
-  const { error } = await supabase
-    .from('meeting_attendances')
-    .update({ attended })
-    .match({ meeting_id: meetingId, user_id: userId });
-  if (error) throw new Error(error.message);
+  await markAttendanceStatus(meetingId, userId, attended ? 'attended' : 'absent');
 }

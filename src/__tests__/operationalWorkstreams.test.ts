@@ -251,8 +251,8 @@ describe('operational workstream contract invariants', () => {
         .find(f => f.startsWith(String(n).padStart(3, '0') + '_'))!.replace(/^\d+_/, '')}`)
     );
     for (const sql of newMigs) {
-      const definerFns = [...sql.matchAll(/security definer/g)];
-      const searchPathMatches = [...sql.matchAll(/set search_path = public, pg_temp/g)];
+      const definerFns = Array.from(sql.matchAll(/security definer/g));
+      const searchPathMatches = Array.from(sql.matchAll(/set search_path = public, pg_temp/g));
       expect(searchPathMatches.length).toBeGreaterThanOrEqual(definerFns.length);
     }
   });

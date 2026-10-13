@@ -43,6 +43,13 @@ const CATEGORIES: { value: MeetingCategory; label: string; desc: string; icon: L
   },
 ];
 
+const VISIBILITY_OPTIONS: { value: MeetingVisibility; label: string; desc: string }[] = [
+  { value: 'public', label: 'All members', desc: 'Every active member can see it once it is published' },
+  { value: 'leaders', label: 'Leaders only', desc: 'Cell leaders, admins and coordinators' },
+  { value: 'cell', label: 'Cell members', desc: 'Members of the cell this meeting belongs to' },
+  { value: 'explicit', label: 'Invite only', desc: 'Only the people you invite can see it. Invite them from the Invitations panel.' },
+];
+
 const EMPTY: MeetingInput = {
   title: '',
   description: '',
@@ -54,6 +61,7 @@ const EMPTY: MeetingInput = {
   visibility: 'public',
   category: 'general',
   allow_join_requests: false,
+  draft: false,
 };
 
 type Errors = Partial<Record<keyof MeetingInput, string>>;
@@ -162,6 +170,49 @@ export const MeetingForm: React.FC<Props> = ({ isOpen, onClose, onSave, meeting 
             ))}
           </div>
         </div>
+
+        {/* Who can see it */}
+        <div>
+          <label className="block text-sm font-bold text-gray-800 mb-2">Who can see it</label>
+          <div className="grid grid-cols-2 gap-2">
+            {VISIBILITY_OPTIONS.map((v) => (
+              <label
+                key={v.value}
+                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  form.visibility === v.value ? 'border-york-600 bg-red-50' : 'border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="meeting-visibility"
+                  value={v.value}
+                  checked={form.visibility === v.value}
+                  onChange={() => set('visibility', v.value)}
+                  className="mt-0.5 text-york-600 focus:ring-york-600"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">{v.label}</p>
+                  <p className="text-xs text-gray-400 leading-snug mt-0.5">{v.desc}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {!meeting && (
+          <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.draft ?? false}
+              onChange={(e) => set('draft', e.target.checked)}
+              className="rounded text-york-600 focus:ring-york-600"
+            />
+            <div>
+              <p className="text-sm font-semibold text-gray-800">Save as draft</p>
+              <p className="text-xs text-gray-400">Only you can see a draft. Publish it after you have reviewed the invitations.</p>
+            </div>
+          </label>
+        )}
 
         {/* Leadership: join request toggle */}
         {form.category === 'leadership' && (
