@@ -2714,7 +2714,7 @@
             },
             "security": "definer",
             "volatility": "s",
-            "definition_md5": "972fac6d54378b7df839fe8f5f63180e"
+            "definition_md5": "57dd3375547bd45903fb735ed902aac9"
         },
         "can_view_member(uuid)": {
             "owner": "postgres",
