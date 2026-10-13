@@ -295,6 +295,13 @@ describe('operational workstream contract invariants', () => {
 describe('065: audience grants and policy fixes', () => {
   const sql = mig('065_audience_grants_and_policy_fixes.sql');
 
+  test('adds service_role full-DML grants for all four new tables', () => {
+    const tables = ['saved_groups', 'saved_group_members', 'audience_specs', 'assignments'];
+    for (const t of tables) {
+      expect(sql).toMatch(new RegExp(`grant select, insert, update, delete on public\\.${t}\\s+to service_role`, 'i'));
+    }
+  });
+
   test('adds write grants for saved_groups to authenticated', () => {
     expect(sql).toMatch(/grant insert, update, delete on public\.saved_groups\s+to authenticated/i);
   });
