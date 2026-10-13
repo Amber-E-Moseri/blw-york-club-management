@@ -6,10 +6,6 @@ import { createContact } from '../../lib/queries/contacts';
 import { createMeeting } from '../../lib/queries/meetings';
 import { effectiveRole, type AuthUser } from '../../lib/auth';
 
-const ROLE_LEVEL: Record<AuthUser['role'], number> = {
-  member: 0, cell_leader: 1, admin: 2, coordinator: 3,
-};
-
 type Tab = 'contact' | 'meeting';
 
 function today() {
@@ -23,8 +19,9 @@ interface QuickAddContentProps {
 
 const QuickAddContent: React.FC<QuickAddContentProps> = ({ user, onClose }) => {
   const role = effectiveRole(user);
-  const level = ROLE_LEVEL[role] ?? 0;
-  const canLogContact = level >= 1;
+  // Approved rule: active ordinary members can log outreach contacts. Pending, inactive and rejected accounts cannot.
+  // The database enforces the same rule (contacts_insert_scoped, migration 091).
+  const canLogContact = user.status === 'active';
 
   const [tab, setTab] = useState<Tab>(canLogContact ? 'contact' : 'meeting');
   const [saving, setSaving] = useState(false);
@@ -51,8 +48,10 @@ const QuickAddContent: React.FC<QuickAddContentProps> = ({ user, onClose }) => {
   const manageableCells = useMemo(() => {
     if (role === 'coordinator' || role === 'admin') return cells;
     if (role === 'cell_leader') return cells.filter((cell) => cell.leader_id === user.id);
+    // An ordinary active member may attribute a contact to their own cell only (contacts_insert_scoped, migration 091).
+    if (user.status === 'active' && user.cellId) return cells.filter((cell) => cell.id === user.cellId);
     return [];
-  }, [cells, user.id, role]);
+  }, [cells, user.id, user.cellId, user.status, role]);
 
   const selectedContactCellIsAllowed = manageableCells.some((cell) => cell.id === contactCellId);
   const selectedMeetingCellIsAllowed = manageableCells.some((cell) => cell.id === meetingCellId);
