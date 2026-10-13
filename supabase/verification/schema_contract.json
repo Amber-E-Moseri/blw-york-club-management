@@ -2,15 +2,15 @@
   "_comment": "The reviewed, human-readable security contract for the database. check_schema_contract.mjs asserts every item against schema_fingerprint.sql output. Changing this file is a security decision.",
   "tables": [
     "admin_bootstrap_audit", "admin_role_assignments", "admin_role_permissions", "admin_roles", "announcements",
-    "attendance_imports", "attendance_member_matches", "books_of_month", "bscs", "cells", "confession_declarations",
-    "confessions", "contact_audit_log", "contact_follow_ups", "contact_tags", "contacts", "devotional_daily_pages",
-    "devotional_views", "drive_link_metadata", "email_drafts", "email_log", "email_notification_log", "email_preferences",
-    "email_templates", "event_rsvps", "events", "fellowships", "foundation_school_classes", "foundation_school_enrollments",
-    "foundation_school_progress", "habit_entries", "habit_templates", "meeting_attendances", "meetings",
-    "membership_transitions", "memberships", "monthly_devotionals", "people", "prayer_requests", "profiles",
-    "push_notification_log", "push_subscriptions", "scheduled_emails", "staff_profile_edit_audit", "status_settings", "tags_settings",
-    "testimonies", "testimony_comments", "testimony_reactions", "user_profiles", "weekly_messages",
-    "zoom_attendance", "zoom_settings"
+    "attendance_imports", "attendance_member_matches", "books_of_month", "bsc_assignment_audit", "bscs", "cells",
+    "confession_declarations", "confessions", "contact_audit_log", "contact_follow_ups", "contact_tags", "contacts",
+    "devotional_daily_pages", "devotional_views", "drive_link_metadata", "email_drafts", "email_log",
+    "email_notification_log", "email_preferences", "email_templates", "event_rsvps", "events", "fellowships",
+    "foundation_school_classes", "foundation_school_enrollments", "foundation_school_progress", "habit_entries",
+    "habit_templates", "meeting_attendances", "meetings", "membership_transitions", "memberships",
+    "monthly_devotionals", "people", "prayer_requests", "profiles", "push_notification_log", "push_subscriptions",
+    "scheduled_emails", "staff_profile_edit_audit", "status_settings", "tags_settings", "testimonies",
+    "testimony_comments", "testimony_reactions", "user_profiles", "weekly_messages", "zoom_attendance", "zoom_settings"
   ],
   "views": ["member_directory"],
   "authenticatedPrivileges": {
@@ -26,10 +26,10 @@
     "INSERT,SELECT": ["contact_audit_log", "email_notification_log", "membership_transitions"],
     "INSERT,SELECT,UPDATE": ["contact_follow_ups", "email_preferences", "memberships"],
     "DELETE,INSERT,SELECT": ["contact_tags", "testimony_comments", "testimony_reactions"],
-    "SELECT": ["push_notification_log", "staff_profile_edit_audit", "zoom_attendance"],
+    "SELECT": ["bsc_assignment_audit", "push_notification_log", "staff_profile_edit_audit", "zoom_attendance"],
     "": ["admin_bootstrap_audit", "scheduled_emails"]
   },
-  "serviceRoleNoAccess": ["admin_bootstrap_audit"],
+  "serviceRoleNoAccess": ["admin_bootstrap_audit", "bsc_assignment_audit"],
   "forbiddenPrivileges": ["TRUNCATE", "REFERENCES", "TRIGGER"],
   "profilePolicyAllowList": {
     "profiles": ["profiles_coordinator_administer", "profiles_select_scoped", "profiles_self_onboarding_update", "profiles_self_update_active"],
@@ -71,7 +71,10 @@
     "audit_staff_profile_edits()": { "security": "definer", "execute": [] },
     "guard_profile_privileged_columns()": { "security": "invoker", "execute": [] },
     "handle_new_user()": { "security": "definer", "execute": [] },
-    "set_updated_at()": { "security": "invoker", "execute": [] }
+    "set_updated_at()": { "security": "invoker", "execute": [] },
+    "guard_bsc_leader_eligibility()": { "security": "definer", "execute": [] },
+    "guard_bsc_delete_empty()": { "security": "definer", "execute": [] },
+    "assign_member_to_bsc(uuid,uuid)": { "security": "definer", "execute": ["authenticated"] }
   },
   "definerSearchPath": "search_path=public, pg_temp",
   "storage": {
