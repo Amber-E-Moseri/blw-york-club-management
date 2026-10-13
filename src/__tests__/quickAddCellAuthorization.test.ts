@@ -29,12 +29,22 @@ describe('Quick Add cell authorization', () => {
     expect(policies).toContain('public.is_cell_leader_of(cell_id)');
   });
 
-  test('ordinary members and users with no authorized cell get a useful disabled state', () => {
+  test('active ordinary members can log contacts to their own cell or unassigned (approved rule, migration 091)', () => {
     const quickAdd = read('src/components/feature/QuickAddModal.tsx');
 
-    expect(quickAdd).toContain('Your account is not authorized to log outreach contacts under the current contact permissions.');
+    expect(quickAdd).toContain("const canLogContact = user.status === 'active';");
+    expect(quickAdd).toContain("if (user.status === 'active' && user.cellId) return cells.filter((cell) => cell.id === user.cellId);");
+    expect(quickAdd).toContain("name: 'No cell (unassigned)'");
+    expect(quickAdd).toContain("cell_id: contactCellId === UNASSIGNED_CELL ? '' : contactCellId,");
+    expect(quickAdd).toContain('disabled={saving || contactCellOptions.length === 0}');
     expect(quickAdd).toContain('No authorized cells');
-    expect(quickAdd).toContain('disabled={saving || manageableCells.length === 0}');
+  });
+
+  test('pending, inactive and rejected accounts cannot log contacts in the UI', () => {
+    const quickAdd = read('src/components/feature/QuickAddModal.tsx');
+
+    expect(quickAdd).toContain("const canLogUnassignedContact = user.status === 'active';");
+    expect(quickAdd).not.toMatch(/canLogContact\s*=\s*level/);
   });
 
   test('Schedule Meeting uses the same authorized cell selection for cell meetings', () => {
