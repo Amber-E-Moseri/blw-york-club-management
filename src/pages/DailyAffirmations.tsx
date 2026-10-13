@@ -16,26 +16,22 @@ import {
   type SavedAudienceGroup,
 } from '../lib/queries/audience';
 import { getMembers } from '../lib/queries';
-import {
-  AUDIENCE_KINDS,
-  canTargetAffirmations,
-  validateAudience,
-  type AudienceDraft,
-  type AudienceKind,
-} from '../lib/audience/audienceRules';
+import { canTargetAffirmations } from '../lib/audience/audienceRules';
+import { emptySpecDraft } from '../lib/audience/spec';
+import { validateAudienceSpec } from '../lib/audience/resolveAudience';
+import { AudienceSelector, ERROR_TEXT } from '../components/feature/AudienceSelector';
+import type {
+  AudienceCandidate,
+  AudienceSavedGroup,
+  AudienceScope,
+  AudienceSpecDraft,
+} from '../types/audience';
 import type { AuthUser } from '../lib/auth';
 import type { Member } from '../types';
 
 interface Props { user: AuthUser | null; }
 
 const canManage = (role: string) => ['coordinator', 'admin'].includes(role);
-
-const AUDIENCE_LABEL: Record<AudienceKind, string> = {
-  all: 'Everyone',
-  cell: 'A cell',
-  group: 'A saved group',
-  individuals: 'Selected people',
-};
 
 const selectClass =
   'w-full rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-gray-900 dark:text-slate-100';
@@ -52,7 +48,7 @@ export const DailyAffirmations: React.FC<Props> = ({ user }) => {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
 
-  const [audience, setAudience] = useState<AudienceDraft>({ kind: 'all', cellId: null, groupId: null, userIds: [] });
+  const [audience, setAudience] = useState<AudienceSpecDraft>(emptySpecDraft());
   const [cells, setCells] = useState<AudienceCell[]>([]);
   const [groups, setGroups] = useState<SavedAudienceGroup[]>([]);
   const [people, setPeople] = useState<Member[]>([]);
@@ -69,6 +65,25 @@ export const DailyAffirmations: React.FC<Props> = ({ user }) => {
   const [importSaving, setImportSaving] = useState(false);
   const [importError, setImportError] = useState('');
   const [importNotice, setImportNotice] = useState('');
+
+  // The shared selector works on candidates, cells, groups and a scope. Candidates are the active members loaded
+  // above. The scope mirrors the server: only admins and coordinators address everyone or exclude people.
+  const audienceCandidates = useMemo<AudienceCandidate[]>(() => people.map((p) => ({
+    id: p.id,
+    fullName: p.full_name ?? '',
+    email: p.email ?? null,
+    cellId: p.cell_id ?? null,
+    status: 'active' as const,
+  })), [people]);
+  const savedGroupsForSelector = useMemo<AudienceSavedGroup[]>(() => groups.map((g) => ({
+    id: g.id,
+    name: g.name,
+    isActive: g.is_active,
+    memberIds: g.member_ids,
+  })), [groups]);
+  const canAddressAudience = canTargetAffirmations(user?.role ?? 'member');
+  const audienceScope: AudienceScope = { canUseEveryone: canAddressAudience, ledCellIds: [], canExclude: canAddressAudience };
+  const audienceData = { candidates: audienceCandidates, groups: savedGroupsForSelector, cells };
   const importCheck = useMemo(
     () => parseAffirmationImport(importText, user?.id ?? ''),
     [importText, user?.id]
@@ -117,14 +132,14 @@ export const DailyAffirmations: React.FC<Props> = ({ user }) => {
     setNewTitle('');
     setNewBody('');
     setNewDate(today);
-    setAudience({ kind: 'all', cellId: null, groupId: null, userIds: [] });
+    setAudience(emptySpecDraft());
   };
 
   const handleAdd = async () => {
     if (!newTitle.trim() || !newBody.trim() || !user) return;
-    const audienceError = validateAudience(audience);
-    if (audienceError) {
-      setFormError(audienceError);
+    const audienceErrors = validateAudienceSpec(audience, audienceData, audienceScope);
+    if (audienceErrors.length > 0) {
+      setFormError(ERROR_TEXT[audienceErrors[0]]);
       return;
     }
     setFormError('');
@@ -359,57 +374,15 @@ export const DailyAffirmations: React.FC<Props> = ({ user }) => {
           {canTarget && (
             <fieldset className="space-y-3 rounded-md border border-gray-200 dark:border-slate-700 p-3">
               <legend className="px-1 text-sm font-medium text-gray-700 dark:text-slate-300">Who receives this</legend>
-              <div>
-                <label className="sr-only" htmlFor="affirmation-audience">Audience</label>
-                <select
-                  id="affirmation-audience"
-                  className={selectClass}
-                  value={audience.kind}
-                  onChange={(e) => setAudience((a) => ({ ...a, kind: e.target.value as AudienceKind }))}
-                >
-                  {AUDIENCE_KINDS.map((k) => <option key={k} value={k}>{AUDIENCE_LABEL[k]}</option>)}
-                </select>
-              </div>
-
-              {audience.kind === 'cell' && (
-                <select
-                  aria-label="Cell"
-                  className={selectClass}
-                  value={audience.cellId ?? ''}
-                  onChange={(e) => setAudience((a) => ({ ...a, cellId: e.target.value || null }))}
-                >
-                  <option value="">Choose a cell…</option>
-                  {cells.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              )}
-
-              {audience.kind === 'group' && (
-                <select
-                  aria-label="Saved group"
-                  className={selectClass}
-                  value={audience.groupId ?? ''}
-                  onChange={(e) => setAudience((a) => ({ ...a, groupId: e.target.value || null }))}
-                >
-                  <option value="">Choose a saved group…</option>
-                  {groups.map((g) => <option key={g.id} value={g.id}>{g.name} ({g.member_ids.length})</option>)}
-                </select>
-              )}
-
-              {audience.kind === 'individuals' && (
-                <div className="max-h-48 overflow-y-auto rounded-md border border-gray-200 dark:border-slate-700 divide-y divide-gray-100 dark:divide-slate-700">
-                  {people.map((p) => (
-                    <label key={p.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={audience.userIds.includes(p.id)}
-                        onChange={() => setAudience((a) => ({ ...a, userIds: toggleIn(a.userIds, p.id) }))}
-                      />
-                      <span>{p.full_name || p.id}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-
+              <AudienceSelector
+                value={audience}
+                onChange={setAudience}
+                candidates={audienceCandidates}
+                cells={cells}
+                savedGroups={savedGroupsForSelector}
+                scope={audienceScope}
+                disabled={saving}
+              />
               {audienceLoadError && <p className="text-xs text-york-600 dark:text-york-400">{audienceLoadError}</p>}
               <p className="text-xs text-gray-500 dark:text-slate-400">
                 Only the people you choose can see this affirmation. Who declared it is never shown in targeting.

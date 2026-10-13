@@ -33,7 +33,7 @@ export interface AudienceSelectorProps {
 const PREVIEW_LIMIT = 10;
 const SEARCH_LIMIT = 8;
 
-const ERROR_TEXT: Record<AudienceValidationError, string> = {
+export const ERROR_TEXT: Record<AudienceValidationError, string> = {
   no_include: 'Choose at least one group, cell or person to include.',
   mode_mismatch: 'This selection mixes options that cannot be saved together. Remove one and try again.',
   everyone_not_permitted: 'Only coordinators and admins can address everyone.',

@@ -4,12 +4,13 @@ import path from 'path';
 const root = path.resolve(__dirname, '..', '..');
 const read = (relativePath: string) => fs.readFileSync(path.join(root, relativePath), 'utf8');
 
-describe('migrations 066 and 067: meeting audience, invitations and attendance', () => {
-  const migration = read('supabase/migrations/066_meeting_audience_invitations_attendance.sql');
-  const events = read('supabase/migrations/067_event_audience_read_gate.sql');
+// Ported onto the unified chain: source 066 is migration 074, source 067 is folded into 075 (see the commit history).
+describe('migrations 074 and 075: meeting audience, invitations, attendance and the event read gate', () => {
+  const migration = read('supabase/migrations/074_meeting_audience_invitations_attendance.sql');
+  const events = read('supabase/migrations/075_audience_snapshots_and_visibility.sql');
 
   test('are forward-only, and 061 is repaired without being edited', () => {
-    expect(migration).toContain('Forward-only. Does not alter migrations <= 065.');
+    expect(migration).toContain('Forward-only. Does not alter migrations <= 073.');
     expect(migration).toContain('Migration 061 itself is not edited.');
     expect(events).toContain('drop policy if exists events_read on public.events;');
   });
@@ -46,7 +47,7 @@ describe('migrations 066 and 067: meeting audience, invitations and attendance',
   test('audience changes are one transaction that writes an immutable spec and reconciles invitations', () => {
     const setAudience = migration.slice(migration.indexOf('create or replace function public.set_meeting_audience'));
     expect(setAudience).toContain('insert into public.audience_specs');
-    expect(setAudience).toContain('from public.resolve_audience(v_spec)');
+    expect(setAudience).toContain('from public.resolve_audience_all(v_spec)');
     expect(setAudience).toContain('update public.meetings set audience_spec_id = v_spec where id = p_meeting_id;');
     expect(setAudience).toContain("raise exception '% invitee(s) have recorded attendance and cannot be removed.");
     expect(setAudience).toContain("Cell leaders can only invite members of cells they lead");
@@ -76,7 +77,7 @@ describe('migrations 066 and 067: meeting audience, invitations and attendance',
     expect(events).toContain("audience = 'all'");
     expect(events).toContain('public.is_meeting_participant(audience_meeting_id)');
     expect(events).toContain('public.is_meeting_manager(audience_meeting_id)');
-    expect(events).toContain('from public.resolve_audience(audience_spec_id) r');
+    expect(events).toContain("public.is_audience_recipient('event', id)");
     expect(events).toContain('revoke all on function public.assignments_completed_at_stamp()');
   });
 });

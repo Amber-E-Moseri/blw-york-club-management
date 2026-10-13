@@ -475,3 +475,8 @@ grant execute on function public.can_see_affirmation(uuid)                      
 
 -- Specs are read-only to clients. Staff keep the 059 read policy for review.
 grant select on public.audience_specs to authenticated;
+
+-- ─── Trigger function from 062 (ported from 067) ─────────────────────────────────────────────────────────────────────
+-- assignments_completed_at_stamp() is a trigger function. 062 created it without revoking PUBLIC execute, so it was
+-- callable by anon. Trigger functions run from the table trigger and need no API execute grant.
+revoke all on function public.assignments_completed_at_stamp() from public, anon, authenticated, service_role;
