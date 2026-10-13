@@ -57,6 +57,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { labelKey: 'devotionals', label: 'Devotionals', path: '/devotionals', icon: BookOpen, minRole: 0 },
       { labelKey: 'messages', label: 'Weekly Messages', path: '/messages', icon: MessageSquareText, minRole: 0 },
+      { labelKey: 'targetedMessages', label: 'Messages', path: '/communications', icon: Mail, minRole: 0 },
       { labelKey: 'books', label: 'Books', path: '/books', icon: FileText, minRole: 0 },
       { labelKey: 'testimonies', label: 'Testimonies', path: '/testimonies', icon: Sparkles, minRole: 0 },
     ],

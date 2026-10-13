@@ -6,13 +6,16 @@ import {
   classifyPushError,
   type DeliveryOutcome,
 } from '../_shared/event-notification.ts';
+import { routeEventAudience } from '../_shared/audience-recipients.ts';
 
 // Sends one Web Push notification per active subscription to the people an event is aimed at.
 // Called by the client right after an admin or coordinator saves a new event.
 //
-// Audience:
-//   'all'      every active member with an active push subscription
-//   'meeting'  the people assigned to the event's meeting (meeting_attendances), if still active
+// Audience (see _shared/audience-recipients.ts, which fails closed):
+//   spec present  the frozen recipients of that event (audience_content_recipients), taken at publish time
+//   'all'         every active member with an active push subscription (no spec)
+//   'meeting'     the people assigned to the event's meeting (meeting_attendances), if still active
+//   anything else is refused. It is never sent to everyone.
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -64,19 +67,30 @@ async function requireAdminOrCoordinator(req: Request): Promise<string> {
   return userData.user.id;
 }
 
-/** Active members who should receive this event's notification. */
+/** Active members who should receive this event's notification. Routed by _shared/audience-recipients.ts. */
 async function resolveRecipientIds(event: {
+  id: string;
   audience: string;
+  audience_spec_id: string | null;
   audience_meeting_id: string | null;
 }): Promise<string[]> {
-  let candidateIds: string[];
+  const route = routeEventAudience(event);
 
-  if (event.audience === 'meeting') {
-    if (!event.audience_meeting_id) throw new Error('Event has a meeting audience but no meeting');
+  let candidateIds: string[];
+  if (route.kind === 'targeted') {
+    // The frozen snapshot is already limited to active members, and the RPC enforces that again.
+    const { data, error } = await supabase.rpc('audience_content_recipients', {
+      p_content_type: 'event',
+      p_content_id: route.contentId,
+    });
+    if (error) throw new Error(error.message);
+    return (data ?? []) as string[];
+  }
+  if (route.kind === 'meeting') {
     const { data, error } = await supabase
       .from('meeting_attendances')
       .select('user_id')
-      .eq('meeting_id', event.audience_meeting_id);
+      .eq('meeting_id', route.meetingId);
     if (error) throw new Error(error.message);
     candidateIds = (data ?? []).map((row: { user_id: string }) => row.user_id);
   } else {
@@ -120,7 +134,7 @@ Deno.serve(async (req) => {
       .update({ notified_at: new Date().toISOString() })
       .eq('id', eventId)
       .is('notified_at', null)
-      .select('id, title, date, time, location, audience, audience_meeting_id')
+      .select('id, title, date, time, location, audience, audience_spec_id, audience_meeting_id')
       .maybeSingle();
     if (claimError) throw new HttpError(claimError.message, 500);
     if (!event) throw new HttpError('Event not found or already notified', 409);

@@ -7,6 +7,7 @@ import { Events } from './pages/Events';
 import { Members } from './pages/Members';
 import { Cells } from './pages/Cells';
 import { Announcements } from './pages/Announcements';
+import { Communications } from './pages/Communications';
 import { UserProfile } from './pages/UserProfile';
 import { AdminHub } from './pages/AdminHub';
 import { AdminDevotionalReport } from './pages/AdminDevotionalReport';
@@ -66,6 +67,7 @@ function AppShell() {
         <Route path="/members" element={<Members user={user} />} />
         <Route path="/cells" element={<Cells user={user} />} />
         <Route path="/announcements" element={<Announcements user={user} />} />
+        <Route path="/communications" element={<Communications user={user} />} />
         <Route path="/devotionals" element={<DevotionalViewer user={user} />} />
         <Route path="/profile" element={<UserProfile currentUser={user} />} />
         <Route path="/email-preferences" element={<EmailPreferences user={user} />} />
