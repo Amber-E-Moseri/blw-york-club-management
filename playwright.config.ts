@@ -12,8 +12,11 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   webServer: {
-    command: `set PORT=${PORT}&&node node_modules/react-scripts/scripts/start.js`,
-    url: `http://localhost:${PORT}`,
+    // The port is passed through `env`, not a shell prefix: `set PORT=…&&` is cmd-only and does nothing under bash/sh.
+    // The readiness probe uses 127.0.0.1 because the dev server binds IPv4 and `localhost` can resolve to ::1 first.
+    command: 'node node_modules/react-scripts/scripts/start.js',
+    env: { ...process.env, PORT },
+    url: `http://127.0.0.1:${PORT}`,
     reuseExistingServer: !process.env.CI && !process.env.PLAYWRIGHT_ISOLATED,
     timeout: 120_000,
   },
