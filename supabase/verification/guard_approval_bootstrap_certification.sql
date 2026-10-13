@@ -73,7 +73,10 @@ begin
   -- Put the cell leader, the member and the pending account in ONE cell so the leader can SEE their rows. Without
   -- this an UPDATE would touch zero rows and prove nothing about the guard.
   insert into public.cells (name, leader_id) values ('Cert Guard Cell', leader_id) returning id into cert_cell;
+  -- A pending account cannot be placed in a cell (migration 074). Place it while active, then move it to pending.
+  update public.profiles set status = 'active' where id = pending_id;
   update public.profiles set cell_id = cert_cell where id in (leader_id, member_id, pending_id);
+  update public.profiles set status = 'pending' where id = pending_id;
 
   -- ===== DEFENCE IN DEPTH: a permissive rogue policy must not be enough =====================================================
   create policy cert_rogue_update on public.profiles for update to authenticated using (true) with check (true);
@@ -232,9 +235,8 @@ begin
   --   2. INSERT the announcement referencing that spec
   perform pg_temp.as_auth(leader_id);
   begin
-    insert into public.audience_specs (mode, cell_ids, created_by)
-      values ('cells', array[cert_cell], leader_id)
-      returning id into leader_spec_id;
+    -- Specs are written only through create_audience_spec() (migration 072); direct INSERT is revoked for clients.
+    leader_spec_id := public.create_audience_spec('cells', array[cert_cell]::uuid[]);
     insert into public.announcements (title, body, author_id, author_name, audience_spec_id)
       values ('Cert Active Insert', 'cert body', leader_id, 'Cert Leader', leader_spec_id);
     perform pg_temp.as_postgres();
