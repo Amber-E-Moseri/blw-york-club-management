@@ -149,6 +149,10 @@
     padding-top: max(0px, env(safe-area-inset-top));
   }
 
+  .safe-bottom {
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+
   .skip-link {
     @apply sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2
            focus:z-50 focus:px-4 focus:py-2 focus:bg-york-600 focus:text-white

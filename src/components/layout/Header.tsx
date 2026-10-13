@@ -87,7 +87,7 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={onQuickAdd}
             aria-label="Quick add"
             className={cn(
-              'hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-semibold',
+              'hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-semibold',
               'bg-york-600 text-white hover:bg-york-700 transition-colors duration-150',
               'focus:outline-none focus:ring-2 focus:ring-york-600 focus:ring-offset-1',
             )}
