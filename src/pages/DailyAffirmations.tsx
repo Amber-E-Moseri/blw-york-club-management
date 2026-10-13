@@ -1,22 +1,22 @@
 import React, { useMemo, useState } from 'react';
 import { BookOpen, AlertCircle } from 'lucide-react';
-import { ConfessionCard } from '../components/feature/ConfessionCard';
+import { AffirmationCard } from '../components/feature/AffirmationCard';
 import { Button } from '../components/foundation/Button';
 import { Input } from '../components/foundation/Input';
 import { Modal } from '../components/foundation/Modal';
-import { useConfessions } from '../hooks/useConfessions';
-import { parseConfessionImport } from '../lib/confessionImport';
-import { createConfessions } from '../lib/queries/confessions';
+import { useAffirmations } from '../hooks/useAffirmations';
+import { parseAffirmationImport } from '../lib/affirmationImport';
+import { createAffirmations } from '../lib/queries/affirmations';
 import type { AuthUser } from '../lib/auth';
 
 interface Props { user: AuthUser | null; }
 
 const canManage = (role: string) => ['coordinator', 'admin'].includes(role);
 
-export const DailyConfessions: React.FC<Props> = ({ user }) => {
+export const DailyAffirmations: React.FC<Props> = ({ user }) => {
   const today = new Date().toISOString().split('T')[0];
   const [viewDate, setViewDate] = useState(today);
-  const { confessions, loading, error, declare, undeclare, add, remove, refetch } = useConfessions(viewDate);
+  const { affirmations, loading, error, declare, undeclare, add, remove, refetch } = useAffirmations(viewDate);
 
   const [addOpen, setAddOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -31,7 +31,7 @@ export const DailyConfessions: React.FC<Props> = ({ user }) => {
   const [importError, setImportError] = useState('');
   const [importNotice, setImportNotice] = useState('');
   const importCheck = useMemo(
-    () => parseConfessionImport(importText, user?.id ?? ''),
+    () => parseAffirmationImport(importText, user?.id ?? ''),
     [importText, user?.id]
   );
 
@@ -42,10 +42,10 @@ export const DailyConfessions: React.FC<Props> = ({ user }) => {
     setImportError('');
     setImportSaving(true);
     try {
-      const saved = await createConfessions(importCheck.rows);
+      const saved = await createAffirmations(importCheck.rows);
       setImportOpen(false);
       setImportText('');
-      setImportNotice(`Imported ${saved} confession${saved === 1 ? '' : 's'}.`);
+      setImportNotice(`Imported ${saved} affirmation${saved === 1 ? '' : 's'}.`);
       await refetch();
     } catch (e) {
       setImportError(e instanceof Error ? e.message : 'Import failed. Nothing was saved.');
@@ -76,13 +76,13 @@ export const DailyConfessions: React.FC<Props> = ({ user }) => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Daily Confessions</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Daily Affirmations</h1>
           <p className="text-sm text-gray-500 mt-0.5">Declare God's word over your life</p>
         </div>
         {isManager && (
           <div className="flex gap-2">
             <Button variant="secondary" onClick={() => setImportOpen(true)}>Bulk Import</Button>
-            <Button variant="primary" onClick={() => setAddOpen(true)}>+ New Confession</Button>
+            <Button variant="primary" onClick={() => setAddOpen(true)}>+ New Affirmation</Button>
           </div>
         )}
       </div>
@@ -132,22 +132,22 @@ export const DailyConfessions: React.FC<Props> = ({ user }) => {
         </div>
       )}
 
-      {!loading && confessions.length === 0 && (
+      {!loading && affirmations.length === 0 && (
         <div className="text-center py-16 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg">
           <BookOpen className="w-10 h-10 mx-auto mb-3 text-gray-300 dark:text-slate-600" />
-          <p className="text-base font-semibold text-gray-700 dark:text-slate-200">No confessions for this day</p>
+          <p className="text-base font-semibold text-gray-700 dark:text-slate-200">No affirmations for this day</p>
           {isManager && (
             <p className="text-sm text-gray-400 mt-1">
-              Add confessions using the button above.
+              Add affirmations using the button above.
             </p>
           )}
         </div>
       )}
 
-      {!loading && confessions.map((c) => (
-        <ConfessionCard
+      {!loading && affirmations.map((c) => (
+        <AffirmationCard
           key={c.id}
-          confession={c}
+          affirmation={c}
           userId={user?.id}
           onDeclare={(id) => user && declare(id, user.id)}
           onUndeclare={(id) => user && undeclare(id, user.id)}
@@ -160,8 +160,8 @@ export const DailyConfessions: React.FC<Props> = ({ user }) => {
       <Modal
         isOpen={importOpen}
         onClose={() => setImportOpen(false)}
-        title="Bulk Import Confessions"
-        subtitle="One confession per line: date, title, confession text"
+        title="Bulk Import Affirmations"
+        subtitle="One affirmation per line: date, title, affirmation text"
         size="large"
         footer={
           <>
@@ -172,14 +172,14 @@ export const DailyConfessions: React.FC<Props> = ({ user }) => {
               disabled={importCheck.errors.length > 0 || importCheck.rows.length === 0}
               onClick={handleImport}
             >
-              Import {importCheck.rows.length} confession{importCheck.rows.length === 1 ? '' : 's'}
+              Import {importCheck.rows.length} affirmation{importCheck.rows.length === 1 ? '' : 's'}
             </Button>
           </>
         }
       >
         <div className="space-y-4">
           <Input
-            label="Paste confessions"
+            label="Paste affirmations"
             type="textarea"
             rows={8}
             value={importText}
@@ -222,8 +222,8 @@ export const DailyConfessions: React.FC<Props> = ({ user }) => {
       <Modal
         isOpen={addOpen}
         onClose={() => setAddOpen(false)}
-        title="New Confession"
-        subtitle="Schedule a confession for a specific day"
+        title="New Affirmation"
+        subtitle="Schedule an affirmation for a specific day"
         size="medium"
         footer={
           <>
@@ -242,7 +242,7 @@ export const DailyConfessions: React.FC<Props> = ({ user }) => {
             maxLength={100}
           />
           <Input
-            label="Confession Text"
+            label="Affirmation Text"
             type="textarea"
             placeholder="Write the full declaration…"
             value={newBody}

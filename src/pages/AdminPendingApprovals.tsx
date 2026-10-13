@@ -108,7 +108,7 @@ export const AdminPendingApprovals: React.FC<Props> = ({ user }) => {
       )}
 
       {!loading && pending.length === 0 && (
-          <div className="text-center py-16 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg">
+          <div className="text-center py-16 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg">
             <CheckCircle2 className="w-10 h-10 mx-auto mb-3 text-green-400" aria-hidden="true" />
             <p className="text-base font-semibold text-gray-700 dark:text-slate-300">No pending requests</p>
             <p className="text-sm text-gray-400 dark:text-slate-400 mt-1">All accounts are up to date</p>
@@ -118,8 +118,7 @@ export const AdminPendingApprovals: React.FC<Props> = ({ user }) => {
       {!loading && pending.length > 0 && (
         <div className="space-y-3">
           {pending.map((p) => (
-            <div key={p.id} className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-5 flex flex-col gap-4 sm:flex-row sm:items-center">
-              <div className="flex items-start gap-4 min-w-0 flex-1">
+            <div key={p.id} className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg p-5 flex items-center gap-4">
               <div className="w-10 h-10 rounded-full bg-york-600 text-white flex items-center justify-center text-sm font-bold shrink-0">
                 {getInitials(p.full_name || p.email)}
               </div>
@@ -135,7 +134,6 @@ export const AdminPendingApprovals: React.FC<Props> = ({ user }) => {
                 <p className="text-xs text-gray-400 dark:text-slate-400 mt-0.5">
                   Applied {new Date(p.joined_at).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </p>
-              </div>
               </div>
               <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
                 <Button

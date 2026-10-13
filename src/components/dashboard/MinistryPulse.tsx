@@ -42,9 +42,9 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
 
   if (loading) {
     return (
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         {Array.from({ length: level >= 1 ? 4 : 2 }).map((_, i) => (
-          <Skeleton key={i} className="h-24 rounded-2xl" />
+          <Skeleton key={i} className="h-[88px] rounded-lg" />
         ))}
       </div>
     );
@@ -118,7 +118,7 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
   const metrics = level >= 1 ? leaderMetrics : memberMetrics;
 
   return (
-    <div className={cn('stagger grid grid-cols-2 gap-3 sm:gap-4', level >= 1 ? 'xl:grid-cols-4' : 'sm:grid-cols-2 max-w-sm')}>
+    <div className={cn('grid grid-cols-2 gap-3', level >= 1 ? 'xl:grid-cols-4' : 'sm:grid-cols-2 max-w-sm')}>
       {metrics.map((m) => {
         const Icon = m.icon;
         return (
@@ -127,17 +127,17 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
             type="button"
             onClick={m.onClick}
             className={cn(
-              'text-left bg-white dark:bg-slate-800 border rounded-2xl shadow-sm p-4 transition-all duration-150',
-              'hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] transition-transform',
+              'text-left bg-white dark:bg-slate-900 border rounded-lg shadow-sm p-3.5 transition-all duration-150',
+              'hover:shadow-md active:scale-[0.99]',
               m.urgent
                 ? 'border-york-200 dark:border-york-800'
-                : 'border-gray-200 dark:border-slate-700',
+                : 'border-gray-200 dark:border-slate-800',
             )}
           >
-            <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center mb-3', m.iconBg)}>
-              <Icon className={cn('w-4.5 h-4.5', m.iconColor)} />
+            <div className={cn('w-8 h-8 rounded-md flex items-center justify-center mb-2.5', m.iconBg)}>
+              <Icon className={cn('w-4 h-4', m.iconColor)} />
             </div>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white leading-none">
+            <p className="text-xl font-bold text-gray-900 dark:text-white leading-none">
               <MetricValue value={m.value} />
             </p>
             <p className="text-[11px] font-semibold text-gray-400 dark:text-slate-400 mt-0.5 uppercase tracking-wider">

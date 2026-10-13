@@ -168,19 +168,24 @@ export function useUserProfile(userId: string | undefined): UseUserProfileReturn
         if (fullName.length < 2) throw new Error('Full name must be at least 2 characters.');
 
         if (isOwnProfile || isCoordinator) {
-          const { error: profileErr } = await supabase
+          // Verify a row was updated: RLS can refuse a write without an error, and that must not read as saved.
+          const { data: updatedProfile, error: profileErr } = await supabase
             .from('profiles')
             .update({
               full_name: fullName,
               student_number: payload.studentNumber ?? null,
               avatar_url: payload.avatarUrl ?? null,
             })
-            .eq('id', userId);
+            .eq('id', userId)
+            .select('id');
           if (profileErr) throw new Error(profileErr.message);
+          if (!updatedProfile || updatedProfile.length === 0) {
+            throw new Error('Your profile was not saved. The change was not permitted for this account.');
+          }
         }
 
         if (isOwnProfile || isCoordinator) {
-          const { error: userProfileErr } = await supabase
+          const { data: savedUserProfile, error: userProfileErr } = await supabase
             .from('user_profiles')
             .upsert({
               user_id: userId,
@@ -191,8 +196,12 @@ export function useUserProfile(userId: string | undefined): UseUserProfileReturn
               bio: payload.bio ?? null,
               student_number: payload.studentNumber ?? null,
               updated_at: new Date().toISOString(),
-            });
+            })
+            .select('user_id');
           if (userProfileErr) throw new Error(userProfileErr.message);
+          if (!savedUserProfile || savedUserProfile.length === 0) {
+            throw new Error('Your profile details were not saved. The change was not permitted for this account.');
+          }
         }
 
         refetch();

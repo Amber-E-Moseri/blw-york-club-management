@@ -174,7 +174,7 @@ export const ContactForm: React.FC<Props> = ({
               Tag <span className="text-york-600 dark:text-york-400">*</span>
             </label>
             <select
-              className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-york-600"
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-900 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-york-600"
               value={form.tag}
               onChange={(e) => set('tag', e.target.value)}
             >
@@ -197,7 +197,7 @@ export const ContactForm: React.FC<Props> = ({
               Follow-up Status <span className="text-york-600 dark:text-york-400">*</span>
             </label>
             <select
-              className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-york-600"
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-900 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-york-600"
               value={form.follow_up_status}
               onChange={(e) => set('follow_up_status', e.target.value)}
             >
@@ -223,7 +223,7 @@ export const ContactForm: React.FC<Props> = ({
               Follow-up Assignee
             </label>
             <select
-              className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-york-600"
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-900 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-york-600"
               value={form.follow_up_assignee ?? ''}
               onChange={(e) => set('follow_up_assignee', e.target.value)}
             >

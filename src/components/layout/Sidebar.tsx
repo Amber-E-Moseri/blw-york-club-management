@@ -100,14 +100,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside
       className={cn(
-        'shrink-0 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 flex flex-col h-screen sticky top-0 z-20',
-        'dark:border-slate-700 dark:bg-slate-900',
+        'shrink-0 bg-white border-r border-gray-200 flex flex-col h-screen sticky top-0 z-20',
+        'dark:border-slate-800 dark:bg-slate-950',
         'transition-[width] duration-200 ease-in-out',
-        collapsed ? 'w-16' : 'w-56',
+        collapsed ? 'w-14' : 'w-52',
       )}
     >
       {/* Logo */}
-      <div className={cn('border-b border-gray-100 dark:border-slate-700', collapsed ? 'px-3 py-5' : 'px-5 py-5')}>
+      <div className={cn('border-b border-gray-100 dark:border-slate-800', collapsed ? 'px-3 py-4' : 'px-4 py-4')}>
         {collapsed ? (
           <div className="flex flex-col items-center gap-2">
             <img src="/logo.png" alt="BLW York" className="w-8 h-8 object-contain" />
@@ -137,14 +137,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       <GlobalSearch user={user} collapsed={collapsed} />
 
-      <div className={cn('px-3 pb-2', collapsed && 'px-2')}>
+      <div className={cn('px-2.5 pb-1.5', collapsed && 'px-1.5')}>
         <button
           type="button"
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
           className={cn(
-            'flex min-h-[40px] w-full items-center rounded-md text-sm font-medium text-gray-500',
-            'hover:bg-gray-100 hover:text-gray-900 dark:text-slate-300 dark:hover:bg-slate-800',
-            collapsed ? 'justify-center' : 'gap-3 px-4',
+            'flex h-8 w-full items-center rounded-md text-sm font-medium text-gray-500',
+            'hover:bg-gray-100 hover:text-gray-900 dark:text-slate-400 dark:hover:bg-slate-800',
+            collapsed ? 'justify-center' : 'gap-3 px-3.5',
           )}
           aria-label="Toggle dark mode"
           title="Toggle dark mode"
@@ -155,11 +155,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Nav */}
-      <nav className={cn('flex-1 py-3 overflow-y-auto', collapsed ? 'px-2' : 'px-3')} aria-label="Main navigation">
+      <nav className={cn('flex-1 py-2 overflow-y-auto', collapsed ? 'px-1.5' : 'px-2.5')} aria-label="Main navigation">
         {visibleGroups.map((group) => (
-          <div key={group.groupKey} className="mb-4">
+          <div key={group.groupKey} className="mb-3">
             {!collapsed && (
-              <p className="px-4 mb-1 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-400">
+              <p className="px-3.5 mb-1 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-600">
                 {group.groupKey}
               </p>
             )}
@@ -175,7 +175,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     aria-current={active ? 'page' : undefined}
                     className={cn(
                       'flex items-center rounded-md text-sm font-medium w-full transition-colors duration-150',
-                      collapsed ? 'justify-center h-10 w-10 mx-auto' : 'gap-3 px-4 py-2.5',
+                      collapsed ? 'justify-center h-9 w-9 mx-auto' : 'gap-3 px-3.5 py-2',
                       active
                         ? 'bg-york-50 text-york-600 font-semibold dark:bg-york-900/30 dark:text-york-300'
                         : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100',
@@ -193,7 +193,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* User footer */}
       {user && (
-        <div className={cn('border-t border-gray-100 dark:border-slate-700', collapsed ? 'px-2 py-3' : 'px-4 py-4')}>
+        <div className={cn('border-t border-gray-100 dark:border-slate-800', collapsed ? 'px-2 py-3' : 'px-3 py-3')}>
           {collapsed ? (
             <div className="flex flex-col items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-york-600 text-white flex items-center justify-center text-xs font-bold">

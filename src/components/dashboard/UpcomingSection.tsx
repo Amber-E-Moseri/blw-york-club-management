@@ -89,18 +89,18 @@ export const UpcomingSection: React.FC<UpcomingSectionProps> = ({ events, meetin
       noPadding
     >
       {loading ? (
-        <div className="px-5 py-4 space-y-3">
+        <div className="px-4 py-3.5 space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-14" />
+            <Skeleton key={i} className="h-12" />
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="px-5 py-6 text-center">
+        <div className="px-4 py-5 text-center">
           <p className="text-sm font-semibold text-gray-600 dark:text-slate-300">Nothing coming up yet</p>
           <p className="text-xs text-gray-400 dark:text-slate-400 mt-1">Check back soon for events and meetings.</p>
         </div>
       ) : (
-        <ul className="divide-y divide-gray-100 dark:divide-slate-700">
+        <ul className="divide-y divide-gray-100 dark:divide-slate-800">
           {items.map((item) => {
             const { month, day } = formatItemDate(item.date);
             return (
@@ -108,9 +108,9 @@ export const UpcomingSection: React.FC<UpcomingSectionProps> = ({ events, meetin
                 <button
                   type="button"
                   onClick={() => navigate(item.href)}
-                  className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors text-left"
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors text-left"
                 >
-                  <div className="w-12 h-12 rounded-xl bg-york-50 dark:bg-york-900/20 flex flex-col items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-lg bg-york-50 dark:bg-york-900/20 flex flex-col items-center justify-center shrink-0">
                     <span className="text-[9px] font-bold text-york-600 dark:text-york-400 uppercase">{month}</span>
                     <span className="text-lg font-bold text-york-600 dark:text-york-400 leading-tight">{day}</span>
                   </div>

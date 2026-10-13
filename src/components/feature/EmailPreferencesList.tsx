@@ -56,7 +56,7 @@ export const EmailPreferencesList: React.FC<Props> = ({ preferences, onChange, d
             {group.items.map((item) => (
               <label
                 key={item.key}
-                className={`flex items-start gap-4 p-4 rounded-lg border border-gray-100 bg-white cursor-pointer transition-colors dark:bg-slate-800 dark:border-slate-700 ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-york-200 hover:bg-york-50 dark:hover:bg-york-900/40 dark:hover:bg-slate-700'}`}
+                className={`flex items-start gap-4 p-4 rounded-lg border border-gray-100 bg-white cursor-pointer transition-colors dark:bg-slate-900 dark:border-slate-800 ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-york-200 hover:bg-red-50 dark:hover:bg-slate-700'}`}
               >
                 <item.icon className="w-5 h-5 mt-0.5 shrink-0 text-york-600 dark:text-york-400" />
                 <div className="flex-1 min-w-0">

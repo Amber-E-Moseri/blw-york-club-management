@@ -146,7 +146,7 @@ export const AdminHub: React.FC<Props> = ({ user }) => {
 
   return (
     <div className="space-y-5 pb-4">
-      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg shadow-sm overflow-hidden">
         <div className="border-t-4 border-york-600 px-5 py-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs font-semibold text-york-600 dark:text-york-400 uppercase tracking-wider">Administration</p>
@@ -180,7 +180,7 @@ export const AdminHub: React.FC<Props> = ({ user }) => {
               key={item.label}
               type="button"
               onClick={() => navigate(item.path)}
-              className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm p-4 text-left hover:border-york-300 dark:hover:border-york-700 transition-colors"
+              className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg shadow-sm p-4 text-left hover:border-york-300 dark:hover:border-york-700 transition-colors"
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="w-10 h-10 rounded-xl bg-york-50 dark:bg-york-900/20 flex items-center justify-center">
@@ -205,7 +205,7 @@ export const AdminHub: React.FC<Props> = ({ user }) => {
         {TOOL_GROUPS.map((group) => (
           <section
             key={group.title}
-            className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden"
+            className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg shadow-sm overflow-hidden"
           >
             <div className="px-5 py-4 border-b border-gray-100 dark:border-slate-700">
               <h2 className="text-sm font-bold text-gray-900 dark:text-slate-100">{group.title}</h2>

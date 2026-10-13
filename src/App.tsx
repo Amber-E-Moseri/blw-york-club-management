@@ -12,7 +12,7 @@ import { AdminHub } from './pages/AdminHub';
 import { AdminDevotionalReport } from './pages/AdminDevotionalReport';
 import { Login } from './pages/Login';
 import { Outreach } from './pages/Outreach';
-import { DailyConfessions } from './pages/DailyConfessions';
+import { DailyAffirmations } from './pages/DailyAffirmations';
 import { TestimonyLog } from './pages/TestimonyLog';
 import { MeetingsHub } from './pages/MeetingsHub';
 import { DevotionalViewer } from './pages/DevotionalViewer';
@@ -83,7 +83,8 @@ function AppShell() {
         <Route path="/my-bsc" element={<MyBsc user={user} />} />
         <Route path="/books" element={<BookOfMonthPage user={user} />} />
         <Route path="/contacts" element={<Outreach user={user} />} />
-        <Route path="/confessions" element={<DailyConfessions user={user} />} />
+        <Route path="/affirmations" element={<DailyAffirmations user={user} />} />
+        <Route path="/confessions" element={<Navigate to="/affirmations" replace />} />
         <Route path="/testimonies" element={<TestimonyLog user={user} />} />
         <Route path="/meetings" element={<MeetingsHub user={user} />} />
         <Route path="/messages" element={<WeeklyMessages user={user} />} />

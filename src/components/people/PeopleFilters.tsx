@@ -35,7 +35,7 @@ export const PeopleFilters: React.FC<PeopleFiltersProps> = ({
           value={search}
           onChange={(e) => onSearch(e.target.value)}
           placeholder="Search by name or email…"
-          className="w-full h-9 pl-9 pr-3 text-sm border border-gray-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-york-500 focus:border-transparent"
+          className="w-full h-9 pl-9 pr-3 text-sm border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-york-500 focus:border-transparent"
         />
       </div>
 
@@ -43,7 +43,7 @@ export const PeopleFilters: React.FC<PeopleFiltersProps> = ({
       <select
         value={role}
         onChange={(e) => onRole(e.target.value)}
-        className="h-9 px-3 text-sm border border-gray-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-york-500"
+        className="h-9 px-3 text-sm border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-york-500"
       >
         {ROLE_OPTIONS.map((opt) => (
           <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -55,7 +55,7 @@ export const PeopleFilters: React.FC<PeopleFiltersProps> = ({
         <select
           value={cellId}
           onChange={(e) => onCellId(e.target.value)}
-          className="h-9 px-3 text-sm border border-gray-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-york-500"
+          className="h-9 px-3 text-sm border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-york-500"
         >
           <option value="">All cells</option>
           {cells.map((c) => (
@@ -69,7 +69,7 @@ export const PeopleFilters: React.FC<PeopleFiltersProps> = ({
         <button
           type="button"
           onClick={() => { onSearch(''); onRole(''); onCellId(''); }}
-          className="flex items-center gap-1 h-9 px-3 text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 border border-gray-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 transition-colors"
+          className="flex items-center gap-1 h-9 px-3 text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 transition-colors"
         >
           <X className="w-3.5 h-3.5" /> Clear
         </button>

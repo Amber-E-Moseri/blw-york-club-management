@@ -3,10 +3,10 @@ import { CheckCircle, Heart, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../foundation/Button';
 import { Badge } from '../foundation/Badge';
-import type { Confession } from '../../types';
+import type { Affirmation } from '../../types';
 
 interface Props {
-  confession: Confession;
+  affirmation: Affirmation;
   userId?: string;
   onDeclare: (id: string) => void;
   onUndeclare: (id: string) => void;
@@ -14,8 +14,8 @@ interface Props {
   onDelete?: (id: string) => void;
 }
 
-export const ConfessionCard: React.FC<Props> = ({
-  confession: c,
+export const AffirmationCard: React.FC<Props> = ({
+  affirmation: c,
   userId,
   onDeclare,
   onUndeclare,
@@ -45,9 +45,9 @@ export const ConfessionCard: React.FC<Props> = ({
         </div>
         {canDelete && onDelete && (
           <button
-            onClick={() => window.confirm('Delete this confession?') && onDelete(c.id)}
-            className="text-gray-300 hover:text-york-500 transition-colors text-sm"
-            aria-label="Delete confession"
+            onClick={() => window.confirm('Delete this affirmation?') && onDelete(c.id)}
+            className="text-gray-300 hover:text-red-500 transition-colors text-sm"
+            aria-label="Delete affirmation"
           >
             <X className="w-4 h-4" aria-hidden="true" />
           </button>

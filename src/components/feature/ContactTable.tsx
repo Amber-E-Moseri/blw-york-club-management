@@ -93,7 +93,7 @@ export const ContactTable: React.FC<Props> = ({
 
   if (contacts.length === 0) {
     return (
-      <div className="bg-white border border-gray-200 rounded-lg py-16 text-center dark:bg-slate-800 dark:border-slate-700" data-empty="1">
+      <div className="bg-white border border-gray-200 rounded-lg py-16 text-center dark:bg-slate-900 dark:border-slate-800" data-empty="1">
         <ClipboardList className="w-8 h-8 mx-auto mb-2 text-gray-300 dark:text-slate-600" />
         <p className="text-base font-semibold text-gray-700 dark:text-slate-300">No contacts yet</p>
         <p className="text-sm text-gray-400 mt-1">Add your first contact using the button above.</p>
@@ -128,7 +128,7 @@ export const ContactTable: React.FC<Props> = ({
       )}
 
       {/* Desktop table */}
-      <div className="hidden md:block bg-white border border-gray-200 rounded-lg overflow-hidden dark:bg-slate-800 dark:border-slate-700">
+      <div className="hidden md:block bg-white border border-gray-200 rounded-lg overflow-hidden dark:bg-slate-900 dark:border-slate-800">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead>
@@ -269,7 +269,7 @@ export const ContactTable: React.FC<Props> = ({
         {paginated.map((c) => (
           <div
             key={c.id}
-            className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4 space-y-2"
+            className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg p-4 space-y-2"
           >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">

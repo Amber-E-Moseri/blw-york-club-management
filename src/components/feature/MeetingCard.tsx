@@ -43,8 +43,8 @@ export const MeetingCard: React.FC<Props> = ({
 }) => (
   <div
     className={cn(
-      'bg-white border rounded-lg p-5 space-y-3 hover:shadow-sm transition-shadow dark:bg-slate-800',
-      isToday(m.date) ? 'border-york-600/30 dark:border-york-600/40' : 'border-gray-200 dark:border-slate-700'
+      'bg-white border rounded-lg p-4 space-y-3 hover:shadow-sm transition-shadow dark:bg-slate-900',
+      isToday(m.date) ? 'border-york-600/30 dark:border-york-600/40' : 'border-gray-200 dark:border-slate-800'
     )}
   >
     {/* Top bar */}
@@ -120,8 +120,8 @@ export const MeetingCard: React.FC<Props> = ({
     )}
 
     {/* Footer */}
-    <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-slate-700">
-      <p className="text-xs text-gray-400 dark:text-slate-400">
+    <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-slate-800">
+      <p className="text-xs text-gray-400">
         {typeof m.attendance_count === 'number' ? `${m.attendance_count} confirmed` : 'Attendance'}
       </p>
       <Button

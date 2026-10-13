@@ -122,7 +122,7 @@ export const Meetings: React.FC<Props> = ({ user }) => {
       )}
 
       {!loading && filtered.length === 0 && (
-        <div className="text-center py-16 bg-white border border-gray-200 rounded-lg dark:bg-slate-800 dark:border-slate-700">
+        <div className="text-center py-12 bg-white border border-gray-200 rounded-lg dark:bg-slate-900 dark:border-slate-800">
           <Calendar className="w-10 h-10 mx-auto mb-3 text-gray-300 dark:text-slate-600" />
           <p className="text-base font-semibold text-gray-700 dark:text-slate-300">
             No {showPast ? 'past' : 'upcoming'} meetings

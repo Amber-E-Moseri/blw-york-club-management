@@ -70,7 +70,7 @@ export const MeetingsHub: React.FC<Props> = ({ user }) => {
   return (
     <div className="space-y-5 pb-4">
       {/* Header */}
-      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg shadow-sm overflow-hidden">
         <div className="border-t-4 border-york-600 px-5 py-5 flex items-start justify-between gap-4 flex-wrap">
           <div>
             <p className="text-xs font-semibold text-york-600 dark:text-york-400 uppercase tracking-wider">Ministry</p>
@@ -134,13 +134,13 @@ export const MeetingsHub: React.FC<Props> = ({ user }) => {
       {loading && (
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-40 bg-gray-100 dark:bg-slate-800 rounded-2xl animate-pulse" />
+            <div key={i} className="h-36 bg-gray-100 dark:bg-slate-800 rounded-lg animate-pulse" />
           ))}
         </div>
       )}
 
       {!loading && filtered.length === 0 && (
-        <div className="text-center py-16 bg-white border border-gray-200 rounded-2xl dark:bg-slate-800 dark:border-slate-700">
+        <div className="text-center py-16 bg-white border border-gray-200 rounded-lg dark:bg-slate-900 dark:border-slate-800">
           <Calendar className="w-10 h-10 mx-auto mb-3 text-gray-300 dark:text-slate-600" />
           <p className="text-base font-semibold text-gray-700 dark:text-slate-300">
             No {showPast ? 'past' : 'upcoming'} meetings
@@ -184,8 +184,8 @@ export const MeetingsHub: React.FC<Props> = ({ user }) => {
 };
 
 const StatChip: React.FC<{ label: string; value: number }> = ({ label, value }) => (
-  <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm px-4 py-3">
-    <p className="text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider">{label}</p>
+  <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg shadow-sm px-4 py-3">
+    <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">{label}</p>
     <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-0.5">{value}</p>
   </div>
 );

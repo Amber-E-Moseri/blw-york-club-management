@@ -209,9 +209,9 @@ export interface SortState {
   dir: SortDir;
 }
 
-// ─── Confessions ─────────────────────────────────────────────────────────────
+// ─── Affirmations ────────────────────────────────────────────────────────────
 
-export interface Confession {
+export interface Affirmation {
   id: string;
   title: string;
   body: string;
@@ -223,7 +223,7 @@ export interface Confession {
   declaration_count?: number;
 }
 
-export interface ConfessionDeclaration {
+export interface AffirmationDeclaration {
   id: string;
   confession_id: string;
   user_id: string;

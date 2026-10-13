@@ -14,7 +14,7 @@ export { BulkImportModal } from './BulkImportModal';
 export { ReassignContactModal } from './ReassignContactModal';
 export { MoveToCellModal } from './MoveToCellModal';
 
-export { ConfessionCard } from './ConfessionCard';
+export { AffirmationCard } from './AffirmationCard';
 
 export { TestimonyCard } from './TestimonyCard';
 export { TestimonyForm } from './TestimonyForm';

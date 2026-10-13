@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   BookMarked, CheckSquare, Heart, Star, MessageCircle, Book, ChevronRight, Users,
@@ -8,6 +8,8 @@ import { useHabits } from '../hooks/useHabits';
 import { useCurrentWeekMessage } from '../hooks/useWeeklyMessages';
 import { useCurrentBook } from '../hooks/useBookOfMonth';
 import type { AuthUser } from '../lib/auth';
+import { deriveBscCapabilities, type BscCapabilities } from '../lib/bscAccess';
+import { fetchLedBscIds, fetchLedCellIds } from '../lib/queries/bscs';
 
 interface GrowthCardProps {
   icon: React.ReactNode;
@@ -21,7 +23,7 @@ interface GrowthCardProps {
 const GrowthCard: React.FC<GrowthCardProps> = ({ icon, iconBg, title, subtitle, badge, to }) => (
   <Link
     to={to}
-    className="flex items-center gap-4 p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-sm hover:shadow-md transition-all duration-150 group"
+    className="flex items-center gap-4 p-4 bg-white dark:bg-slate-900 rounded-lg shadow-sm hover:shadow-md transition-all duration-150 group"
   >
     <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
       {icon}
@@ -50,6 +52,22 @@ export const Growth: React.FC<GrowthProps> = ({ user }) => {
   const { habitsWithStats } = useHabits(user?.id);
   const { message } = useCurrentWeekMessage();
   const { book } = useCurrentBook();
+  const [bscCaps, setBscCaps] = useState<BscCapabilities | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    Promise.all([fetchLedCellIds(user.id), fetchLedBscIds(user.id)])
+      .then(([ledCellIds, ledBscIds]) => {
+        if (!cancelled) setBscCaps(deriveBscCapabilities(user, { ledCellIds, ledBscIds }));
+      })
+      .catch(() => {
+        if (!cancelled) setBscCaps(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   const habitsCompleted = habitsWithStats.filter((h) => h.today_status === 'done').length;
   const habitsTotal = habitsWithStats.length;
@@ -57,7 +75,7 @@ export const Growth: React.FC<GrowthProps> = ({ user }) => {
   return (
     <div className="space-y-5 pb-4">
       {/* Header */}
-      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg shadow-sm overflow-hidden">
         <div className="border-t-4 border-york-600 px-5 py-5">
           <p className="text-xs font-semibold text-york-600 dark:text-york-400 uppercase tracking-wider">Spiritual</p>
           <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100 mt-1">Growth</h1>
@@ -85,13 +103,23 @@ export const Growth: React.FC<GrowthProps> = ({ user }) => {
           badge={devotionalView ? 'Read today' : undefined}
         />
 
-        {(user?.role === 'admin' || user?.role === 'coordinator' || user?.role === 'cell_leader') && (
+        {bscCaps?.canOpenManagement && (
+          <GrowthCard
+            to="/admin/bscs"
+            iconBg="bg-blue-50 dark:bg-blue-900/20"
+            icon={<Users className="w-6 h-6 text-blue-600" />}
+            title="Bible Study Classes"
+            subtitle="Create classes, set leaders and manage rosters"
+          />
+        )}
+
+        {bscCaps?.canViewMyBsc && (
           <GrowthCard
             to="/my-bsc"
             iconBg="bg-blue-50 dark:bg-blue-900/20"
             icon={<Users className="w-6 h-6 text-blue-600" />}
-            title="My BSC"
-            subtitle="Rhapsody reads and confessions for your members"
+            title="My Bible Study Class"
+            subtitle="Rhapsody reads for your members"
           />
         )}
 
@@ -113,10 +141,10 @@ export const Growth: React.FC<GrowthProps> = ({ user }) => {
         />
 
         <GrowthCard
-          to="/confessions"
+          to="/affirmations"
           iconBg="bg-rose-50 dark:bg-rose-900/20"
           icon={<Heart className="w-6 h-6 text-rose-600" />}
-          title="Confessions"
+          title="Affirmations"
           subtitle="Speak today's declaration"
         />
 
@@ -149,8 +177,8 @@ export const Growth: React.FC<GrowthProps> = ({ user }) => {
 };
 
 const StatChip: React.FC<{ label: string; value: number }> = ({ label, value }) => (
-  <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm px-4 py-3">
-    <p className="text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider">{label}</p>
+  <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg shadow-sm px-4 py-3">
+    <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">{label}</p>
     <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-0.5">{value}</p>
   </div>
 );

@@ -132,8 +132,11 @@ select pg_temp.check_count('cell leadership', 'assigned cell_leader cannot read 
   'select id from public.profiles where id = ''{member_b}''', 'read', 0);
 select pg_temp.check_count('cell leadership', 'cell_leader role with same cell but no assignment reads nothing (over-grant closed)', 'lead_unassigned',
   'select id from public.profiles where id = ''{member_a}''', 'read', 0);
-select pg_temp.check_count('cell leadership', 'assigned leader without cell_leader role label reads nothing (under-grant, see decision)', 'member_b_leader',
-  'select id from public.profiles where id = ''{member_b}''', 'read', 0);
+-- Decision (054): assigned-cell leadership needs an active account and cells.leader_id, not the role label.
+select pg_temp.check_count('cell leadership', 'assigned leader with member role label reads a member of their cell', 'member_b_leader',
+  'select id from public.profiles where id = ''{member_b}''', 'read', 1);
+select pg_temp.check_count('cell leadership', 'assigned leader with member role label reads no member of another cell', 'member_b_leader',
+  'select id from public.profiles where id = ''{member_a}''', 'read', 0);
 select pg_temp.check_count('cell leadership', 'member reads another member', 'member_a',
   'select id from public.profiles where id = ''{member_b}''', 'read', 0);
 select pg_temp.check_count('cell leadership', 'member reads own profile', 'member_a',
@@ -184,6 +187,25 @@ select pg_temp.check_count('owner writes', 'pending account cannot delete anothe
   'delete from public.testimonies where id = ''00000000-0000-0000-0000-00000000ee03''', 'write', 0);
 select pg_temp.check_count('owner writes', 'active owner deletes own testimony', 'member_a',
   'delete from public.testimonies where id = ''00000000-0000-0000-0000-00000000ee03''', 'write', 1);
+
+-- Decision (054): an assigned member-label leader gets the meetings of their own cell and no other.
+select pg_temp.check_count('meetings', 'assigned member-label leader reads leaders meeting of own cell', 'member_b_leader',
+  'select id from public.meetings where id = ''00000000-0000-0000-0000-00000000ee02''', 'read', 1);
+select pg_temp.check_count('meetings', 'assigned member-label leader reads no leaders meeting of another cell', 'member_b_leader',
+  'select id from public.meetings where id = ''00000000-0000-0000-0000-00000000ee01''', 'read', 0);
+select pg_temp.check_count('meetings', 'assigned member-label leader may manage a meeting of own cell (update)', 'member_b_leader',
+  'update public.meetings set title = title where id = ''00000000-0000-0000-0000-00000000ee02''', 'write', 1);
+select pg_temp.check_count('meetings', 'assigned member-label leader may not manage a meeting of another cell', 'member_b_leader',
+  'update public.meetings set title = title where id = ''00000000-0000-0000-0000-00000000ee01''', 'write', 0);
+select pg_temp.check_count('meetings', 'unassigned cell_leader may not manage a leaders meeting', 'lead_unassigned',
+  'update public.meetings set title = title where id = ''00000000-0000-0000-0000-00000000ee01''', 'write', 0);
+
+-- Inactive assigned leader loses cell leadership at once (deactivated after the checks above).
+do $$ begin update public.profiles set status = 'rejected' where id = (select user_id from fixture where actor = 'member_b_leader'); end $$;
+select pg_temp.check_count('cell leadership', 'deactivated assigned leader reads no member of their cell', 'member_b_leader',
+  'select id from public.profiles where id = ''{member_b}''', 'read', 0);
+select pg_temp.check_count('meetings', 'deactivated assigned leader reads no leaders meeting of own cell', 'member_b_leader',
+  'select id from public.meetings where id = ''00000000-0000-0000-0000-00000000ee02''', 'read', 0);
 
 select area, check_name, result, evidence from cert_results order by area, check_name;
 select count(*) filter (where result = 'FAIL') as failures, count(*) as checks from cert_results;

@@ -56,7 +56,7 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
           </div>
         )}
 
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-8">
+        <div className="bg-white dark:bg-slate-900 rounded-lg shadow-md p-6">
 
           {/* Sign-up success */}
           {mode === 'done' && (
@@ -73,8 +73,8 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
           {/* Sign In */}
           {mode === 'signin' && (
             <>
-              <h2 className="text-xl font-bold text-center mb-5 text-gray-900 dark:text-slate-100">Sign In</h2>
-              <form className="space-y-5" onSubmit={handleSignIn} noValidate>
+              <h2 className="text-xl font-bold text-center mb-4 text-gray-900 dark:text-slate-100">Sign In</h2>
+              <form className="space-y-4" onSubmit={handleSignIn} noValidate>
                 <Input label="Email" type="email" value={email} onChange={setEmail} placeholder="you@yorku.ca" autoComplete="email" />
                 <Input label="Password" type="password" value={password} onChange={setPassword} placeholder="••••••••" autoComplete="current-password" />
                 {(error || localError) && (

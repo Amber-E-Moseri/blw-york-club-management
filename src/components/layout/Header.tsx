@@ -39,8 +39,8 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header
       className={cn(
-        'h-[60px] bg-white border-b-2 border-york-600 shadow-sm dark:bg-slate-900',
-        'flex items-center justify-between px-5 shrink-0 sticky top-0 z-30',
+        'h-[52px] bg-white border-b border-gray-200 dark:border-slate-800 shadow-sm dark:bg-slate-950',
+        'flex items-center justify-between px-4 shrink-0 sticky top-0 z-30',
         className,
       )}
     >
@@ -82,33 +82,19 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="flex items-center gap-2">
         {/* Quick Add button */}
         {onQuickAdd && (
-          <>
-            <button
-              type="button"
-              onClick={onQuickAdd}
-              aria-label="Quick add"
-              className={cn(
-                'hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-semibold',
-                'bg-york-600 text-white hover:bg-york-700 transition-colors duration-150',
-                'focus:outline-none focus:ring-2 focus:ring-york-600 focus:ring-offset-1',
-              )}
-            >
-              <Plus className="w-4 h-4" />
-              Quick add
-            </button>
-            <button
-              type="button"
-              onClick={onQuickAdd}
-              aria-label="Quick add"
-              className={cn(
-                'sm:hidden flex items-center justify-center w-9 h-9 rounded-md',
-                'bg-york-600 text-white hover:bg-york-700 transition-colors duration-150',
-                'focus:outline-none focus:ring-2 focus:ring-york-600',
-              )}
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          </>
+          <button
+            type="button"
+            onClick={onQuickAdd}
+            aria-label="Quick add"
+            className={cn(
+              'hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-semibold',
+              'bg-york-600 text-white hover:bg-york-700 transition-colors duration-150',
+              'focus:outline-none focus:ring-2 focus:ring-york-600 focus:ring-offset-1',
+            )}
+          >
+            <Plus className="w-4 h-4" />
+            Quick add
+          </button>
         )}
 
         {/* User menu */}
