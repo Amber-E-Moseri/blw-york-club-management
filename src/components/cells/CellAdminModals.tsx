@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Modal } from '../foundation/Modal';
 import { Button } from '../foundation/Button';
 import { Input } from '../foundation/Input';
-import { CELL_NAME_MAX_LENGTH } from '../../lib/cells/cellAdmin';
+import { CELL_NAME_MAX_LENGTH, validateMemberPlacement } from '../../lib/cells/cellAdmin';
 import type { Cell, Member } from '../../types';
 
 const selectClass =
@@ -159,6 +159,8 @@ export const MemberPlacementModal: React.FC<MemberPlacementModalProps> = ({
   const destinations = cells.filter((c) => c.id !== currentCell?.id);
   const isActive = member?.status === 'active';
   const title = currentCell ? 'Transfer member' : 'Add to cell';
+  // Blocks that do not depend on the destination: a Bible Study Class or a led cell must be resolved first.
+  const preflight = member && currentCell ? validateMemberPlacement(member, null, cells) : null;
 
   useEffect(() => {
     if (isOpen) { setTarget(''); reset(); }
@@ -177,7 +179,7 @@ export const MemberPlacementModal: React.FC<MemberPlacementModalProps> = ({
           <Button
             variant="primary"
             loading={saving}
-            disabled={!isActive || !target}
+            disabled={!isActive || !target || !!preflight}
             onClick={() => run(() => onSave(target))}
           >
             {currentCell ? 'Transfer' : 'Add to cell'}
@@ -195,6 +197,9 @@ export const MemberPlacementModal: React.FC<MemberPlacementModalProps> = ({
           <p role="alert" className={errorClass}>
             Only active members can be placed in a cell. This account is {member?.status ?? 'not active'}.
           </p>
+        )}
+        {isActive && preflight && (
+          <p role="alert" className={errorClass}>{preflight}</p>
         )}
         <label className="block text-sm font-bold text-gray-800 dark:text-slate-200 mb-1.5" htmlFor="member-cell-select">
           Destination cell

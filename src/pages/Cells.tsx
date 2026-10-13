@@ -1,10 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, Pencil, Plus, UserMinus, Users, Crown, ArrowRightLeft } from 'lucide-react';
+import { ChevronDown, ChevronUp, Archive, RotateCcw, Pencil, Plus, UserMinus, Users, Crown, ArrowRightLeft } from 'lucide-react';
 import { fetchMembersFiltered } from '../lib/queries/members';
 import { fetchCells } from '../lib/queries/contacts';
 import { summarizeCells, type CellSummary } from '../lib/cells';
-import { canManageCells } from '../lib/cells/cellAdmin';
-import { createCell, renameCell, setCellLeader, setMemberCell } from '../lib/queries/cellAdmin';
+import { canManageCells, validateMemberPlacement } from '../lib/cells/cellAdmin';
+import {
+  createCell,
+  fetchArchivedCells,
+  fetchBscMembershipNames,
+  renameCell,
+  setCellArchived,
+  setCellLeader,
+  setMemberCell,
+} from '../lib/queries/cellAdmin';
 import { CellNameModal, CellLeaderModal, MemberPlacementModal, ConfirmModal } from '../components/cells/CellAdminModals';
 import { Button } from '../components/foundation/Button';
 import type { AuthUser } from '../lib/auth';
@@ -19,7 +27,9 @@ type Dialog =
   | { kind: 'rename'; cell: Cell }
   | { kind: 'leader'; cell: Cell }
   | { kind: 'place'; member: Member; from: Cell | null }
-  | { kind: 'remove'; member: Member; from: Cell };
+  | { kind: 'remove'; member: Member; from: Cell }
+  | { kind: 'archive'; cell: Cell }
+  | { kind: 'restore'; cell: Cell };
 
 interface Props { user: AuthUser | null; }
 
@@ -32,6 +42,7 @@ export const Cells: React.FC<Props> = ({ user }) => {
   const level = ROLE_LEVEL[user?.role ?? 'member'] ?? 0;
   const canManage = canManageCells(user ? { role: user.role, status: user.status } : null);
   const [cells, setCells] = useState<Cell[]>([]);
+  const [archivedCells, setArchivedCells] = useState<Cell[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,17 +53,24 @@ export const Cells: React.FC<Props> = ({ user }) => {
   const load = useCallback(async (cancelled: () => boolean = () => false) => {
     setLoading(true);
     try {
-      const [cellRows, memberRows] = await Promise.all([fetchCells(), fetchMembersFiltered()]);
+      const [cellRows, memberRows, bscNames, archivedRows] = await Promise.all([
+        fetchCells(),
+        fetchMembersFiltered(),
+        // Guidance only: a failed lookup must not block the page, because the transfer RPC refuses a BSC member anyway.
+        fetchBscMembershipNames().catch(() => ({} as Record<string, string>)),
+        canManage ? fetchArchivedCells() : Promise.resolve([] as Cell[]),
+      ]);
       if (cancelled()) return;
       setCells(cellRows);
-      setMembers(memberRows);
+      setArchivedCells(archivedRows);
+      setMembers(memberRows.map((m) => ({ ...m, bsc_name: bscNames[m.id] ?? null })));
       setError(null);
     } catch (e: unknown) {
       if (!cancelled()) setError(e instanceof Error ? e.message : 'Could not load cells.');
     } finally {
       if (!cancelled()) setLoading(false);
     }
-  }, []);
+  }, [canManage]);
 
   useEffect(() => {
     if (level < 1) return;
@@ -153,7 +171,20 @@ export const Cells: React.FC<Props> = ({ user }) => {
                       <Button variant="secondary" size="small" onClick={() => setDialog({ kind: 'leader', cell: cellRecord })}>
                         <Crown className="w-3.5 h-3.5 mr-1" aria-hidden="true" /> {cell.leaderName ? 'Change leader' : 'Assign leader'}
                       </Button>
+                      <Button
+                        variant="secondary"
+                        size="small"
+                        disabled={cell.members.length > 0}
+                        onClick={() => setDialog({ kind: 'archive', cell: cellRecord })}
+                      >
+                        <Archive className="w-3.5 h-3.5 mr-1" aria-hidden="true" /> Archive
+                      </Button>
                     </div>
+                  )}
+                  {canManage && cellRecord && cell.members.length > 0 && (
+                    <p className="text-xs text-gray-500 dark:text-slate-400">
+                      Move or remove the members in this cell before archiving it.
+                    </p>
                   )}
 
                   {cell.members.length === 0 ? (
@@ -162,7 +193,17 @@ export const Cells: React.FC<Props> = ({ user }) => {
                     <ul className="divide-y divide-gray-100 dark:divide-slate-800">
                       {cell.members.map((m) => (
                         <li key={m.id} className="flex items-center gap-2 py-2">
-                          <span className="flex-1 min-w-0 text-sm text-gray-800 dark:text-slate-200 truncate">{m.full_name}</span>
+                          <span className="flex-1 min-w-0 text-sm text-gray-800 dark:text-slate-200 truncate">
+                            {m.full_name}
+                            {m.status !== 'active' && (
+                              <span className="ml-2 text-xs font-semibold text-york-700">
+                                ({m.status ?? 'not active'})
+                              </span>
+                            )}
+                            {m.bsc_name && (
+                              <span className="ml-2 text-xs text-gray-500 dark:text-slate-400">in {m.bsc_name}</span>
+                            )}
+                          </span>
                           {canManage && cellRecord && (
                             <>
                               <Button
@@ -216,6 +257,25 @@ export const Cells: React.FC<Props> = ({ user }) => {
         })}
       </ul>
 
+      {canManage && archivedCells.length > 0 && (
+        <section className="space-y-2" aria-label="Archived cells">
+          <h2 className="text-sm font-bold text-gray-700 dark:text-slate-300">Archived cells</h2>
+          <ul className="space-y-2">
+            {archivedCells.map((cell) => (
+              <li
+                key={cell.id}
+                className="flex items-center gap-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg px-4 py-2"
+              >
+                <span className="flex-1 min-w-0 text-sm text-gray-600 dark:text-slate-400 truncate">{cell.name}</span>
+                <Button variant="secondary" size="small" onClick={() => setDialog({ kind: 'restore', cell })}>
+                  <RotateCcw className="w-3.5 h-3.5 mr-1" aria-hidden="true" /> Restore
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {canManage && (
         <>
           <CellNameModal
@@ -265,7 +325,8 @@ export const Cells: React.FC<Props> = ({ user }) => {
             title="Remove from cell?"
             message={
               dialog?.kind === 'remove'
-                ? `${dialog.member.full_name} will be removed from ${dialog.from.name}. They will stay in the directory.`
+                ? validateMemberPlacement(dialog.member, null, cells)
+                  ?? `${dialog.member.full_name} will be removed from ${dialog.from.name}. They will stay in the directory.`
                 : ''
             }
             confirmLabel="Remove"
@@ -273,6 +334,34 @@ export const Cells: React.FC<Props> = ({ user }) => {
               if (dialog?.kind !== 'remove') return;
               await setMemberCell(dialog.member, null, actor!, cells);
               reportSaved(`${dialog.member.full_name} removed from the cell.`);
+            }}
+          />
+          <ConfirmModal
+            isOpen={dialog?.kind === 'archive'}
+            onClose={() => setDialog(null)}
+            title="Archive cell?"
+            message={
+              dialog?.kind === 'archive'
+                ? `${dialog.cell.name} will be hidden from cell lists and pickers. Its history is kept, and it can be restored later.`
+                : ''
+            }
+            confirmLabel="Archive"
+            onConfirm={async () => {
+              if (dialog?.kind !== 'archive') return;
+              await setCellArchived(dialog.cell, true, actor!, members);
+              reportSaved(`${dialog.cell.name} archived.`);
+            }}
+          />
+          <ConfirmModal
+            isOpen={dialog?.kind === 'restore'}
+            onClose={() => setDialog(null)}
+            title="Restore cell?"
+            message={dialog?.kind === 'restore' ? `${dialog.cell.name} will appear in cell lists and pickers again.` : ''}
+            confirmLabel="Restore"
+            onConfirm={async () => {
+              if (dialog?.kind !== 'restore') return;
+              await setCellArchived(dialog.cell, false, actor!, members);
+              reportSaved(`${dialog.cell.name} restored.`);
             }}
           />
         </>

@@ -142,9 +142,10 @@ export async function fetchStatuses(): Promise<ContactStatus[]> {
 
 // ─── Cells ────────────────────────────────────────────────────────────────────
 
+/** Active (not archived) cells. Archived cells take no members, so every picker built on this list excludes them. */
 export async function fetchCells(): Promise<Cell[]> {
   const { data, error } = await supabase
-    .from('cells').select('id, name, leader_id').order('name', { ascending: true });
+    .from('cells').select('id, name, leader_id').is('archived_at', null).order('name', { ascending: true });
   if (error) throw new Error(error.message ?? 'Unknown error');
   return data ?? [];
 }
