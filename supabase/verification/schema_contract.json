@@ -2,34 +2,49 @@
   "_comment": "The reviewed, human-readable security contract for the database. check_schema_contract.mjs asserts every item against schema_fingerprint.sql output. Changing this file is a security decision.",
   "tables": [
     "admin_bootstrap_audit", "admin_role_assignments", "admin_role_permissions", "admin_roles", "announcements",
-    "assignments", "attendance_imports", "attendance_member_matches", "audience_specs", "books_of_month",
-    "bsc_assignment_audit", "bscs", "cells",
+    "assignments", "attendance_imports", "attendance_member_matches", "audience_publications", "audience_snapshots",
+    "audience_specs", "books_of_month", "bsc_assignment_audit", "bscs", "cell_admin_audit", "cells",
+    "communication_audit", "communication_deliveries", "communication_messages", "communication_recipients",
     "confession_declarations", "confessions", "contact_audit_log", "contact_follow_ups", "contact_tags", "contacts",
     "devotional_daily_pages", "devotional_views", "drive_link_metadata", "email_drafts", "email_log",
     "email_notification_log", "email_preferences", "email_templates", "event_rsvps", "events", "fellowships",
     "foundation_school_classes", "foundation_school_enrollments", "foundation_school_progress", "habit_entries",
-    "habit_templates", "meeting_attendances", "meetings", "membership_transitions", "memberships",
-    "monthly_devotionals", "people", "prayer_requests", "profiles", "push_notification_log", "push_subscriptions",
-    "scheduled_emails", "saved_group_members", "saved_groups", "staff_profile_edit_audit", "status_settings",
-    "tags_settings", "testimonies", "testimony_comments", "testimony_reactions", "user_profiles",
-    "weekly_messages", "zoom_attendance", "zoom_settings"
+    "habit_templates", "leadership_release_audit", "meeting_attendances", "meetings", "member_cell_audit",
+    "member_status_audit", "membership_transitions", "memberships", "monthly_devotionals", "people", "prayer_requests",
+    "profiles", "push_notification_log", "push_subscriptions", "saved_group_members", "saved_groups",
+    "scheduled_emails", "staff_profile_edit_audit", "status_settings", "tags_settings", "testimonies",
+    "testimony_comments", "testimony_reactions", "user_profiles", "weekly_messages", "zoom_attendance", "zoom_settings"
   ],
   "views": ["member_directory"],
   "authenticatedPrivileges": {
     "DELETE,INSERT,SELECT,UPDATE": [
       "admin_role_assignments", "admin_role_permissions", "admin_roles", "announcements", "attendance_imports",
-      "attendance_member_matches", "books_of_month", "bscs", "cells", "confession_declarations", "confessions", "contacts",
-      "devotional_daily_pages", "devotional_views", "drive_link_metadata", "email_drafts", "email_log", "email_templates", "event_rsvps", "events",
-      "fellowships", "foundation_school_classes", "foundation_school_enrollments", "foundation_school_progress", "habit_entries",
-      "habit_templates", "meeting_attendances", "meetings", "monthly_devotionals", "people", "prayer_requests", "profiles",
-      "push_subscriptions", "saved_group_members", "saved_groups", "status_settings", "tags_settings", "testimonies",
-      "user_profiles", "weekly_messages", "zoom_settings"
+      "attendance_member_matches", "books_of_month", "bscs", "cells", "confession_declarations", "confessions",
+      "contacts", "devotional_daily_pages", "devotional_views", "drive_link_metadata", "email_drafts", "email_log",
+      "email_templates", "event_rsvps", "events", "fellowships", "foundation_school_classes",
+      "foundation_school_enrollments", "foundation_school_progress", "habit_entries", "habit_templates",
+      "meeting_attendances", "meetings", "monthly_devotionals", "people", "prayer_requests", "profiles",
+      "push_subscriptions", "saved_group_members", "status_settings", "tags_settings", "testimonies", "user_profiles",
+      "weekly_messages", "zoom_settings"
     ],
-    "INSERT,SELECT": ["audience_specs", "contact_audit_log", "email_notification_log", "membership_transitions"],
-    "INSERT,SELECT,UPDATE": ["assignments", "contact_follow_ups", "email_preferences", "memberships"],
-    "DELETE,INSERT,SELECT": ["contact_tags", "testimony_comments", "testimony_reactions"],
-    "SELECT": ["bsc_assignment_audit", "push_notification_log", "staff_profile_edit_audit", "zoom_attendance"],
-    "": ["admin_bootstrap_audit", "scheduled_emails"]
+    "INSERT,SELECT": [
+      "contact_audit_log", "email_notification_log", "membership_transitions"
+    ],
+    "INSERT,SELECT,UPDATE": [
+      "assignments", "contact_follow_ups", "email_preferences", "memberships", "saved_groups"
+    ],
+    "DELETE,INSERT,SELECT": [
+      "contact_tags", "testimony_comments", "testimony_reactions"
+    ],
+    "SELECT": [
+      "audience_publications", "audience_snapshots", "audience_specs", "bsc_assignment_audit", "cell_admin_audit",
+      "communication_audit", "communication_deliveries", "communication_messages", "communication_recipients",
+      "leadership_release_audit", "member_cell_audit", "member_status_audit", "push_notification_log",
+      "staff_profile_edit_audit", "zoom_attendance"
+    ],
+    "": [
+      "admin_bootstrap_audit", "scheduled_emails"
+    ]
   },
   "serviceRoleNoAccess": ["admin_bootstrap_audit", "bsc_assignment_audit", "cell_admin_audit", "member_cell_audit", "member_status_audit", "leadership_release_audit"],
   "forbiddenPrivileges": ["TRUNCATE", "REFERENCES", "TRIGGER"],
@@ -80,7 +95,52 @@
     "resolve_audience(uuid)": { "security": "definer", "execute": ["authenticated", "service_role"] },
     "can_see_affirmation(uuid)": { "security": "definer", "execute": ["authenticated", "service_role"] },
     "is_meeting_invitee(uuid)": { "security": "definer", "execute": ["authenticated", "service_role"] },
-    "assignments_completed_at_stamp()": { "security": "definer", "execute": [] }
+    "assignments_completed_at_stamp()": { "security": "definer", "execute": [] },
+    "publish_meeting(uuid)": { "security": "definer", "execute": ["authenticated"] },
+    "can_view_meeting(uuid)": { "security": "definer", "execute": ["authenticated"] },
+    "guard_cell_lifecycle()": { "security": "invoker", "execute": [] },
+    "is_message_sender(uuid)": { "security": "definer", "execute": ["authenticated", "service_role"] },
+    "mark_message_read(uuid)": { "security": "definer", "execute": ["authenticated"] },
+    "is_meeting_creator(uuid)": { "security": "definer", "execute": ["authenticated"] },
+    "is_meeting_manager(uuid)": { "security": "definer", "execute": ["authenticated"] },
+    "audit_cell_admin_change()": { "security": "definer", "execute": [] },
+    "snapshot_event_audience()": { "security": "definer", "execute": [] },
+    "audit_member_cell_change()": { "security": "definer", "execute": [] },
+    "is_message_recipient(uuid)": { "security": "definer", "execute": ["authenticated", "service_role"] },
+    "resolve_audience_all(uuid)": { "security": "definer", "execute": [] },
+    "claim_deliveries(uuid,text)": { "security": "definer", "execute": ["service_role"] },
+    "meeting_audience_spec(uuid)": { "security": "definer", "execute": ["authenticated"] },
+    "is_meeting_participant(uuid)": { "security": "definer", "execute": ["authenticated"] },
+    "audience_specs_block_change()": { "security": "invoker", "execute": [] },
+    "guard_member_cell_placement()": { "security": "invoker", "execute": [] },
+    "meeting_attendance_normalise()": { "security": "invoker", "execute": [] },
+    "create_saved_group(text,uuid[])": { "security": "invoker", "execute": ["authenticated"] },
+    "snapshot_affirmation_audience()": { "security": "definer", "execute": [] },
+    "transfer_member_cell(uuid,uuid)": { "security": "definer", "execute": ["authenticated"] },
+    "audience_caller_can_target(uuid)": { "security": "definer", "execute": ["authenticated", "service_role"] },
+    "block_targeted_audience_change()": { "security": "invoker", "execute": [] },
+    "is_audience_recipient(text,uuid)": { "security": "definer", "execute": ["authenticated", "service_role"] },
+    "snapshot_announcement_audience()": { "security": "definer", "execute": [] },
+    "expire_stuck_deliveries(interval)": { "security": "definer", "execute": ["service_role"] },
+    "meeting_attendance_guard_delete()": { "security": "invoker", "execute": [] },
+    "set_member_status(uuid,text,text)": { "security": "definer", "execute": ["authenticated"] },
+    "assignments_guard_assignee_changes()": { "security": "invoker", "execute": [] },
+    "saved_group_members_require_active()": { "security": "definer", "execute": [] },
+    "audience_content_recipients(text,uuid)": { "security": "definer", "execute": ["service_role"] },
+    "meeting_roster_allowed(uuid,uuid,uuid)": { "security": "definer", "execute": ["authenticated"] },
+    "release_bsc_leadership_on_deactivation()": { "security": "definer", "execute": [] },
+    "respond_to_meeting_invitation(uuid,text)": { "security": "definer", "execute": ["authenticated"] },
+    "audience_snapshot_content(text,uuid,uuid)": { "security": "definer", "execute": [] },
+    "release_cell_leadership_on_deactivation()": { "security": "definer", "execute": [] },
+    "preview_audience(text,uuid[],uuid[],uuid[])": { "security": "definer", "execute": ["authenticated"] },
+    "create_assignments(text,text,date,text,uuid[])": { "security": "invoker", "execute": ["authenticated"] },
+    "assert_can_send_message(text,uuid[],uuid[],uuid[])": { "security": "definer", "execute": ["authenticated", "service_role"] },
+    "set_meeting_audience(uuid,text,uuid[],uuid[],uuid[],boolean)": { "security": "definer", "execute": ["authenticated"] },
+    "send_message(text,text,text,uuid[],uuid[],uuid[],text[],uuid)": { "security": "definer", "execute": ["authenticated"] },
+    "set_meeting_audience_apply(uuid,text,uuid[],uuid[],uuid[],boolean)": { "security": "definer", "execute": [] },
+    "create_audience_spec(text,uuid[],uuid[],uuid[],uuid[],uuid[],uuid[])": { "security": "definer", "execute": ["authenticated"] },
+    "audience_resolve_fields(text,uuid[],uuid[],uuid[],uuid[],uuid[],uuid[])": { "security": "definer", "execute": [] },
+    "create_targeted_affirmation(text,text,date,text,uuid[],uuid[],uuid[],uuid[],uuid[],uuid[])": { "security": "invoker", "execute": ["authenticated"] }
   },
   "definerSearchPath": "search_path=public, pg_temp",
   "storage": {
