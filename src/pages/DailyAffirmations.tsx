@@ -32,9 +32,6 @@ interface Props { user: AuthUser | null; }
 
 const canManage = (role: string) => ['coordinator', 'admin'].includes(role);
 
-const selectClass =
-  'w-full rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-gray-900 dark:text-slate-100';
-
 export const DailyAffirmations: React.FC<Props> = ({ user }) => {
   const today = new Date().toISOString().split('T')[0];
   const [viewDate, setViewDate] = useState(today);

@@ -16,7 +16,8 @@ describe('Quick Add cell authorization', () => {
   test('coordinators and admins can choose from all loaded cells', () => {
     const quickAdd = read('src/components/feature/QuickAddModal.tsx');
 
-    expect(quickAdd).toContain("if (user.role === 'coordinator' || user.role === 'admin') return cells;");
+    expect(quickAdd).toContain('const role = effectiveRole(user);');
+    expect(quickAdd).toContain("if (role === 'coordinator' || role === 'admin') return cells;");
     expect(quickAdd).toContain('<CellSelect');
   });
 
@@ -24,7 +25,7 @@ describe('Quick Add cell authorization', () => {
     const quickAdd = read('src/components/feature/QuickAddModal.tsx');
     const policies = read('supabase/migrations/016_security_authorization_hardening.sql');
 
-    expect(quickAdd).toContain("if (user.role === 'cell_leader') return cells.filter((cell) => cell.leader_id === user.id);");
+    expect(quickAdd).toContain("if (role === 'cell_leader') return cells.filter((cell) => cell.leader_id === user.id);");
     expect(policies).toContain('public.is_cell_leader_of(cell_id)');
   });
 
