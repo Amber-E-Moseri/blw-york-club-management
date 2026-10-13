@@ -47,6 +47,7 @@ export interface Member {
   phone?: string;
   student_number?: string;
   cell_id?: string;
+  status?: 'pending' | 'active' | 'inactive' | 'rejected';
 }
 
 // ─── Announcements ───────────────────────────────────────────────────────────
