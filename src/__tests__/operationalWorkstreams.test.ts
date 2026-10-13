@@ -289,3 +289,33 @@ describe('operational workstream contract invariants', () => {
     }
   });
 });
+
+// ─── Migration 065: Audience grants and policy fixes ─────────────────────────
+
+describe('065: audience grants and policy fixes', () => {
+  const sql = mig('065_audience_grants_and_policy_fixes.sql');
+
+  test('adds write grants for saved_groups to authenticated', () => {
+    expect(sql).toMatch(/grant insert, update, delete on public\.saved_groups\s+to authenticated/i);
+  });
+
+  test('adds write grants for saved_group_members to authenticated', () => {
+    expect(sql).toMatch(/grant insert, update, delete on public\.saved_group_members\s+to authenticated/i);
+  });
+
+  test('adds insert grant for audience_specs to authenticated', () => {
+    expect(sql).toMatch(/grant insert\s+on public\.audience_specs\s+to authenticated/i);
+  });
+
+  test('replaces saved_groups_read with is_active_member() gate', () => {
+    expect(sql).toContain('drop policy if exists saved_groups_read on public.saved_groups');
+    expect(sql).toContain('create policy saved_groups_read on public.saved_groups');
+    expect(sql).toContain('public.is_active_member()');
+    expect(sql).not.toContain("auth.role() = 'authenticated'");
+  });
+
+  test('replaces saved_group_members_read with is_active_member() gate', () => {
+    expect(sql).toContain('drop policy if exists saved_group_members_read on public.saved_group_members');
+    expect(sql).toContain('create policy saved_group_members_read on public.saved_group_members');
+  });
+});
