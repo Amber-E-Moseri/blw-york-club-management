@@ -46,9 +46,19 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Point the local stack at a per-run disposable project
+        run: |
+          ID="f2ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          sed -i -E "s/^project_id = \".*\"/project_id = \"$ID\"/" supabase/config.toml
+          grep -E '^project_id' supabase/config.toml
+          echo "F2_DISPOSABLE_PROJECT_ID=$ID" >> "$GITHUB_ENV"
+      - name: Target guard self-test (refusals for protected and unconfirmed targets; no Docker)
+        run: bash scripts/test_f2_target_guard.sh
       - name: Start the disposable local stack
         run: npx supabase start
-      - name: F2 certification (frontiers 097 and 098, all F2 suites, concurrency gate)
+      - name: F2 certification (frontiers 096, 097 and 098, all mandatory F2 suites, concurrency gate)
+        env:
+          F2_DB_ADMIN: postgres
         run: scripts/certify-f2.sh
       - name: Stop the local stack
         if: always()

@@ -1,11 +1,16 @@
 /**
- * Behavioural tests for the CSV import retry. The real client code (bulkImportContacts) runs against a fake
- * submit_contacts_batch that behaves like the database: a contact is written once per idempotency key, a known key is
- * replayed as already_imported, and tags and follow-ups are written only when the contact is written. Every assertion is on
- * the state the fake database ends in, not on the calls the client made.
+ * Behavioural tests for CSV import identity. The real client (bulkImportContacts) runs against a fake submit_contacts_batch
+ * that behaves like the database: a contact is written once per idempotency key, a known key is replayed as already_imported,
+ * and tags and follow-ups are written only when a contact is written. Every assertion is on the state the fake database ends
+ * in (contacts, tags, follow-ups), not on the calls the client made.
+ *
+ * The three cases the release requires are kept apart:
+ *   retry            the same logical import again: nothing is written twice
+ *   correction       a corrected file (invalid rows fixed, rows inserted, removed or reordered): only the new rows are written
+ *   new import       an intentional second import: identical rows are written again, but only after the user starts it
  */
 import { bulkImportContacts } from '../lib/queries/contacts';
-import { startImportAttempt, fingerprintText } from '../lib/importAttempt';
+import { startImportAttempt } from '../lib/importAttempt';
 import type { BulkImportRow, Cell, ImportAttempt, User } from '../types';
 
 const mockRpc = jest.fn();
@@ -22,43 +27,39 @@ const ACTOR = 'actor-1';
 const CELLS = [{ id: 'cell-north', name: 'North', leader_id: null }] as unknown as Cell[];
 const USERS = [{ id: 'user-x', email: 'x@example.test', full_name: 'Ximena' }] as unknown as Array<Pick<User, 'id' | 'email' | 'full_name'>>;
 
-/** The fake database. */
+type Batch = Array<{ contact_name: string; idempotency_key: string; tag_names: string[]; follow_up_assignee: string | null }>;
+
+/** The fake database: contacts by idempotency key, plus the tag and follow-up rows written with them. */
 class FakeDatabase {
   private nextId = 0;
-  /** Contacts by idempotency key. */
   contacts = new Map<string, { id: string; name: string }>();
   tagRows = 0;
   followUpRows = 0;
-  /** Number of upcoming batches that commit and then report an error (the uncertain case). */
   uncertainBatches = 0;
 
-  batch(rows: Array<{ contact_name: string; idempotency_key: string; tag_names: string[]; follow_up_assignee: string | null }>) {
-    const outcomes = rows.map((r, i) => {
+  batch(rows: Batch) {
+    return rows.map((r, i) => {
       const existing = this.contacts.get(r.idempotency_key);
-      if (existing) {
-        return { row_index: i + 1, outcome: 'already_imported', contact_id: existing.id, error_code: null };
-      }
+      if (existing) return { row_index: i + 1, outcome: 'already_imported', contact_id: existing.id, error_code: null };
       const id = `contact-${++this.nextId}`;
       this.contacts.set(r.idempotency_key, { id, name: r.contact_name });
       this.tagRows += new Set(r.tag_names).size;
       if (r.follow_up_assignee) this.followUpRows += 1;
       return { row_index: i + 1, outcome: 'imported', contact_id: id, error_code: null };
     });
-    return outcomes;
   }
 
   get count() { return this.contacts.size; }
-  nameFor(key: string) { return this.contacts.get(key)?.name; }
+  names() { return Array.from(this.contacts.values()).map((c) => c.name).sort(); }
 }
 
 let db: FakeDatabase;
 
 beforeEach(() => {
   db = new FakeDatabase();
-  // CRA resets mock implementations before each test, so the audit-log writer is set up here as well.
   mockFrom.mockImplementation((_table: string) => ({ insert: jest.fn(() => Promise.resolve({ data: null, error: null })) }));
   mockRpc.mockReset();
-  mockRpc.mockImplementation(async (_name: string, args: { p_rows: Parameters<FakeDatabase['batch']>[0] }) => {
+  mockRpc.mockImplementation(async (_name: string, args: { p_rows: Batch }) => {
     const data = db.batch(args.p_rows);
     if (db.uncertainBatches > 0) {
       db.uncertainBatches -= 1;
@@ -67,6 +68,9 @@ beforeEach(() => {
     return { data, error: null };
   });
 });
+
+const lastKeysSent = () =>
+  (mockRpc.mock.calls[mockRpc.mock.calls.length - 1][1].p_rows as Batch).map((r) => r.idempotency_key);
 
 const row = (fileRow: number, name: string, extra: Partial<BulkImportRow> = {}): BulkImportRow => ({
   contact_name: name,
@@ -81,8 +85,8 @@ const row = (fileRow: number, name: string, extra: Partial<BulkImportRow> = {}):
 
 const attempt = (id: string): ImportAttempt => startImportAttempt(() => id);
 
-describe('complete retries', () => {
-  it('a duplicate submission of a fully imported file writes nothing new and reports the rows as already imported', async () => {
+describe('retry of the same logical import', () => {
+  it('a duplicate submission of a finished import writes nothing new: the server replays every row', async () => {
     const file = [row(1, 'Ada One'), row(2, 'Ben Two'), row(3, 'Cy Three')];
     const first = await bulkImportContacts(file, ACTOR, CELLS, USERS, attempt('att-A'));
     expect(first.imported).toBe(3);
@@ -95,73 +99,14 @@ describe('complete retries', () => {
     expect(db.count).toBe(3);
     expect(db.tagRows).toBe(6);
   });
-});
 
-describe('corrected partial retries', () => {
-  it('a corrected re-upload imports only the failed row, keeps its key, and never recreates completed rows', async () => {
-    const original = [row(1, 'Ada One'), row(2, 'Ben Two', { cell_name: 'Nowhere' }), row(3, 'Cy Three')];
-    const first = await bulkImportContacts(original, ACTOR, CELLS, USERS, attempt('att-P'));
-    expect(first.imported).toBe(2);
-    expect(first.failed).toBe(1);
-    expect(first.nextAttempt).not.toBeNull();
-    expect(db.count).toBe(2);
-
-    // The user fixes row 2 and uploads the file again, under the same open attempt.
-    const corrected = [row(1, 'Ada One'), row(2, 'Ben Two'), row(3, 'Cy Three')];
-    const second = await bulkImportContacts(corrected, ACTOR, CELLS, USERS, first.nextAttempt as ImportAttempt);
-
-    expect(second.imported).toBe(1);
-    expect(second.alreadyCompleted).toBe(2);
-    expect(second.failed).toBe(0);
-    expect(second.nextAttempt).toBeNull();
-    expect(db.count).toBe(3);
-    // Only row 2 was sent in the second call, with its original file position as its key.
-    const sentKeys = mockRpc.mock.calls[mockRpc.mock.calls.length - 1][1].p_rows.map((r: { idempotency_key: string }) => r.idempotency_key);
-    expect(sentKeys).toEqual(['att-P:2']);
-  });
-
-  it('a row that becomes valid after correction does not shift the keys of the rows already written', async () => {
-    const original = [row(1, 'Ada One', { cell_name: 'Nowhere' }), row(2, 'Ben Two'), row(3, 'Cy Three')];
-    const first = await bulkImportContacts(original, ACTOR, CELLS, USERS, attempt('att-S'));
-    expect(first.imported).toBe(2);
-    // Ben (file row 2) and Cy (file row 3) are already written under keys att-S:2 and att-S:3.
-    const corrected = [row(1, 'Ada One'), row(2, 'Ben Two'), row(3, 'Cy Three')];
-    const second = await bulkImportContacts(corrected, ACTOR, CELLS, USERS, first.nextAttempt as ImportAttempt);
-    expect(second.alreadyCompleted).toBe(2);
-    expect(second.imported).toBe(1);
-    expect(db.count).toBe(3);
-    expect(db.nameFor('att-S:2')).toBe('Ben Two');
-    expect(db.nameFor('att-S:3')).toBe('Cy Three');
-  });
-});
-
-describe('tags and follow-ups stay exactly once', () => {
-  it('a corrected retry adds no tags or follow-ups for rows already written', async () => {
-    const original = [
-      row(1, 'Ada One'),
-      row(2, 'Ben Two', { follow_up_person: 'Ximena', cell_name: 'Nowhere' }),
-    ];
-    const first = await bulkImportContacts(original, ACTOR, CELLS, USERS, attempt('att-T'));
-    expect(first.imported).toBe(1);
-    expect(db.tagRows).toBe(2);
-    expect(db.followUpRows).toBe(0);
-
-    const corrected = [row(1, 'Ada One'), row(2, 'Ben Two', { follow_up_person: 'Ximena' })];
-    const second = await bulkImportContacts(corrected, ACTOR, CELLS, USERS, first.nextAttempt as ImportAttempt);
-    expect(second.imported).toBe(1);
-    expect(db.tagRows).toBe(4); // Ada's two tags, Ben's two tags, each written once
-    expect(db.followUpRows).toBe(1); // Ben's follow-up, written once
-  });
-});
-
-describe('uncertain success', () => {
-  it('when the batch committed but the response was lost, a retry of the same attempt writes nothing twice', async () => {
+  it('a retry after an uncertain response writes nothing twice, and the tags and follow-up are written once', async () => {
     db.uncertainBatches = 1;
     const file = [row(1, 'Ada One'), row(2, 'Ben Two', { follow_up_person: 'Ximena' })];
     const first = await bulkImportContacts(file, ACTOR, CELLS, USERS, attempt('att-U'));
     expect(first.imported).toBe(0);
     expect(first.failed).toBe(2);
-    expect(db.count).toBe(2); // the database did commit both rows
+    expect(db.count).toBe(2); // the database committed both rows before the response was lost
     expect(first.nextAttempt).not.toBeNull();
 
     const retry = await bulkImportContacts(file, ACTOR, CELLS, USERS, first.nextAttempt as ImportAttempt);
@@ -174,8 +119,129 @@ describe('uncertain success', () => {
   });
 });
 
-describe('intentional new imports', () => {
-  it('after a completed import, identical contents imported again are written again as a separate import', async () => {
+describe('correction of a partially imported file', () => {
+  it('a fixed invalid row is written, and the rows already written are matched, not written again', async () => {
+    const original = [row(1, 'Ada One'), row(2, 'Ben Two', { cell_name: 'Nowhere' }), row(3, 'Cy Three')];
+    const first = await bulkImportContacts(original, ACTOR, CELLS, USERS, attempt('att-P'));
+    expect(first.imported).toBe(2);
+    expect(first.failed).toBe(1);
+    expect(first.nextAttempt).not.toBeNull();
+
+    const corrected = [row(1, 'Ada One'), row(2, 'Ben Two'), row(3, 'Cy Three')];
+    const second = await bulkImportContacts(corrected, ACTOR, CELLS, USERS, first.nextAttempt as ImportAttempt);
+    expect(second.imported).toBe(1);
+    expect(second.alreadyCompleted).toBe(2);
+    expect(second.failed).toBe(0);
+    expect(second.heldChanged).toEqual([]);
+    expect(second.nextAttempt).toBeNull();
+    expect(db.names()).toEqual(['Ada One', 'Ben Two', 'Cy Three']);
+    expect(lastKeysSent()).toHaveLength(1); // only Ben was sent
+  });
+
+  // The three cases below start from an UNFINISHED import (one invalid row), so the attempt is open and the correction is
+  // a correction of that import, not a new import.
+
+  it('an INSERTED row is written, and no row already written is written again or lost', async () => {
+    const first = await bulkImportContacts(
+      [row(1, 'Ada One'), row(2, 'Bad Row', { cell_name: 'Nowhere' }), row(3, 'Cy Three')], ACTOR, CELLS, USERS, attempt('att-I'),
+    );
+    expect(first.imported).toBe(2);
+    expect(first.nextAttempt).not.toBeNull();
+
+    // Ben is inserted at position 2, and the bad row is fixed in place at position 4.
+    const corrected = [row(1, 'Ada One'), row(2, 'Ben Two'), row(3, 'Cy Three'), row(4, 'Bad Row')];
+    const second = await bulkImportContacts(corrected, ACTOR, CELLS, USERS, first.nextAttempt as ImportAttempt);
+    expect(second.imported).toBe(2); // Ben (inserted) and the fixed row
+    expect(second.alreadyCompleted).toBe(2); // Ada and Cy
+    expect(second.heldChanged).toEqual([]); // position 2 held the bad row, not an edited contact
+    expect(db.names()).toEqual(['Ada One', 'Bad Row', 'Ben Two', 'Cy Three']);
+  });
+
+
+  it('an row INSERTED AT A WRITTEN POSITION is written, not held: the row that was there is still in the file', async () => {
+    const first = await bulkImportContacts(
+      [row(1, 'Ada One'), row(2, 'Cy Three'), row(3, 'Bad Row', { cell_name: 'Nowhere' })], ACTOR, CELLS, USERS, attempt('att-W'),
+    );
+    expect(first.imported).toBe(2); // position 1 holds Ada, position 2 holds Cy
+
+    // Ben is inserted at position 1. Ada moves to position 2 and Cy to position 3, and the bad row is fixed at position 4.
+    const corrected = [row(1, 'Ben Two'), row(2, 'Ada One'), row(3, 'Cy Three'), row(4, 'Bad Row')];
+    const second = await bulkImportContacts(corrected, ACTOR, CELLS, USERS, first.nextAttempt as ImportAttempt);
+    expect(second.heldChanged).toEqual([]);
+    expect(second.imported).toBe(2); // Ben and the fixed row
+    expect(second.alreadyCompleted).toBe(2); // Ada and Cy
+    expect(db.names()).toEqual(['Ada One', 'Bad Row', 'Ben Two', 'Cy Three']);
+  });
+
+  it('a REMOVED row does not remove or duplicate anything; the rows left are matched', async () => {
+    const first = await bulkImportContacts(
+      [row(1, 'Ada One'), row(2, 'Ben Two'), row(3, 'Cy Three'), row(4, 'Bad Row', { cell_name: 'Nowhere' })],
+      ACTOR, CELLS, USERS, attempt('att-R'),
+    );
+    expect(first.imported).toBe(3);
+
+    // Ben is removed from the file, and the bad row is fixed.
+    const corrected = [row(1, 'Ada One'), row(2, 'Cy Three'), row(3, 'Bad Row')];
+    const second = await bulkImportContacts(corrected, ACTOR, CELLS, USERS, first.nextAttempt as ImportAttempt);
+    expect(second.imported).toBe(1); // the fixed row only
+    expect(second.alreadyCompleted).toBe(2);
+    expect(second.heldChanged).toEqual([]);
+    expect(db.names()).toEqual(['Ada One', 'Bad Row', 'Ben Two', 'Cy Three']);
+  });
+
+  it('a REORDERED file writes only the row that is actually new: every other row is matched by its content', async () => {
+    const first = await bulkImportContacts(
+      [row(1, 'Ada One'), row(2, 'Ben Two'), row(3, 'Cy Three'), row(4, 'Bad Row', { cell_name: 'Nowhere' })],
+      ACTOR, CELLS, USERS, attempt('att-O'),
+    );
+    expect(first.imported).toBe(3);
+
+    const reordered = [row(1, 'Cy Three'), row(2, 'Bad Row'), row(3, 'Ada One'), row(4, 'Ben Two')];
+    const second = await bulkImportContacts(reordered, ACTOR, CELLS, USERS, first.nextAttempt as ImportAttempt);
+    expect(second.imported).toBe(1); // the bad row, now valid
+    expect(second.alreadyCompleted).toBe(3);
+    expect(second.heldChanged).toEqual([]);
+    expect(db.names()).toEqual(['Ada One', 'Bad Row', 'Ben Two', 'Cy Three']);
+    expect(db.tagRows).toBe(8);
+  });
+
+  it('an EDITED row at a written position is HELD, not written, and is written only when the user imports it as new', async () => {
+    const first = await bulkImportContacts([row(1, 'Ada One'), row(2, 'Ben Two', { cell_name: 'Nowhere' })], ACTOR, CELLS, USERS, attempt('att-E'));
+    expect(first.imported).toBe(1);
+
+    const edited = [row(1, 'Ada Edited'), row(2, 'Ben Two')];
+    const held = await bulkImportContacts(edited, ACTOR, CELLS, USERS, first.nextAttempt as ImportAttempt);
+    expect(held.heldChanged).toEqual([1]);
+    expect(held.imported).toBe(1); // Ben, the new row
+    expect(held.nextAttempt).not.toBeNull();
+    expect(db.names()).toEqual(['Ada One', 'Ben Two']); // the edit was not written
+
+    const explicit = await bulkImportContacts(
+      edited, ACTOR, CELLS, USERS, held.nextAttempt as ImportAttempt, { importChangedAsNew: true },
+    );
+    expect(explicit.imported).toBe(1);
+    expect(explicit.heldChanged).toEqual([]);
+    expect(db.names()).toEqual(['Ada Edited', 'Ada One', 'Ben Two']);
+    expect(explicit.nextAttempt).toBeNull();
+  });
+
+  it('two identical rows in one file are two contacts, and a correction matches each copy once', async () => {
+    const first = await bulkImportContacts(
+      [row(1, 'Ada One'), row(2, 'Ada One'), row(3, 'Bad Row', { cell_name: 'Nowhere' })], ACTOR, CELLS, USERS, attempt('att-D'),
+    );
+    expect(first.imported).toBe(2);
+    expect(db.count).toBe(2);
+
+    const corrected = [row(1, 'Ada One'), row(2, 'Ada One'), row(3, 'Ben Two')];
+    const second = await bulkImportContacts(corrected, ACTOR, CELLS, USERS, first.nextAttempt as ImportAttempt);
+    expect(second.alreadyCompleted).toBe(2);
+    expect(second.imported).toBe(1);
+    expect(db.names()).toEqual(['Ada One', 'Ada One', 'Ben Two']);
+  });
+});
+
+describe('an intentional new import', () => {
+  it('after a finished import, identical contents with a new attempt are written again', async () => {
     const file = [row(1, 'Ada One'), row(2, 'Ben Two')];
     const first = await bulkImportContacts(file, ACTOR, CELLS, USERS, attempt('att-1'));
     expect(first.imported).toBe(2);
@@ -187,40 +253,14 @@ describe('intentional new imports', () => {
     expect(db.count).toBe(4);
     expect(db.tagRows).toBe(8);
   });
-});
 
-describe('edits to already-written rows', () => {
-  it('an edited, already-written row keeps the original contact and is reported as an edit that was not applied', async () => {
-    // Ada (row 1) is written. Ben (row 2) fails, so the attempt stays open.
-    const original = [row(1, 'Ada One'), row(2, 'Ben Two', { cell_name: 'Nowhere' })];
-    const first = await bulkImportContacts(original, ACTOR, CELLS, USERS, attempt('att-E'));
-    expect(first.imported).toBe(1);
-
-    // The user renames Ada in the file and fixes Ben.
-    const edited = [row(1, 'Ada Edited'), row(2, 'Ben Two')];
-    const second = await bulkImportContacts(edited, ACTOR, CELLS, USERS, first.nextAttempt as ImportAttempt);
-    expect(second.editedAfterImport).toBe(1);
-    expect(second.alreadyCompleted).toBe(1);
-    expect(second.imported).toBe(1);
-    expect(db.nameFor('att-E:1')).toBe('Ada One');
-  });
-});
-
-describe('no silent deduplication of distinct people', () => {
-  it('two different contacts with the same email in one file are two contacts', async () => {
+  it('an email shared by two different contacts is not a reason to merge them', async () => {
     const file = [
       row(1, 'Ada One', { email: 'shared@example.test' }),
       row(2, 'Ada Two', { email: 'shared@example.test' }),
     ];
-    const result = await bulkImportContacts(file, ACTOR, CELLS, USERS, attempt('att-D'));
+    const result = await bulkImportContacts(file, ACTOR, CELLS, USERS, attempt('att-M'));
     expect(result.imported).toBe(2);
     expect(db.count).toBe(2);
-  });
-});
-
-describe('row fingerprints', () => {
-  it('differ for different content and match for identical content', () => {
-    expect(fingerprintText('abc')).toBe(fingerprintText('abc'));
-    expect(fingerprintText('abc')).not.toBe(fingerprintText('abd'));
   });
 });
