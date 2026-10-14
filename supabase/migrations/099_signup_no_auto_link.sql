@@ -31,7 +31,7 @@ create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer
-set search_path = public, pg_temp
+set search_path = pg_catalog, public
 as $$
 declare
   profile_name text := coalesce(nullif(new.raw_user_meta_data->>'full_name', ''), split_part(new.email, '@', 1));
@@ -88,7 +88,7 @@ returns boolean
 language sql
 stable
 security definer
-set search_path = public, pg_temp
+set search_path = pg_catalog, public
 as $function$
   select exists (
     select 1 from public.profiles p
