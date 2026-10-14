@@ -90,7 +90,8 @@ check('Coordinator', 'coordinator reads pending applicant people row', (await se
 check('Cell leader', 'cell leader of the applicant\'s (no) cell cannot read the pending people row (leader A)', (await seeRow('authenticated', A.leaderA, pendingPerson)) === 0);
 check('Cell leader', 'cell leader B cannot read pending people row', (await seeRow('authenticated', A.leaderB, pendingPerson)) === 0);
 check('Member', 'ordinary active member cannot read pending applicant people row', (await seeRow('authenticated', A.memberA, pendingPerson)) === 0);
-check('Applicant', 'pending applicant reads own people row', (await seeRow('authenticated', A.pendingA, pendingPerson)) === 1);
+// 099 (N1, design 3.3): only an ACTIVE account reads its linked person. A pending applicant reads no person row.
+check('Applicant', 'pending applicant reads no own people row (099: active-only)', (await seeRow('authenticated', A.pendingA, pendingPerson)) === 0);
 check('Applicant', 'another pending applicant cannot read this people row (rejected applicant)', (await seeRow('authenticated', A.rejectedA, pendingPerson)) === 0);
 const anonPeople = await count('anon', null, `select id from public.people`);
 check('Anon', 'anon reads no people rows (no table privilege, so the read is refused)', anonPeople === 0 || String(anonPeople).startsWith('ERR'), String(anonPeople));
@@ -100,7 +101,8 @@ check('Preserved', 'active member reads another active member\'s people row', (a
 check('Preserved', 'active member reads a walk-in people row (contact search)', (await seeRow('authenticated', A.memberA, walkin)) === 1);
 check('Preserved', 'cell leader reads an active member\'s people row in own cell', (await seeRow('authenticated', A.leaderA, P.memberA)) === 1);
 check('Tightened', 'rejected account cannot read another member\x27s people row (not an active account)', (await seeRow('authenticated', A.rejectedA, P.memberB)) === 0);
-check('Preserved', 'rejected applicant reads own people row', (await seeRow('authenticated', A.rejectedA, P.rejectedA)) === 1);
+// 099 (N1, design 3.3): a rejected account is not active, so it reads no person row, its own included.
+check('Preserved', 'rejected applicant reads no own people row (099: active-only)', (await seeRow('authenticated', A.rejectedA, P.rejectedA)) === 0);
 check('Preserved', 'cell leader reads a rejected applicant\'s people row (visibility unchanged; see report)', (await seeRow('authenticated', A.leaderA, P.rejectedA)) === 1);
 
 // ── 3. Email lookup. Migration 098 withdraws find_person_by_email from every client role. Identity is resolved inside

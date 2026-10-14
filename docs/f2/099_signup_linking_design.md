@@ -1,6 +1,6 @@
 # N1 remediation design: signup must not link an unverified account to an existing person
 
-Status: **design for approval. Not implemented.** Migration 099 is not written. N1 remains a release blocker.
+Status: **implemented in migration 099** (approved by the release owner). Certified on PGlite only; real GoTrue, the Docker Supabase stack and the golden fingerprint are NOT yet certified. N1 is not closed until those pass.
 Baseline reproduction: `supabase/verification/f2_suite_baseline_repro.sql`, checks N1a to N1f (pass on 096 = defect present).
 
 ## 1. What is confirmed
