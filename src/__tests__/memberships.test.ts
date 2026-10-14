@@ -18,8 +18,6 @@
  * - T-16 getMembershipTransitions: returns ordered audit trail
  */
 
-import fs from 'fs';
-import path from 'path';
 import { establishMembership, getActiveMembership, getMembershipTransitions, mergePeople } from '../lib/queries/memberships';
 import { supabase } from '../lib/supabase';
 
@@ -31,11 +29,6 @@ jest.mock('../lib/supabase', () => ({
     rpc: jest.fn(),
   },
 }));
-
-const root = path.resolve(__dirname, '..', '..');
-function read(relativePath: string): string {
-  return fs.readFileSync(path.join(root, relativePath), 'utf8');
-}
 
 const PERSON_ID = 'person-uuid-1';
 const PERSON_ID_2 = 'person-uuid-2';
@@ -273,15 +266,8 @@ test('T-16: getMembershipTransitions returns transitions newest-first', async ()
   expect(result[1].fromType).toBeNull();
 });
 
-test('T-19: rejected membership history and reapplication are supported by database constraints', () => {
-  const migration = read('supabase/migrations/018_people_lifecycle_hardening.sql');
-
-  expect(migration).toContain("status IN ('active', 'pending', 'inactive', 'rejected')");
-  expect(migration).toContain('DROP CONSTRAINT IF EXISTS memberships_one_active');
-  expect(migration).toContain("WHERE status = 'active'");
-  expect(migration).toContain("WHERE status = 'pending'");
-  expect(migration).not.toContain('unique (person_id, status)');
-});
+// T-19 (rejected history and reapplication), T-21 (merge authorization) and T-22 (merge repointing) were source-text
+// checks. They are now executable database checks in supabase/verification/f2_suite_membership.sql: H05-H06, M01-M04 and G02-G09.
 
 test('T-20: mergePeople calls the authorized database RPC', async () => {
   (supabase.rpc as jest.Mock).mockResolvedValueOnce({ data: PERSON_ID, error: null });
@@ -300,23 +286,3 @@ test('T-20: mergePeople calls the authorized database RPC', async () => {
   });
 });
 
-test('T-21: merge authorization is enforced by the database function', () => {
-  const migration = read('supabase/migrations/018_people_lifecycle_hardening.sql');
-
-  expect(migration).toContain('SECURITY DEFINER');
-  expect(migration).toContain('NOT public.is_admin_or_coordinator()');
-  expect(migration).toContain("RAISE EXCEPTION 'Not authorised to merge people.'");
-  expect(migration).toContain('GRANT EXECUTE ON FUNCTION public.merge_people');
-});
-
-test('T-22: manual merge preserves outreach and membership history by repointing relationships', () => {
-  const migration = read('supabase/migrations/018_people_lifecycle_hardening.sql');
-
-  expect(migration).toContain('UPDATE public.contacts');
-  expect(migration).toContain('UPDATE public.profiles');
-  expect(migration).toContain('UPDATE public.memberships');
-  expect(migration).toContain('UPDATE public.membership_transitions');
-  expect(migration).not.toMatch(/DELETE FROM public\.contacts/i);
-  expect(migration).not.toMatch(/DELETE FROM public\.contact_follow_ups/i);
-  expect(migration).not.toMatch(/DELETE FROM public\.contact_audit_log/i);
-});

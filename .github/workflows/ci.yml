@@ -32,3 +32,24 @@ jobs:
           cache: npm
       - run: npm ci
       - run: ./scripts/certify-local.sh
+
+  # F2 certification: a fresh local Supabase stack on this runner, migrations replayed to the 097 and 098 frontiers, every
+  # F2 SQL suite and the concurrency gate. The job fails on any failed assertion, wrong SQLSTATE, wrong count, post-state or
+  # frontier. It is independent of the certification job above and does not compare the golden fingerprint.
+  f2-certification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Start the disposable local stack
+        run: npx supabase start
+      - name: F2 certification (frontiers 097 and 098, all F2 suites, concurrency gate)
+        run: scripts/certify-f2.sh
+      - name: Stop the local stack
+        if: always()
+        run: npx supabase stop --no-backup

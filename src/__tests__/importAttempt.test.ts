@@ -1,35 +1,56 @@
-import { nextImportAttempt, recordImportResult } from '../lib/importAttempt';
+import {
+  startImportAttempt,
+  openOrStartAttempt,
+  loadOpenAttempt,
+  saveOpenAttempt,
+  openAttemptRowCount,
+} from '../lib/importAttempt';
+
+beforeEach(() => {
+  window.sessionStorage.clear();
+});
 
 describe('import attempt identity', () => {
-  it('a retry of an incomplete attempt with the same rows reuses the id and never asks for a new one', () => {
-    const newId = jest.fn(() => 'attempt-1');
-    const first = nextImportAttempt(null, 'sig-a', newId);
-    const pending = recordImportResult(first, 2);
-    const retry = nextImportAttempt(pending, 'sig-a', newId);
-    expect(retry.attemptId).toBe(first.attemptId);
+  it('a new import starts with a fresh id and no confirmed rows', () => {
+    const attempt = startImportAttempt(() => 'att-1');
+    expect(attempt).toEqual({ attemptId: 'att-1', confirmed: {} });
+  });
+
+  it('the open attempt is reused by a later upload of the same user until it is cleared', () => {
+    const newId = jest.fn(() => 'att-1');
+    const first = openOrStartAttempt('user-1', newId);
+    saveOpenAttempt('user-1', { ...first, confirmed: { '1': 'fp' } });
+
+    const retry = openOrStartAttempt('user-1', newId);
+    expect(retry.attemptId).toBe('att-1');
+    expect(retry.confirmed).toEqual({ '1': 'fp' });
     expect(newId).toHaveBeenCalledTimes(1);
   });
 
-  it('a second, intentionally new import with identical rows gets a new id once the first is complete', () => {
+  it('clearing the open attempt makes the next upload a separate import with a new id', () => {
     let n = 0;
-    const newId = () => `attempt-${++n}`;
-    const first = nextImportAttempt(null, 'sig-a', newId);
-    const done = recordImportResult(first, 0);
-    const second = nextImportAttempt(done, 'sig-a', newId);
-    expect(second.attemptId).not.toBe(first.attemptId);
+    const newId = () => `att-${++n}`;
+    saveOpenAttempt('user-1', openOrStartAttempt('user-1', newId));
+    saveOpenAttempt('user-1', null);
+    expect(openOrStartAttempt('user-1', newId).attemptId).toBe('att-2');
   });
 
-  it('a different file (different signature) never reuses an open attempt', () => {
+  it('an open attempt belongs to one user; another user starts their own', () => {
     let n = 0;
-    const newId = () => `attempt-${++n}`;
-    const first = nextImportAttempt(null, 'sig-a', newId);
-    const other = nextImportAttempt(recordImportResult(first, 1), 'sig-b', newId);
-    expect(other.attemptId).not.toBe(first.attemptId);
+    const newId = () => `att-${++n}`;
+    saveOpenAttempt('user-1', openOrStartAttempt('user-1', newId));
+    expect(openOrStartAttempt('user-2', newId).attemptId).toBe('att-2');
   });
 
-  it('a clean result marks the attempt complete, a failed result keeps it open for retry', () => {
-    const a = nextImportAttempt(null, 'sig', () => 'id');
-    expect(recordImportResult(a, 0).completed).toBe(true);
-    expect(recordImportResult(a, 1).completed).toBe(false);
+  it('the open attempt survives a reload of the page (it is read back from session storage)', () => {
+    saveOpenAttempt('user-1', { attemptId: 'att-R', confirmed: { '2': 'fp2', '5': 'fp5' } });
+    expect(loadOpenAttempt('user-1')).toEqual({ attemptId: 'att-R', confirmed: { '2': 'fp2', '5': 'fp5' } });
+    expect(openAttemptRowCount('user-1')).toBe(2);
+  });
+
+  it('a damaged stored value is ignored, and the import starts again instead of throwing', () => {
+    window.sessionStorage.setItem('blwyork.importAttempt.user-1', '{not json');
+    expect(loadOpenAttempt('user-1')).toBeNull();
+    expect(openOrStartAttempt('user-1', () => 'att-fresh').attemptId).toBe('att-fresh');
   });
 });

@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { BulkImportModal } from '../components/feature/BulkImportModal';
 import { ContactCard } from '../components/feature/ContactCard';
 import { ContactFilters } from '../components/feature/ContactFilters';
@@ -17,8 +17,8 @@ import {
   useContactTags,
   useTagsAndStatuses,
 } from '../hooks/useContacts';
-import { exportContactsCSV, importRowsSignature } from '../lib/queries/contacts';
-import { nextImportAttempt, recordImportResult, type ImportAttempt } from '../lib/importAttempt';
+import { exportContactsCSV } from '../lib/queries/contacts';
+import { openAttemptRowCount, openOrStartAttempt, saveOpenAttempt } from '../lib/importAttempt';
 import { effectiveRole, type AuthUser } from '../lib/auth';
 import type { BulkImportRow, Contact, ContactFilters as Filters, ContactInput, ImportResult } from '../types';
 
@@ -105,19 +105,27 @@ export const Outreach: React.FC<Props> = ({ user }) => {
     await refetchSelectedTags();
   };
 
-  // Same attempt model as ContactLogging: one id per new import, reused by retries until every row is confirmed.
-  const importAttemptRef = useRef<ImportAttempt | null>(null);
+  // Same import-attempt model as ContactLogging: the open import is kept per user in this tab until every row is confirmed.
+  const [openImportRows, setOpenImportRows] = useState(0);
+  const refreshOpenImport = useCallback(() => setOpenImportRows(user ? openAttemptRowCount(user.id) : 0), [user]);
 
   const handleBulkImport = async (rows: BulkImportRow[]): Promise<ImportResult> => {
     if (!user) {
-      return { imported: 0, alreadyCompleted: 0, failed: rows.length, errors: [{ row: 0, message: 'You must be signed in.' }] };
+      return {
+        imported: 0, alreadyCompleted: 0, editedAfterImport: 0, failed: rows.length,
+        errors: [{ row: 0, message: 'You must be signed in.' }], nextAttempt: null,
+      };
     }
-    const signature = importRowsSignature(rows, user.id);
-    const attempt = nextImportAttempt(importAttemptRef.current, signature, () => crypto.randomUUID());
-    importAttemptRef.current = attempt;
-    const result = await mutations.bulkImport(rows, user.id, cells, users, attempt.attemptId);
-    importAttemptRef.current = recordImportResult(attempt, result.failed);
+    const attempt = openOrStartAttempt(user.id, () => crypto.randomUUID());
+    const result = await mutations.bulkImport(rows, user.id, cells, users, attempt);
+    saveOpenAttempt(user.id, result.nextAttempt);
+    refreshOpenImport();
     return result;
+  };
+
+  const startNewImport = () => {
+    if (user) saveOpenAttempt(user.id, null);
+    refreshOpenImport();
   };
 
   const handleExport = async () => {
@@ -202,7 +210,7 @@ export const Outreach: React.FC<Props> = ({ user }) => {
           {manage && (
             <button
               type="button"
-              onClick={() => setBulkOpen(true)}
+              onClick={() => { refreshOpenImport(); setBulkOpen(true); }}
               className="h-9 px-3 text-sm font-medium text-gray-600 dark:text-slate-400 border border-gray-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 hover:border-gray-300 dark:hover:border-slate-600 transition-colors"
             >
               Bulk import
@@ -260,6 +268,8 @@ export const Outreach: React.FC<Props> = ({ user }) => {
         onClose={() => setBulkOpen(false)}
         cells={cells}
         onImport={handleBulkImport}
+        openImportRows={openImportRows}
+        onStartNewImport={startNewImport}
       />
 
       <ContactCard

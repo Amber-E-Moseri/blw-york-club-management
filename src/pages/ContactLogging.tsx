@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Download, Plus, Upload } from 'lucide-react';
 import { Button } from '../components/foundation/Button';
 import { BulkImportModal } from '../components/feature/BulkImportModal';
@@ -18,8 +18,8 @@ import {
   useContactTags,
   useTagsAndStatuses,
 } from '../hooks/useContacts';
-import { exportContactsCSV, importRowsSignature } from '../lib/queries/contacts';
-import { nextImportAttempt, recordImportResult, type ImportAttempt } from '../lib/importAttempt';
+import { exportContactsCSV } from '../lib/queries/contacts';
+import { openAttemptRowCount, openOrStartAttempt, saveOpenAttempt } from '../lib/importAttempt';
 import { effectiveRole, type AuthUser } from '../lib/auth';
 import type { BulkImportRow, Contact, ContactFilters as Filters, ContactInput, ImportResult } from '../types';
 
@@ -88,20 +88,28 @@ export const ContactLogging: React.FC<Props> = ({ user }) => {
     await refetchSelectedTags();
   };
 
-  // The import attempt survives retries of the same upload. It is created once per new import, and cleared only when
-  // every row of it is confirmed. A repeated click on a failed upload is a retry, not a new import.
-  const importAttemptRef = useRef<ImportAttempt | null>(null);
+  // The import attempt is kept for this user in this tab until every row is confirmed. A corrected re-upload continues it.
+  // A new import starts only after the previous one completed, or when the user chooses "Start a new import".
+  const [openImportRows, setOpenImportRows] = useState(0);
+  const refreshOpenImport = useCallback(() => setOpenImportRows(user ? openAttemptRowCount(user.id) : 0), [user]);
 
   const handleBulkImport = async (rows: BulkImportRow[]): Promise<ImportResult> => {
     if (!user) {
-      return { imported: 0, alreadyCompleted: 0, failed: rows.length, errors: [{ row: 0, message: 'You must be signed in.' }] };
+      return {
+        imported: 0, alreadyCompleted: 0, editedAfterImport: 0, failed: rows.length,
+        errors: [{ row: 0, message: 'You must be signed in.' }], nextAttempt: null,
+      };
     }
-    const signature = importRowsSignature(rows, user.id);
-    const attempt = nextImportAttempt(importAttemptRef.current, signature, () => crypto.randomUUID());
-    importAttemptRef.current = attempt;
-    const result = await mutations.bulkImport(rows, user.id, cells, users, attempt.attemptId);
-    importAttemptRef.current = recordImportResult(attempt, result.failed);
+    const attempt = openOrStartAttempt(user.id, () => crypto.randomUUID());
+    const result = await mutations.bulkImport(rows, user.id, cells, users, attempt);
+    saveOpenAttempt(user.id, result.nextAttempt);
+    refreshOpenImport();
     return result;
+  };
+
+  const startNewImport = () => {
+    if (user) saveOpenAttempt(user.id, null);
+    refreshOpenImport();
   };
 
   const handleExport = async () => {
@@ -128,7 +136,7 @@ export const ContactLogging: React.FC<Props> = ({ user }) => {
             <Download className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />Export CSV
           </Button>
           {manage && (
-            <Button variant="secondary" size="small" onClick={() => setBulkOpen(true)}>
+            <Button variant="secondary" size="small" onClick={() => { refreshOpenImport(); setBulkOpen(true); }}>
               <Upload className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />Bulk Import
             </Button>
           )}
@@ -201,6 +209,8 @@ export const ContactLogging: React.FC<Props> = ({ user }) => {
         onClose={() => setBulkOpen(false)}
         cells={cells}
         onImport={handleBulkImport}
+        openImportRows={openImportRows}
+        onStartNewImport={startNewImport}
       />
 
       <ContactCard

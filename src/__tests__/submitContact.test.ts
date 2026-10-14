@@ -6,14 +6,14 @@
  * supabase/verification/authz_f2_submit_contact_test.sql, and the HTTP/JWT behaviour is covered by the real-stack
  * integration test, which is not runnable in this environment.
  */
-import { createContact, updateContact, bulkImportContacts, importRowsSignature } from '../lib/queries/contacts';
+import { createContact, updateContact, bulkImportContacts } from '../lib/queries/contacts';
 import {
   getClaimIdentity,
   listIdentityClaims,
   resolveIdentityClaim,
   validateIdentityReason,
 } from '../lib/queries/identityReview';
-import type { ContactInput, Cell, BulkImportRow } from '../types';
+import type { ContactInput, Cell, BulkImportRow, ImportAttempt } from '../types';
 
 const mockRpc = jest.fn();
 const mockFromCalls: Array<{ table: string; op: string; payload?: unknown }> = [];
@@ -42,6 +42,8 @@ jest.mock('../lib/supabase', () => ({
     from: (table: string) => mockChain(table),
   },
 }));
+
+const attemptOf = (attemptId: string): ImportAttempt => ({ attemptId, confirmed: {} });
 
 const ACTOR = '00000000-0000-4000-8000-0000000000a1';
 const CELL = '00000000-0000-4000-8000-0000000000c1';
@@ -164,7 +166,7 @@ describe('bulk CSV import repairs the missing person link through submit_contact
       { row_index: 1, outcome: 'imported', contact_id: 'c1', error_code: null },
       { row_index: 2, outcome: 'imported', contact_id: 'c2', error_code: null },
     ], error: null });
-    const result = await bulkImportContacts(rows(2), ACTOR, cells, [], 'att-test');
+    const result = await bulkImportContacts(rows(2), ACTOR, cells, [], attemptOf('att-test'));
     expect(mockRpc).toHaveBeenCalledWith('submit_contacts_batch', expect.any(Object));
     expect(mockFromCalls.some((c) => c.table === 'contacts' && c.op === 'insert')).toBe(false);
     expect(result.imported).toBe(2);
@@ -173,7 +175,7 @@ describe('bulk CSV import repairs the missing person link through submit_contact
 
   it('gives every row its own idempotency key, so a repeated import cannot duplicate rows', async () => {
     mockRpc.mockResolvedValue({ data: [{ row_index: 1, outcome: 'imported', contact_id: 'c1', error_code: null }], error: null });
-    await bulkImportContacts(rows(1), ACTOR, cells, [], 'att-test');
+    await bulkImportContacts(rows(1), ACTOR, cells, [], attemptOf('att-test'));
     const sent = mockRpc.mock.calls[0][1].p_rows as Array<{ idempotency_key: string }>;
     expect(sent[0].idempotency_key).toBe('att-test:1');
   });
@@ -183,7 +185,7 @@ describe('bulk CSV import repairs the missing person link through submit_contact
       { row_index: 1, outcome: 'imported', contact_id: 'c1', error_code: null },
       { row_index: 2, outcome: 'rejected', contact_id: null, error_code: 'not_authorized' },
     ], error: null });
-    const result = await bulkImportContacts(rows(2), ACTOR, cells, [], 'att-test');
+    const result = await bulkImportContacts(rows(2), ACTOR, cells, [], attemptOf('att-test'));
     expect(result.imported).toBe(1);
     expect(result.failed).toBe(1);
     expect(result.errors).toEqual([{ row: 2, message: 'You cannot log a contact in that cell.' }]);
@@ -194,7 +196,7 @@ describe('bulk CSV import repairs the missing person link through submit_contact
       data: args.p_rows.map((_, i) => ({ row_index: i + 1, outcome: 'imported', contact_id: `c${i}`, error_code: null })),
       error: null,
     }));
-    const result = await bulkImportContacts(rows(501), ACTOR, cells, [], 'att-test');
+    const result = await bulkImportContacts(rows(501), ACTOR, cells, [], attemptOf('att-test'));
     const sizes = mockRpc.mock.calls.map((c) => (c[1].p_rows as unknown[]).length);
     expect(sizes).toEqual([500, 1]);
     expect(result.imported).toBe(501);
@@ -248,37 +250,32 @@ describe('CSV import: the attempt id is the only key source; retries replay; sep
     error: null,
   });
 
-  it('the rows signature is stable for the same rows and uploader, and differs for other content or another uploader', () => {
-    expect(importRowsSignature(sample('Ada One'), ACTOR)).toBe(importRowsSignature(sample('Ada One'), ACTOR));
-    expect(importRowsSignature(sample('Ada One'), ACTOR)).not.toBe(importRowsSignature(sample('Ada Two'), ACTOR));
-    expect(importRowsSignature(sample('Ada Shared'), ACTOR)).not.toBe(importRowsSignature(sample('Ada Shared'), 'other-user'));
-  });
 
   it('keys are derived from the attempt id and the row number, and nothing else', async () => {
     okFor(1);
-    await bulkImportContacts(sample('Ada Keys'), ACTOR, cellsFor(), [], 'att-A');
+    await bulkImportContacts(sample('Ada Keys'), ACTOR, cellsFor(), [], attemptOf('att-A'));
     expect(keysSent()).toEqual(['att-A:1']);
   });
 
   it('a retry of the same attempt sends identical keys (replay, not duplicate)', async () => {
     okFor(1);
-    await bulkImportContacts(sample('Ada Retry'), ACTOR, cellsFor(), [], 'att-R');
+    await bulkImportContacts(sample('Ada Retry'), ACTOR, cellsFor(), [], attemptOf('att-R'));
     const first = keysSent();
-    await bulkImportContacts(sample('Ada Retry'), ACTOR, cellsFor(), [], 'att-R');
+    await bulkImportContacts(sample('Ada Retry'), ACTOR, cellsFor(), [], attemptOf('att-R'));
     expect(keysSent()).toEqual(first);
   });
 
   it('an intentionally new attempt with identical content gets different keys (independent rows)', async () => {
     okFor(1);
-    await bulkImportContacts(sample('Ada Repeat'), ACTOR, cellsFor(), [], 'att-1');
+    await bulkImportContacts(sample('Ada Repeat'), ACTOR, cellsFor(), [], attemptOf('att-1'));
     const one = keysSent();
-    await bulkImportContacts(sample('Ada Repeat'), ACTOR, cellsFor(), [], 'att-2');
+    await bulkImportContacts(sample('Ada Repeat'), ACTOR, cellsFor(), [], attemptOf('att-2'));
     expect(keysSent()).not.toEqual(one);
   });
 
   it('the client never writes contact_tags or contact_follow_ups; the database writes them with the contact', async () => {
     okFor(1);
-    await bulkImportContacts(sample('Ada Tags'), ACTOR, cellsFor(), [], 'att-T');
+    await bulkImportContacts(sample('Ada Tags'), ACTOR, cellsFor(), [], attemptOf('att-T'));
     const tables = mockFromCalls.filter((c) => c.op === 'insert').map((c) => c.table);
     expect(tables).not.toContain('contact_tags');
     expect(tables).not.toContain('contact_follow_ups');
@@ -292,7 +289,7 @@ describe('CSV import: the attempt id is the only key source; retries replay; sep
       { row_index: 2, outcome: 'imported', contact_id: 'c2', error_code: null },
     ], error: null });
     const rows = [...sample('Ada A'), ...sample('Ada B')];
-    const result = await bulkImportContacts(rows, ACTOR, cellsFor(), [], 'att-P');
+    const result = await bulkImportContacts(rows, ACTOR, cellsFor(), [], attemptOf('att-P'));
     expect(result.imported).toBe(1);
     expect(result.alreadyCompleted).toBe(1);
     expect(result.failed).toBe(0);
@@ -300,7 +297,7 @@ describe('CSV import: the attempt id is the only key source; retries replay; sep
 
   it('an uncertain response marks the rows failed with a retry message and assumes nothing was written', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'network' } });
-    const result = await bulkImportContacts(sample('Ada Uncertain'), ACTOR, cellsFor(), [], 'att-U');
+    const result = await bulkImportContacts(sample('Ada Uncertain'), ACTOR, cellsFor(), [], attemptOf('att-U'));
     expect(result.imported).toBe(0);
     expect(result.failed).toBe(1);
     expect(result.errors[0].message).toMatch(/Retry this import/);

@@ -49,3 +49,12 @@ REVOKE EXECUTE ON FUNCTION public.find_person_by_email(text) FROM PUBLIC, anon, 
 -- 5. Canonical identity is edited only through update_person_identity (097), which is staff-only and audited. Direct
 -- UPDATE and DELETE on people are withdrawn from every client role. merge_people (owner) keeps working unchanged.
 REVOKE UPDATE, DELETE ON TABLE public.people FROM PUBLIC, anon, authenticated;
+
+-- ---------------------------------------------------------------------------------------------------------------------
+-- 6. Membership transition history. 015 let ANY active member insert a transition row for any person, which let a member
+-- forge the audit trail. Only the staff who may establish memberships (is_core_admin: admin or coordinator) may write one.
+-- The lifecycle functions that write transitions run as the owner and are not affected by this policy.
+-- ---------------------------------------------------------------------------------------------------------------------
+DROP POLICY IF EXISTS membership_transitions_insert ON public.membership_transitions;
+CREATE POLICY membership_transitions_insert ON public.membership_transitions
+  FOR INSERT WITH CHECK (public.is_core_admin());

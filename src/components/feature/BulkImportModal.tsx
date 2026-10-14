@@ -11,6 +11,10 @@ interface Props {
   onClose: () => void;
   cells: Cell[];
   onImport: (rows: BulkImportRow[]) => Promise<ImportResult>;
+  /** Rows of an earlier, unfinished upload that are already written. Uploading a corrected file continues that import. */
+  openImportRows: number;
+  /** Ends the unfinished import, so the next upload is a separate import (identical rows are then written again). */
+  onStartNewImport: () => void;
 }
 
 type Tab = 'csv' | 'paste';
@@ -19,7 +23,7 @@ interface RowWithStatus extends BulkImportRow {
   errors: string[];
 }
 
-export const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, cells, onImport }) => {
+export const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, cells, onImport, openImportRows, onStartNewImport }) => {
   const [tab, setTab] = useState<Tab>('csv');
   const [pasteText, setPasteText] = useState('');
   const [rows, setRows] = useState<RowWithStatus[]>([]);
@@ -38,8 +42,11 @@ export const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, cells, onImp
   const handleClose = () => { reset(); onClose(); };
 
   const processRows = (parsed: BulkImportRow[]) => {
-    const validated = parsed.map((r) => ({
+    // file_row is the row's position in the file. It is its key within an import attempt, so a corrected re-upload of the
+    // same file keeps every row's key, whatever else changed.
+    const validated = parsed.map((r, i) => ({
       ...r,
+      file_row: i + 1,
       errors: validateRow(r, cells),
     }));
     setRows(validated);
@@ -107,13 +114,34 @@ export const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, cells, onImp
         {result && (
           <div className="rounded-lg p-4 bg-green-50 border border-green-200">
             <p className="font-semibold text-green-800">
-              Import complete: {result.imported} imported
+              {result.nextAttempt ? 'Import not finished' : 'Import complete'}: {result.imported} imported
               {result.alreadyCompleted > 0 && `, ${result.alreadyCompleted} already imported earlier (not written again)`}
               {`, ${result.failed} failed`}
             </p>
+            {result.editedAfterImport > 0 && (
+              <p className="text-sm text-gray-700 mt-1">
+                {result.editedAfterImport} already-imported row{result.editedAfterImport !== 1 ? 's differ' : ' differs'} from this file.
+                The original {result.editedAfterImport !== 1 ? 'entries were' : 'entry was'} kept; the edits were not applied.
+              </p>
+            )}
+            {result.nextAttempt && (
+              <p className="text-sm text-gray-700 mt-1">Fix the failed rows and upload the file again to finish this import. Completed rows are not written again.</p>
+            )}
             {result.errors.map((e, i) => (
               <p key={i} className="text-sm text-york-600 dark:text-york-400 mt-1">Row {e.row}: {e.message}</p>
             ))}
+          </div>
+        )}
+
+        {!result && openImportRows > 0 && (
+          <div className="rounded-lg p-3 bg-amber-50 border border-amber-200 text-sm text-gray-700 flex flex-wrap items-center gap-3">
+            <span>
+              {openImportRows} row{openImportRows !== 1 ? 's' : ''} of an unfinished import {openImportRows !== 1 ? 'are' : 'is'} already in the database.
+              Uploading a corrected file continues that import. Rows already written are not written again.
+            </span>
+            <Button variant="ghost" size="small" onClick={() => { onStartNewImport(); reset(); }}>
+              Start a new import instead
+            </Button>
           </div>
         )}
 

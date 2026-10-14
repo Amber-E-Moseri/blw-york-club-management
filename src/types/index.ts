@@ -198,15 +198,31 @@ export interface BulkImportRow {
   notes?: string;
   tags?: string;
   follow_up_person?: string;
+  /** 1-based position of the row in the uploaded file. It is the row's key within an import attempt, so it must not change. */
+  file_row?: number;
+}
+
+/**
+ * One logical import, from the first upload until every row of it is confirmed. The attempt id is the only key source for
+ * the rows in it, so a corrected re-upload of the same list reuses it. `confirmed` maps each ORIGINAL file row number (1-based)
+ * to a fingerprint of that row as it was confirmed. Confirmed rows are never sent again. Kept in sessionStorage per user.
+ */
+export interface ImportAttempt {
+  attemptId: string;
+  confirmed: Record<string, string>;
 }
 
 export interface ImportResult {
-  /** Rows written by this attempt. */
+  /** Rows newly written by this submission. */
   imported: number;
-  /** Rows that an earlier attempt had already completed. They were not written again. */
+  /** Rows an earlier submission of this import had already written. They are not written again. */
   alreadyCompleted: number;
+  /** Already-written rows whose content in this upload differs from what was written. The original is kept; the edit is not applied. */
+  editedAfterImport: number;
   failed: number;
   errors: Array<{ row: number; message: string }>;
+  /** The attempt to carry into the next upload. null when every row is confirmed, so the next upload is a new import. */
+  nextAttempt: ImportAttempt | null;
 }
 
 export type SortDir = 'asc' | 'desc';
