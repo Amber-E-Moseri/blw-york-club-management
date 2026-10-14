@@ -75,7 +75,9 @@ try {
 
   await coordinator.client.from('profiles').update({ role: 'cell_leader' }).eq('id', victim.id).select();
   expect('coordinator can change a role through a direct update', (await h.profileOf(victim.id)).role === 'cell_leader');
-  await admin.from('profiles').update({ role: 'member' }).eq('id', victim.id);
+  // Reset through the coordinator's own session (the role guard allows a coordinator to set a role).
+  const reset = await coordinator.client.from('profiles').update({ role: 'member' }).eq('id', victim.id).select();
+  if (reset.error) throw new Error(`role reset: ${reset.error.message}`);
 
   const exportRows = await coordinator.client.rpc('export_members_authorized', { export_status: 'all' });
   expect('coordinator can run the authorized member export', !exportRows.error, exportRows.error?.message);

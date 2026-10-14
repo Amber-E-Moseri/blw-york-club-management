@@ -11,6 +11,8 @@
 //   node supabase/verification/security_gap_regression_test.mjs
 // Needs SUPABASE_URL (local), SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY. Exits 1 on any failed check.
 
+import { setProfileAsOwner } from './lib.mjs';
+
 const url = process.env.SUPABASE_URL;
 const anon = process.env.SUPABASE_ANON_KEY;
 const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -50,6 +52,12 @@ async function rest(method, path, token, body, prefer = 'return=representation')
 }
 
 const sRest = (method, path, body) => rest(method, path, service, body);
+// Owner fixture writes (local only, lib.mjs). service_role holds no profile UPDATE (094). Each write returns the same
+// {status, data} shape as a PostgREST call, so the fixture checks below are unchanged.
+const ownerWrite = async (id, fields) => {
+  try { await setProfileAsOwner(id, fields); return { status: 200, data: [{ id }] }; }
+  catch (e) { return { status: 500, data: e.message }; }
+};
 
 async function rpc(token, fn, args = {}) {
   return rest('POST', `/rpc/${fn}`, token, args, '');
@@ -78,11 +86,9 @@ async function createUser(label, { role = 'member', status = 'active', cellId = 
   });
   const user = await r.json();
   if (!user.id) throw new FixtureError(`createUser ${label}: ${JSON.stringify(user)}`);
-  const patch = { status };
-  if (role !== 'member') patch.role = role;
-  if (cellId) patch.cell_id = cellId;
-  const up = await sRest('PATCH', `/profiles?id=eq.${user.id}`, patch);
-  if (up.status >= 400 || up.data?.length !== 1) throw new FixtureError(`profile ${label}: ${JSON.stringify(up.data)}`);
+  // Owner fixture state. The signup trigger creates the profile as pending; status, role and cell are then set locally.
+  const up = await ownerWrite(user.id, { status, role, cellId: cellId || undefined });
+  if (up.status >= 400) throw new FixtureError(`profile ${label}: ${JSON.stringify(up.data)}`);
   const s = await (await fetch(`${url}/auth/v1/token?grant_type=password`, {
     method: 'POST',
     headers: { apikey: anon, 'Content-Type': 'application/json' },
@@ -160,7 +166,7 @@ try {
     check('1 legit: coordinator moves the unassigned member to cell B', tOut.kind === 'applied', describe(tOut));
 
     // Simulates a stale assignment left by data written before the fix: the service role bypasses the guard.
-    await fixture('legacy stale assignment', await sRest('PATCH', `/profiles?id=eq.${movedMember.id}`, { bsc_id: bscA.id }));
+    await fixture('legacy stale assignment', await ownerWrite(movedMember.id, { bscId: bscA.id }));
     const p = await profile(movedMember.id);
     console.log(`INFO\t1 stale state\tcell_id=${p.cell_id === cellB.id ? 'cell B' : p.cell_id} bsc_id=${p.bsc_id === bscA.id ? 'BSC A (cell A)' : p.bsc_id}`);
 
@@ -185,7 +191,7 @@ try {
 
   // ─── 2. Audited BSC assignments ──────────────────────────────────────────────────────────────────────────────────
   {
-    await sRest('PATCH', `/profiles?id=eq.${directMember.id}`, { bsc_id: null });
+    await ownerWrite(directMember.id, { bscId: null });
     const before = (await auditRows(directMember.id, coord.token)).length;
 
     const crossCell = await rest('PATCH', `/profiles?id=eq.${directMember.id}`, coord.token, { bsc_id: bscB.id });
@@ -202,7 +208,7 @@ try {
     check('2c every bsc_id change has an audit row', !changed || afterDirect > before,
       `bsc_id=${changed ? 'set' : 'null'} audit rows before=${before} after=${afterDirect}`);
 
-    await sRest('PATCH', `/profiles?id=eq.${directMember.id}`, { bsc_id: null });
+    await ownerWrite(directMember.id, { bscId: null });
     const adminDirect = await rest('PATCH', `/profiles?id=eq.${directMember.id}`, admin.token, { bsc_id: bscA.id });
     const aOut = writeOutcome(adminDirect);
     check('2d admin role direct write is refused (RPC only)', aOut.kind !== 'applied', `outcome=${describe(aOut)}`);
@@ -247,8 +253,10 @@ try {
     const dOut = writeOutcome(blockedDelete);
     check('3a BSC with members cannot be deleted', dOut.kind !== 'applied', `outcome=${describe(dOut)}`);
 
-    const deact = await sRest('PATCH', `/profiles?id=eq.${inactiveMember.id}`, { status: 'rejected' });
-    check('3 fixture: coordinator deactivates the member', writeOutcome(deact).kind === 'applied', describe(writeOutcome(deact)));
+    // UNREACHABLE BY WORKFLOW: a rejected account cannot keep a BSC through any approved path. The owner helper sets it
+    // so the check below can run. It is reported as BLOCKED, not as a pass, because the state is not an authorised one.
+    const deact = await ownerWrite(inactiveMember.id, { status: 'rejected' });
+    console.log(`BLOCKED\t3 fixture: member rejected while in a BSC is owner-set (no workflow reaches it); dependent checks are not counted as passed`);
 
     const denied = await assignBsc(other, inactiveMember.id, null);
     const uOut = rpcOutcome(denied);

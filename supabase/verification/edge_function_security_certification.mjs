@@ -3,7 +3,7 @@
 // stop at the "provider not configured" boundary. The positive cron / unsubscribe paths need the throwaway secrets the
 // local function runtime was started with (CERT_CRON_SECRET, CERT_UNSUBSCRIBE_SECRET), passed via environment only.
 import { createHmac } from 'node:crypto';
-import { harness } from './lib.mjs';
+import { harness, setProfileAsOwner } from './lib.mjs';
 
 const functionsUrl = process.env.SUPABASE_FUNCTIONS_URL;
 if (!functionsUrl) throw new Error('SUPABASE_FUNCTIONS_URL is required');
@@ -41,7 +41,7 @@ try {
   const adminUser = await h.createUser('admin', { role: 'admin' });
   const custom = await h.createUser('custom');
   const rejected = await h.createUser('rejected', { role: 'coordinator' });
-  await admin.from('profiles').update({ status: 'rejected' }).eq('id', rejected.id);
+  await setProfileAsOwner(rejected.id, { status: 'rejected' });
   await grantNotificationPermission(custom.id);
 
   // Use a transactional template type so preference enforcement is bypassed and the

@@ -1,0 +1,27 @@
+-- 096_profile_insert_boundary.sql
+--
+-- Forward-only. PROPOSED, NOT APPLIED: diff review and approval first. Migrations 000-095 are not modified.
+-- Separately reviewable from 094: this closes one privilege, and is the only change in this file.
+--
+-- Problem. authenticated held table-level INSERT on public.profiles (024), and profiles_coordinator_administer (022) is
+-- FOR ALL with is_coordinator(). A coordinator could therefore INSERT a profile directly with status 'active', a cell and
+-- a BSC, skipping approve_pending_member, transfer_member_cell and assign_member_to_bsc. The guards in 089, 090 and 072
+-- check UPDATEs only, so they do not stop an insert. This was confirmed in the offline replay before this migration.
+--
+-- Fix. Revoke INSERT on profiles from the API roles. Nothing needs it:
+--   * Registration: handle_new_user (019) is SECURITY DEFINER and owner-run. It creates the pending profile when auth.users
+--     gets a row, and it runs as the owner, so this revoke does not affect it.
+--   * Staff workflows: approve_pending_member, reject_pending_member, set_member_status, transfer_member_cell,
+--     assign_pending_applicant_to_cell and assign_member_to_bsc change existing rows. None inserts a profile.
+--   * The application: no code path inserts into profiles (verified: no insert in src/, api/, supabase/functions/ or e2e/).
+--   * Fixtures: accounts are created through the Auth admin API, which runs the owner-run signup trigger.
+-- Effect: a direct INSERT by authenticated or service_role is refused by PostgreSQL before RLS or any trigger runs. This is
+-- the smallest database-enforced correction, and it needs no current_user test.
+--
+-- Contract. The reviewed grant matrix (schema_contract.json) recorded INSERT,SELECT for authenticated and SELECT-only for
+-- service_role on profiles after 094. After this migration both are SELECT-only on profiles. The contract is updated in the
+-- same commit; the golden fingerprint is NOT changed here and must be regenerated after a verified real-PostgreSQL apply.
+--
+-- Dependencies: 000 and 019 (signup trigger), 022 (profiles policies), 024 (table grants), 094 (UPDATE and DELETE boundary).
+
+revoke insert on table public.profiles from public, anon, authenticated, service_role;

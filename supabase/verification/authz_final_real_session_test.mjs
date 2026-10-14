@@ -109,7 +109,8 @@ async function main() {
   for (const a of [leaderA, bscOnly, memberA, memberB, admin]) {
     mustOk(`approve ${a.label}`, await rpc('approve_pending_member', coord.token, { target_member_id: a.id }), false);
   }
-  mustOk('role admin', await svc('PATCH', `/profiles?id=eq.${admin.id}`, { role: 'admin' }), true);
+  // Role changes go through the coordinator session (role guard, 048). service_role holds no profile UPDATE (094).
+  mustOk('role admin (coordinator PATCH)', await call('PATCH', `/rest/v1/profiles?id=eq.${admin.id}`, coord.token, { role: 'admin' }, 'return=representation'), true);
 
   // Cell A and its leader; BSC in cell A led by the BSC-only leader.
   const cellA = mustOk('cell A', await svc('POST', '/cells', { name: `${run} cell A` }), true)[0];

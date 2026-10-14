@@ -1,12 +1,14 @@
 import { randomBytes } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { expect, test, type Page } from '@playwright/test';
+import { approveApplicant, coordinatorSession, setRole } from './support/authorizedFixtures';
 
 // Release smoke against the LOCAL Supabase stack with fake, throwaway accounts.
 // Requires SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (local only) in the environment.
 const url = process.env.SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-if (!url || !serviceKey) throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
+const anonKey = process.env.SUPABASE_ANON_KEY;
+if (!url || !serviceKey || !anonKey) throw new Error('SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY and SUPABASE_ANON_KEY are required');
 if (!/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url)) throw new Error('release smoke only runs against a local Supabase stack');
 
 const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
@@ -55,9 +57,12 @@ test.beforeAll(async ({}, testInfo) => {
     if (error || !data.user) throw new Error(`createUser ${key}: ${error?.message}`);
     ids.push(data.user.id);
     if (key === 'pending') pendingId = data.user.id;
+    // Active accounts are approved by a provisioned coordinator through approve_pending_member; roles are set through the
+    // coordinator's role update. The service role does not write profiles (migration 094).
     if (a.status === 'active') {
-      const { error: upErr } = await admin.from('profiles').update({ role: a.role, status: 'active' }).eq('id', data.user.id);
-      if (upErr) throw new Error(`activate ${key}: ${upErr.message}`);
+      const coord = await coordinatorSession(url!, anonKey!);
+      await approveApplicant(coord.client, data.user.id);
+      if (a.role !== 'member') await setRole(coord.client, data.user.id, a.role);
     }
   }
 });

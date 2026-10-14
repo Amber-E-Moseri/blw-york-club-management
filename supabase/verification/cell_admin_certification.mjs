@@ -53,7 +53,7 @@ async function main() {
     update public.profiles set role = 'coordinator' where id = '${COORD}';
     update public.profiles set role = 'cell_leader' where id = '${LEAD}';
     insert into public.cells (id, name, leader_id) values ('${CA}', 'Cell A', '${LEAD}'), ('${CB}', 'Cell B', null);
-    select set_config('app.cell_change_reason', 'owner fixture setup', false); update public.profiles set cell_id = '${CA}' where id in ('${LEAD}', '${M1}', '${M2}');
+    ${[LEAD, M1, M2].map((i) => `begin; select set_config('app.cell_change_reason', 'owner fixture setup', true); update public.profiles set cell_id = '${CA}' where id = '${i}'; commit;`).join(' ')}
     insert into public.bscs (id, cell_id, name) values ('${BSC1}', '${CA}', 'Thursday BSC'), ('${BSC2}', '${CB}', 'Sunday BSC');
     update public.profiles set bsc_id = '${BSC1}' where id = '${M2}';
     update public.profiles set status = 'pending' where id = '${PEND}';
@@ -130,8 +130,8 @@ async function main() {
   // A direct status write is refused for every role since migration 089 (status changes only through the workflow RPC).
   // The admin's attempt must not succeed, whether it raises or matches no row.
   const adminDeact = await attempt(db, 'authenticated', ADMIN, `update public.profiles set status = 'inactive' where id = $1 returning id`, [LEAD]);
-  record('finding', 'admin direct status change is refused (089: status only through the workflow)',
-    !adminDeact.ok || adminDeact.rows.length === 0, adminDeact.ok ? `rows=${adminDeact.rows.length}` : adminDeact.error.slice(0, 90));
+  record('finding', 'admin direct status change is refused with SQLSTATE 42501 (094 privilege layer)',
+    !adminDeact.ok && adminDeact.code === '42501', adminDeact.ok ? `rows=${adminDeact.rows.length}` : `${adminDeact.code} ${adminDeact.error.slice(0, 80)}`);
   // Deactivation goes through the approved workflow, set_member_status, as a coordinator. The release triggers are unchanged.
   const deact = await attempt(db, 'authenticated', COORD, `select * from public.set_member_status($1, 'inactive', 'cell admin certification')`, [LEAD]);
   record('deactivate', 'coordinator sets the leader to inactive via set_member_status (one row saved)', deact.ok && deact.rows.length === 1,
@@ -150,7 +150,7 @@ async function main() {
 
   // ─── 10. BSC leadership is released when its leader becomes inactive ──────────────────────────────────────────────
   // A BSC leader must be an active member of the BSC's cell (migration 040 guard), so place M1 in that cell first.
-  await db.exec(`select set_config('app.cell_change_reason', 'owner fixture setup', false); update public.profiles set cell_id = '${CB}' where id = '${M1}'; update public.bscs set leader_id = '${M1}' where id = '${BSC2}';`);
+  await db.exec(`begin; select set_config('app.cell_change_reason', 'owner fixture setup', true); update public.profiles set cell_id = '${CB}' where id = '${M1}'; commit; update public.bscs set leader_id = '${M1}' where id = '${BSC2}';`);
   const bscDeact = await attempt(db, 'authenticated', COORD, `select * from public.set_member_status($1, 'inactive', 'bsc release certification')`, [M1]);
   record('deactivate', 'coordinator sets a BSC leader to inactive via set_member_status (one row saved)', bscDeact.ok && bscDeact.rows.length === 1,
     bscDeact.ok ? `rows=${bscDeact.rows.length}` : bscDeact.error.slice(0, 110));

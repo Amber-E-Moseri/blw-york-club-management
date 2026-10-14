@@ -27,27 +27,20 @@
       "push_subscriptions", "saved_group_members", "status_settings", "tags_settings", "testimonies", "user_profiles",
       "weekly_messages", "zoom_settings"
     ],
-    "INSERT,SELECT": [
-      "contact_audit_log", "email_notification_log", "membership_transitions", "profiles"
-    ],
+    "INSERT,SELECT": ["contact_audit_log", "email_notification_log", "membership_transitions"],
     "INSERT,SELECT,UPDATE": [
       "assignments", "contact_follow_ups", "email_preferences", "memberships", "saved_groups"
     ],
     "DELETE,INSERT,SELECT": [
       "contact_tags", "testimony_comments", "testimony_reactions"
     ],
-    "SELECT": [
-      "audience_publications", "audience_snapshots", "audience_specs", "bsc_assignment_audit", "cell_admin_audit",
-      "communication_audit", "communication_deliveries", "communication_messages", "communication_recipients",
-      "leadership_release_audit", "member_cell_audit", "member_status_audit", "push_notification_log",
-      "staff_profile_edit_audit", "zoom_attendance"
-    ],
+    "SELECT": ["audience_publications", "audience_snapshots", "audience_specs", "bsc_assignment_audit", "cell_admin_audit", "communication_audit", "communication_deliveries", "communication_messages", "communication_recipients", "leadership_release_audit", "member_cell_audit", "member_status_audit", "push_notification_log", "staff_profile_edit_audit", "zoom_attendance", "profiles"],
     "": [
       "admin_bootstrap_audit", "scheduled_emails"
     ]
   },
   "serviceRoleNoAccess": ["admin_bootstrap_audit", "bsc_assignment_audit", "cell_admin_audit", "member_cell_audit", "member_status_audit", "leadership_release_audit"],
-  "serviceRoleExact": { "communication_audit": "INSERT", "profiles": "INSERT,SELECT" },
+  "serviceRoleExact": { "communication_audit": "INSERT", "profiles": "SELECT" },
   "restrictivePolicies": { "meetings": ["meetings_publication_gate"] },
   "forbiddenPrivileges": ["TRUNCATE", "REFERENCES", "TRIGGER"],
   "profilePolicyAllowList": {
@@ -65,7 +58,7 @@
     "assign_pending_applicant_to_cell(uuid,uuid,text)": { "security": "definer", "execute": ["authenticated"] },
     "cell_leader_pending_roster()": { "security": "definer", "execute": ["authenticated"] },
     "profile_is_pending(uuid)": { "security": "definer", "execute": ["authenticated"] },
-    "person_has_pending_profile(uuid)": { "security": "definer", "execute": ["authenticated"] },
+    "person_has_unapproved_profile(uuid)": { "security": "definer", "execute": ["authenticated"] },
     "is_callers_person(uuid)": { "security": "definer", "execute": ["authenticated"] },
     "begin_cell_change(text)": { "security": "invoker", "execute": [] },
     "export_members_authorized(text)": { "security": "definer", "execute": ["authenticated"] },

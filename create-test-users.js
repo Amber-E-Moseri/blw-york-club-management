@@ -5,6 +5,9 @@ const { createClient } = require('@supabase/supabase-js');
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_ANON_KEY;
 const TEST_USER_PASSWORD = process.env.TEST_USER_PASSWORD;
+// The provisioned coordinator, created once by the owner-level bootstrap. Optional: without it accounts stay pending.
+const COORDINATOR_EMAIL = process.env.TEST_COORDINATOR_EMAIL;
+const COORDINATOR_PASSWORD = process.env.TEST_COORDINATOR_PASSWORD;
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !TEST_USER_PASSWORD) {
   console.error('Missing required environment variables: SUPABASE_URL, SUPABASE_ANON_KEY, TEST_USER_PASSWORD');
@@ -55,15 +58,42 @@ async function createUser(user) {
   }
   console.log('  Signed in, id:', signInData.user.id);
 
-  const { error: updateError } = await supabase
-    .from('profiles')
-    .update({ status: 'active', role: user.role, full_name: user.fullName })
-    .eq('id', signInData.user.id);
-
-  if (updateError) {
-    console.error('  Profile update ERROR:', updateError.message);
+  const userId = signInData.user.id;
+  // A new account is pending (signup trigger). Self-service cannot activate it or set a role (migration 094). Activation
+  // goes through approve_pending_member, signed in as the provisioned coordinator. Without that coordinator's credentials
+  // the account stays pending and this script says so.
+  if (!COORDINATOR_EMAIL || !COORDINATOR_PASSWORD) {
+    console.log('  Left pending: set TEST_COORDINATOR_EMAIL and TEST_COORDINATOR_PASSWORD to approve it through the workflow.');
   } else {
-    console.log(`  Profile updated to status=active, role=${user.role}`);
+    const coordinator = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const { error: coordSignInError } = await coordinator.auth.signInWithPassword({
+      email: COORDINATOR_EMAIL,
+      password: COORDINATOR_PASSWORD,
+    });
+    if (coordSignInError) {
+      console.error('  Coordinator sign-in ERROR:', coordSignInError.message);
+      await supabase.auth.signOut();
+      return false;
+    }
+    const { error: approveError } = await coordinator.rpc('approve_pending_member', { target_member_id: userId });
+    if (approveError) {
+      console.error('  Approval ERROR:', approveError.message);
+    } else {
+      console.log('  Approved through approve_pending_member');
+      if (user.role !== 'member') {
+        const { data: roleRows, error: roleError } = await coordinator
+          .from('profiles')
+          .update({ role: user.role })
+          .eq('id', userId)
+          .select('id');
+        if (roleError || !Array.isArray(roleRows) || roleRows.length !== 1) {
+          console.error('  Role ERROR:', roleError ? roleError.message : 'no row changed');
+        } else {
+          console.log(`  Role set to ${user.role}`);
+        }
+      }
+    }
+    await coordinator.auth.signOut();
   }
 
   const { data: profile, error: readErr } = await supabase

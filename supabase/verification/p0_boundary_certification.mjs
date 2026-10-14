@@ -5,7 +5,7 @@
 //      outcomes for unknown / opted-out / pending / rejected / inactive / active recipients; resend + schedule paths.
 // Local stack only (lib.mjs refuses anything else). No real email is sent: allowed sends stop at the
 // EMAIL_PROVIDER_NOT_CONFIGURED boundary (HTTP 500), which is how "reached the provider" is detected.
-import { harness } from './lib.mjs';
+import { harness, setProfileAsOwner } from './lib.mjs';
 
 const h = harness('p0-boundary');
 const { admin, expect } = h;
@@ -43,7 +43,7 @@ try {
   const cellA = await mkCell(leaderA.id);
   const cellB = await mkCell(leaderB.id);
  
-  await admin.from('profiles').update({ cell_id: cellA }).eq('id', member.id);
+  await setProfileAsOwner(member.id, { cellId: cellA });
   const memberB = await h.createUser('memberB', { role: 'member', status: 'active', cellId: cellB });
   const today = new Date().toISOString().split('T')[0];
   const mkMeeting = async (cellId, createdBy, visibility) => {

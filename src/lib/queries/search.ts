@@ -41,7 +41,8 @@ export async function globalSearch(
       .neq('status', 'archived')
       .limit(8),
     isAdmin
-      ? supabase.from('profiles').select('id,full_name,email,role').or(`full_name.ilike.${like},email.ilike.${like}`).limit(8)
+      // Pending applicants are excluded: their email and student number are for the approvals page only.
+      ? supabase.from('profiles').select('id,full_name,email,role').neq('status', 'pending').or(`full_name.ilike.${like},email.ilike.${like}`).limit(8)
       : Promise.resolve({ data: [], error: null }),
     supabase.from('meetings').select('id,title,date,time,visibility,cell_id').ilike('title', like).limit(8),
   ]);

@@ -66,6 +66,9 @@ export async function fetchMembersFiltered(filters: MemberFilters = {}): Promise
   let q = supabase
     .from('member_directory')
     .select('id, full_name, email, avatar_url, role, joined_at, cell_id, status')
+    // The directory lists members. Pending applicants stay on the approvals page (admins and coordinators) and in the
+    // Cell Leader pending roster (names only), so their email and student number never appear here.
+    .neq('status', 'pending')
     .order('full_name', { ascending: true });
 
   if (filters.search) {

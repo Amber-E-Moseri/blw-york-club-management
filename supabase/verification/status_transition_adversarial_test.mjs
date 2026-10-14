@@ -21,6 +21,8 @@
 //   node supabase/verification/status_transition_adversarial_test.mjs
 // Needs SUPABASE_URL (local), SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY. Exits 1 on any failed expectation.
 
+import { setProfileAsOwner } from './lib.mjs';
+
 const url = process.env.SUPABASE_URL;
 const anon = process.env.SUPABASE_ANON_KEY;
 const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -55,6 +57,10 @@ const sRest = (method, path, body, prefer = 'return=representation') => call(met
 const rpc = (name, token, body) => call('POST', `/rest/v1/rpc/${name}`, token, body);
 
 let seq = 0;
+// The first coordinator is the one owner-level fixture step (setProfileAsOwner, local only). Every other state is reached
+// through the approved workflow with that coordinator's session: approve_pending_member, reject_pending_member,
+// set_member_status, and a coordinator role PATCH (role changes need an active account, migration 048).
+let coordinatorToken = null;
 async function createUser(role, status, label) {
   seq += 1;
   const email = `sta.${label}.${run}.${seq}@t9.test`;
@@ -66,14 +72,32 @@ async function createUser(role, status, label) {
   });
   const user = await r.json();
   if (!user.id) throw new Error(`createUser ${label}: ${JSON.stringify(user)}`);
-  // Role and status are set by the service role (fixture setup, not an application path).
-  const p = await sRest('PATCH', `/profiles?id=eq.${user.id}`, { role, status, full_name: label });
-  if (p.status >= 300) throw new Error(`profile ${label}: ${p.status} ${JSON.stringify(p.data)}`);
+  created.push(user.id);
   const s = await (await fetch(`${url}/auth/v1/token?grant_type=password`, {
     method: 'POST', headers: { apikey: anon, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }),
   })).json();
   if (!s.access_token) throw new Error(`sign-in ${label}: ${JSON.stringify(s)}`);
-  created.push(user.id);
+
+  if (label === 'coord') {
+    await setProfileAsOwner(user.id, { role: 'coordinator', status: 'active' });
+    coordinatorToken = s.access_token;
+  } else {
+    if (status === 'rejected') {
+      const rj = await rpc('reject_pending_member', coordinatorToken, { target_member_id: user.id });
+      if (rj.status >= 300) throw new Error(`fixture reject ${label}: ${rj.status}`);
+    } else if (status !== 'pending') {
+      const ap = await rpc('approve_pending_member', coordinatorToken, { target_member_id: user.id });
+      if (ap.status >= 300) throw new Error(`fixture approve ${label}: ${ap.status}`);
+      if (status === 'inactive') {
+        const de = await rpc('set_member_status', coordinatorToken, { p_member_id: user.id, p_status: 'inactive', p_reason: 'fixture setup' });
+        if (de.status >= 300) throw new Error(`fixture deactivate ${label}: ${de.status}`);
+      }
+    }
+    if (role !== 'member' && status === 'active') {
+      const rp = await call('PATCH', `/rest/v1/profiles?id=eq.${user.id}`, coordinatorToken, { role }, 'return=representation');
+      if (rp.status >= 300) throw new Error(`fixture role ${label}: ${rp.status}`);
+    }
+  }
   return { label, id: user.id, token: s.access_token };
 }
 const created = [];
@@ -163,9 +187,9 @@ try {
   check('D7 coordinator direct DELETE of a profile is refused (separate finding)', (await sRest('GET', `/profiles?id=eq.${delVictim.id}&select=id`)).data?.length === 1,
     'profile still present');
 } finally {
-  // Clean up the accounts this run created. Removing a profile row and then the auth user.
+  // Clean up the accounts this run created. profiles.id references auth.users with ON DELETE CASCADE (000), so removing the
+  // auth user removes its profile. The service role holds no DELETE on profiles (094).
   for (const id of created) {
-    await sRest('DELETE', `/profiles?id=eq.${id}`, undefined, 'return=minimal');
     await fetch(`${url}/auth/v1/admin/users/${id}`, { method: 'DELETE', headers: { apikey: service, Authorization: `Bearer ${service}` } });
   }
 }

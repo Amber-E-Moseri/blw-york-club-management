@@ -8,7 +8,7 @@
 // (email-only person match, createPerson, contacts insert, idempotency-key recovery) so that the real database
 // constraints decide the outcome.
 import { createHmac, randomUUID } from 'node:crypto';
-import { harness } from './lib.mjs';
+import { harness, setProfileAsOwner } from './lib.mjs';
 
 const h = harness('p0-behavioural');
 const { admin, expect } = h;
@@ -112,7 +112,7 @@ try {
   };
   const cellA = await mkCell('Cert A', leader1.id);
   const cellB = await mkCell('Cert B', leader2.id);
-  await admin.from('profiles').update({ cell_id: cellA }).eq('id', member.id);
+  await setProfileAsOwner(member.id, { cellId: cellA });
   const today = new Date().toISOString().split('T')[0];
   const mkMeeting = async (cellId, createdBy) => {
     const { data, error } = await admin.from('meetings').insert({
@@ -323,7 +323,7 @@ try {
   expect('C25 coordinator can deactivate an account through set_member_status (the workflow)', !sStatus.error && (sStatus.data ?? []).length === 1, sStatus.error?.message);
   const nowIn = await member2.client.from('meeting_attendances').select('id').eq('meeting_id', meetA);
   expect('C26 a freshly deactivated account immediately loses attendance access', (nowIn.data ?? []).length === 0, `rows=${nowIn.data?.length}`);
-  await admin.from('profiles').update({ status: 'active' }).eq('id', member2.id);
+  await setProfileAsOwner(member2.id, { status: 'active' });
 
   // ==== D. Email composer ==============================================================================================
   const tplBody = { name: `Cert template ${rnd()}`, subject: 'Hello {{member.full_name}}', body_markdown: 'Dear {{member.full_name}}' };

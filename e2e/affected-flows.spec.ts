@@ -1,13 +1,17 @@
 import { randomBytes } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { expect, test, type Page } from '@playwright/test';
+import {
+  approveApplicant, assignBsc, coordinatorSession, placeActiveMember, placeApplicant, setRole,
+} from './support/authorizedFixtures';
 
 // Browser coverage for the flows changed by the authorisation remediation (confessions, BSC, habits), run against the
 // LOCAL Supabase stack with throwaway accounts. Requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (local only).
 // Prayer requests have no UI route yet (see the round-5 report), so prayers are not covered here.
 const url = process.env.SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-if (!url || !serviceKey) throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
+const anonKey = process.env.SUPABASE_ANON_KEY;
+if (!url || !serviceKey || !anonKey) throw new Error('SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY and SUPABASE_ANON_KEY are required');
 if (!/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url)) throw new Error('affected-flows only runs against a local Supabase stack');
 
 // The flows share one dev server and one database. Run them one at a time, with a longer assertion timeout, so a
@@ -22,7 +26,6 @@ const password = `${randomBytes(18).toString('base64url')}aA1!`;
 const today = new Date().toISOString().slice(0, 10);
 
 const people = {
-  coordinator: { email: `flow.coord.${run}@example.test`, name: `Flow Coord ${run}`, role: 'coordinator', status: 'active' },
   // The My BSC page opens for admin, coordinator and cell_leader roles (MyBsc.tsx). A BSC leader with the plain member
   // role has database access but no page; see the round-5 report, gap G1.
   leader: { email: `flow.leader.${run}@example.test`, name: `Flow Leader ${run}`, role: 'cell_leader', status: 'active' },
@@ -31,7 +34,7 @@ const people = {
   outsider: { email: `flow.outsider.${run}@example.test`, name: `Flow Outsider ${run}`, role: 'member', status: 'active' },
 } as const;
 type Key = keyof typeof people;
-const ids: Partial<Record<Key, string>> = {};
+const ids: Partial<Record<Key | 'coordinator', string>> = {};
 const created: string[] = [];
 // Rows this spec creates in shared tables, removed in afterAll so the real-schema suites still see a clean database.
 const cleanup: Array<{ table: string; column: string; value: string }> = [];
@@ -58,15 +61,22 @@ test.beforeAll(async ({}, testInfo) => {
   testInfo.setTimeout(120_000);
   await waitForAuthReadiness();
 
+  // The provisioned coordinator performs every profile change below, through the approved workflow.
+  const coord = await coordinatorSession(url!, anonKey!);
+  ids.coordinator = coord.id;
+
   for (const [key, p] of Object.entries(people) as [Key, (typeof people)[Key]][]) {
+    // Accounts are created as the signup trigger makes them (pending). Active accounts are then approved by the coordinator.
     const { data, error } = await admin.auth.admin.createUser({
       email: p.email, password, email_confirm: true, user_metadata: { full_name: p.name },
     });
     if (error || !data.user) throw new Error(`createUser ${key}: ${error?.message}`);
     ids[key] = data.user.id;
     created.push(data.user.id);
-    const { error: upErr } = await admin.from('profiles').update({ role: p.role, status: p.status, full_name: p.name }).eq('id', data.user.id);
-    if (upErr) throw new Error(`profile ${key}: ${upErr.message}`);
+    if (p.status === 'active') {
+      await approveApplicant(coord.client, data.user.id);
+      if (p.role !== 'member') await setRole(coord.client, data.user.id, p.role);
+    }
   }
 
   // Fellowship, cell and two BSCs. The leader leads BSC 1 only; the outsider is in BSC 2.
@@ -78,14 +88,20 @@ test.beforeAll(async ({}, testInfo) => {
   // test members now, before the BSC with leader_id is created. The leader is a BSC leader only (not a cell
   // leader): cells.leader_id is left unset so is_cell_leader_of() returns false and the leader sees only their
   // own BSC's members, not every BSC in the cell.
-  await admin.from('profiles').update({ cell_id: cell.id }).in('id', [ids.leader!, ids.member!, ids.pending!, ids.outsider!]);
+  const reason = `Flow fixture placement ${run}`;
+  await placeActiveMember(coord.client, ids.leader!, cell.id, reason);
+  await placeActiveMember(coord.client, ids.member!, cell.id, reason);
+  await placeActiveMember(coord.client, ids.outsider!, cell.id, reason);
+  await placeApplicant(coord.client, ids.pending!, cell.id, reason);
   const bscA = await admin.from('bscs').insert({ cell_id: cell.id, name: `Flow BSC A ${run}`, leader_id: ids.leader }).select().single();
   const bscB = await admin.from('bscs').insert({ cell_id: cell.id, name: `Flow BSC B ${run}` }).select().single();
   if (bscA.error || bscB.error) throw new Error(`bsc: ${bscA.error?.message ?? bscB.error?.message}`);
   cleanup.push({ table: 'bscs', column: 'id', value: bscA.data.id }, { table: 'bscs', column: 'id', value: bscB.data.id });
   cleanup.push({ table: 'cells', column: 'id', value: cell.id }, { table: 'fellowships', column: 'id', value: fellowship.id });
-  await admin.from('profiles').update({ bsc_id: bscA.data.id }).in('id', [ids.member!, ids.pending!]);
-  await admin.from('profiles').update({ bsc_id: bscB.data.id }).eq('id', ids.outsider!);
+  // Only active members can be linked to a BSC. The pending applicant stays unlinked: a pending account in a BSC cannot be
+  // produced through the workflow, so the pending-roster checks use an unlinked applicant.
+  await assignBsc(coord.client, ids.member!, bscA.data.id);
+  await assignBsc(coord.client, ids.outsider!, bscB.data.id);
 
   // A confession scheduled today, declared by the member and by the outsider (count 2 for the member).
   const { data: confession, error: confErr } = await admin.from('confessions')

@@ -21,7 +21,11 @@ if (typeof webGlobals.WebSocket === 'undefined') webGlobals.WebSocket = undiciGl
 const url = process.env.CERT_SUPABASE_URL ?? '';
 const anonKey = process.env.CERT_SUPABASE_ANON_KEY ?? '';
 const serviceKey = process.env.CERT_SUPABASE_SERVICE_ROLE_KEY ?? '';
-const enabled = /^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url) && !!anonKey && !!serviceKey;
+// The first coordinator is owner-bootstrapped and signs in with these credentials. Accounts are activated through the
+// approve_pending_member RPC (migration 094 refuses a direct status write by the service role).
+const coordEmail = process.env.CERT_COORDINATOR_EMAIL ?? '';
+const coordPassword = process.env.CERT_COORDINATOR_PASSWORD ?? '';
+const enabled = /^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url) && !!anonKey && !!serviceKey && !!coordEmail && !!coordPassword;
 const maybe = enabled ? describe : describe.skip;
 // Each test makes real round-trips to the local database. Under the full parallel Jest run the default 5s limit is
 // too tight for the first test, so give this file a longer limit. Assertions are unchanged.
@@ -46,17 +50,27 @@ maybe('createContactPerson (real code, real database)', () => {
   const personIds = new Set<string>();
   let createContactPerson: typeof import('../lib/queries/people').createContactPerson;
 
-  async function makeUser(label: string, role: string) {
+  async function signedIn(email: string, password: string) {
+    const client = createClient(url, anonKey, opts);
+    const { data, error } = await client.auth.signInWithPassword({ email, password });
+    if (error || !data.user) throw new Error(error?.message ?? 'sign-in failed');
+    return { id: data.user.id, client };
+  }
+
+  // Accounts start pending. The approver (a coordinator) activates them through approve_pending_member; the service role
+  // then sets the role. Approval comes first so the role guard (048) sees an active account.
+  async function makeUser(label: string, role: string, approver: SupabaseClient) {
     const email = `cert.qa.${label}.${rnd()}@example.test`;
     const password = `${rnd()}Aa1!${rnd()}`;
     const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
     if (error || !data.user) throw new Error(error?.message);
     userIds.push(data.user.id);
-    await admin.from('profiles').update({ role, status: 'active' }).eq('id', data.user.id);
-    const client = createClient(url, anonKey, opts);
-    const { error: signErr } = await client.auth.signInWithPassword({ email, password });
-    if (signErr) throw new Error(signErr.message);
-    return { id: data.user.id, client };
+    const { error: approveErr } = await approver.rpc('approve_pending_member', { target_member_id: data.user.id });
+    if (approveErr) throw new Error(`approve ${label}: ${approveErr.message}`);
+    // The role is set by the coordinator's own session (role guard, 048). The service role holds no profile UPDATE (094).
+    const { error: roleErr } = await approver.from('profiles').update({ role }).eq('id', data.user.id);
+    if (roleErr) throw new Error(`role ${label}: ${roleErr.message}`);
+    return signedIn(email, password);
   }
 
   const use = (u: { client: SupabaseClient }) => {
@@ -79,8 +93,8 @@ maybe('createContactPerson (real code, real database)', () => {
 
   beforeAll(async () => {
     admin = createClient(url, serviceKey, opts);
-    coordinator = await makeUser('coord', 'coordinator');
-    leader = await makeUser('leader', 'cell_leader');
+    coordinator = await signedIn(coordEmail, coordPassword);
+    leader = await makeUser('leader', 'cell_leader', coordinator.client);
     const { data } = await admin.from('cells').insert({ name: `Cert QA ${rnd()}`, leader_id: leader.id }).select('id').single();
     cellId = data!.id;
     use(coordinator);

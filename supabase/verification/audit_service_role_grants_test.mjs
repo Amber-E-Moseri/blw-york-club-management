@@ -23,7 +23,7 @@ import { openReplay, attempt } from './pglite_replay.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS = path.join(here, '..', 'migrations');
-const LAST = process.env.AUDIT_TEST_LAST ?? '086_audit_tables_no_service_access.sql';
+const LAST = process.env.AUDIT_TEST_LAST ?? '094_profile_write_boundary.sql';
 
 const results = [];
 const check = (name, ok, evidence = '') => {
@@ -41,7 +41,8 @@ const people = {
   member: ['member', 'active'],     // placed into cell A, then moved to cell B by the RPC
   deactivate: ['member', 'active'], // deactivated by an admin
   leader: ['member', 'active'],     // leads a BSC; deactivation releases the leadership
-  trigger: ['member', 'active'],    // moved by service_role, which fires the definer trigger
+  trigger: ['member', 'active'],    // target of a direct service_role cell_id update, which 094 must refuse
+  applicant: ['member', 'pending'], // pending applicant placed through assign_pending_applicant_to_cell (093)
 };
 const ids = {};
 for (const label of Object.keys(people)) ids[label] = crypto.randomUUID();
@@ -55,9 +56,13 @@ const cellA = crypto.randomUUID();
 const cellB = crypto.randomUUID();
 await db.query("insert into public.cells (id, name) values ($1, 'Cell A'), ($2, 'Cell B')", [cellA, cellB]);
 // Place members first: a BSC leader must already be an active member of the BSC's cell (guard_bsc_leader_eligibility).
-await db.query("select set_config('app.cell_change_reason', 'owner fixture setup', false)");
-await db.query('update public.profiles set cell_id = $2 where id = any($1::uuid[])',
-  [[ids.member, ids.deactivate, ids.leader, ids.trigger], cellA]);
+// Owner-run placements, one row per transaction, each with its reason (093). The reason is transaction-local and consumed.
+for (const m of [ids.member, ids.deactivate, ids.leader, ids.trigger]) {
+  await db.exec('begin');
+  await db.query("select set_config('app.cell_change_reason', 'owner fixture setup', true)");
+  await db.query('update public.profiles set cell_id = $2 where id = $1', [m, cellA]);
+  await db.exec('commit');
+}
 const bsc = crypto.randomUUID();
 await db.query('insert into public.bscs (id, cell_id, name, leader_id) values ($1, $2, $3, $4)',
   [bsc, cellA, 'BSC 1', ids.leader]);
@@ -93,11 +98,29 @@ const rename = await attempt(db, ...adminCtx, "update public.cells set name = 'C
 check('admin cell rename writes one cell_admin_audit row',
   rename.ok && (await count('select count(*)::int n from public.cell_admin_audit where cell_id = $1', [cellB])) === cellBefore + 1, rename.error);
 
-// service_role starts the workflow; the definer trigger still writes the audit row.
+// Pending applicant placement through the approved RPC (093) writes exactly one audit row with actor, previous cell,
+// new cell and reason. The definer trigger is the only writer, so there is no second row.
+const applicantBefore = await count('select count(*)::int n from public.member_cell_audit where member_id = $1', [ids.applicant]);
+const applicantPlace = await attempt(db, ...adminCtx, 'select * from public.assign_pending_applicant_to_cell($1, $2, $3)',
+  [ids.applicant, cellB, 'Attended the welcome evening']);
+const applicantRow = (await db.query(
+  'select actor_id, from_cell_id, to_cell_id, reason from public.member_cell_audit where member_id = $1 order by id desc limit 1',
+  [ids.applicant])).rows[0];
+check('pending placement via the approved RPC writes one member_cell_audit row with actor, cells and reason',
+  applicantPlace.ok
+    && (await count('select count(*)::int n from public.member_cell_audit where member_id = $1', [ids.applicant])) === applicantBefore + 1
+    && applicantRow?.actor_id === ids.admin && applicantRow?.from_cell_id === null && applicantRow?.to_cell_id === cellB
+    && applicantRow?.reason === 'Attended the welcome evening', applicantPlace.error ?? JSON.stringify(applicantRow));
+
+// After 094, service_role has no column privilege on profiles.cell_id, so a direct update is refused before the trigger
+// runs. The refusal must leave no audit row behind.
 const triggerBefore = await count('select count(*)::int n from public.member_cell_audit where member_id = $1', [ids.trigger]);
 const svcPlacement = await attempt(db, 'service_role', null, 'update public.profiles set cell_id = $2 where id = $1', [ids.trigger, cellB]);
-check('service_role placement still writes member_cell_audit through the definer trigger',
-  svcPlacement.ok && (await count('select count(*)::int n from public.member_cell_audit where member_id = $1', [ids.trigger])) === triggerBefore + 1, svcPlacement.error);
+check('direct service_role cell_id update is denied after 094 (privilege layer)', denied(svcPlacement), svcPlacement.ok ? 'statement succeeded' : `${svcPlacement.code} ${svcPlacement.error}`);
+check('a denied direct service_role cell_id update writes no member_cell_audit row',
+  (await count('select count(*)::int n from public.member_cell_audit where member_id = $1', [ids.trigger])) === triggerBefore);
+const svcApplicant = await attempt(db, 'service_role', null, 'update public.profiles set cell_id = $2 where id = $1', [ids.applicant, cellA]);
+check('direct service_role placement of a pending applicant is denied after 094', denied(svcApplicant), svcApplicant.ok ? 'statement succeeded' : `${svcApplicant.code} ${svcApplicant.error}`);
 
 // ─── 2. negative controls: service_role has no direct privilege on the four audit tables ─────────────────────────────
 // Seed one existing row per table as owner, then let service_role try to tamper with it.

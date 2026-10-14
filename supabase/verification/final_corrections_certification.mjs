@@ -76,10 +76,10 @@ async function main() {
   const reactivated = await attempt(db, 'authenticated', ADMIN, `select * from public.set_member_status($1, 'active', 'returned')`, [TARGET]);
   allowed('status', 'an admin reactivates the member with a reason', reactivated);
 
-  // Direct profile writes stay coordinator-only: an admin's direct status update saves no row (RLS, unchanged).
+  // Direct profile status writes are refused by the privilege layer (094), not by RLS: SQLSTATE 42501, nothing saved.
   const direct = await attempt(db, 'authenticated', ADMIN, `update public.profiles set status = 'inactive' where id = $1 returning id`, [CLEAN]);
-  record('rls', 'a direct admin status update still saves no row (profile RLS unchanged)',
-    direct.ok && direct.rows.length === 0, direct.ok ? `rows=${direct.rows.length}` : direct.error.slice(0, 90));
+  record('rls', 'a direct admin status update is refused with SQLSTATE 42501 (094 privilege layer)',
+    !direct.ok && direct.code === '42501', direct.ok ? `rows=${direct.rows.length}` : `${direct.code} ${direct.error.slice(0, 80)}`);
   const cleanStill = (await db.query(`select status from public.profiles where id = $1`, [CLEAN])).rows[0]?.status;
   record('rls', 'the account is unchanged after the refused direct update', cleanStill === 'active');
 

@@ -11,7 +11,7 @@
 //   E2E-15: rejected member excluded from audience resolution (client-side confirm)
 //
 // Local stack only (lib.mjs refuses anything else).
-import { harness } from './lib.mjs';
+import { harness, setProfileAsOwner } from './lib.mjs';
 
 const h = harness('ops-e2e');
 const { admin, expect } = h;
@@ -67,7 +67,7 @@ try {
   const rejected    = await h.createUser('rejected',{ role: 'member',      status: 'rejected' });
 
   const cellId = await mkCell(leader.id);
-  await admin.from('profiles').update({ cell_id: cellId }).in('id', [memberA.id, memberB.id]);
+  for (const id of [memberA.id, memberB.id]) await setProfileAsOwner(id, { cellId });
 
   // ─── E2E-05: Excluded member cannot access explicit meeting ────────────────
 

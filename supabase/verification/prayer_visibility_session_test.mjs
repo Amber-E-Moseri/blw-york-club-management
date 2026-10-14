@@ -8,6 +8,8 @@
 // Needs SUPABASE_URL (local API), SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY. Creates accounts with a run-specific
 // prefix and deletes them at the end. Exits 1 if any expectation fails. Expectations are the intended behaviour.
 
+import { setProfileAsOwner } from './lib.mjs';
+
 const url = process.env.SUPABASE_URL;
 const anon = process.env.SUPABASE_ANON_KEY;
 const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -73,9 +75,10 @@ async function createUser(name) {
   return { name, id: user.id, token: session.access_token };
 }
 
+// Owner fixture state (local only, lib.mjs). service_role holds no profile UPDATE (094).
 async function setProfile(id, fields) {
-  const r = await serviceRest('PATCH', `/profiles?id=eq.${id}`, fields);
-  if (r.status >= 300) throw new Error(`profile patch failed ${r.status} ${JSON.stringify(r.data)}`);
+  const { status, role, cell_id, bsc_id } = fields;
+  await setProfileAsOwner(id, { status, role, cellId: cell_id, bscId: bsc_id });
 }
 
 async function listPrayers(token) {
