@@ -107,7 +107,9 @@ export const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, cells, onImp
         {result && (
           <div className="rounded-lg p-4 bg-green-50 border border-green-200">
             <p className="font-semibold text-green-800">
-              Import complete: {result.imported} imported, {result.failed} failed
+              Import complete: {result.imported} imported
+              {result.alreadyCompleted > 0 && `, ${result.alreadyCompleted} already imported earlier (not written again)`}
+              {`, ${result.failed} failed`}
             </p>
             {result.errors.map((e, i) => (
               <p key={i} className="text-sm text-york-600 dark:text-york-400 mt-1">Row {e.row}: {e.message}</p>

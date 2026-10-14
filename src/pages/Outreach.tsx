@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { BulkImportModal } from '../components/feature/BulkImportModal';
 import { ContactCard } from '../components/feature/ContactCard';
 import { ContactFilters } from '../components/feature/ContactFilters';
@@ -17,7 +17,8 @@ import {
   useContactTags,
   useTagsAndStatuses,
 } from '../hooks/useContacts';
-import { exportContactsCSV } from '../lib/queries/contacts';
+import { exportContactsCSV, importRowsSignature } from '../lib/queries/contacts';
+import { nextImportAttempt, recordImportResult, type ImportAttempt } from '../lib/importAttempt';
 import { effectiveRole, type AuthUser } from '../lib/auth';
 import type { BulkImportRow, Contact, ContactFilters as Filters, ContactInput, ImportResult } from '../types';
 
@@ -104,11 +105,19 @@ export const Outreach: React.FC<Props> = ({ user }) => {
     await refetchSelectedTags();
   };
 
+  // Same attempt model as ContactLogging: one id per new import, reused by retries until every row is confirmed.
+  const importAttemptRef = useRef<ImportAttempt | null>(null);
+
   const handleBulkImport = async (rows: BulkImportRow[]): Promise<ImportResult> => {
     if (!user) {
-      return { imported: 0, failed: rows.length, errors: [{ row: 0, message: 'You must be signed in.' }] };
+      return { imported: 0, alreadyCompleted: 0, failed: rows.length, errors: [{ row: 0, message: 'You must be signed in.' }] };
     }
-    return mutations.bulkImport(rows, user.id, cells, users);
+    const signature = importRowsSignature(rows, user.id);
+    const attempt = nextImportAttempt(importAttemptRef.current, signature, () => crypto.randomUUID());
+    importAttemptRef.current = attempt;
+    const result = await mutations.bulkImport(rows, user.id, cells, users, attempt.attemptId);
+    importAttemptRef.current = recordImportResult(attempt, result.failed);
+    return result;
   };
 
   const handleExport = async () => {

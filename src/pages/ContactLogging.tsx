@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Download, Plus, Upload } from 'lucide-react';
 import { Button } from '../components/foundation/Button';
 import { BulkImportModal } from '../components/feature/BulkImportModal';
@@ -18,7 +18,8 @@ import {
   useContactTags,
   useTagsAndStatuses,
 } from '../hooks/useContacts';
-import { exportContactsCSV } from '../lib/queries/contacts';
+import { exportContactsCSV, importRowsSignature } from '../lib/queries/contacts';
+import { nextImportAttempt, recordImportResult, type ImportAttempt } from '../lib/importAttempt';
 import { effectiveRole, type AuthUser } from '../lib/auth';
 import type { BulkImportRow, Contact, ContactFilters as Filters, ContactInput, ImportResult } from '../types';
 
@@ -87,11 +88,20 @@ export const ContactLogging: React.FC<Props> = ({ user }) => {
     await refetchSelectedTags();
   };
 
+  // The import attempt survives retries of the same upload. It is created once per new import, and cleared only when
+  // every row of it is confirmed. A repeated click on a failed upload is a retry, not a new import.
+  const importAttemptRef = useRef<ImportAttempt | null>(null);
+
   const handleBulkImport = async (rows: BulkImportRow[]): Promise<ImportResult> => {
     if (!user) {
-      return { imported: 0, failed: rows.length, errors: [{ row: 0, message: 'You must be signed in.' }] };
+      return { imported: 0, alreadyCompleted: 0, failed: rows.length, errors: [{ row: 0, message: 'You must be signed in.' }] };
     }
-    return mutations.bulkImport(rows, user.id, cells, users);
+    const signature = importRowsSignature(rows, user.id);
+    const attempt = nextImportAttempt(importAttemptRef.current, signature, () => crypto.randomUUID());
+    importAttemptRef.current = attempt;
+    const result = await mutations.bulkImport(rows, user.id, cells, users, attempt.attemptId);
+    importAttemptRef.current = recordImportResult(attempt, result.failed);
+    return result;
   };
 
   const handleExport = async () => {

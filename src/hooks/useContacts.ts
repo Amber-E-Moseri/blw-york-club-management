@@ -108,9 +108,10 @@ export function useContactMutations(onSuccess?: () => void) {
     rows: BulkImportRow[],
     importedBy: string,
     cells: Cell[],
-    users: Pick<User, 'id' | 'email' | 'full_name'>[] = [],
+    users: Pick<User, 'id' | 'email' | 'full_name'>[],
+    attemptId: string,
   ): Promise<ImportResult> =>
-    bulkImportContacts(rows, importedBy, cells, users).then((result) => {
+    bulkImportContacts(rows, importedBy, cells, users, attemptId).then((result) => {
       onSuccess?.();
       return result;
     });

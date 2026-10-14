@@ -111,6 +111,29 @@ BEGIN
 END;
 $f$;
 
+-- The exact error text a statement raises, or the literal 'NO ERROR'. Used to prove two refusals are identical, not
+-- merely equal in SQLSTATE. Runs under the given role, with the same claims as chk.
+CREATE OR REPLACE FUNCTION pg_temp.errmsg(p_role text, p_uid uuid, p_sql text)
+RETURNS text
+LANGUAGE plpgsql
+AS $f$
+DECLARE v_msg text := 'NO ERROR';
+BEGIN
+  BEGIN
+    IF p_role IS NOT NULL THEN
+      EXECUTE format('SET LOCAL ROLE %I', p_role);
+      PERFORM set_config('request.jwt.claims', json_build_object('sub', p_uid, 'role', p_role)::text, true);
+      PERFORM set_config('request.jwt.claim.sub', coalesce(p_uid::text, ''), true);
+    END IF;
+    EXECUTE p_sql;
+  EXCEPTION WHEN OTHERS THEN
+    v_msg := SQLERRM;
+  END;
+  EXECUTE 'RESET ROLE';
+  RETURN v_msg;
+END;
+$f$;
+
 -- Fixed synthetic identifiers: pg_temp.u('a4') is the member MEM, and so on. Defined in the fixture, not in the environment.
 CREATE OR REPLACE FUNCTION pg_temp.u(p text)
 RETURNS uuid

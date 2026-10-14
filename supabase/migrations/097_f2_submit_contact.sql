@@ -67,9 +67,9 @@ ALTER TABLE public.identity_claims ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.identity_review_audit ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.identity_read_audit ENABLE ROW LEVEL SECURITY;
 
-REVOKE ALL ON TABLE public.identity_claims FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON TABLE public.identity_review_audit FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON TABLE public.identity_read_audit FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON TABLE public.identity_claims FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON TABLE public.identity_review_audit FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON TABLE public.identity_read_audit FROM PUBLIC, anon, authenticated, service_role;
 
 -- Audit rows are append-only. Neither a client nor the owner can rewrite history through normal statements.
 CREATE OR REPLACE FUNCTION public._f2_refuse_audit_mutation()
@@ -145,6 +145,37 @@ BEGIN
 END;
 $$;
 
+-- Lock keys for one submission: idempotency, normalized email, normalized phone. The same key strings are used by the
+-- single and the batch wrappers, so every submission orders its locks identically.
+CREATE OR REPLACE FUNCTION public._f2_keys_for(p_actor uuid, p_idempotency_key text, p_email text, p_phone text)
+RETURNS text[]
+LANGUAGE sql
+IMMUTABLE
+SET search_path = pg_catalog, public
+AS $$
+  SELECT array_remove(ARRAY[
+    CASE WHEN p_idempotency_key IS NOT NULL THEN 'f2:idem:' || p_actor::text || ':' || p_idempotency_key END,
+    CASE WHEN public.normalize_identity_email(p_email) IS NOT NULL THEN 'f2:email:' || public.normalize_identity_email(p_email) END,
+    CASE WHEN public.normalize_identity_phone(p_phone) IS NOT NULL THEN 'f2:phone:' || public.normalize_identity_phone(p_phone) END
+  ], NULL);
+$$;
+
+-- Takes every key in ONE global order (ascending hash value), before any statement that could wait. Advisory locks are
+-- transaction-scoped, so a batch holds all its keys until it commits. A global order is what prevents two batches from
+-- waiting on each other. Re-acquiring a key the same transaction already holds never waits.
+CREATE OR REPLACE FUNCTION public._f2_lock_keys(p_keys text[])
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public
+AS $$
+DECLARE k bigint;
+BEGIN
+  FOR k IN SELECT DISTINCT hashtextextended(x, 0) FROM unnest(coalesce(p_keys, '{}'::text[])) AS x ORDER BY 1 LOOP
+    PERFORM pg_advisory_xact_lock(k);
+  END LOOP;
+END;
+$$;
+
 -- The single implementation of a contact submission for one row. Callers are the two public wrappers only.
 -- It is SECURITY DEFINER and owned by postgres, so it may write people and contacts. Its EXECUTE privilege is
 -- withheld from clients, so it cannot be called directly through PostgREST.
@@ -161,7 +192,9 @@ CREATE OR REPLACE FUNCTION public._f2_submit_contact_row(
   p_follow_up_assignee  uuid,
   p_date_contacted      date,
   p_is_member           boolean,
-  p_idempotency_key     text
+  p_idempotency_key     text,
+  p_tag_names           text[] DEFAULT NULL,
+  p_record_follow_up    boolean DEFAULT false
 )
 RETURNS TABLE (out_contact_id uuid, out_replayed boolean)
 LANGUAGE plpgsql
@@ -304,6 +337,19 @@ BEGIN
     RAISE EXCEPTION 'The submission could not be saved. Try again.' USING ERRCODE = '40001';
   END IF;
 
+  -- Tags and the optional follow-up are written in the SAME subtransaction as the contact. A row is therefore either
+  -- complete (contact, tags and follow-up) or absent. A replayed key returns early above and writes none of these again.
+  IF p_tag_names IS NOT NULL THEN
+    INSERT INTO public.contact_tags (contact_id, tag_name, tag_color, tagged_by)
+    SELECT v_contact_id, t.name, '#cccccc', p_actor
+      FROM (SELECT DISTINCT btrim(x) AS name FROM unnest(p_tag_names) AS x) t
+     WHERE t.name <> '';
+  END IF;
+  IF p_record_follow_up AND p_follow_up_assignee IS NOT NULL THEN
+    INSERT INTO public.contact_follow_ups (contact_id, assigned_to, assigned_by, assigned_on, status, notes, updated_at)
+    VALUES (v_contact_id, p_follow_up_assignee, p_actor, now(), 'active', 'Assigned during bulk import', now());
+  END IF;
+
   -- Claim. Written on every submission so the write set is the same for matched and unmatched identities.
   -- Raw identity is kept only for an open conflict.
   INSERT INTO public.identity_claims (
@@ -355,6 +401,7 @@ DECLARE
   v_actor uuid := public._f2_active_actor();
   v_id    uuid;
 BEGIN
+  PERFORM public._f2_lock_keys(public._f2_keys_for(v_actor, p_idempotency_key, p_email, p_contact_phone));
   SELECT r.out_contact_id INTO STRICT v_id
     FROM public._f2_submit_contact_row(
       v_actor, p_contact_name, p_cell_id, p_contact_phone, p_email, p_phone_hidden, p_tag, p_notes,
@@ -375,10 +422,12 @@ SET search_path = pg_catalog, public
 AS $$
 DECLARE
   v_actor uuid := public._f2_active_actor();
-  v_count int;
-  v_i     int;
-  v_row   jsonb;
-  v_id    uuid;
+  v_count    int;
+  v_i        int;
+  v_row      jsonb;
+  v_id       uuid;
+  v_replayed boolean;
+  v_keys     text[];
 BEGIN
   IF p_rows IS NULL OR jsonb_typeof(p_rows) <> 'array' THEN
     RAISE EXCEPTION 'Send a list of contacts.' USING ERRCODE = '22023';
@@ -388,10 +437,16 @@ BEGIN
     RAISE EXCEPTION 'Import at most 500 rows at a time.' USING ERRCODE = '22023';
   END IF;
 
+  -- Every row's keys are taken before any row runs, in one global order. This is what makes concurrent batches safe.
+  SELECT coalesce(array_agg(k), '{}'::text[]) INTO v_keys
+    FROM jsonb_array_elements(p_rows) AS r,
+         LATERAL unnest(public._f2_keys_for(v_actor, r ->> 'idempotency_key', r ->> 'email', r ->> 'contact_phone')) AS k;
+  PERFORM public._f2_lock_keys(v_keys);
+
   FOR v_i IN 0 .. v_count - 1 LOOP
     v_row := p_rows -> v_i;
     BEGIN
-      SELECT r.out_contact_id INTO STRICT v_id
+      SELECT r.out_contact_id, r.out_replayed INTO STRICT v_id, v_replayed
         FROM public._f2_submit_contact_row(
           v_actor,
           v_row ->> 'contact_name',
@@ -405,10 +460,13 @@ BEGIN
           nullif(v_row ->> 'follow_up_assignee', '')::uuid,
           nullif(v_row ->> 'date_contacted', '')::date,
           coalesce((v_row ->> 'is_member')::boolean, false),
-          v_row ->> 'idempotency_key'
+          v_row ->> 'idempotency_key',
+          CASE WHEN jsonb_typeof(v_row -> 'tag_names') = 'array'
+               THEN ARRAY(SELECT jsonb_array_elements_text(v_row -> 'tag_names')) END,
+          true
         ) AS r;
       row_index := v_i + 1;
-      outcome := 'logged';
+      outcome := CASE WHEN v_replayed THEN 'already_imported' ELSE 'imported' END;
       contact_id := v_id;
       error_code := NULL;
       RETURN NEXT;
@@ -707,7 +765,7 @@ CREATE TABLE IF NOT EXISTS public.contact_attribution_audit (
   created_at      timestamptz NOT NULL DEFAULT now()
 );
 ALTER TABLE public.contact_attribution_audit ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON TABLE public.contact_attribution_audit FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON TABLE public.contact_attribution_audit FROM PUBLIC, anon, authenticated, service_role;
 CREATE TRIGGER contact_attribution_audit_append_only
   BEFORE UPDATE OR DELETE ON public.contact_attribution_audit
   FOR EACH ROW EXECUTE FUNCTION public._f2_refuse_audit_mutation();
@@ -763,7 +821,7 @@ GRANT EXECUTE ON FUNCTION public.correct_contact_attribution(uuid, uuid, text) T
 REVOKE ALL ON FUNCTION public._f2_active_actor() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public._f2_staff_actor() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public._f2_valid_reason(text) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public._f2_submit_contact_row(uuid, text, uuid, text, text, boolean, text, text, text, uuid, date, boolean, text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public._f2_submit_contact_row(uuid, text, uuid, text, text, boolean, text, text, text, uuid, date, boolean, text, text[], boolean) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public._f2_refuse_audit_mutation() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public._f2_guard_contact_person() FROM PUBLIC, anon, authenticated;
 
@@ -784,3 +842,148 @@ GRANT EXECUTE ON FUNCTION public.get_person_identity(uuid, text) TO authenticate
 
 REVOKE ALL ON FUNCTION public.resolve_identity_claim(uuid, text, uuid, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.resolve_identity_claim(uuid, text, uuid, text) TO authenticated;
+
+-- ---------------------------------------------------------------------------------------------------------------------
+-- 7. Round 2: read scoping by logged_by, and the audited staff identity edit.
+-- ---------------------------------------------------------------------------------------------------------------------
+
+-- A contact logger can read their own contacts only while their account is ACTIVE. Before this change a deactivated or
+-- pending account kept read access to contacts it had logged earlier, through the logged_by branch alone.
+DROP POLICY IF EXISTS contacts_read ON public.contacts;
+CREATE POLICY contacts_read ON public.contacts
+  FOR SELECT
+  USING (
+       public.is_core_admin()
+    OR public.is_cell_leader_of(cell_id)
+    OR (logged_by = auth.uid() AND public.is_active_member())
+  );
+
+-- Append-only record of every staff edit to canonical identity. It stores which fields changed and why. It never stores
+-- the values, so the audit can not itself become a copy of the identity.
+CREATE TABLE IF NOT EXISTS public.person_identity_audit (
+  id              bigint      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  person_id       uuid        NOT NULL,
+  actor_id        uuid        NOT NULL,
+  changed_fields  text[]      NOT NULL,
+  reason          text        NOT NULL,
+  created_at      timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.person_identity_audit ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.person_identity_audit FROM PUBLIC, anon, authenticated, service_role;
+CREATE TRIGGER person_identity_audit_append_only
+  BEFORE UPDATE OR DELETE ON public.person_identity_audit
+  FOR EACH ROW EXECUTE FUNCTION public._f2_refuse_audit_mutation();
+
+-- The only client path that edits canonical identity. Admin or coordinator, active, with a reason. A value that already
+-- belongs to another person is refused, and the message names no other record.
+CREATE OR REPLACE FUNCTION public.update_person_identity(
+  p_person_id uuid,
+  p_full_name text,
+  p_email     text,
+  p_phone     text,
+  p_reason    text
+)
+RETURNS void
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+DECLARE
+  v_actor  uuid := public._f2_staff_actor();
+  v_old    public.people%ROWTYPE;
+  v_fields text[] := '{}';
+BEGIN
+  PERFORM public._f2_valid_reason(p_reason);
+  SELECT * INTO v_old FROM public.people p WHERE p.id = p_person_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Person not found.' USING ERRCODE = 'P0002';
+  END IF;
+  IF p_full_name IS NOT NULL AND btrim(p_full_name) IS DISTINCT FROM v_old.full_name THEN v_fields := array_append(v_fields, 'full_name'); END IF;
+  IF nullif(btrim(coalesce(p_email, '')), '') IS DISTINCT FROM v_old.email THEN v_fields := array_append(v_fields, 'email'); END IF;
+  IF nullif(btrim(coalesce(p_phone, '')), '') IS DISTINCT FROM v_old.phone THEN v_fields := array_append(v_fields, 'phone'); END IF;
+  IF cardinality(v_fields) = 0 THEN
+    RAISE EXCEPTION 'Nothing to change.' USING ERRCODE = 'P0001';
+  END IF;
+
+  BEGIN
+    UPDATE public.people p
+       SET full_name = coalesce(nullif(btrim(p_full_name), ''), p.full_name),
+           email = nullif(btrim(coalesce(p_email, '')), ''),
+           phone = nullif(btrim(coalesce(p_phone, '')), ''),
+           updated_at = now()
+     WHERE p.id = p_person_id;
+  EXCEPTION WHEN unique_violation THEN
+    RAISE EXCEPTION 'That email or phone already belongs to another person.' USING ERRCODE = 'P0001';
+  END;
+
+  INSERT INTO public.person_identity_audit (person_id, actor_id, changed_fields, reason)
+  VALUES (p_person_id, v_actor, v_fields, btrim(p_reason));
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public._f2_keys_for(uuid, text, text, text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public._f2_lock_keys(text[]) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.update_person_identity(uuid, text, text, text, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.update_person_identity(uuid, text, text, text, text) TO authenticated;
+
+-- ---------------------------------------------------------------------------------------------------------------------
+-- 8. Search-path hardening of the pre-existing SECURITY DEFINER functions (migrations 000-096 set 'public, pg_temp').
+-- Only the configuration changes: the function bodies and their privileges are not touched. The path omits pg_temp,
+-- so a session's temporary objects are never searched by a definer function.
+-- ---------------------------------------------------------------------------------------------------------------------
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN
+    SELECT p.oid::regprocedure AS sig
+      FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'public' AND p.prosecdef
+       AND coalesce(array_to_string(p.proconfig, ','), '') LIKE '%pg_temp%'
+  LOOP
+    EXECUTE format('ALTER FUNCTION %s SET search_path = pg_catalog, public', r.sig);
+  END LOOP;
+END
+$$;
+
+-- ---------------------------------------------------------------------------------------------------------------------
+-- 9. Ownership. Every object this migration creates is owned by postgres, the owner the rest of the schema uses. A
+-- SECURITY DEFINER function owned by a superuser would run with superuser rights, so the owner is stated explicitly.
+-- In production this migration already runs as postgres, so these statements change nothing there.
+-- ---------------------------------------------------------------------------------------------------------------------
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN
+    SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE n.nspname = 'public' AND c.relkind = 'r'
+       AND c.relname IN ('identity_claims', 'identity_review_audit', 'identity_read_audit',
+                         'contact_attribution_audit', 'person_identity_audit')
+  LOOP
+    EXECUTE format('ALTER TABLE public.%I OWNER TO postgres', r.relname);
+  END LOOP;
+  FOR r IN
+    SELECT p.oid::regprocedure AS sig FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'public'
+       AND (p.proname LIKE '\_f2\_%'
+            OR p.proname IN ('submit_contact', 'submit_contacts_batch', 'list_identity_claims', 'get_claim_identity',
+                             'get_person_identity', 'resolve_identity_claim', 'correct_contact_attribution',
+                             'update_person_identity'))
+  LOOP
+    EXECUTE format('ALTER FUNCTION %s OWNER TO postgres', r.sig);
+  END LOOP;
+END
+$$;
+
+-- Internal helpers and trigger functions are not callable by any API role, service_role included. The default privileges
+-- of the owner grant EXECUTE to service_role on new functions, so it is withdrawn explicitly here.
+REVOKE ALL ON FUNCTION public._f2_active_actor() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public._f2_staff_actor() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public._f2_valid_reason(text) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public._f2_submit_contact_row(uuid, text, uuid, text, text, boolean, text, text, text, uuid, date, boolean, text, text[], boolean) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public._f2_keys_for(uuid, text, text, text) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public._f2_lock_keys(text[]) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public._f2_refuse_audit_mutation() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public._f2_guard_contact_person() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public._f2_guard_contact_logger() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public._f2_check_follow_up_assignee() FROM PUBLIC, anon, authenticated, service_role;

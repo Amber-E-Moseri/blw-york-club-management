@@ -16,13 +16,11 @@ const CONTACT_UPDATE_FIELDS = [
 const IMPORT_BATCH_SIZE = 500;
 
 /**
- * Identifies one upload for idempotency. A retry of the same upload by the same user produces the same fingerprint,
- * so every row replays its original contact instead of duplicating it. A different file, or the same rows uploaded
- * by a different user, produces a different fingerprint and is logged independently. Identical content uploaded
- * again is treated as the same upload, which is the intended retry behaviour. Two 32-bit FNV-style hashes over the
- * canonical form give a 64-bit identifier. The keys are not secrets.
+ * A description of WHAT is being imported, used by the UI to decide whether a repeated click is a retry of the same
+ * attempt. It is NOT an identity: two intentionally separate imports of identical rows have the same signature and
+ * different attempt ids. Two 32-bit FNV-style hashes over the canonical form.
  */
-export function importFingerprint(rows: BulkImportRow[], importedBy: string): string {
+export function importRowsSignature(rows: BulkImportRow[], importedBy: string): string {
   const canonical = JSON.stringify([importedBy, rows.map((r) => [
     r.contact_name, r.phone ?? '', r.email ?? '', r.cell_name, r.notes ?? '', r.tags ?? '', r.follow_up_person ?? '',
   ])]);
@@ -293,9 +291,11 @@ export async function bulkImportContacts(
   rows: BulkImportRow[],
   importedBy: string,
   cells: Cell[],
-  users: Pick<import('../../types').User, 'id' | 'email' | 'full_name'>[] = [],
+  users: Pick<import('../../types').User, 'id' | 'email' | 'full_name'>[],
+  attemptId: string,
 ): Promise<ImportResult> {
-  const result: ImportResult = { imported: 0, failed: 0, errors: [] };
+  if (!attemptId) throw new Error('An import attempt id is required.');
+  const result: ImportResult = { imported: 0, alreadyCompleted: 0, failed: 0, errors: [] };
   const cellMap = Object.fromEntries(
     cells.map((c) => [c.name.toLowerCase(), c.id])
   );
@@ -309,7 +309,7 @@ export async function bulkImportContacts(
     contact: Omit<Contact, 'id' | 'created_at' | 'updated_at'>;
     tagNames: string[];
     assigneeId?: string;
-    rowIndex: number;
+    rowNumber: number;
   }> = [];
 
   rows.forEach((row, i) => {
@@ -346,17 +346,17 @@ export async function bulkImportContacts(
       },
       tagNames: row.tags ? row.tags.split(';').map((t) => t.trim()).filter(Boolean) : [],
       assigneeId,
-      rowIndex: i + 1,
+      rowNumber: i + 1,
     });
   });
 
   if (validRows.length === 0) return result;
 
-  // One submit_contacts_batch call per 500 rows. Each row carries its own idempotency key, derived from a per-import
-  // id, so a repeated click for the same import cannot duplicate rows. A refused row is reported on its own line and
-  // never blocks the rest of the import.
-  const importId = importFingerprint(rows, importedBy);
+  // Keys are '<attemptId>:<row>', so every retry of this attempt carries the same keys. The database then replays a
+  // completed row and does not write it again. A row's tags and follow-up are written by the database in the same
+  // transaction as its contact, so a retry never duplicates them. Batches of at most 500 rows.
   const inserted: Array<{ id: string } | null> = validRows.map(() => null);
+  const replayed: boolean[] = validRows.map(() => false);
 
   for (let start = 0; start < validRows.length; start += IMPORT_BATCH_SIZE) {
     const slice = validRows.slice(start, start + IMPORT_BATCH_SIZE);
@@ -368,18 +368,20 @@ export async function bulkImportContacts(
         email: r.contact.email || null,
         phone_hidden: false,
         tag: '',
+        tag_names: r.tagNames,
         notes: r.contact.notes || null,
         follow_up_status: 'new',
         follow_up_assignee: r.assigneeId || null,
         date_contacted: r.contact.date_contacted,
         is_member: false,
-        idempotency_key: `${importId}:${start + j}`,
+        idempotency_key: `${attemptId}:${start + j + 1}`,
       })),
     });
     if (error) {
+      // An uncertain response. Nothing is assumed written: the same attempt id is safe to retry.
       for (const r of slice) {
         result.failed++;
-        result.errors.push({ row: r.rowIndex, message: 'This row could not be saved. Try again.' });
+        result.errors.push({ row: r.rowNumber, message: 'This row could not be confirmed. Retry this import to finish it.' });
       }
       continue;
     }
@@ -387,58 +389,24 @@ export async function bulkImportContacts(
       row_index: number; outcome: string; contact_id: string | null; error_code: string | null;
     }>;
     for (const out of outcomes) {
-      const target = slice[out.row_index - 1];
+      const index = start + out.row_index - 1;
+      const target = validRows[index];
       if (!target) continue;
-      if (out.outcome === 'logged' && out.contact_id) {
-        inserted[start + out.row_index - 1] = { id: out.contact_id };
+      if ((out.outcome === 'imported' || out.outcome === 'already_imported') && out.contact_id) {
+        inserted[index] = { id: out.contact_id };
+        replayed[index] = out.outcome === 'already_imported';
       } else {
         result.failed++;
         result.errors.push({
-          row: target.rowIndex,
+          row: target.rowNumber,
           message: IMPORT_ERROR_MESSAGES[out.error_code ?? 'internal'] ?? IMPORT_ERROR_MESSAGES.internal,
         });
       }
     }
   }
 
-  result.imported = inserted.filter((row) => row !== null).length;
-
-  const tagRows = validRows.flatMap((r, idx) => {
-    const contactId = inserted?.[idx]?.id;
-    if (!contactId) return [];
-    return r.tagNames.map((name) => ({
-      contact_id: contactId,
-      tag_name: name,
-      tag_color: '#cccccc',
-      tagged_by: importedBy,
-    }));
-  });
-
-  if (tagRows.length > 0) {
-    const { error: tagErr } = await supabase.from('contact_tags').insert(tagRows);
-    if (tagErr) {
-      result.errors.push({ row: 0, message: tagErr.message });
-    }
-  }
-
-  const followUpRows = validRows.flatMap((r, idx) => {
-    const contactId = inserted?.[idx]?.id;
-    if (!contactId || !r.assigneeId) return [];
-    return [{
-      contact_id: contactId,
-      assigned_to: r.assigneeId,
-      assigned_by: importedBy,
-      status: 'active',
-      notes: 'Assigned during bulk import',
-    }];
-  });
-
-  if (followUpRows.length > 0) {
-    const { error: followErr } = await supabase.from('contact_follow_ups').insert(followUpRows);
-    if (followErr) {
-      result.errors.push({ row: 0, message: followErr.message });
-    }
-  }
+  result.imported = inserted.filter((row, i) => row !== null && !replayed[i]).length;
+  result.alreadyCompleted = inserted.filter((row, i) => row !== null && replayed[i]).length;
 
   await logContactAudit({
     contact_id: null,

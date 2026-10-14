@@ -45,3 +45,7 @@ GRANT SELECT (id, full_name, created_at, updated_at) ON TABLE public.people TO a
 
 -- 4. The lookup RPC used by the old resolution path. Nothing client-side calls it after the switch.
 REVOKE EXECUTE ON FUNCTION public.find_person_by_email(text) FROM PUBLIC, anon, authenticated;
+
+-- 5. Canonical identity is edited only through update_person_identity (097), which is staff-only and audited. Direct
+-- UPDATE and DELETE on people are withdrawn from every client role. merge_people (owner) keeps working unchanged.
+REVOKE UPDATE, DELETE ON TABLE public.people FROM PUBLIC, anon, authenticated;

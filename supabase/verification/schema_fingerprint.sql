@@ -1,3 +1,5 @@
+-- Run with psql -q -At (quiet: command tags are suppressed so only the JSON is printed).
+DO $$ BEGIN PERFORM set_config('search_path', 'pg_catalog, public', false); END $$;
 -- Line endings are stripped before hashing. A Windows checkout of a migration file stores CRLF in function bodies;
 -- the same SQL on LF is the same schema. Without this, the fingerprint depends on the machine that generated it.
 -- schema_fingerprint.sql
@@ -37,7 +39,7 @@ tbl as (
         select jsonb_object_agg(r.r, coalesce((
           select string_agg(p.p, ',' order by p.p) from privs p where has_table_privilege(r.r, t.oid, p.p)), ''))
         from roles r),
-      'maintain_acl', (select count(*) from aclexplode(coalesce((select relacl from pg_class where oid = t.oid), '{}')) a
+      'maintain_acl', (select count(*) from (select (select relacl from pg_class where oid = t.oid) as acl) s, unnest(coalesce(s.acl, array[]::aclitem[])) as item, lateral aclexplode(array[item]) a
                        where a.privilege_type = 'MAINTAIN' and a.grantee in (select oid from pg_roles where rolname in ('anon', 'authenticated', 'service_role')))
     ) as doc
   from t
@@ -81,6 +83,24 @@ select jsonb_pretty(jsonb_build_object(
   'storage_policies', (select jsonb_agg(policyname || ' | ' || cmd || ' | ' || roles::text || ' | using=' || coalesce(qual, '') || ' | check=' || coalesce(with_check, '') || ' | ' || upper(permissive) order by policyname)
                        from pg_policies where schemaname = 'storage' and tablename = 'objects'),
   'auth_user_triggers', (select jsonb_agg(pg_get_triggerdef(oid) order by tgname) from pg_trigger where tgrelid = 'auth.users'::regclass and not tgisinternal),
+  'column_privileges', (
+    select coalesce(jsonb_object_agg(z.relname, z.roles), '{}'::jsonb) from (
+      select y.relname::text as relname, jsonb_object_agg(y.r, y.priv order by y.r) as roles
+        from (
+          select c.relname, r.r, string_agg(a.attname || ':' || p.p, ',' order by a.attname, p.p) as priv
+            from pg_class c
+            join pg_namespace n on n.oid = c.relnamespace and n.nspname = 'public'
+            join pg_attribute a on a.attrelid = c.oid and a.attnum > 0 and not a.attisdropped
+            cross join (values ('anon'), ('authenticated'), ('service_role')) r(r)
+            cross join (values ('SELECT'), ('INSERT'), ('UPDATE'), ('REFERENCES')) p(p)
+           where c.relkind = 'r'
+             and has_column_privilege(r.r, c.oid, a.attnum, p.p)
+             and not has_table_privilege(r.r, c.oid, p.p)
+           group by c.relname, r.r
+        ) y
+       group by y.relname
+    ) z
+  ),
   'extensions', (select jsonb_agg(extname order by extname) from pg_extension),
   'extra_schemas', coalesce((select jsonb_agg(nspname order by nspname) from pg_namespace
                     where nspname not in ('public', 'information_schema', 'auth', 'storage', 'extensions', 'graphql', 'graphql_public', 'realtime',

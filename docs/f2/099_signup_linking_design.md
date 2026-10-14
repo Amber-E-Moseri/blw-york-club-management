@@ -68,3 +68,9 @@ Migration 099 does not depend on 097 or 098. It does depend on 098 for the email
 3. Confirm the existing-link audit and the rule that existing links are kept (3.4).
 4. Confirm that production's confirmation setting is verified by someone with project access, and recorded here.
 5. Set the retention period for the `link_requested` queue.
+
+## 7. Status (remediation pass)
+- The proposal is at `docs/f2/099_signup_linking.proposal.md` (the SQL is in a fenced block; it is documentation, not an executable file). It is outside `supabase/migrations/` and is not applied anywhere.
+- Rehearsal on the disposable clone `cert_f2`, inside a transaction that rolled back: T1 to T3 pass (unverified signup not linked; verified match requests a link without linking; verified new email creates and links a person). T4 passes for the unauthenticated refusal only.
+- Not yet tested: a real coordinator approving or rejecting a request; GoTrue's own trigger wiring on `auth.users`; the historical audit (section 3.4), which has not been run against any database.
+- Not implemented: no signup change in `supabase/migrations/`. Moving the proposal into migrations needs explicit approval, as section 6 lists.

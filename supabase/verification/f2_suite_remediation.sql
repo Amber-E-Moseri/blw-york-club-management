@@ -139,5 +139,42 @@ SELECT pg_temp.chk('E06 service_role UPDATE contacts.person_id (guard trigger, b
 SELECT pg_temp.chk('E07 anon reads people', 'anon', NULL, $q$SELECT count(*) FROM public.people$q$, '42501', NULL);
 
 \echo ''
-SELECT pg_temp.finish(101);
+
+\echo '== FO. follow_up_assignee: nonexistent and hidden profiles produce IDENTICAL messages, not only equal SQLSTATEs'
+SELECT pg_temp.assert_true('FO1 direct update: nonexistent and hidden assignee raise the same message (and both are refused)', $q$(pg_temp.errmsg('authenticated', pg_temp.u('a3'), $s$UPDATE public.contacts SET follow_up_assignee = pg_temp.u('ff') WHERE id = pg_temp.u('d2')$s$) = pg_temp.errmsg('authenticated', pg_temp.u('a3'), $s$UPDATE public.contacts SET follow_up_assignee = pg_temp.u('a5') WHERE id = pg_temp.u('d2')$s$)) AND pg_temp.errmsg('authenticated', pg_temp.u('a3'), $s$UPDATE public.contacts SET follow_up_assignee = pg_temp.u('a5') WHERE id = pg_temp.u('d2')$s$) <> 'NO ERROR'$q$);
+SELECT pg_temp.assert_true('FO2 submit: nonexistent and hidden assignee raise the same message', $q$(pg_temp.errmsg('authenticated', pg_temp.u('a4'), $s$SELECT 1 FROM public.submit_contact('FO nonexist', pg_temp.u('c1'), NULL, NULL, false, '', '', '', pg_temp.u('ff'), NULL, false, 'k-fo2a')$s$) = pg_temp.errmsg('authenticated', pg_temp.u('a4'), $s$SELECT 1 FROM public.submit_contact('FO hidden', pg_temp.u('c1'), NULL, NULL, false, '', '', '', pg_temp.u('a5'), NULL, false, 'k-fo2b')$s$))$q$);
+
+\echo '== X. inactive accounts: no contact reads through logged_by; correction refuses an inactive target'
+SELECT pg_temp.chk('X01 owner deactivates member a4', NULL, NULL, $q$UPDATE public.profiles SET status = 'inactive' WHERE id = pg_temp.u('a4')$q$, NULL, 1);
+SELECT pg_temp.chk('X02 deactivated member reads the contacts they logged (negative)', 'authenticated', pg_temp.u('a4'), $q$SELECT 1 FROM public.contacts WHERE logged_by = pg_temp.u('a4')$q$, NULL, 0);
+SELECT pg_temp.chk('X03 owner reactivates a4', NULL, NULL, $q$UPDATE public.profiles SET status = 'active' WHERE id = pg_temp.u('a4')$q$, NULL, 1);
+SELECT pg_temp.cap('x_cnt', 'authenticated', pg_temp.u('a4'), $q$SELECT count(*)::text FROM public.contacts WHERE logged_by = pg_temp.u('a4')$q$);
+SELECT pg_temp.assert_true('X04 positive control: the reactivated member reads their contacts again', $q$(SELECT value::bigint > 0 FROM f2_values WHERE name = 'x_cnt')$q$);
+SELECT pg_temp.chk('X05 owner deactivates account a5', NULL, NULL, $q$UPDATE public.profiles SET status = 'inactive' WHERE id = pg_temp.u('a5')$q$, NULL, 1);
+SELECT pg_temp.chk('X06 correction to an INACTIVE target is refused', 'authenticated', pg_temp.u('a2'), $q$SELECT public.correct_contact_attribution(pg_temp.u('d2'), pg_temp.u('a5'), 'F2 inactive target')$q$, '22023', NULL);
+SELECT pg_temp.chk('X07 owner reactivates a5', NULL, NULL, $q$UPDATE public.profiles SET status = 'active' WHERE id = pg_temp.u('a5')$q$, NULL, 1);
+
+\echo '== P. canonical identity: direct writes restricted; audited staff RPC is the only edit path'
+SELECT pg_temp.chk('P00 owner inserts a disposable person for the delete check', NULL, NULL, $q$INSERT INTO public.people (id, full_name, email) VALUES (pg_temp.u('f1'), 'Delete Me F2', 'delete.f2@example.test')$q$, NULL, 1);
+SELECT pg_temp.chk('P01 coordinator direct UPDATE of canonical identity', 'authenticated', pg_temp.u('a2'), $q$UPDATE public.people SET updated_at = now() WHERE id = pg_temp.u('e2')$q$, CASE WHEN :'layer' = 'grants' THEN '42501' ELSE NULL END, CASE WHEN :'layer' = 'grants' THEN NULL ELSE 1 END);
+SELECT pg_temp.chk('P02 coordinator direct DELETE of canonical identity', 'authenticated', pg_temp.u('a2'), $q$DELETE FROM public.people WHERE id = pg_temp.u('f1')$q$, CASE WHEN :'layer' = 'grants' THEN '42501' ELSE NULL END, CASE WHEN :'layer' = 'grants' THEN NULL ELSE 1 END);
+SELECT pg_temp.chk('P03 coordinator RPC with a valid reason (phone correction)', 'authenticated', pg_temp.u('a2'), $q$SELECT public.update_person_identity(pg_temp.u('e2'), 'F2 Prospect', 'prospect.f2@example.test', '+1 (905) 555-0199', 'F2 phone correction')$q$, NULL, 1);
+SELECT pg_temp.assert_true('P04 post-state: the phone changed and exactly one audit row records the field, not the value', $q$(SELECT phone = '+1 (905) 555-0199' FROM public.people WHERE id = pg_temp.u('e2')) AND (SELECT count(*) = 1 FROM public.person_identity_audit WHERE person_id = pg_temp.u('e2') AND changed_fields = ARRAY['phone']::text[])$q$);
+SELECT pg_temp.chk('P05 RPC with a short reason is refused', 'authenticated', pg_temp.u('a2'), $q$SELECT public.update_person_identity(pg_temp.u('e2'), 'F2 Prospect', 'prospect.f2@example.test', '+1 (905) 555-0198', 'x')$q$, '22023', NULL);
+SELECT pg_temp.chk('P06 RPC to an email that belongs to another person is refused', 'authenticated', pg_temp.u('a2'), $q$SELECT public.update_person_identity(pg_temp.u('e2'), 'F2 Prospect', 'mem.f2@example.test', '+1 (905) 555-0199', 'F2 duplicate attempt')$q$, 'P0001', NULL);
+SELECT pg_temp.chk('P07 member calls the identity RPC', 'authenticated', pg_temp.u('a4'), $q$SELECT public.update_person_identity(pg_temp.u('e2'), 'F2 Prospect', 'prospect.f2@example.test', '+1 (905) 555-0197', 'F2 member attempt')$q$, '42501', NULL);
+SELECT pg_temp.chk('P08 RPC with no change is refused', 'authenticated', pg_temp.u('a2'), $q$SELECT public.update_person_identity(pg_temp.u('e2'), 'F2 Prospect', 'prospect.f2@example.test', '+1 (905) 555-0199', 'F2 no change')$q$, 'P0001', NULL);
+
+\echo '== S. definer functions: every one pins the path without pg_temp, and none is executable by anon or PUBLIC'
+SELECT pg_temp.assert_true('S07 every SECURITY DEFINER function in public pins search_path to pg_catalog, public (no pg_temp)', $q$(SELECT NOT EXISTS (
+  SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+   WHERE n.nspname = 'public' AND p.prosecdef
+     AND (coalesce(array_to_string(p.proconfig, ','), '') NOT LIKE '%search_path=pg_catalog, public%'
+          OR coalesce(array_to_string(p.proconfig, ','), '') LIKE '%pg_temp%')))$q$);
+SELECT pg_temp.assert_true('S08 no SECURITY DEFINER function in public is executable by anon or PUBLIC', $q$(SELECT NOT EXISTS (
+  SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+   WHERE n.nspname = 'public' AND p.prosecdef
+     AND (has_function_privilege('anon', p.oid, 'EXECUTE') OR has_function_privilege('public', p.oid, 'EXECUTE'))))$q$);
+
+SELECT pg_temp.finish(121);
 \echo '== END OF SUITE (verdict above)'

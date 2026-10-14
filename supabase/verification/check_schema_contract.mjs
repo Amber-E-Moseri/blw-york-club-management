@@ -140,6 +140,17 @@ for (const [sig, want] of Object.entries(contract.functions)) {
 }
 check('functions: security mode, pinned search_path, owner and EXECUTE grants match exactly; PUBLIC and anon never execute', fnProblems.length === 0, fnProblems.join(' | '));
 
+// No SECURITY DEFINER function may place pg_temp on its search path: a session's temporary objects must never be searched.
+const tempPath = Object.entries(normalized).filter(([, v]) => v.security === 'definer' && (v.config || '').includes('pg_temp')).map(([k]) => k);
+check('functions: no SECURITY DEFINER function places pg_temp on its search path', tempPath.length === 0, tempPath.join(' | '));
+
+// Column-level grants: the exact reviewed set, from the fingerprint's column_privileges section. Table-level grants are
+// covered by the authenticated matrix above; this section lists only the columns granted on their own.
+const sortDeep = (v) => (Array.isArray(v) ? v.map(sortDeep) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, sortDeep(v[k])])) : v);
+const columnNow = JSON.stringify(sortDeep(fp.column_privileges ?? {}));
+const columnWant = JSON.stringify(sortDeep(contract.columnPrivileges ?? {}));
+check('grants: column-level privileges match the reviewed set exactly', columnNow === columnWant, columnNow === columnWant ? '' : `have ${columnNow} want ${columnWant}`);
+
 // --- storage ---------------------------------------------------------------------------------------------------------
 check('storage: exact buckets with size and MIME limits', eq(fp.storage_buckets ?? [], contract.storage.buckets), JSON.stringify(diff(fp.storage_buckets ?? [], contract.storage.buckets)));
 const stPolicies = (fp.storage_policies ?? []).map((p) => p.split(' | ')[0]);

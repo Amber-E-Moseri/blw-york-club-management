@@ -201,7 +201,10 @@ export interface BulkImportRow {
 }
 
 export interface ImportResult {
+  /** Rows written by this attempt. */
   imported: number;
+  /** Rows that an earlier attempt had already completed. They were not written again. */
+  alreadyCompleted: number;
   failed: number;
   errors: Array<{ row: number; message: string }>;
 }

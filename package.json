@@ -37,7 +37,10 @@
     "typecheck": "tsc --noEmit",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "test:f2": "react-scripts test --watchAll=false --testPathPattern='(submitContact|memberships|importAttempt|releaseHardening|memberAuthzMigrationContract)'",
+    "certify:f2:sql": "bash supabase/verification/run_f2_all.sh",
+    "certify:f2": "npm run typecheck && npm run test:f2 && npm run certify:f2:sql"
   },
   "eslintConfig": {
     "extends": [
