@@ -58,6 +58,7 @@
     "people",
     "person_identity_audit",
     "prayer_requests",
+    "profile_link_audit",
     "profiles",
     "push_notification_log",
     "push_subscriptions",
@@ -161,6 +162,7 @@
       "identity_review_audit",
       "people",
       "person_identity_audit",
+      "profile_link_audit",
       "scheduled_emails"
     ],
     "DELETE,SELECT": [
@@ -178,7 +180,8 @@
     "leadership_release_audit",
     "member_cell_audit",
     "member_status_audit",
-    "person_identity_audit"
+    "person_identity_audit",
+    "profile_link_audit"
   ],
   "serviceRoleExact": {
     "communication_audit": "INSERT",
@@ -767,15 +770,13 @@
     "submit_contacts_batch(jsonb)": {
       "security": "definer",
       "execute": [
-        "authenticated",
-        "service_role"
+        "authenticated"
       ]
     },
     "get_claim_identity(uuid,text)": {
       "security": "definer",
       "execute": [
-        "authenticated",
-        "service_role"
+        "authenticated"
       ]
     },
     "_f2_check_follow_up_assignee()": {
@@ -785,8 +786,7 @@
     "get_person_identity(uuid,text)": {
       "security": "definer",
       "execute": [
-        "authenticated",
-        "service_role"
+        "authenticated"
       ]
     },
     "_f2_keys_for(uuid,text,text,text)": {
@@ -796,41 +796,42 @@
     "list_identity_claims(text,integer)": {
       "security": "definer",
       "execute": [
-        "authenticated",
-        "service_role"
+        "authenticated"
       ]
     },
     "correct_contact_attribution(uuid,uuid,text)": {
       "security": "definer",
       "execute": [
-        "authenticated",
-        "service_role"
+        "authenticated"
       ]
     },
     "resolve_identity_claim(uuid,text,uuid,text)": {
       "security": "definer",
       "execute": [
-        "authenticated",
-        "service_role"
+        "authenticated"
       ]
     },
     "update_person_identity(uuid,text,text,text,text)": {
       "security": "definer",
       "execute": [
-        "authenticated",
-        "service_role"
+        "authenticated"
       ]
     },
     "submit_contact(text,uuid,text,text,boolean,text,text,text,uuid,date,boolean,text)": {
       "security": "definer",
       "execute": [
-        "authenticated",
-        "service_role"
+        "authenticated"
       ]
     },
     "_f2_submit_contact_row(uuid,text,uuid,text,text,boolean,text,text,text,uuid,date,boolean,text,text[],boolean)": {
       "security": "definer",
       "execute": []
+    },
+    "link_pending_profile_to_person(uuid,uuid,text)": {
+      "security": "definer",
+      "execute": [
+        "authenticated"
+      ]
     }
   },
   "definerSearchPath": "search_path=pg_catalog, public",
