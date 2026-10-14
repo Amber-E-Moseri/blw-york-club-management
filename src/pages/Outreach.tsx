@@ -20,7 +20,7 @@ import {
 import { exportContactsCSV } from '../lib/queries/contacts';
 import { openAttemptRowCount, openOrStartAttempt, saveOpenAttempt } from '../lib/importAttempt';
 import { effectiveRole, type AuthUser } from '../lib/auth';
-import type { BulkImportRow, Contact, ContactFilters as Filters, ContactInput, ImportResult } from '../types';
+import type { BulkImportOptions, BulkImportRow, Contact, ContactFilters as Filters, ContactInput, ImportResult } from '../types';
 
 const ROLE_LEVEL: Record<AuthUser['role'], number> = {
   member: 0, cell_leader: 1, admin: 2, coordinator: 3,
@@ -109,15 +109,15 @@ export const Outreach: React.FC<Props> = ({ user }) => {
   const [openImportRows, setOpenImportRows] = useState(0);
   const refreshOpenImport = useCallback(() => setOpenImportRows(user ? openAttemptRowCount(user.id) : 0), [user]);
 
-  const handleBulkImport = async (rows: BulkImportRow[]): Promise<ImportResult> => {
+  const handleBulkImport = async (rows: BulkImportRow[], options: BulkImportOptions = {}): Promise<ImportResult> => {
     if (!user) {
       return {
-        imported: 0, alreadyCompleted: 0, editedAfterImport: 0, failed: rows.length,
+        imported: 0, alreadyCompleted: 0, heldChanged: [], failed: rows.length,
         errors: [{ row: 0, message: 'You must be signed in.' }], nextAttempt: null,
       };
     }
     const attempt = openOrStartAttempt(user.id, () => crypto.randomUUID());
-    const result = await mutations.bulkImport(rows, user.id, cells, users, attempt);
+    const result = await mutations.bulkImport(rows, user.id, cells, users, attempt, options);
     saveOpenAttempt(user.id, result.nextAttempt);
     refreshOpenImport();
     return result;

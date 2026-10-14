@@ -7,7 +7,7 @@ import {
   fetchContactAuditLog, fetchAssignableUsers, reassignFollowUp, moveContactToCell,
   bulkImportContacts,
 } from '../lib/queries/contacts';
-import type { BulkImportRow, ContactAuditLogEntry, ContactInput, ImportAttempt, ImportResult, User } from '../types';
+import type { BulkImportOptions, BulkImportRow, ContactAuditLogEntry, ContactInput, ImportAttempt, ImportResult, User } from '../types';
 
 export function useContacts(filters: ContactFilters = {}) {
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -110,8 +110,9 @@ export function useContactMutations(onSuccess?: () => void) {
     cells: Cell[],
     users: Pick<User, 'id' | 'email' | 'full_name'>[],
     attempt: ImportAttempt,
+    options: BulkImportOptions = {},
   ): Promise<ImportResult> =>
-    bulkImportContacts(rows, importedBy, cells, users, attempt).then((result) => {
+    bulkImportContacts(rows, importedBy, cells, users, attempt, options).then((result) => {
       onSuccess?.();
       return result;
     });

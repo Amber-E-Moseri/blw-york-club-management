@@ -120,14 +120,12 @@
     ],
     "INSERT,SELECT": [
       "contact_audit_log",
-      "email_notification_log",
-      "membership_transitions"
+      "email_notification_log"
     ],
     "INSERT,SELECT,UPDATE": [
       "assignments",
       "contact_follow_ups",
       "email_preferences",
-      "memberships",
       "saved_groups"
     ],
     "DELETE,INSERT,SELECT": [
@@ -148,10 +146,12 @@
       "leadership_release_audit",
       "member_cell_audit",
       "member_status_audit",
+      "membership_transitions",
+      "memberships",
+      "profiles",
       "push_notification_log",
       "staff_profile_edit_audit",
-      "zoom_attendance",
-      "profiles"
+      "zoom_attendance"
     ],
     "": [
       "admin_bootstrap_audit",
@@ -831,6 +831,24 @@
     "_f2_submit_contact_row(uuid,text,uuid,text,text,boolean,text,text,text,uuid,date,boolean,text,text[],boolean)": {
       "security": "definer",
       "execute": []
+    },
+    "_f2_caller_person_id()": {
+      "security": "definer",
+      "execute": [
+        "authenticated"
+      ]
+    },
+    "establish_membership(uuid,text,text,uuid,text)": {
+      "security": "definer",
+      "execute": [
+        "authenticated"
+      ]
+    },
+    "transition_membership(uuid,text,text)": {
+      "security": "definer",
+      "execute": [
+        "authenticated"
+      ]
     }
   },
   "definerSearchPath": "search_path=pg_catalog, public",

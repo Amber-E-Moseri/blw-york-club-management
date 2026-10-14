@@ -202,26 +202,35 @@ export interface BulkImportRow {
   file_row?: number;
 }
 
+/** One contact row this attempt has written: its content fingerprint and the row's position in the file when it was written. */
+export interface WrittenRow {
+  fingerprint: string;
+  position: number;
+}
+
 /**
- * One logical import, from the first upload until every row of it is confirmed. The attempt id is the only key source for
- * the rows in it, so a corrected re-upload of the same list reuses it. `confirmed` maps each ORIGINAL file row number (1-based)
- * to a fingerprint of that row as it was confirmed. Confirmed rows are never sent again. Kept in sessionStorage per user.
+ * One logical import, from the first upload until it is finished. `written` lists every contact this import has written.
+ * Rows are matched by CONTENT, so a corrected file that reorders, inserts or removes rows neither duplicates nor drops
+ * anything. Kept in sessionStorage per user (it is not durable across browsers or sessions; see the migration proposal).
  */
 export interface ImportAttempt {
   attemptId: string;
-  confirmed: Record<string, string>;
+  written: WrittenRow[];
 }
 
 export interface ImportResult {
   /** Rows newly written by this submission. */
   imported: number;
-  /** Rows an earlier submission of this import had already written. They are not written again. */
+  /** Rows this import had already written. They are matched by content and not written again. */
   alreadyCompleted: number;
-  /** Already-written rows whose content in this upload differs from what was written. The original is kept; the edit is not applied. */
-  editedAfterImport: number;
   failed: number;
   errors: Array<{ row: number; message: string }>;
-  /** The attempt to carry into the next upload. null when every row is confirmed, so the next upload is a new import. */
+  /**
+   * File positions of rows that match a written row's POSITION but not its content. They look like an edit to a row already
+   * written, so they are held: nothing is written for them until the user chooses to import them as new contacts.
+   */
+  heldChanged: number[];
+  /** The attempt to carry into the next upload. null when the import is finished (every row written or matched). */
   nextAttempt: ImportAttempt | null;
 }
 
@@ -799,4 +808,10 @@ export interface SearchResult {
   title: string;
   subtitle?: string;
   href: string;
+}
+
+/** Options for one bulk import submission. */
+export interface BulkImportOptions {
+  /** Import the rows held as changed (they look like edits to rows already written) as NEW contacts. An explicit user action. */
+  importChangedAsNew?: boolean;
 }

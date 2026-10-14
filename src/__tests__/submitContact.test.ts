@@ -43,7 +43,7 @@ jest.mock('../lib/supabase', () => ({
   },
 }));
 
-const attemptOf = (attemptId: string): ImportAttempt => ({ attemptId, confirmed: {} });
+const attemptOf = (attemptId: string): ImportAttempt => ({ attemptId, written: [] });
 
 const ACTOR = '00000000-0000-4000-8000-0000000000a1';
 const CELL = '00000000-0000-4000-8000-0000000000c1';
@@ -177,7 +177,7 @@ describe('bulk CSV import repairs the missing person link through submit_contact
     mockRpc.mockResolvedValue({ data: [{ row_index: 1, outcome: 'imported', contact_id: 'c1', error_code: null }], error: null });
     await bulkImportContacts(rows(1), ACTOR, cells, [], attemptOf('att-test'));
     const sent = mockRpc.mock.calls[0][1].p_rows as Array<{ idempotency_key: string }>;
-    expect(sent[0].idempotency_key).toBe('att-test:1');
+    expect(sent[0].idempotency_key).toMatch(/^att-test:[0-9a-f]{16}:0$/);
   });
 
   it('reports each refused row on its own line with a message that carries no identity', async () => {
@@ -254,7 +254,7 @@ describe('CSV import: the attempt id is the only key source; retries replay; sep
   it('keys are derived from the attempt id and the row number, and nothing else', async () => {
     okFor(1);
     await bulkImportContacts(sample('Ada Keys'), ACTOR, cellsFor(), [], attemptOf('att-A'));
-    expect(keysSent()).toEqual(['att-A:1']);
+    expect(keysSent()).toEqual([expect.stringMatching(/^att-A:[0-9a-f]{16}:0$/)]);
   });
 
   it('a retry of the same attempt sends identical keys (replay, not duplicate)', async () => {

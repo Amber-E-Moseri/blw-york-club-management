@@ -74,7 +74,8 @@ export interface EstablishMembershipInput {
   role?: 'member' | 'cell_leader' | 'admin' | 'coordinator';
   status?: 'active' | 'pending';
   cellId?: string | null;
-  performedBy: string;
+  /** Ignored. The database records the authenticated caller as performed_by. Kept so existing call sites still compile. */
+  performedBy?: string;
   notes?: string;
 }
 

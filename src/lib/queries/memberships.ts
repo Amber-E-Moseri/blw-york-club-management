@@ -21,79 +21,33 @@ export async function getActiveMembership(personId: string): Promise<MembershipR
 // ─── Membership establishment ─────────────────────────────────────────────────
 
 /**
- * Establishes a membership for an existing person (contact → member conversion).
+ * Establishes a membership for an existing person (contact → member conversion) through establish_membership.
  *
- * ONE HUMAN = ONE PERSON RECORD: this does not create a new people row.
- * The person's id is unchanged. Only a memberships row is added.
- *
- * Also writes a membership_transitions audit row and updates
- * contacts.is_member + contacts.member_id for the legacy bridge.
+ * ONE HUMAN = ONE PERSON RECORD: the person's id is unchanged. The database does everything in ONE transaction: it
+ * authorizes the caller (admin or coordinator), writes the membership row, writes its transition with performed_by set to
+ * the authenticated caller, and sets contacts.is_member. Any failure rolls all of it back. The client sends no actor and
+ * writes no table itself. `performedBy` in the input is ignored and kept only for callers that already pass it.
  */
 export async function establishMembership(
   input: EstablishMembershipInput
 ): Promise<MembershipRelationship> {
-  // Guard: person must exist
-  const { data: person, error: personErr } = await supabase
-    .from('people')
-    .select('id')
-    .eq('id', input.personId)
-    .maybeSingle();
-  if (personErr || !person) throw new Error('Person not found');
-
-  const requestedStatus = input.status ?? 'active';
-
-  // Guard: not already in the same open membership state
-  const existing = await getActiveMembership(input.personId);
-  if (existing) throw new Error('Person already has an active membership');
-  if (requestedStatus === 'pending') {
-    const pending = await getPendingMembership(input.personId);
-    if (pending) throw new Error('Person already has a pending membership');
-  }
-
-  // Guard: acting user must be coordinator or admin
-  const { data: actor } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', input.performedBy)
-    .maybeSingle();
-  if (!actor || !['coordinator', 'admin'].includes(actor.role as string)) {
-    throw new Error('Not authorised to establish membership');
-  }
-
-  // Insert membership
-  const { data: membership, error: membershipErr } = await supabase
-    .from('memberships')
-    .insert({
-      person_id: input.personId,
-      role: input.role ?? 'member',
-      status: requestedStatus,
-      cell_id: input.cellId ?? null,
-    })
-    .select('id, person_id, joined_at, role, status, cell_id')
-    .single();
-
-  if (membershipErr || !membership) {
-    throw new Error(membershipErr?.message ?? 'Membership insert failed');
-  }
-
-  // Write audit transition
-  await supabase.from('membership_transitions').insert({
-    person_id: input.personId,
-    from_type: 'contact',
-    to_type: requestedStatus === 'pending' ? 'pending_membership' : 'member',
-    performed_by: input.performedBy,
-    notes: input.notes ?? null,
+  const { data: id, error } = await supabase.rpc('establish_membership', {
+    p_person_id: input.personId,
+    p_status: input.status ?? 'active',
+    p_role: input.role ?? 'member',
+    p_cell_id: input.cellId ?? null,
+    p_notes: input.notes ?? null,
   });
+  if (error) throw new Error(error.message);
 
-  // Update legacy bridge on contacts row (backward-compat)
-  // Finds the contact row for this person (if any) and sets is_member + member_id.
-  // member_id cannot be set here since we no longer create profiles rows in this path.
-  // We set is_member = true and leave member_id null for new-path conversions.
-  await supabase
-    .from('contacts')
-    .update({ is_member: true })
-    .eq('person_id', input.personId);
-
+  const { data: membership, error: readErr } = await supabase
+    .from('memberships')
+    .select('id, person_id, joined_at, role, status, cell_id')
+    .eq('id', id as string)
+    .single();
+  if (readErr || !membership) {
+    throw new Error(readErr?.message ?? 'The membership was written but could not be read back');
+  }
   return mapMembership(membership);
 }
 

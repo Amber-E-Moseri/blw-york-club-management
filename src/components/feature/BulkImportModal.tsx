@@ -3,14 +3,14 @@ import { Modal } from '../foundation/Modal';
 import { Button } from '../foundation/Button';
 import { cn } from '../../lib/utils';
 import { parseCSV, parseText, validateRow, downloadTemplate } from '../../lib/csv/contactImport';
-import type { BulkImportRow, Cell, ImportResult } from '../../types';
+import type { BulkImportOptions, BulkImportRow, Cell, ImportResult } from '../../types';
 import { AlertCircle, Check } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   cells: Cell[];
-  onImport: (rows: BulkImportRow[]) => Promise<ImportResult>;
+  onImport: (rows: BulkImportRow[], options?: BulkImportOptions) => Promise<ImportResult>;
   /** Rows of an earlier, unfinished upload that are already written. Uploading a corrected file continues that import. */
   openImportRows: number;
   /** Ends the unfinished import, so the next upload is a separate import (identical rows are then written again). */
@@ -69,13 +69,19 @@ export const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, cells, onImp
 
   const validRows = rows.filter((r) => r.errors.length === 0);
 
-  const handleImport = async () => {
-    if (validRows.length === 0) return;
+  // The rows of the last submission are kept, because a held-row action submits the same file again.
+  const [lastRows, setLastRows] = useState<BulkImportRow[]>([]);
+
+  const handleImport = () => runImport(validRows);
+
+  const runImport = async (toSend: BulkImportRow[], options: BulkImportOptions = {}) => {
+    if (toSend.length === 0) return;
     setImporting(true);
     setError(null);
     try {
-      const res = await onImport(validRows);
+      const res = await onImport(toSend, options);
       setResult(res);
+      setLastRows(toSend);
       setRows([]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Import failed.');
@@ -118,13 +124,25 @@ export const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, cells, onImp
               {result.alreadyCompleted > 0 && `, ${result.alreadyCompleted} already imported earlier (not written again)`}
               {`, ${result.failed} failed`}
             </p>
-            {result.editedAfterImport > 0 && (
-              <p className="text-sm text-gray-700 mt-1">
-                {result.editedAfterImport} already-imported row{result.editedAfterImport !== 1 ? 's differ' : ' differs'} from this file.
-                The original {result.editedAfterImport !== 1 ? 'entries were' : 'entry was'} kept; the edits were not applied.
-              </p>
+            {result.heldChanged.length > 0 && (
+              <div className="mt-2 text-sm text-gray-700">
+                <p>
+                  {result.heldChanged.length} row{result.heldChanged.length !== 1 ? 's' : ''} at position{result.heldChanged.length !== 1 ? 's' : ''}{' '}
+                  {result.heldChanged.join(', ')} {result.heldChanged.length !== 1 ? 'hold' : 'holds'} different details from a contact this import already wrote there.
+                  {' '}They were NOT written. Import them as new contacts only if they are different people.
+                </p>
+                <Button
+                  variant="secondary"
+                  size="small"
+                  className="mt-2"
+                  loading={importing}
+                  onClick={() => runImport(lastRows, { importChangedAsNew: true })}
+                >
+                  Import the {result.heldChanged.length} held row{result.heldChanged.length !== 1 ? 's' : ''} as new contacts
+                </Button>
+              </div>
             )}
-            {result.nextAttempt && (
+            {result.nextAttempt && result.heldChanged.length === 0 && (
               <p className="text-sm text-gray-700 mt-1">Fix the failed rows and upload the file again to finish this import. Completed rows are not written again.</p>
             )}
             {result.errors.map((e, i) => (

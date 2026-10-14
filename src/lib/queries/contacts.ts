@@ -3,7 +3,7 @@ import { fingerprintText } from '../importAttempt';
 import type {
   Contact, ContactInput, ContactFilters, ContactTag, ContactStatus,
   Cell, ContactTagRelation, ContactFollowUp, ContactAuditLogEntry,
-  BulkImportRow, ImportResult, ImportAttempt,
+  BulkImportRow, BulkImportOptions, ImportResult, ImportAttempt, WrittenRow,
 } from '../../types';
 
 // Fields a client may write on a contact. Mirrors the column grant in migration 098. person_id, logged_by,
@@ -282,12 +282,12 @@ export async function bulkImportContacts(
   cells: Cell[],
   users: Pick<import('../../types').User, 'id' | 'email' | 'full_name'>[],
   attempt: ImportAttempt,
+  options: BulkImportOptions = {},
 ): Promise<ImportResult> {
   if (!attempt.attemptId) throw new Error('An import attempt id is required.');
   const result: ImportResult = {
-    imported: 0, alreadyCompleted: 0, editedAfterImport: 0, failed: 0, errors: [], nextAttempt: null,
+    imported: 0, alreadyCompleted: 0, failed: 0, errors: [], heldChanged: [], nextAttempt: null,
   };
-  const confirmed: Record<string, string> = { ...attempt.confirmed };
   const cellMap = Object.fromEntries(
     cells.map((c) => [c.name.toLowerCase(), c.id])
   );
@@ -297,25 +297,46 @@ export async function bulkImportContacts(
     userMap.set(user.email.toLowerCase(), user.id);
   });
 
-  // A row keeps its ORIGINAL file position (rowNumber) for the life of the attempt, so its key never moves when other rows
-  // are corrected. A row this attempt has already confirmed is not sent again.
-  const validRows: Array<{
+  // What the attempt has already written, as a multiset of fingerprints, and by file position.
+  const writtenByFingerprint = new Map<string, number>();
+  const writtenAtPosition = new Map<number, string>();
+  attempt.written.forEach((w) => {
+    writtenByFingerprint.set(w.fingerprint, (writtenByFingerprint.get(w.fingerprint) ?? 0) + 1);
+    writtenAtPosition.set(w.position, w.fingerprint);
+  });
+
+  // Match every row of this file against what was written, by content, in file order. A row whose content is already
+  // written consumes one written copy and is not sent. The rest are new rows, or held changed rows.
+  const remaining = new Map(writtenByFingerprint);
+  // Every row of this file, by content. A written row whose content is still in the file was not edited in place: its position
+  // is simply shared with another row (an insert or a reorder), so the row at that position is new, not an edit.
+  const fileFingerprints = new Set(rows.map((r) => rowContentFingerprint(r)));
+  const pending = new Map<string, number>(); // fingerprint -> identical new rows already planned in this submission
+  const toSend: Array<{
     contact: Omit<Contact, 'id' | 'created_at' | 'updated_at'>;
     tagNames: string[];
     assigneeId?: string;
     rowNumber: number;
     fingerprint: string;
+    key: string;
   }> = [];
 
   rows.forEach((row, i) => {
     const rowNumber = row.file_row ?? i + 1;
     const fingerprint = rowContentFingerprint(row);
-    const earlier = confirmed[String(rowNumber)];
-    if (earlier !== undefined) {
+    const left = remaining.get(fingerprint) ?? 0;
+    if (left > 0) {
+      remaining.set(fingerprint, left - 1);
       result.alreadyCompleted++;
-      if (earlier !== fingerprint) result.editedAfterImport++;
       return;
     }
+    const writtenHere = writtenAtPosition.get(rowNumber);
+    const changedAtPosition = writtenHere !== undefined && writtenHere !== fingerprint && !fileFingerprints.has(writtenHere);
+    if (changedAtPosition && !options.importChangedAsNew) {
+      result.heldChanged.push(rowNumber);
+      return;
+    }
+
     const cellId = cellMap[row.cell_name.toLowerCase()];
     if (!cellId) {
       result.failed++;
@@ -331,7 +352,12 @@ export async function bulkImportContacts(
       ? userMap.get(row.follow_up_person.toLowerCase())
       : undefined;
 
-    validRows.push({
+    // The key counts identical new rows: the first new copy of a fingerprint is occurrence (written copies), the next is one
+    // more, and so on. Reordering identical rows cannot change which key a row gets, because identical rows are interchangeable.
+    const occurrence = (writtenByFingerprint.get(fingerprint) ?? 0) + (pending.get(fingerprint) ?? 0);
+    pending.set(fingerprint, (pending.get(fingerprint) ?? 0) + 1);
+
+    toSend.push({
       contact: {
         cell_id: cellId,
         contact_name: row.contact_name,
@@ -351,14 +377,14 @@ export async function bulkImportContacts(
       assigneeId,
       rowNumber,
       fingerprint,
+      key: `${attempt.attemptId}:${fingerprint}:${occurrence}`,
     });
   });
 
-  // Keys are '<attemptId>:<original row number>'. A row that an uncertain response left unknown is sent again with the same
-  // key, and the database replays it if it was in fact written. A row's tags and follow-up are written by the database in
-  // the same transaction as its contact, so a replay never duplicates them.
-  for (let start = 0; start < validRows.length; start += IMPORT_BATCH_SIZE) {
-    const slice = validRows.slice(start, start + IMPORT_BATCH_SIZE);
+  const written: WrittenRow[] = [...attempt.written];
+  // A row the response does not confirm is not written, so it is sent again on retry with the same key.
+  for (let start = 0; start < toSend.length; start += IMPORT_BATCH_SIZE) {
+    const slice = toSend.slice(start, start + IMPORT_BATCH_SIZE);
     const { data, error } = await supabase.rpc('submit_contacts_batch', {
       p_rows: slice.map((r) => ({
         contact_name: r.contact.contact_name,
@@ -373,11 +399,10 @@ export async function bulkImportContacts(
         follow_up_assignee: r.assigneeId || null,
         date_contacted: r.contact.date_contacted,
         is_member: false,
-        idempotency_key: `${attempt.attemptId}:${r.rowNumber}`,
+        idempotency_key: r.key,
       })),
     });
     if (error) {
-      // An uncertain response. Nothing is assumed written: the rows stay unconfirmed and the same attempt retries them.
       for (const r of slice) {
         result.failed++;
         result.errors.push({ row: r.rowNumber, message: 'This row could not be confirmed. Retry this import to finish it.' });
@@ -393,7 +418,7 @@ export async function bulkImportContacts(
       if (!target) continue;
       answered.add(out.row_index);
       if ((out.outcome === 'imported' || out.outcome === 'already_imported') && out.contact_id) {
-        confirmed[String(target.rowNumber)] = target.fingerprint;
+        written.push({ fingerprint: target.fingerprint, position: target.rowNumber });
         if (out.outcome === 'imported') result.imported++;
         else result.alreadyCompleted++;
       } else {
@@ -404,7 +429,6 @@ export async function bulkImportContacts(
         });
       }
     }
-    // A row the response did not mention is unknown, not written. It stays unconfirmed and is reported.
     slice.forEach((r, j) => {
       if (answered.has(j + 1)) return;
       result.failed++;
@@ -412,8 +436,9 @@ export async function bulkImportContacts(
     });
   }
 
-  // The attempt carries on until every row is confirmed. Then the next upload is a new import.
-  result.nextAttempt = result.failed === 0 ? null : { attemptId: attempt.attemptId, confirmed };
+  // Finished only when nothing failed and nothing is held. Otherwise the same attempt carries on.
+  const finished = result.failed === 0 && result.heldChanged.length === 0;
+  result.nextAttempt = finished ? null : { attemptId: attempt.attemptId, written };
 
   if (result.imported > 0) {
     await logContactAudit({

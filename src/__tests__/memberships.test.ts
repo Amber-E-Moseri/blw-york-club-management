@@ -1,27 +1,24 @@
 /**
- * Branch 1 — Person Identity Tests
+ * Membership client tests. Authorization, the membership row, its transition and the contact flag are written by the
+ * database in ONE transaction (establish_membership). These unit tests pin the client contract: the exact RPC payload, no
+ * actor sent from the client, database errors passed through unchanged, and no direct write to contacts or transitions.
+ * The database behaviour (authorization, atomic rollback, attribution, read isolation) is certified in
+ * supabase/verification/f2_suite_membership.sql, which runs against disposable databases.
  *
- * Covers the 16 required test cases for the people identity layer:
- * - T-1  Person uniqueness: same email → same record
- * - T-2  Person uniqueness: same phone → same record
- * - T-3  Person uniqueness: different email → different records
- * - T-4  Contact → Member preserves person_id (ONE HUMAN = ONE PERSON RECORD)
- * - T-6  Duplicate person detection: null email does not merge distinct people
- * - T-7  Anonymous access denied: unauthenticated cannot read people
- * - T-8  Anonymous access denied: unauthenticated cannot insert people
- * - T-9  establishMembership: person not found → throws
- * - T-10 establishMembership: already a member → throws
- * - T-11 establishMembership: unauthorized actor → throws
- * - T-12 establishMembership: success path → memberships row + transition row
- * - T-13 establishMembership: contacts.is_member updated to true
- * - T-15 getActiveMembership: returns null for non-member person
- * - T-16 getMembershipTransitions: returns ordered audit trail
+ * - T-4  Establishing membership keeps the person id (ONE HUMAN = ONE PERSON RECORD)
+ * - T-9  Person not found: the database error reaches the caller
+ * - T-10 Already an active member: the database error reaches the caller
+ * - T-11 Non-staff caller: the database refusal reaches the caller
+ * - T-12 Success: exact RPC payload, membership read back
+ * - T-13 The client writes no contact flag and no transition itself (the database does, atomically)
+ * - T-14 The client never sends performed_by; the database records the authenticated caller
+ * - T-15 getActiveMembership: returns null for a non-member person
+ * - T-16 getMembershipTransitions: returns the audit trail newest first
+ * - T-20 mergePeople calls the authorized database RPC
  */
 
 import { establishMembership, getActiveMembership, getMembershipTransitions, mergePeople } from '../lib/queries/memberships';
 import { supabase } from '../lib/supabase';
-
-// ─── Mock setup ───────────────────────────────────────────────────────────────
 
 jest.mock('../lib/supabase', () => ({
   supabase: {
@@ -32,7 +29,6 @@ jest.mock('../lib/supabase', () => ({
 
 const PERSON_ID = 'person-uuid-1';
 const PERSON_ID_2 = 'person-uuid-2';
-const CONTACT_ID = 'contact-uuid-1';
 const MEMBERSHIP_ID = 'membership-uuid-1';
 const ACTOR_ID = 'actor-coordinator';
 
@@ -48,183 +44,116 @@ function makeChain(returnData: unknown, returnError: unknown = null) {
   return q;
 }
 
+const membershipRow = {
+  id: MEMBERSHIP_ID, person_id: PERSON_ID, joined_at: '2026-09-15T00:00:00Z',
+  role: 'member', status: 'active', cell_id: null,
+};
+
 afterEach(() => jest.clearAllMocks());
 
-// ─── T-1: Same email → same people record (unique constraint) ────────────────
-
-// ─── T-2: Same phone → same people record ────────────────────────────────────
-
-// ─── T-3: Different email → different records ─────────────────────────────────
-
-// ─── T-4: Contact → Member conversion preserves person_id ────────────────────
+// ─── T-4: establishing membership keeps the person id ─────────────────────────
 
 test('T-4: establishing membership does not change person_id', async () => {
-  const personRow = { id: PERSON_ID };
-  const actorRow = { role: 'coordinator' };
-  const existingMembership = null;
-  const newMembership = {
-    id: MEMBERSHIP_ID,
-    person_id: PERSON_ID,
-    joined_at: '2026-09-15T00:00:00Z',
-    role: 'member',
-    status: 'active',
-    cell_id: null,
-  };
+  (supabase.rpc as jest.Mock).mockResolvedValueOnce({ data: MEMBERSHIP_ID, error: null });
+  (supabase.from as jest.Mock).mockReturnValueOnce(makeChain(membershipRow));
 
-  (supabase.from as jest.Mock)
-    .mockReturnValueOnce(makeChain(personRow))     // people lookup
-    .mockReturnValueOnce(makeChain(existingMembership)) // existing membership check
-    .mockReturnValueOnce(makeChain(actorRow))      // actor role lookup
-    .mockReturnValueOnce(makeChain(newMembership)) // insert membership
-    .mockReturnValueOnce(makeChain(null))           // insert transition
-    .mockReturnValueOnce(makeChain(null));          // update contacts.is_member
+  const result = await establishMembership({ personId: PERSON_ID, performedBy: ACTOR_ID });
 
-  const result = await establishMembership({
-    personId: PERSON_ID,
-    performedBy: ACTOR_ID,
-  });
-
-  // person_id is unchanged — it's the same PERSON_ID throughout
+  expect(supabase.rpc).toHaveBeenCalledWith('establish_membership', expect.objectContaining({ p_person_id: PERSON_ID }));
   expect(result.personId).toBe(PERSON_ID);
 });
 
+// ─── T-9: person not found ────────────────────────────────────────────────────
 
-// ─── T-6: null email does not merge distinct people ───────────────────────────
+test('T-9: establishMembership surfaces the database refusal when the person does not exist', async () => {
+  (supabase.rpc as jest.Mock).mockResolvedValueOnce({ data: null, error: { message: 'Person not found.' } });
 
-// ─── T-7: Unauthenticated user cannot read people (RLS) ──────────────────────
-
-test('T-7: anonymous access to people table is denied', async () => {
-  (supabase.from as jest.Mock).mockReturnValueOnce(
-    makeChain(null, { message: 'new row violates row-level security policy' })
-  );
-
-  const result = await supabase
-    .from('people')
-    .select('id')
-    .maybeSingle();
-
-  // RLS returns error for unauthenticated reads
-  expect(result.error).not.toBeNull();
-  expect(result.data).toBeNull();
+  await expect(establishMembership({ personId: 'non-existent', performedBy: ACTOR_ID })).rejects.toThrow('Person not found.');
+  expect(supabase.from).not.toHaveBeenCalled();
 });
 
-// ─── T-8: Unauthenticated user cannot insert people ──────────────────────────
+// ─── T-10: already an active member ───────────────────────────────────────────
 
-test('T-8: anonymous insert into people is denied', async () => {
-  (supabase.from as jest.Mock).mockReturnValueOnce(
-    makeChain(null, { message: 'new row violates row-level security policy for table "people"' })
-  );
+test('T-10: establishMembership surfaces the one-active-membership refusal unchanged', async () => {
+  (supabase.rpc as jest.Mock).mockResolvedValueOnce({
+    data: null,
+    error: { message: 'duplicate key value violates unique constraint "memberships_one_active_per_person"' },
+  });
 
-  const chain = (supabase.from as jest.Mock)('people');
-  const result = await chain.insert({ full_name: 'Attacker' }).single();
-
-  expect(result.error).not.toBeNull();
+  await expect(establishMembership({ personId: PERSON_ID, performedBy: ACTOR_ID }))
+    .rejects.toThrow('memberships_one_active_per_person');
+  expect(supabase.from).not.toHaveBeenCalled();
 });
 
-// ─── T-9: establishMembership — person not found ──────────────────────────────
+// ─── T-11: non-staff caller ───────────────────────────────────────────────────
 
-test('T-9: establishMembership throws when person does not exist', async () => {
-  (supabase.from as jest.Mock).mockReturnValueOnce(makeChain(null)); // person not found
+test('T-11: a cell leader is refused by the database, and the client writes nothing', async () => {
+  (supabase.rpc as jest.Mock).mockResolvedValueOnce({
+    data: null,
+    error: { message: 'You are not authorised for identity review.' },
+  });
 
-  await expect(
-    establishMembership({ personId: 'non-existent', performedBy: ACTOR_ID })
-  ).rejects.toThrow('Person not found');
+  await expect(establishMembership({ personId: PERSON_ID, performedBy: 'cell-leader-id' }))
+    .rejects.toThrow('You are not authorised');
+  expect(supabase.from).not.toHaveBeenCalled();
 });
 
-// ─── T-10: establishMembership — already a member ────────────────────────────
+// ─── T-12: success path ───────────────────────────────────────────────────────
 
-test('T-10: establishMembership throws when person already has active membership', async () => {
-  const personRow = { id: PERSON_ID };
-  const existingMembership = {
-    id: MEMBERSHIP_ID, person_id: PERSON_ID, joined_at: '2026-01-01',
-    role: 'member', status: 'active', cell_id: null,
-  };
-
-  (supabase.from as jest.Mock)
-    .mockReturnValueOnce(makeChain(personRow))        // person lookup
-    .mockReturnValueOnce(makeChain(existingMembership)); // existing membership check
-
-  await expect(
-    establishMembership({ personId: PERSON_ID, performedBy: ACTOR_ID })
-  ).rejects.toThrow('already has an active membership');
-});
-
-// ─── T-11: establishMembership — unauthorized actor ──────────────────────────
-
-test('T-11: cell leader cannot establish membership', async () => {
-  const personRow = { id: PERSON_ID };
-  const noMembership = null;
-  const actorRow = { role: 'cell_leader' };
-
-  (supabase.from as jest.Mock)
-    .mockReturnValueOnce(makeChain(personRow))   // person lookup
-    .mockReturnValueOnce(makeChain(noMembership)) // no existing membership
-    .mockReturnValueOnce(makeChain(actorRow));    // actor role
-
-  await expect(
-    establishMembership({ personId: PERSON_ID, performedBy: 'cell-leader-id' })
-  ).rejects.toThrow('Not authorised');
-});
-
-// ─── T-12: establishMembership — success path ────────────────────────────────
-
-test('T-12: establishMembership success creates memberships and transition rows', async () => {
-  const personRow = { id: PERSON_ID };
-  const noMembership = null;
-  const actorRow = { role: 'coordinator' };
-  const newMembership = {
-    id: MEMBERSHIP_ID, person_id: PERSON_ID, joined_at: '2026-09-15T00:00:00Z',
-    role: 'member', status: 'active', cell_id: null,
-  };
-
-  (supabase.from as jest.Mock)
-    .mockReturnValueOnce(makeChain(personRow))
-    .mockReturnValueOnce(makeChain(noMembership))
-    .mockReturnValueOnce(makeChain(actorRow))
-    .mockReturnValueOnce(makeChain(newMembership))
-    .mockReturnValueOnce(makeChain(null)) // transition insert
-    .mockReturnValueOnce(makeChain(null)); // contacts.is_member update
+test('T-12: establishMembership sends the exact payload and returns the membership read back', async () => {
+  (supabase.rpc as jest.Mock).mockResolvedValueOnce({ data: MEMBERSHIP_ID, error: null });
+  const readBack = makeChain(membershipRow);
+  (supabase.from as jest.Mock).mockReturnValueOnce(readBack);
 
   const result = await establishMembership({
     personId: PERSON_ID,
     performedBy: ACTOR_ID,
     notes: 'Joined after 4 visits',
+    role: 'member',
+    status: 'active',
   });
 
+  expect(supabase.rpc).toHaveBeenCalledWith('establish_membership', {
+    p_person_id: PERSON_ID,
+    p_status: 'active',
+    p_role: 'member',
+    p_cell_id: null,
+    p_notes: 'Joined after 4 visits',
+  });
+  expect(readBack.eq).toHaveBeenCalledWith('id', MEMBERSHIP_ID);
   expect(result.id).toBe(MEMBERSHIP_ID);
-  expect(result.personId).toBe(PERSON_ID);
   expect(result.status).toBe('active');
   expect(result.role).toBe('member');
 });
 
-// ─── T-13: establishMembership updates contacts.is_member ────────────────────
+// ─── T-13: the client writes no contact flag and no transition ────────────────
 
-test('T-13: establishMembership sets contacts.is_member = true', async () => {
-  const personRow = { id: PERSON_ID };
-  const noMembership = null;
-  const actorRow = { role: 'admin' };
-  const newMembership = {
-    id: MEMBERSHIP_ID, person_id: PERSON_ID, joined_at: '2026-09-15T00:00:00Z',
-    role: 'member', status: 'active', cell_id: null,
-  };
-
-  const contactUpdateChain = makeChain(null);
-  (supabase.from as jest.Mock)
-    .mockReturnValueOnce(makeChain(personRow))
-    .mockReturnValueOnce(makeChain(noMembership))
-    .mockReturnValueOnce(makeChain(actorRow))
-    .mockReturnValueOnce(makeChain(newMembership))
-    .mockReturnValueOnce(makeChain(null))  // transition insert
-    .mockReturnValueOnce(contactUpdateChain); // contacts update
+test('T-13: the client writes neither contacts.is_member nor membership_transitions; the database does, in the same transaction', async () => {
+  (supabase.rpc as jest.Mock).mockResolvedValueOnce({ data: MEMBERSHIP_ID, error: null });
+  (supabase.from as jest.Mock).mockReturnValueOnce(makeChain(membershipRow));
 
   await establishMembership({ personId: PERSON_ID, performedBy: ACTOR_ID });
 
-  expect(contactUpdateChain.update).toHaveBeenCalledWith({ is_member: true });
-  expect(contactUpdateChain.eq).toHaveBeenCalledWith('person_id', PERSON_ID);
+  const tablesTouched = (supabase.from as jest.Mock).mock.calls.map((c) => c[0]);
+  expect(tablesTouched).toEqual(['memberships']);
+  expect(tablesTouched).not.toContain('contacts');
+  expect(tablesTouched).not.toContain('membership_transitions');
 });
 
+// ─── T-14: the client never sends an actor ────────────────────────────────────
 
-// ─── T-15: getActiveMembership returns null for non-member ───────────────────
+test('T-14: performed_by is never sent; the database records the authenticated caller', async () => {
+  (supabase.rpc as jest.Mock).mockResolvedValueOnce({ data: MEMBERSHIP_ID, error: null });
+  (supabase.from as jest.Mock).mockReturnValueOnce(makeChain(membershipRow));
+
+  await establishMembership({ personId: PERSON_ID, performedBy: 'someone-else' });
+
+  const payload = (supabase.rpc as jest.Mock).mock.calls[0][1] as Record<string, unknown>;
+  expect(Object.keys(payload).sort()).toEqual(['p_cell_id', 'p_notes', 'p_person_id', 'p_role', 'p_status']);
+  expect(JSON.stringify(payload)).not.toContain('someone-else');
+});
+
+// ─── T-15: getActiveMembership returns null for a non-member ──────────────────
 
 test('T-15: getActiveMembership returns null for contact-only person', async () => {
   (supabase.from as jest.Mock).mockReturnValueOnce(makeChain(null));
@@ -233,7 +162,7 @@ test('T-15: getActiveMembership returns null for contact-only person', async () 
   expect(result).toBeNull();
 });
 
-// ─── T-16: getMembershipTransitions returns ordered audit trail ───────────────
+// ─── T-16: transition history newest first ────────────────────────────────────
 
 test('T-16: getMembershipTransitions returns transitions newest-first', async () => {
   const transitions = [
@@ -249,9 +178,6 @@ test('T-16: getMembershipTransitions returns transitions newest-first', async ()
 
   const q = makeChain(transitions);
   (supabase.from as jest.Mock).mockReturnValueOnce(q);
-  q.single = jest.fn(() => Promise.resolve({ data: transitions, error: null }));
-  q.maybeSingle = jest.fn(() => Promise.resolve({ data: transitions, error: null }));
-  // Override order to return the full array
   q.order = jest.fn(() => ({
     then: (resolve: (v: { data: typeof transitions; error: null }) => void) =>
       resolve({ data: transitions, error: null }),
@@ -267,7 +193,9 @@ test('T-16: getMembershipTransitions returns transitions newest-first', async ()
 });
 
 // T-19 (rejected history and reapplication), T-21 (merge authorization) and T-22 (merge repointing) were source-text
-// checks. They are now executable database checks in supabase/verification/f2_suite_membership.sql: H05-H06, M01-M04 and G02-G09.
+// checks. They are executable database checks now: f2_suite_membership.sql H09-H10, M01-M04 and G02-G09.
+
+// ─── T-20: merge ──────────────────────────────────────────────────────────────
 
 test('T-20: mergePeople calls the authorized database RPC', async () => {
   (supabase.rpc as jest.Mock).mockResolvedValueOnce({ data: PERSON_ID, error: null });
@@ -285,4 +213,3 @@ test('T-20: mergePeople calls the authorized database RPC', async () => {
     merge_notes: 'Same phone confirmed by coordinator',
   });
 });
-
