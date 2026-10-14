@@ -17,6 +17,7 @@
 #   F2_POLICY_DB    database at the 097 frontier (policy layer)
 #   F2_GRANTS_DB    database at the 098 frontier (grant layer; import and membership suites)
 #   F2_CONC_DB      database at the 098 frontier with committed data (concurrency gate)
+#   F2_MEMBERSHIP_DB database at the 100 frontier (membership suite: it calls establish_membership, created by 100)
 # Optional:
 #   F2_CONC_TRIALS  concurrency trials (default 20)
 #   F2_SUITE_DIR    directory holding the suites, harness and fixture. Used for negative controls. Must hold every mandatory suite.
@@ -30,6 +31,7 @@ SUITE_DIR="${F2_SUITE_DIR:-$DIR}"
 : "${F2_POLICY_DB:?set F2_POLICY_DB (097 frontier)}"
 : "${F2_GRANTS_DB:?set F2_GRANTS_DB (098 frontier)}"
 : "${F2_CONC_DB:?set F2_CONC_DB (098 frontier, committed data)}"
+: "${F2_MEMBERSHIP_DB:?set F2_MEMBERSHIP_DB (100 frontier: establish_membership is created by 100)}"
 TRIALS="${F2_CONC_TRIALS:-20}"
 export F2_PSQL_CMD F2_ALLOWED_DBS
 
@@ -79,6 +81,7 @@ frontier() {
     096) [[ "$batch" == 0 ]] && ok=1 ;;
     097) [[ "$batch" -ge 1 && "$upd" == 1 ]] && ok=1 ;;
     098) [[ "$batch" -ge 1 && "$upd" == 0 ]] && ok=1 ;;
+    100) [[ "$batch" -ge 1 && "$upd" == 0 ]] && ok=1 ;;
   esac
   if [[ "$ok" == 1 && "$maxver" == "$expect" && "$cnt" == "$want_cnt" ]]; then
     echo "frontier $label ($db) matches $expect: last=$maxver applied=$cnt batch_function=$batch people_update_granted=$upd"
@@ -120,12 +123,13 @@ frontier "baseline" "$F2_BASELINE_DB" 096
 frontier "policy layer" "$F2_POLICY_DB" 097
 frontier "grant layer" "$F2_GRANTS_DB" 098
 frontier "concurrency data" "$F2_CONC_DB" 098
+frontier "membership" "$F2_MEMBERSHIP_DB" 100
 
 run_suite "baseline reproduction (096)" "$F2_BASELINE_DB" policy "$SUITE_DIR/f2_suite_baseline_repro.sql"
 run_suite "remediation: policy layer" "$F2_POLICY_DB" policy "$SUITE_DIR/f2_suite_remediation.sql"
 run_suite "remediation: grant layer" "$F2_GRANTS_DB" grants "$SUITE_DIR/f2_suite_remediation.sql"
 run_suite "import and replay" "$F2_GRANTS_DB" grants "$SUITE_DIR/f2_suite_import.sql"
-run_suite "membership and merge" "$F2_GRANTS_DB" grants "$SUITE_DIR/f2_suite_membership.sql"
+run_suite "membership and merge" "$F2_MEMBERSHIP_DB" grants "$SUITE_DIR/f2_suite_membership.sql"
 
 echo
 echo "== concurrency gate ($F2_CONC_DB, $TRIALS trials)"

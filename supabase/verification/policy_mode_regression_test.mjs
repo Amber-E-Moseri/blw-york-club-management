@@ -25,7 +25,9 @@ const check = (name, ok, evidence = '') => {
 
 const { db } = await openReplay(MIGRATIONS, { lastFile: '086_audit_tables_no_service_access.sql' });
 const fingerprint = async () => {
-  const r = await db.query(FINGERPRINT_SQL);
+  // The fingerprint is a multi-statement script (a prepared query cannot run it); the last result holds the JSON row.
+  const results = await db.exec(FINGERPRINT_SQL);
+  const r = results[results.length - 1];
   const v = Object.values(r.rows[0])[0];
   return typeof v === "string" ? JSON.parse(v) : v;
 };
