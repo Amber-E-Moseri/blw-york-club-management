@@ -101,7 +101,7 @@ const QuickAddContent: React.FC<QuickAddContentProps> = ({ user, onClose }) => {
     try {
       await createContact({
         contact_name: contactName.trim(),
-        // '' is converted to null by withNullableCellId: an unassigned contact.
+        // '' is sent as null by createContact: an unassigned contact.
         cell_id: contactCellId === UNASSIGNED_CELL ? '' : contactCellId,
         date_contacted: contactDate,
         tag: contactTag,

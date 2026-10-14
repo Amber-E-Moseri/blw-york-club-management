@@ -103,29 +103,35 @@ check('Tightened', 'rejected account cannot read another member\x27s people row 
 check('Preserved', 'rejected applicant reads own people row', (await seeRow('authenticated', A.rejectedA, P.rejectedA)) === 1);
 check('Preserved', 'cell leader reads a rejected applicant\'s people row (visibility unchanged; see report)', (await seeRow('authenticated', A.leaderA, P.rejectedA)) === 1);
 
-// ── 3. Email lookup used by outreach (find_person_by_email, SECURITY INVOKER)
+// ── 3. Email lookup. Migration 098 withdraws find_person_by_email from every client role. Identity is resolved inside
+// submit_contact, and staff read identity only through get_person_identity, which is audited.
 const lookup = (uid, email) => as('authenticated', uid, `select public.find_person_by_email($1) as id`, [email]);
 const lk1 = await lookup(A.memberA, WALKIN_EMAIL);
-check('Lookup', 'member finds a walk-in person by exact email (CRM link preserved)', lk1.ok && lk1.rows[0].id === walkin, lk1.error);
+check('Lookup', 'member cannot call the retired email lookup (execute revoked by 098)', !lk1.ok, lk1.error ?? 'call succeeded');
 const lk2 = await lookup(A.memberA, EMAIL.pendingA);
-check('Lookup', 'member gets nothing for a pending applicant\'s email (no id leak)', lk2.ok && lk2.rows[0].id === null, lk2.error ?? JSON.stringify(lk2.rows));
+check('Lookup', 'member cannot probe a pending applicant\'s email through the lookup (no id leak)', !lk2.ok, lk2.error ?? JSON.stringify(lk2.rows));
 const lk3 = await lookup(A.admin, EMAIL.pendingA);
-check('Lookup', 'admin resolves a pending applicant\'s email', lk3.ok && lk3.rows[0].id === pendingPerson, lk3.error);
+check('Lookup', 'admin cannot call the retired email lookup either (staff use get_person_identity)', !lk3.ok, lk3.error ?? 'call succeeded');
 const lk4 = await lookup(A.leaderA, EMAIL.pendingA);
-check('Lookup', 'cell leader gets nothing for a pending applicant\'s email', lk4.ok && lk4.rows[0].id === null);
+check('Lookup', 'cell leader cannot call the retired email lookup', !lk4.ok, lk4.error ?? 'call succeeded');
+const staffId = await as('authenticated', A.admin, `select full_name, email from public.get_person_identity($1, 'PGlite review of applicant')`, [pendingPerson]);
+check('Lookup', 'admin resolves a pending applicant\'s identity through the audited staff read (positive control)', staffId.ok && staffId.rows[0].email === EMAIL.pendingA, staffId.error);
 
-// ── 4. Direct email/phone reads of a pending row, by column
+// ── 4. Direct email/phone reads of a pending row, by column (column privilege withdrawn by 098)
 const emailOf = (uid, personId) => as('authenticated', uid, `select email, phone from public.people where id = $1`, [personId]);
 const leakA = await emailOf(A.leaderA, pendingPerson);
-check('Privacy', 'cell leader cannot see the pending applicant\'s email or phone', leakA.ok && leakA.rows.length === 0, JSON.stringify(leakA.rows));
+check('Privacy', 'cell leader cannot read the pending applicant\'s email or phone (column not granted, 098)', !leakA.ok, leakA.error ?? JSON.stringify(leakA.rows));
 const listLeak = await as('authenticated', A.leaderA, `select email from public.people where email = $1`, [EMAIL.pendingA]);
-check('Privacy', 'cell leader filtering people by the pending email finds nothing', listLeak.ok && listLeak.rows.length === 0);
+check('Privacy', 'cell leader cannot filter people by the pending email (column not granted, 098)', !listLeak.ok, listLeak.error ?? JSON.stringify(listLeak.rows));
 
-// ── 5. Writes by role (insert policy unchanged, update/delete admin-only)
+// ── 5. Writes by role. Direct insert into people is withdrawn from clients (098); contact logging goes through
+// submit_contact (097), which is exercised here as the positive control.
 const createdByMember = await as('authenticated', A.memberA, `insert into public.people (full_name, email) values ('New Walk In', 'newwalkin.people@probe.invalid') returning id`);
-check('Outreach', 'active member creates a person and reads it back (contact logging path)', createdByMember.ok && createdByMember.rows.length === 1, createdByMember.error);
+check('Write', 'active member direct insert into people is refused (use submit_contact)', !createdByMember.ok, createdByMember.error ?? 'insert succeeded');
+const viaSubmit = await as('authenticated', A.memberA, `select outcome from public.submit_contact($1, null, null, $2, false, '', '', '', null, null, false, $3)`, ['Walk In via submit', 'newwalkin.people@probe.invalid', 'pglite-walkin-1']);
+check('Outreach', 'active member logs a contact with a new email through submit_contact (contact logging path)', viaSubmit.ok && viaSubmit.rows[0].outcome === 'logged', viaSubmit.error);
 const dupPending = await as('authenticated', A.memberA, `insert into public.people (full_name, email) values ('Dup', $1)`, [EMAIL.pendingA]);
-check('Privacy', 'member inserting a pending applicant\'s email is refused by the unique index (residual oracle, see report)', !dupPending.ok, dupPending.error);
+check('Privacy', 'member direct insert of a pending applicant\'s email is refused by privilege, so no unique-index oracle is reachable', !dupPending.ok, dupPending.error);
 const updByMember = await as('authenticated', A.memberA, `update public.people set full_name = 'Hacked' where id = $1`, [P.memberB]);
 check('Write', 'ordinary member cannot update another person', !updByMember.ok || (await owner(`select full_name from public.people where id = $1`, [P.memberB])).rows[0].full_name !== 'Hacked', updByMember.error ?? 'zero rows');
 const updByAdmin = await as('authenticated', A.admin, `update public.people set phone = '555-0199' where id = $1`, [walkin]);
@@ -139,10 +145,11 @@ check('Write', 'ordinary member cannot delete a person (row still exists)', (awa
 check('service_role', 'service_role reads the pending row (BYPASSRLS, documented)', (await seeRow('service_role', null, pendingPerson)) === 1);
 
 // ── 7. Helper privilege
-const helperAnon = await as('anon', null, `select public.person_has_pending_profile($1)`, [pendingPerson]);
-check('Helpers', 'anon cannot execute person_has_pending_profile', !helperAnon.ok);
-const helperAuth = await as('authenticated', A.memberA, `select public.person_has_pending_profile($1) as p`, [pendingPerson]);
-check('Helpers', 'authenticated may execute person_has_pending_profile and it reports true for the pending row', helperAuth.ok && helperAuth.rows[0].p === true, helperAuth.error);
+// The helper was renamed to person_has_unapproved_profile by migration 095 (pending OR rejected).
+const helperAnon = await as('anon', null, `select public.person_has_unapproved_profile($1)`, [pendingPerson]);
+check('Helpers', 'anon cannot execute person_has_unapproved_profile', !helperAnon.ok);
+const helperAuth = await as('authenticated', A.memberA, `select public.person_has_unapproved_profile($1) as p`, [pendingPerson]);
+check('Helpers', 'authenticated may execute person_has_unapproved_profile and it reports true for the pending row', helperAuth.ok && helperAuth.rows[0].p === true, helperAuth.error);
 
 const failed = results.filter((x) => !x.ok).length;
 console.log(`\nSUMMARY: ${results.length - failed}/${results.length} passed on disposable PGlite (not Supabase)`);

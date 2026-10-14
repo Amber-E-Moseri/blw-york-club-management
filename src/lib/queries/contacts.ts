@@ -1,10 +1,26 @@
 import { supabase } from '../supabase';
-import { resolvePersonId } from './people';
 import type {
   Contact, ContactInput, ContactFilters, ContactTag, ContactStatus,
   Cell, ContactTagRelation, ContactFollowUp, ContactAuditLogEntry,
   BulkImportRow, ImportResult,
 } from '../../types';
+
+// Fields a client may write on a contact. Mirrors the column grant in migration 098. person_id, logged_by,
+// idempotency_key, id and created_at are never sent, so an edit cannot reassign a contact or change its author.
+const CONTACT_UPDATE_FIELDS = [
+  'cell_id', 'contact_name', 'contact_phone', 'phone_hidden', 'email', 'tag', 'follow_up_status',
+  'follow_up_assignee', 'date_contacted', 'notes', 'is_member', 'member_id', 'archived',
+] as const;
+
+// Rows per submit_contacts_batch call. Matches the server limit.
+const IMPORT_BATCH_SIZE = 500;
+
+const IMPORT_ERROR_MESSAGES: Record<string, string> = {
+  not_authorized: 'You cannot log a contact in that cell.',
+  invalid: 'This row has invalid details.',
+  retry: 'This row could not be saved. Try again.',
+  internal: 'This row could not be saved.',
+};
 
 export async function fetchContacts(filters: ContactFilters = {}): Promise<Contact[]> {
   let q = supabase
@@ -42,36 +58,42 @@ export async function fetchContactWithTags(
   return { contact, tags };
 }
 
-// cell_id is a nullable uuid column. An empty string is not a valid uuid, so an unassigned
-// cell must be sent as null. logged_by and the other fields are passed through unchanged.
-function withNullableCellId<T extends { cell_id?: string }>(input: T): T {
-  return input.cell_id === '' ? ({ ...input, cell_id: null } as unknown as T) : input;
+// Every contact write goes through submit_contact (migration 097). The database resolves the person, applies cell
+// authorization and records logged_by = auth.uid(). The client never sends logged_by or person_id. The response carries
+// only the contact id, which is then re-read under the ordinary contact read policy.
+export async function createContact(
+  input: ContactInput & { logged_by?: string }
+): Promise<Contact> {
+  const { data, error } = await supabase.rpc('submit_contact', {
+    p_contact_name: input.contact_name,
+    p_cell_id: input.cell_id ? input.cell_id : null,
+    p_contact_phone: input.contact_phone || null,
+    p_email: input.email || null,
+    p_phone_hidden: input.phone_hidden ?? false,
+    p_tag: input.tag || null,
+    p_notes: input.notes || null,
+    p_follow_up_status: input.follow_up_status || null,
+    p_follow_up_assignee: input.follow_up_assignee || null,
+    p_date_contacted: input.date_contacted || null,
+    p_is_member: input.is_member ?? false,
+    p_idempotency_key: input.idempotency_key || null,
+  });
+  if (error) throw new Error(error.message ?? 'Unknown error');
+  const row = (Array.isArray(data) ? data[0] : data) as { contact_id?: string } | null;
+  if (!row?.contact_id) throw new Error('The contact could not be saved.');
+  const contact = await fetchContact(row.contact_id);
+  if (!contact) throw new Error('The contact could not be saved.');
+  return contact;
 }
 
-export async function createContact(
-  input: ContactInput & { logged_by: string }
-): Promise<Contact> {
-  // contacts.person_id is NOT NULL. Resolve or create the person first, the same way Quick Add does,
-  // so every Outreach contact is linked to a person record.
-  const person_id = await resolvePersonId({
-    fullName: input.contact_name,
-    email: input.email,
-    phone: input.contact_phone,
-  });
-  const { data, error } = await supabase
-    .from('contacts').insert(withNullableCellId({ ...input, person_id })).select().single();
-  if (error && input.idempotency_key && /duplicate key|unique/i.test(error.message ?? '')) {
-    const { data: existing, error: existingError } = await supabase
-      .from('contacts')
-      .select('*')
-      .eq('logged_by', input.logged_by)
-      .eq('idempotency_key', input.idempotency_key)
-      .maybeSingle();
-    if (existingError) throw new Error(existingError.message ?? 'Unknown error');
-    if (existing) return existing;
+/** Keeps only the fields the database grants, and turns an unassigned cell into null. */
+function contactUpdatePayload(input: Partial<ContactInput>): Record<string, unknown> {
+  const payload: Record<string, unknown> = {};
+  for (const field of CONTACT_UPDATE_FIELDS) {
+    if (field in input) payload[field] = (input as Record<string, unknown>)[field];
   }
-  if (error) throw new Error(error.message ?? 'Unknown error');
-  return data;
+  if (payload.cell_id === '') payload.cell_id = null;
+  return payload;
 }
 
 export async function updateContact(
@@ -79,7 +101,7 @@ export async function updateContact(
   input: Partial<ContactInput>
 ): Promise<Contact> {
   const { data, error } = await supabase
-    .from('contacts').update(withNullableCellId(input)).eq('id', id).select().single();
+    .from('contacts').update(contactUpdatePayload(input)).eq('id', id).select().single();
   if (error) throw new Error(error.message ?? 'Unknown error');
   return data;
 }
@@ -309,18 +331,56 @@ export async function bulkImportContacts(
 
   if (validRows.length === 0) return result;
 
-  const { data: inserted, error: insErr } = await supabase
-    .from('contacts')
-    .insert(validRows.map((r) => r.contact))
-    .select('id');
+  // One submit_contacts_batch call per 500 rows. Each row carries its own idempotency key, derived from a per-import
+  // id, so a repeated click for the same import cannot duplicate rows. A refused row is reported on its own line and
+  // never blocks the rest of the import.
+  const importId = `import-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  const inserted: Array<{ id: string } | null> = validRows.map(() => null);
 
-  if (insErr) {
-    result.failed += validRows.length;
-    result.errors.push({ row: 0, message: insErr.message });
-    return result;
+  for (let start = 0; start < validRows.length; start += IMPORT_BATCH_SIZE) {
+    const slice = validRows.slice(start, start + IMPORT_BATCH_SIZE);
+    const { data, error } = await supabase.rpc('submit_contacts_batch', {
+      p_rows: slice.map((r, j) => ({
+        contact_name: r.contact.contact_name,
+        cell_id: r.contact.cell_id || null,
+        contact_phone: r.contact.contact_phone || null,
+        email: r.contact.email || null,
+        phone_hidden: false,
+        tag: '',
+        notes: r.contact.notes || null,
+        follow_up_status: 'new',
+        follow_up_assignee: r.assigneeId || null,
+        date_contacted: r.contact.date_contacted,
+        is_member: false,
+        idempotency_key: `${importId}:${start + j}`,
+      })),
+    });
+    if (error) {
+      for (const r of slice) {
+        result.failed++;
+        result.errors.push({ row: r.rowIndex, message: 'This row could not be saved. Try again.' });
+      }
+      continue;
+    }
+    const outcomes = (data ?? []) as Array<{
+      row_index: number; outcome: string; contact_id: string | null; error_code: string | null;
+    }>;
+    for (const out of outcomes) {
+      const target = slice[out.row_index - 1];
+      if (!target) continue;
+      if (out.outcome === 'logged' && out.contact_id) {
+        inserted[start + out.row_index - 1] = { id: out.contact_id };
+      } else {
+        result.failed++;
+        result.errors.push({
+          row: target.rowIndex,
+          message: IMPORT_ERROR_MESSAGES[out.error_code ?? 'internal'] ?? IMPORT_ERROR_MESSAGES.internal,
+        });
+      }
+    }
   }
 
-  result.imported = inserted?.length ?? 0;
+  result.imported = inserted.filter((row) => row !== null).length;
 
   const tagRows = validRows.flatMap((r, idx) => {
     const contactId = inserted?.[idx]?.id;

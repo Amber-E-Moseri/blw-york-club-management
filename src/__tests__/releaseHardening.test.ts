@@ -46,15 +46,22 @@ describe('final release hardening', () => {
     expect(migration).toContain('add column if not exists idempotency_key text');
     expect(migration).toContain('contacts_logged_by_idempotency_key_unique');
     expect(migration).not.toMatch(/unique.*person_id.*date_contacted/i);
-    expect(contacts).toContain('.eq(\'idempotency_key\', input.idempotency_key)');
+    // F2: the idempotency index is enforced inside submit_contact (migration 097), not by a client-side lookup.
+    const submit = read('supabase/migrations/097_f2_submit_contact.sql');
+    expect(submit).toContain('ON CONFLICT (logged_by, idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING');
+    expect(contacts).toContain('rpc(\'submit_contact\'');
     expect(quickAdd).toContain('idempotency_key: contactIdempotencyKey.current');
   });
 
-  test('phone-only people matches are not automatically merged', () => {
-    const people = read('src/lib/queries/people.ts');
+  test('phone-only and email matches are recorded for review, never merged automatically', () => {
+    const submit = read('supabase/migrations/097_f2_submit_contact.sql');
 
-    expect(people).toContain('Phone-only');
-    expect(people).not.toContain('if (!personId && input.phone)');
+    // A conflict creates an open identity claim and writes the subject person without identity. Nothing calls
+    // merge_people on the submission path. merge_people runs only from an explicit coordinator or admin decision.
+    expect(submit).toContain("CASE WHEN v_conflict THEN 'open' ELSE 'unique' END");
+    expect(submit).toMatch(/CASE WHEN NOT v_conflict THEN v_email END/);
+    const submissionBody = submit.slice(submit.indexOf('CREATE OR REPLACE FUNCTION public._f2_submit_contact_row'), submit.indexOf('CREATE OR REPLACE FUNCTION public.submit_contact('));
+    expect(submissionBody).not.toContain('merge_people');
   });
 
   test('email open tracking requires message id and token', () => {
