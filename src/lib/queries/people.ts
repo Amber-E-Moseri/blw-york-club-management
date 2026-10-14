@@ -78,7 +78,8 @@ export async function resolvePersonId(input: {
           if (retried) {
             personId = retried;
           } else {
-            throw err;
+            // Not visible to this caller: a pending applicant's record (095). Do not reveal more than that it is in use.
+            throw new Error('This email address is already in use. Ask a coordinator to check the record before logging this contact.');
           }
         } else if (/phone/i.test(msg)) {
           throw new Error(

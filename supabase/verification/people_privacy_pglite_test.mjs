@@ -1,0 +1,149 @@
+// Role-by-role authorization for public.people after migration 095, on a DISPOSABLE in-process PGlite replay of 000-095.
+// No Docker, no network, no hosted database. Fake accounts only. Exit 1 on any failed expectation.
+//
+// Run:  PGLITE_MODULE=file:///<path>/node_modules/@electric-sql/pglite/dist/index.js node supabase/verification/people_privacy_pglite_test.mjs
+//
+// Limits: PGlite is not a Supabase stack. The shim provides auth.uid()/auth.role() from request.jwt.* settings, and the
+// service_role role is created BYPASSRLS as Supabase does. This certifies the SQL policy and grant behaviour only.
+
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { openReplay, attempt } from './pglite_replay.mjs';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const { db } = await openReplay(path.join(here, '..', 'migrations'));
+
+const results = [];
+const check = (area, name, ok, detail = '') => {
+  results.push({ area, name, ok: !!ok });
+  console.log(`${ok ? 'PASS' : 'FAIL'}  [${area}] ${name}${detail ? ' :: ' + detail : ''}`);
+};
+const as = (role, uid, sql, params = []) => attempt(db, role, uid, sql, params);
+const count = async (role, uid, sql, params = []) => {
+  const r = await as(role, uid, `select count(*)::int n from (${sql}) x`, params);
+  return r.ok ? r.rows[0].n : `ERR ${r.error}`;
+};
+// Owner writes that change cell_id must state a reason first. The audit trigger consumes the reason after each change (093).
+const owner = async (sql, params = []) => {
+  if (/cell_id\s*=/.test(sql)) await db.query(`select set_config('app.cell_change_reason', 'people probe setup', false)`);
+  return db.query(sql, params);
+};
+
+// ── Accounts. Signup (019) creates a pending profile and a linked people row for each auth user, as in production.
+const A = {
+  admin: 'a0000000-0000-4000-8000-000000000001',
+  coord: 'a0000000-0000-4000-8000-000000000002',
+  leaderA: 'a0000000-0000-4000-8000-00000000000a',
+  leaderB: 'a0000000-0000-4000-8000-00000000000b',
+  memberA: 'a0000000-0000-4000-8000-0000000000aa',
+  memberB: 'a0000000-0000-4000-8000-0000000000bb',
+  pendingA: 'a0000000-0000-4000-8000-0000000000da',
+  rejectedA: 'a0000000-0000-4000-8000-0000000000ea',
+};
+const EMAIL = {
+  admin: 'admin.people@probe.invalid', coord: 'coord.people@probe.invalid',
+  leaderA: 'leadera.people@probe.invalid', leaderB: 'leaderb.people@probe.invalid',
+  memberA: 'membera.people@probe.invalid', memberB: 'memberb.people@probe.invalid',
+  pendingA: 'pendinga.people@probe.invalid', rejectedA: 'rejecteda.people@probe.invalid',
+};
+const CA = 'a0000000-0000-4000-8000-0000000000c1';
+const CB = 'a0000000-0000-4000-8000-0000000000c2';
+const WALKIN_EMAIL = 'walkin.people@probe.invalid';
+
+await owner(`select set_config('app.cell_change_reason', 'people probe setup', false)`);
+for (const [k, id] of Object.entries(A)) {
+  await owner(
+    `insert into auth.users (id, email, aud, role, created_at, raw_user_meta_data)
+     values ($1, $2, 'authenticated', 'authenticated', now(), jsonb_build_object('full_name', $3::text))`,
+    [id, EMAIL[k], `Probe ${k}`],
+  );
+}
+await owner(`insert into public.cells (id, name) values ($1, 'Cell A'), ($2, 'Cell B')`, [CA, CB]);
+// Promote the signup-created profiles as the owner would through the approved workflows.
+await owner(`update public.profiles set role = 'admin', status = 'active' where id = $1`, [A.admin]);
+await owner(`update public.profiles set role = 'coordinator', status = 'active' where id = $1`, [A.coord]);
+await owner(`update public.profiles set role = 'cell_leader', status = 'active', cell_id = $2 where id = $1`, [A.leaderA, CA]);
+await owner(`update public.profiles set role = 'cell_leader', status = 'active', cell_id = $2 where id = $1`, [A.leaderB, CB]);
+await owner(`update public.profiles set status = 'active', cell_id = $2 where id = $1`, [A.memberA, CA]);
+await owner(`update public.profiles set status = 'active', cell_id = $2 where id = $1`, [A.memberB, CB]);
+await owner(`update public.profiles set status = 'active' where id = $1`, [A.rejectedA]);
+await owner(`update public.profiles set status = 'rejected' where id = $1`, [A.rejectedA]);
+await owner(`update public.cells set leader_id = $2 where id = $1`, [CA, A.leaderA]);
+await owner(`update public.cells set leader_id = $2 where id = $1`, [CB, A.leaderB]);
+// Walk-in person (not an account), created by staff.
+const walkin = (await owner(`insert into public.people (full_name, email) values ('Walk In', $1) returning id`, [WALKIN_EMAIL])).rows[0].id;
+
+const personOf = async (uid) => (await owner(`select person_id from public.profiles where id = $1`, [uid])).rows[0].person_id;
+const P = {};
+for (const k of Object.keys(A)) P[k] = await personOf(A[k]);
+const pendingPerson = P.pendingA;
+
+// Sanity for the fixture itself: the pending applicant's people row exists and is linked (as 019 does).
+check('Fixture', 'pending applicant has a linked people row created at signup', !!pendingPerson && (await owner(`select 1 from public.people where id = $1`, [pendingPerson])).rows.length === 1);
+
+// ── 1. people reads by role (SELECT by id)
+const seeRow = (role, uid, personId) => count(role, uid, `select id from public.people where id = $1`, [personId]);
+const rowSql = [pendingPerson];
+
+check('Admin', 'admin reads pending applicant people row', (await seeRow('authenticated', A.admin, pendingPerson)) === 1);
+check('Coordinator', 'coordinator reads pending applicant people row', (await seeRow('authenticated', A.coord, pendingPerson)) === 1);
+check('Cell leader', 'cell leader of the applicant\'s (no) cell cannot read the pending people row (leader A)', (await seeRow('authenticated', A.leaderA, pendingPerson)) === 0);
+check('Cell leader', 'cell leader B cannot read pending people row', (await seeRow('authenticated', A.leaderB, pendingPerson)) === 0);
+check('Member', 'ordinary active member cannot read pending applicant people row', (await seeRow('authenticated', A.memberA, pendingPerson)) === 0);
+check('Applicant', 'pending applicant reads own people row', (await seeRow('authenticated', A.pendingA, pendingPerson)) === 1);
+check('Applicant', 'another pending applicant cannot read this people row (rejected applicant)', (await seeRow('authenticated', A.rejectedA, pendingPerson)) === 0);
+const anonPeople = await count('anon', null, `select id from public.people`);
+check('Anon', 'anon reads no people rows (no table privilege, so the read is refused)', anonPeople === 0 || String(anonPeople).startsWith('ERR'), String(anonPeople));
+
+// ── 2. Preserved reads (outreach, contact search, walk-ins, rejected)
+check('Preserved', 'active member reads another active member\'s people row', (await seeRow('authenticated', A.memberA, P.memberB)) === 1);
+check('Preserved', 'active member reads a walk-in people row (contact search)', (await seeRow('authenticated', A.memberA, walkin)) === 1);
+check('Preserved', 'cell leader reads an active member\'s people row in own cell', (await seeRow('authenticated', A.leaderA, P.memberA)) === 1);
+check('Tightened', 'rejected account cannot read another member\x27s people row (not an active account)', (await seeRow('authenticated', A.rejectedA, P.memberB)) === 0);
+check('Preserved', 'rejected applicant reads own people row', (await seeRow('authenticated', A.rejectedA, P.rejectedA)) === 1);
+check('Preserved', 'cell leader reads a rejected applicant\'s people row (visibility unchanged; see report)', (await seeRow('authenticated', A.leaderA, P.rejectedA)) === 1);
+
+// ── 3. Email lookup used by outreach (find_person_by_email, SECURITY INVOKER)
+const lookup = (uid, email) => as('authenticated', uid, `select public.find_person_by_email($1) as id`, [email]);
+const lk1 = await lookup(A.memberA, WALKIN_EMAIL);
+check('Lookup', 'member finds a walk-in person by exact email (CRM link preserved)', lk1.ok && lk1.rows[0].id === walkin, lk1.error);
+const lk2 = await lookup(A.memberA, EMAIL.pendingA);
+check('Lookup', 'member gets nothing for a pending applicant\'s email (no id leak)', lk2.ok && lk2.rows[0].id === null, lk2.error ?? JSON.stringify(lk2.rows));
+const lk3 = await lookup(A.admin, EMAIL.pendingA);
+check('Lookup', 'admin resolves a pending applicant\'s email', lk3.ok && lk3.rows[0].id === pendingPerson, lk3.error);
+const lk4 = await lookup(A.leaderA, EMAIL.pendingA);
+check('Lookup', 'cell leader gets nothing for a pending applicant\'s email', lk4.ok && lk4.rows[0].id === null);
+
+// ── 4. Direct email/phone reads of a pending row, by column
+const emailOf = (uid, personId) => as('authenticated', uid, `select email, phone from public.people where id = $1`, [personId]);
+const leakA = await emailOf(A.leaderA, pendingPerson);
+check('Privacy', 'cell leader cannot see the pending applicant\'s email or phone', leakA.ok && leakA.rows.length === 0, JSON.stringify(leakA.rows));
+const listLeak = await as('authenticated', A.leaderA, `select email from public.people where email = $1`, [EMAIL.pendingA]);
+check('Privacy', 'cell leader filtering people by the pending email finds nothing', listLeak.ok && listLeak.rows.length === 0);
+
+// ── 5. Writes by role (insert policy unchanged, update/delete admin-only)
+const createdByMember = await as('authenticated', A.memberA, `insert into public.people (full_name, email) values ('New Walk In', 'newwalkin.people@probe.invalid') returning id`);
+check('Outreach', 'active member creates a person and reads it back (contact logging path)', createdByMember.ok && createdByMember.rows.length === 1, createdByMember.error);
+const dupPending = await as('authenticated', A.memberA, `insert into public.people (full_name, email) values ('Dup', $1)`, [EMAIL.pendingA]);
+check('Privacy', 'member inserting a pending applicant\'s email is refused by the unique index (residual oracle, see report)', !dupPending.ok, dupPending.error);
+const updByMember = await as('authenticated', A.memberA, `update public.people set full_name = 'Hacked' where id = $1`, [P.memberB]);
+check('Write', 'ordinary member cannot update another person', !updByMember.ok || (await owner(`select full_name from public.people where id = $1`, [P.memberB])).rows[0].full_name !== 'Hacked', updByMember.error ?? 'zero rows');
+const updByAdmin = await as('authenticated', A.admin, `update public.people set phone = '555-0199' where id = $1`, [walkin]);
+check('Write', 'admin updates a walk-in person', updByAdmin.ok, updByAdmin.error);
+const delByCoord = await as('authenticated', A.coord, `delete from public.people where id = $1`, [walkin]);
+check('Write', 'coordinator can delete a walk-in person (existing policy 045)', delByCoord.ok, delByCoord.error);
+const delByMember = await as('authenticated', A.memberA, `delete from public.people where id = $1`, [P.memberB]);
+check('Write', 'ordinary member cannot delete a person (row still exists)', (await owner(`select 1 from public.people where id = $1`, [P.memberB])).rows.length === 1, delByMember.error ?? 'zero rows');
+
+// ── 6. service_role (bypasses RLS by design in Supabase; documented, not an application path)
+check('service_role', 'service_role reads the pending row (BYPASSRLS, documented)', (await seeRow('service_role', null, pendingPerson)) === 1);
+
+// ── 7. Helper privilege
+const helperAnon = await as('anon', null, `select public.person_has_pending_profile($1)`, [pendingPerson]);
+check('Helpers', 'anon cannot execute person_has_pending_profile', !helperAnon.ok);
+const helperAuth = await as('authenticated', A.memberA, `select public.person_has_pending_profile($1) as p`, [pendingPerson]);
+check('Helpers', 'authenticated may execute person_has_pending_profile and it reports true for the pending row', helperAuth.ok && helperAuth.rows[0].p === true, helperAuth.error);
+
+const failed = results.filter((x) => !x.ok).length;
+console.log(`\nSUMMARY: ${results.length - failed}/${results.length} passed on disposable PGlite (not Supabase)`);
+process.exit(failed ? 1 : 0);
