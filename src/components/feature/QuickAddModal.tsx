@@ -6,11 +6,10 @@ import { createContact } from '../../lib/queries/contacts';
 import { createMeeting } from '../../lib/queries/meetings';
 import { effectiveRole, type AuthUser } from '../../lib/auth';
 
-const ROLE_LEVEL: Record<AuthUser['role'], number> = {
-  member: 0, cell_leader: 1, admin: 2, coordinator: 3,
-};
-
 type Tab = 'contact' | 'meeting';
+
+// Sentinel for "log this contact with no cell". Sent to the database as a null cell_id.
+const UNASSIGNED_CELL = '__unassigned__';
 
 function today() {
   return new Date().toISOString().split('T')[0];
@@ -23,8 +22,9 @@ interface QuickAddContentProps {
 
 const QuickAddContent: React.FC<QuickAddContentProps> = ({ user, onClose }) => {
   const role = effectiveRole(user);
-  const level = ROLE_LEVEL[role] ?? 0;
-  const canLogContact = level >= 1;
+  // Approved rule: active ordinary members can log outreach contacts. Pending, inactive and rejected accounts cannot.
+  // The database enforces the same rule (contacts_insert_scoped, migration 092).
+  const canLogContact = user.status === 'active';
 
   const [tab, setTab] = useState<Tab>(canLogContact ? 'contact' : 'meeting');
   const [saving, setSaving] = useState(false);
@@ -51,13 +51,23 @@ const QuickAddContent: React.FC<QuickAddContentProps> = ({ user, onClose }) => {
   const manageableCells = useMemo(() => {
     if (role === 'coordinator' || role === 'admin') return cells;
     if (role === 'cell_leader') return cells.filter((cell) => cell.leader_id === user.id);
+    // An ordinary active member may attribute a contact to their own cell only (contacts_insert_scoped, migration 092).
+    if (user.status === 'active' && user.cellId) return cells.filter((cell) => cell.id === user.cellId);
     return [];
-  }, [cells, user.id, role]);
+  }, [cells, user.id, user.cellId, user.status, role]);
 
-  const selectedContactCellIsAllowed = manageableCells.some((cell) => cell.id === contactCellId);
+  // An active account may log a contact with no cell (contacts_insert_scoped, migration 092: cell_id is null).
+  const canLogUnassignedContact = user.status === 'active';
+  const contactCellOptions = canLogUnassignedContact
+    ? [...manageableCells, { id: UNASSIGNED_CELL, name: 'No cell (unassigned)' }]
+    : manageableCells;
+
+  const selectedContactCellIsAllowed = contactCellId === UNASSIGNED_CELL
+    ? canLogUnassignedContact
+    : manageableCells.some((cell) => cell.id === contactCellId);
   const selectedMeetingCellIsAllowed = manageableCells.some((cell) => cell.id === meetingCellId);
   const contactCellHelp =
-    manageableCells.length === 0
+    manageableCells.length === 0 && !canLogUnassignedContact
       ? role === 'member'
         ? 'Your account is not authorized to log outreach contacts under the current contact permissions.'
         : 'No cells are available for your role. Ask a coordinator to assign you as the cell leader.'
@@ -65,9 +75,9 @@ const QuickAddContent: React.FC<QuickAddContentProps> = ({ user, onClose }) => {
 
   useEffect(() => {
     if (!contactCellId || !selectedContactCellIsAllowed) {
-      setContactCellId(manageableCells[0]?.id ?? '');
+      setContactCellId(manageableCells[0]?.id ?? (canLogUnassignedContact ? UNASSIGNED_CELL : ''));
     }
-  }, [contactCellId, manageableCells, selectedContactCellIsAllowed]);
+  }, [canLogUnassignedContact, contactCellId, manageableCells, selectedContactCellIsAllowed]);
 
   useEffect(() => {
     if (!meetingCellId || !selectedMeetingCellIsAllowed) {
@@ -91,7 +101,8 @@ const QuickAddContent: React.FC<QuickAddContentProps> = ({ user, onClose }) => {
     try {
       await createContact({
         contact_name: contactName.trim(),
-        cell_id: contactCellId,
+        // '' is converted to null by withNullableCellId: an unassigned contact.
+        cell_id: contactCellId === UNASSIGNED_CELL ? '' : contactCellId,
         date_contacted: contactDate,
         tag: contactTag,
         follow_up_status: '',
@@ -221,13 +232,13 @@ const QuickAddContent: React.FC<QuickAddContentProps> = ({ user, onClose }) => {
             label="Cell"
             value={contactCellId}
             onChange={setContactCellId}
-            cells={manageableCells}
+            cells={contactCellOptions}
             helpText={contactCellHelp ?? undefined}
           />
           <button
             type="button"
             onClick={submitContact}
-            disabled={saving || manageableCells.length === 0}
+            disabled={saving || contactCellOptions.length === 0}
             className="w-full py-2.5 rounded-xl bg-york-600 text-white text-sm font-semibold hover:bg-york-700 disabled:opacity-60 transition-colors"
           >
             {saving ? 'Saving…' : 'Log Contact'}
