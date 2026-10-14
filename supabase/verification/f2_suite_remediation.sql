@@ -153,6 +153,15 @@ SELECT pg_temp.assert_true('X04 positive control: the reactivated member reads t
 SELECT pg_temp.chk('X05 owner deactivates account a5', NULL, NULL, $q$UPDATE public.profiles SET status = 'inactive' WHERE id = pg_temp.u('a5')$q$, NULL, 1);
 SELECT pg_temp.chk('X06 correction to an INACTIVE target is refused', 'authenticated', pg_temp.u('a2'), $q$SELECT public.correct_contact_attribution(pg_temp.u('d2'), pg_temp.u('a5'), 'F2 inactive target')$q$, '22023', NULL);
 SELECT pg_temp.chk('X07 owner reactivates a5', NULL, NULL, $q$UPDATE public.profiles SET status = 'active' WHERE id = pg_temp.u('a5')$q$, NULL, 1);
+SELECT pg_temp.chk('X08 owner marks a5 rejected', NULL, NULL, $q$UPDATE public.profiles SET status = 'rejected' WHERE id = pg_temp.u('a5')$q$, NULL, 1);
+SELECT pg_temp.chk('X09 correction to a REJECTED target is refused', 'authenticated', pg_temp.u('a2'), $q$SELECT public.correct_contact_attribution(pg_temp.u('d2'), pg_temp.u('a5'), 'F2 rejected target')$q$, '22023', NULL);
+SELECT pg_temp.chk('X10 owner marks a5 pending', NULL, NULL, $q$UPDATE public.profiles SET status = 'pending' WHERE id = pg_temp.u('a5')$q$, NULL, 1);
+SELECT pg_temp.chk('X11 correction to a PENDING target is refused', 'authenticated', pg_temp.u('a2'), $q$SELECT public.correct_contact_attribution(pg_temp.u('d2'), pg_temp.u('a5'), 'F2 pending target')$q$, '22023', NULL);
+SELECT pg_temp.chk('X12 owner reactivates a5 after the status checks', NULL, NULL, $q$UPDATE public.profiles SET status = 'active' WHERE id = pg_temp.u('a5')$q$, NULL, 1);
+SELECT pg_temp.chk('X13 positive control: correction to an ACTIVE target succeeds (d2 to a4)', 'authenticated', pg_temp.u('a2'), $q$SELECT public.correct_contact_attribution(pg_temp.u('d2'), pg_temp.u('a4'), 'F2 positive control')$q$, NULL, 1);
+SELECT pg_temp.assert_true('X14 post-state: d2 now logged by a4', $q$(SELECT logged_by = pg_temp.u('a4') FROM public.contacts WHERE id = pg_temp.u('d2'))$q$);
+SELECT pg_temp.chk('X15 restore d2 to a3', 'authenticated', pg_temp.u('a2'), $q$SELECT public.correct_contact_attribution(pg_temp.u('d2'), pg_temp.u('a3'), 'F2 restore')$q$, NULL, 1);
+SELECT pg_temp.assert_true('X16 post-state: d2 restored to a3', $q$(SELECT logged_by = pg_temp.u('a3') FROM public.contacts WHERE id = pg_temp.u('d2'))$q$);
 
 \echo '== P. canonical identity: direct writes restricted; audited staff RPC is the only edit path'
 SELECT pg_temp.chk('P00 owner inserts a disposable person for the delete check', NULL, NULL, $q$INSERT INTO public.people (id, full_name, email) VALUES (pg_temp.u('f1'), 'Delete Me F2', 'delete.f2@example.test')$q$, NULL, 1);
@@ -164,6 +173,10 @@ SELECT pg_temp.chk('P05 RPC with a short reason is refused', 'authenticated', pg
 SELECT pg_temp.chk('P06 RPC to an email that belongs to another person is refused', 'authenticated', pg_temp.u('a2'), $q$SELECT public.update_person_identity(pg_temp.u('e2'), 'F2 Prospect', 'mem.f2@example.test', '+1 (905) 555-0199', 'F2 duplicate attempt')$q$, 'P0001', NULL);
 SELECT pg_temp.chk('P07 member calls the identity RPC', 'authenticated', pg_temp.u('a4'), $q$SELECT public.update_person_identity(pg_temp.u('e2'), 'F2 Prospect', 'prospect.f2@example.test', '+1 (905) 555-0197', 'F2 member attempt')$q$, '42501', NULL);
 SELECT pg_temp.chk('P08 RPC with no change is refused', 'authenticated', pg_temp.u('a2'), $q$SELECT public.update_person_identity(pg_temp.u('e2'), 'F2 Prospect', 'prospect.f2@example.test', '+1 (905) 555-0199', 'F2 no change')$q$, 'P0001', NULL);
+SELECT pg_temp.chk('P09 RPC to a phone that belongs to another person is refused', 'authenticated', pg_temp.u('a2'), $q$SELECT public.update_person_identity(pg_temp.u('e2'), 'F2 Prospect', 'prospect.f2@example.test', '+1 (416) 555-0177', 'F2 duplicate phone')$q$, 'P0001', NULL);
+SELECT pg_temp.chk('P10 authenticated direct INSERT into the identity audit is refused', 'authenticated', pg_temp.u('a2'), $q$INSERT INTO public.person_identity_audit (person_id) SELECT person_id FROM public.person_identity_audit WHERE false$q$, '42501', NULL);
+SELECT pg_temp.chk('P11 owner UPDATE of an identity audit row is refused (append-only)', NULL, NULL, $q$UPDATE public.person_identity_audit SET reason = 'tampered' WHERE person_id = pg_temp.u('e2')$q$, '42501', NULL);
+SELECT pg_temp.chk('P12 owner DELETE of an identity audit row is refused (append-only)', NULL, NULL, $q$DELETE FROM public.person_identity_audit WHERE person_id = pg_temp.u('e2')$q$, '42501', NULL);
 
 \echo '== S. definer functions: every one pins the path without pg_temp, and none is executable by anon or PUBLIC'
 SELECT pg_temp.assert_true('S07 every SECURITY DEFINER function in public pins search_path to pg_catalog, public (no pg_temp)', $q$(SELECT NOT EXISTS (
@@ -176,5 +189,5 @@ SELECT pg_temp.assert_true('S08 no SECURITY DEFINER function in public is execut
    WHERE n.nspname = 'public' AND p.prosecdef
      AND (has_function_privilege('anon', p.oid, 'EXECUTE') OR has_function_privilege('public', p.oid, 'EXECUTE'))))$q$);
 
-SELECT pg_temp.finish(121);
+SELECT pg_temp.finish(134);
 \echo '== END OF SUITE (verdict above)'
