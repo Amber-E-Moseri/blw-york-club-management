@@ -56,20 +56,34 @@ RAN=()
 # One marker query per database, so a database built at the wrong frontier fails before any suite runs.
 #   096: no batch function.  097: batch function, people UPDATE still granted.  098: batch function, people UPDATE revoked,
 #   and membership transitions restricted to staff (the 098 membership policy).
+# The marker alone is not enough: a database that also has 099-101 satisfies the 098 marker. So the database must also
+# report the exact last applied version, and an applied count equal to the number of repository migrations at or below
+# that frontier. Both come from the database's own ledger; the expected count is derived from the files.
+MIGRATION_DIR="$DIR/../migrations"
+expected_migrations_upto() {
+  local frontier="$1" f n=0 v
+  for f in "$MIGRATION_DIR"/*.sql; do
+    v="$(basename "$f")"; v=$((10#${v%%_*}))
+    (( v <= 10#$frontier )) && n=$((n + 1))
+  done
+  echo "$n"
+}
+
 frontier() {
-  local label="$1" db="$2" expect="$3" row batch upd
-  row="$($F2_PSQL_CMD -d "$db" -X -At -c "select (select count(*) from pg_proc where proname = 'submit_contacts_batch'), has_table_privilege('authenticated', 'public.people', 'UPDATE')::int" 2>&1)" || { echo "FRONTIER: cannot read $db: $row" >&2; FAILED=1; return; }
-  batch="${row%%|*}"; upd="${row##*|}"
+  local label="$1" db="$2" expect="$3" row batch upd maxver cnt want_cnt
+  row="$($F2_PSQL_CMD -d "$db" -X -At -c "select (select count(*) from pg_proc where proname = 'submit_contacts_batch'), has_table_privilege('authenticated', 'public.people', 'UPDATE')::int, (select max(version) from supabase_migrations.schema_migrations), (select count(*) from supabase_migrations.schema_migrations)" 2>&1)" || { echo "FRONTIER: cannot read $db: $row" >&2; FAILED=1; return; }
+  IFS='|' read -r batch upd maxver cnt <<< "$row"
+  want_cnt="$(expected_migrations_upto "$expect")"
   local ok=0
   case "$expect" in
     096) [[ "$batch" == 0 ]] && ok=1 ;;
     097) [[ "$batch" -ge 1 && "$upd" == 1 ]] && ok=1 ;;
     098) [[ "$batch" -ge 1 && "$upd" == 0 ]] && ok=1 ;;
   esac
-  if [[ "$ok" == 1 ]]; then
-    echo "frontier $label ($db) matches $expect: batch_function=$batch people_update_granted=$upd"
+  if [[ "$ok" == 1 && "$maxver" == "$expect" && "$cnt" == "$want_cnt" ]]; then
+    echo "frontier $label ($db) matches $expect: last=$maxver applied=$cnt batch_function=$batch people_update_granted=$upd"
   else
-    echo "FRONTIER MISMATCH $label ($db): expected $expect, found batch_function=$batch people_update_granted=$upd" >&2
+    echo "FRONTIER MISMATCH $label ($db): expected last $expect with $want_cnt migrations; found last=$maxver applied=$cnt batch_function=$batch people_update_granted=$upd" >&2
     FAILED=1
   fi
 }

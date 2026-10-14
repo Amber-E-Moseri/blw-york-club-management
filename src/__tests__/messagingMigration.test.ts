@@ -150,8 +150,13 @@ describe('dispatch-message: atomic claiming and no duplicate delivery', () => {
     expect(claim).toBeLessThan(dispatcherCode.indexOf('sendEmailViaRelay(profile.email'));
   });
 
-  test('a push device is never notified before its member is claimed', () => {
-    expect(dispatcherCode.indexOf("claim(messageId, 'push')")).toBeLessThan(dispatcherCode.indexOf('webpush.sendNotification'));
+  test('a push delivery is claimed before its outcome is recorded', () => {
+    // The current function has no push provider in this deployment: a push row is claimed and then closed as failed
+    // (provider not configured, retryable). It never reaches a provider call, so the ordering is claim, then outcome.
+    const claimAt = dispatcherCode.indexOf("claim('push')");
+    expect(claimAt).toBeGreaterThan(-1);
+    expect(claimAt).toBeLessThan(dispatcherCode.indexOf("'push', 'failed'"));
+    expect(dispatcherCode).not.toMatch(/webpush|sendNotification/);
   });
 
   test('each email carries a stable idempotency key for the provider', () => {
@@ -164,8 +169,10 @@ describe('dispatch-message: atomic claiming and no duplicate delivery', () => {
     expect(dispatcherCode).toMatch(/evaluatePreference\(PREFERENCE_TYPE/);
   });
 
-  test('the push body names no message content', () => {
-    expect(dispatcherCode).toMatch(/body: 'Open the app to read it\.'/);
+  test('push outcome reasons name no message content', () => {
+    // Push outcomes are closed with fixed reason strings. None may interpolate the message's subject or body.
+    expect(dispatcherCode).toMatch(/'push', 'failed', 'push provider not configured for this deployment'/);
+    expect(dispatcherCode).not.toMatch(/'push'[^\n]*message\.(body|subject)/);
   });
 
   test('a message can be dispatched only by its sender or active staff', () => {

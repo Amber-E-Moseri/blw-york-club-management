@@ -103,7 +103,11 @@ check('Preserved', 'cell leader reads an active member\'s people row in own cell
 check('Tightened', 'rejected account cannot read another member\x27s people row (not an active account)', (await seeRow('authenticated', A.rejectedA, P.memberB)) === 0);
 // 099 (N1, design 3.3): a rejected account is not active, so it reads no person row, its own included.
 check('Preserved', 'rejected applicant reads no own people row (099: active-only)', (await seeRow('authenticated', A.rejectedA, P.rejectedA)) === 0);
-check('Preserved', 'cell leader reads a rejected applicant\'s people row (visibility unchanged; see report)', (await seeRow('authenticated', A.leaderA, P.rejectedA)) === 1);
+// 095 (people_read): a person linked to a PENDING or REJECTED profile is readable only by its owner (now refused, 099) and
+// by admins and coordinators. An ordinary cell leader, who is an active member, is refused. The rejected applicant's
+// identity is not made public by rejection (095 decision). Staff keep the read (positive control below).
+check('Rejected applicant', 'cell leader cannot read a rejected applicant\'s people row (095: pending or rejected profiles are staff-only)', (await seeRow('authenticated', A.leaderA, P.rejectedA)) === 0);
+check('Rejected applicant', 'admin still reads a rejected applicant\'s people row (positive control, staff visibility)', (await seeRow('authenticated', A.admin, P.rejectedA)) === 1);
 
 // ── 3. Email lookup. Migration 098 withdraws find_person_by_email from every client role. Identity is resolved inside
 // submit_contact, and staff read identity only through get_person_identity, which is audited.
@@ -136,10 +140,18 @@ const dupPending = await as('authenticated', A.memberA, `insert into public.peop
 check('Privacy', 'member direct insert of a pending applicant\'s email is refused by privilege, so no unique-index oracle is reachable', !dupPending.ok, dupPending.error);
 const updByMember = await as('authenticated', A.memberA, `update public.people set full_name = 'Hacked' where id = $1`, [P.memberB]);
 check('Write', 'ordinary member cannot update another person', !updByMember.ok || (await owner(`select full_name from public.people where id = $1`, [P.memberB])).rows[0].full_name !== 'Hacked', updByMember.error ?? 'zero rows');
-const updByAdmin = await as('authenticated', A.admin, `update public.people set phone = '555-0199' where id = $1`, [walkin]);
-check('Write', 'admin updates a walk-in person', updByAdmin.ok, updByAdmin.error);
+// Identity changes go through update_person_identity (097): staff only, with a reason, audited. 098 withdrew direct UPDATE
+// and DELETE on people from every client role, so the direct statements below must be refused for everyone, including
+// admins and coordinators. The 045 policy still exists but has no effect without the privilege.
+const identityByAdmin = await as('authenticated', A.admin, `select public.update_person_identity($1, $2, $3, $4, $5)`,
+  [walkin, 'Walk In', WALKIN_EMAIL, '555-0199', 'PGlite identity review of walk-in phone']);
+const phoneAfter = (await owner(`select phone from public.people where id = $1`, [walkin])).rows[0].phone;
+check('Identity', 'admin changes a walk-in phone through the authorised RPC update_person_identity (audited)', identityByAdmin.ok && phoneAfter === '555-0199', identityByAdmin.error ?? `phone=${phoneAfter}`);
+const updByAdmin = await as('authenticated', A.admin, `update public.people set phone = '555-0123' where id = $1`, [walkin]);
+check('Unauthorized direct UPDATE', 'admin direct UPDATE of people is refused (identity goes through update_person_identity, 098)', !updByAdmin.ok, updByAdmin.error ?? 'update succeeded');
 const delByCoord = await as('authenticated', A.coord, `delete from public.people where id = $1`, [walkin]);
-check('Write', 'coordinator can delete a walk-in person (existing policy 045)', delByCoord.ok, delByCoord.error);
+check('Unauthorized direct DELETE', 'coordinator direct DELETE of a person is refused (098 revoked DELETE; 045 policy has no effect)', !delByCoord.ok, delByCoord.error ?? 'delete succeeded');
+check('Unauthorized direct DELETE', 'the walk-in person still exists after the refused delete', (await owner(`select 1 from public.people where id = $1`, [walkin])).rows.length === 1);
 const delByMember = await as('authenticated', A.memberA, `delete from public.people where id = $1`, [P.memberB]);
 check('Write', 'ordinary member cannot delete a person (row still exists)', (await owner(`select 1 from public.people where id = $1`, [P.memberB])).rows.length === 1, delByMember.error ?? 'zero rows');
 

@@ -95,7 +95,10 @@ describe('067: external email and push are staff-only', () => {
   });
 
   test('the dispatcher refuses external dispatch for non-staff as well', () => {
-    expect(dispatcher).toMatch(/if \(external && caller\.role !== 'admin' && caller\.role !== 'coordinator'\)/);
+    // Migration-era text: `if (external && caller.role ...)`. The current function derives isStaff and refuses any external
+    // channel (email or push) for a non-staff caller with a 403 before any claim or audit write.
+    expect(dispatcher).toMatch(/const isStaff = caller\.role === 'admin' \|\| caller\.role === 'coordinator'/);
+    expect(dispatcher).toMatch(/if \(\(wantsEmail \|\| wantsPush\) && !isStaff\)/);
   });
 });
 
@@ -113,8 +116,9 @@ describe('067: auditing', () => {
 
 describe('dispatch: authorization and audit completeness', () => {
   test('a failed audit write stops the dispatch before any provider call', () => {
-    expect(dispatcher).toMatch(/if \(auditError\) throw new HttpError\(/);
-    expect(dispatcher.indexOf('if (auditError)')).toBeLessThan(dispatcher.indexOf('await dispatchEmail('));
+    // The current function returns 500 with nothing dispatched when the audit insert fails (auditErr, before any dispatch).
+    expect(dispatcher).toMatch(/if \(auditErr\) return new Response\(`Audit write failed; nothing dispatched/);
+    expect(dispatcher.indexOf('if (auditErr)')).toBeLessThan(dispatcher.indexOf('await dispatchEmail('));
   });
 
   test('the function requires a JWT at the gateway as well as checking the caller', () => {
