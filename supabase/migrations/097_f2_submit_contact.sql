@@ -234,6 +234,21 @@ BEGIN
     RAISE EXCEPTION 'You cannot log a contact in that cell.' USING ERRCODE = '42501';
   END IF;
 
+  -- Follow-up assignee. Accepted only when the caller can see that profile under profiles_select_scoped: the caller
+  -- themself, any profile for an admin or coordinator, or a profile in a cell the caller leads. A nonexistent profile
+  -- and a hidden one get the same error, so the FK check below can not be used to probe profile existence.
+  IF p_follow_up_assignee IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM public.profiles pa
+     WHERE pa.id = p_follow_up_assignee
+       AND (
+            pa.id = p_actor
+         OR public.is_admin_or_coordinator()
+         OR (public.is_cell_leader_for_profile(pa.id) AND pa.status IS DISTINCT FROM 'pending')
+       )
+  ) THEN
+    RAISE EXCEPTION 'The follow-up assignee could not be set.' USING ERRCODE = '22023';
+  END IF;
+
   v_email_norm := public.normalize_identity_email(v_email);
   v_phone_norm := public.normalize_identity_phone(v_phone);
 
@@ -611,6 +626,29 @@ CREATE TRIGGER contacts_guard_person_reassignment
   BEFORE UPDATE OF person_id ON public.contacts
   FOR EACH ROW EXECUTE FUNCTION public._f2_guard_contact_person();
 
+-- Follow-up assignee on direct writes (reassignFollowUp, moveContactToCell and bulk updates). The check runs as the
+-- caller, so profiles_select_scoped applies. A profile the caller can not see gets the same error as a missing one,
+-- which keeps the FK check from disclosing whether a hidden profile exists. Owner writers are not checked here.
+CREATE OR REPLACE FUNCTION public._f2_check_follow_up_assignee()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public
+AS $$
+BEGIN
+  IF NEW.follow_up_assignee IS NOT NULL
+     AND (TG_OP = 'INSERT' OR NEW.follow_up_assignee IS DISTINCT FROM OLD.follow_up_assignee)
+     AND NOT EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = NEW.follow_up_assignee) THEN
+    RAISE EXCEPTION 'The follow-up assignee could not be set.' USING ERRCODE = '22023';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS contacts_check_follow_up_assignee ON public.contacts;
+CREATE TRIGGER contacts_check_follow_up_assignee
+  BEFORE INSERT OR UPDATE OF follow_up_assignee ON public.contacts
+  FOR EACH ROW EXECUTE FUNCTION public._f2_check_follow_up_assignee();
+
 -- merge_people already pins its search_path. Align it with the other functions in this migration. Body unchanged.
 ALTER FUNCTION public.merge_people(uuid, uuid, text) SET search_path = pg_catalog, public;
 
@@ -698,6 +736,10 @@ BEGIN
   SELECT c.logged_by INTO v_old FROM public.contacts c WHERE c.id = p_contact_id FOR UPDATE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Contact not found.' USING ERRCODE = 'P0002';
+  END IF;
+  -- The new logger must be an ACTIVE account. A pending, rejected or inactive account can not be assigned a contact.
+  IF NOT EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = p_new_logged_by AND p.status = 'active') THEN
+    RAISE EXCEPTION 'Choose an active user.' USING ERRCODE = '22023';
   END IF;
   IF v_old = p_new_logged_by THEN
     RAISE EXCEPTION 'The contact already has that logger.' USING ERRCODE = 'P0001';

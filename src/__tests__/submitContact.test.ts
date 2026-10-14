@@ -6,7 +6,7 @@
  * supabase/verification/authz_f2_submit_contact_test.sql, and the HTTP/JWT behaviour is covered by the real-stack
  * integration test, which is not runnable in this environment.
  */
-import { createContact, updateContact, bulkImportContacts } from '../lib/queries/contacts';
+import { createContact, updateContact, bulkImportContacts, importFingerprint } from '../lib/queries/contacts';
 import {
   getClaimIdentity,
   listIdentityClaims,
@@ -234,6 +234,37 @@ describe('identity review client', () => {
     const [summary] = await listIdentityClaims('open', 10);
     expect(summary.candidateNames).toEqual(['Ada Person']);
     expect(Object.keys(summary)).not.toEqual(expect.arrayContaining(['email', 'phone', 'submittedEmail', 'submittedPhone']));
+  });
+});
+
+describe('CSV import idempotency keys are stable across retries and distinct across uploads', () => {
+  const cellsFor = (): Cell[] => [{ id: CELL, name: 'North', leader_id: null } as unknown as Cell];
+  const sample = (name: string): BulkImportRow[] => [{
+    contact_name: name, phone: '', email: `${name.replace(/\s/g, '.')}@example.test`, cell_name: 'North', notes: '', tags: '',
+  } as BulkImportRow];
+
+  it('the same upload by the same user gives the same fingerprint (retry replays, does not duplicate)', () => {
+    expect(importFingerprint(sample('Ada Retry'), ACTOR)).toBe(importFingerprint(sample('Ada Retry'), ACTOR));
+  });
+
+  it('a different file gives a different fingerprint', () => {
+    expect(importFingerprint(sample('Ada One'), ACTOR)).not.toBe(importFingerprint(sample('Ada Two'), ACTOR));
+  });
+
+  it('the same rows uploaded by a different user are not collapsed', () => {
+    expect(importFingerprint(sample('Ada Shared'), ACTOR)).not.toBe(importFingerprint(sample('Ada Shared'), 'other-user'));
+  });
+
+  it('a retry sends identical per-row keys to the batch function', async () => {
+    mockRpc.mockResolvedValue({ data: [{ row_index: 1, outcome: 'logged', contact_id: 'c1', error_code: null }], error: null });
+    await bulkImportContacts(sample('Ada Keys'), ACTOR, cellsFor(), []);
+    const first = (mockRpc.mock.calls[0][1].p_rows as Array<{ idempotency_key: string }>)[0].idempotency_key;
+    mockRpc.mockClear();
+    mockRpc.mockResolvedValue({ data: [{ row_index: 1, outcome: 'logged', contact_id: 'c1', error_code: null }], error: null });
+    await bulkImportContacts(sample('Ada Keys'), ACTOR, cellsFor(), []);
+    const second = (mockRpc.mock.calls[0][1].p_rows as Array<{ idempotency_key: string }>)[0].idempotency_key;
+    expect(second).toBe(first);
+    expect(first).toMatch(/^import-[0-9a-f]{16}:0$/);
   });
 });
 

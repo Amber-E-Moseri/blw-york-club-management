@@ -15,6 +15,27 @@ const CONTACT_UPDATE_FIELDS = [
 // Rows per submit_contacts_batch call. Matches the server limit.
 const IMPORT_BATCH_SIZE = 500;
 
+/**
+ * Identifies one upload for idempotency. A retry of the same upload by the same user produces the same fingerprint,
+ * so every row replays its original contact instead of duplicating it. A different file, or the same rows uploaded
+ * by a different user, produces a different fingerprint and is logged independently. Identical content uploaded
+ * again is treated as the same upload, which is the intended retry behaviour. Two 32-bit FNV-style hashes over the
+ * canonical form give a 64-bit identifier. The keys are not secrets.
+ */
+export function importFingerprint(rows: BulkImportRow[], importedBy: string): string {
+  const canonical = JSON.stringify([importedBy, rows.map((r) => [
+    r.contact_name, r.phone ?? '', r.email ?? '', r.cell_name, r.notes ?? '', r.tags ?? '', r.follow_up_person ?? '',
+  ])]);
+  let h1 = 0x811c9dc5;
+  let h2 = 0x9e3779b9;
+  for (let i = 0; i < canonical.length; i++) {
+    const c = canonical.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0;
+    h2 = Math.imul(h2 ^ c, 0x85ebca6b) >>> 0;
+  }
+  return `import-${h1.toString(16).padStart(8, '0')}${h2.toString(16).padStart(8, '0')}`;
+}
+
 const IMPORT_ERROR_MESSAGES: Record<string, string> = {
   not_authorized: 'You cannot log a contact in that cell.',
   invalid: 'This row has invalid details.',
@@ -334,7 +355,7 @@ export async function bulkImportContacts(
   // One submit_contacts_batch call per 500 rows. Each row carries its own idempotency key, derived from a per-import
   // id, so a repeated click for the same import cannot duplicate rows. A refused row is reported on its own line and
   // never blocks the rest of the import.
-  const importId = `import-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  const importId = importFingerprint(rows, importedBy);
   const inserted: Array<{ id: string } | null> = validRows.map(() => null);
 
   for (let start = 0; start < validRows.length; start += IMPORT_BATCH_SIZE) {
