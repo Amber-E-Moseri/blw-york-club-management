@@ -16,8 +16,8 @@
 --   a. assign_pending_applicant_to_cell(member, cell, reason): the only path that places a PENDING applicant. SECURITY
 --      DEFINER, owned by postgres. It checks the caller is an active admin or coordinator, the target is pending, the
 --      caller is not the target, the target has no BSC and leads no cell, and the cell exists and is not archived.
---   b. transfer_member_cell(member, cell, reason): the path for an ACTIVE member. Its 2-argument form (072) is dropped,
---      so no transfer is possible without a reason. The body is otherwise unchanged from 072.
+--   b. transfer_member_cell(member, cell, reason): the path for an ACTIVE member. Its 2-argument form (072) is kept as a
+--      refusal, so no transfer is possible without a reason. The 3-argument body is otherwise unchanged from 072.
 --   c. guard_member_cell_placement(): a pending member may take a cell only when the change runs as the database owner,
 --      which is the case only inside assign_pending_applicant_to_cell(). Any other pending placement is refused.
 --
@@ -115,9 +115,25 @@ begin
 end;
 $function$;
 
--- ─── 5. Administrative transfer of an active member: reason required (replaces the 2-argument form from 072) ──────────
+-- ─── 5. Administrative transfer of an active member: reason required ─────────────────────────────────────────────────
+--
+-- The 2-argument form from 072 stays defined, so an older deployed frontend that still calls it receives a clear refusal
+-- and cannot change a cell without a reason. Its body is replaced here, and it no longer changes any row. The 3-argument
+-- form below is the only path that moves a member. The signature is kept deliberately; see the deployment plan.
 
-drop function if exists public.transfer_member_cell(uuid, uuid);
+create or replace function public.transfer_member_cell(p_member_id uuid, p_cell_id uuid)
+returns table (member_id uuid, cell_id uuid)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $function$
+begin
+  raise exception 'Cell changes now require a reason. Reload the app and try again.' using errcode = 'P0001';
+end;
+$function$;
+
+revoke all on function public.transfer_member_cell(uuid, uuid) from public, anon;
+grant execute on function public.transfer_member_cell(uuid, uuid) to authenticated;
 
 create or replace function public.transfer_member_cell(p_member_id uuid, p_cell_id uuid, p_reason text)
 returns table (member_id uuid, cell_id uuid)

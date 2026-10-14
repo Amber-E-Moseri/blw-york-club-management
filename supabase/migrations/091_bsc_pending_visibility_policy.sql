@@ -16,6 +16,8 @@
 -- pending rows, so the table no longer exposes them to leaders. Active, inactive and rejected rows keep their existing
 -- cell-leader visibility unchanged, because removing it is a separate privacy decision (not made here).
 --
+-- The same cell-leader rule applies to user_profiles (phone, bio, student_number), see section 1b below.
+--
 -- Why bsc_members_visible changes: 091 as first proposed let a cell leader see pending members there, which returned
 -- their email. The pending branch is restored to admins and coordinators (the 088 rule). Cell leaders reach pending
 -- applicants only through the restricted roster below.
@@ -39,6 +41,32 @@ create policy profiles_select_scoped on public.profiles
 
 -- member_directory is security_invoker, so it inherits the row rule above: a cell leader no longer lists a pending
 -- applicant there. The view definition itself is unchanged (016).
+
+-- user_profiles (phone, bio, student_number, names) follows the same rule. user_profiles_select_scoped (022) let a cell
+-- leader read the row of any member in their cell. The cell-leader branch now excludes pending applicants. The helper is
+-- SECURITY DEFINER, so the check is not filtered by the caller's own profiles visibility.
+
+create or replace function public.profile_is_pending(p_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $function$
+  select exists (select 1 from public.profiles p where p.id = p_id and p.status = 'pending')
+$function$;
+
+revoke all on function public.profile_is_pending(uuid) from public, anon;
+grant execute on function public.profile_is_pending(uuid) to authenticated;
+
+drop policy if exists user_profiles_select_scoped on public.user_profiles;
+create policy user_profiles_select_scoped on public.user_profiles
+  for select
+  using (
+    user_id = auth.uid()
+    or public.is_admin_or_coordinator()
+    or (public.is_cell_leader_for_profile(user_id) and not public.profile_is_pending(user_id))
+  );
 
 -- ─── 2. Restricted roster for a cell leader: pending applicants in the leader's own cell ─────────────────────────────────
 

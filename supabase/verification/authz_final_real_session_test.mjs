@@ -149,6 +149,8 @@ async function main() {
   pass('Pending visibility', 'Cell Leader A roster rows carry only id, full_name and cell_id', Array.isArray(rosterA.data) && rosterA.data.length > 0 && rosterA.data.every((r) => Object.keys(r).sort().join(',') === 'cell_id,full_name,id'));
   pass('Pending visibility', 'Cell Leader A cannot read the pending profile row (no email or student number)', !(await visibleTo(leaderA, pendingA.id)));
   pass('Pending visibility', 'Cell Leader A roster excludes pending applicant B (unplaced)', Array.isArray(rosterA.data) && !rosterA.data.some((r) => r.id === pendingB.id));
+  const upA = await call('GET', `/rest/v1/user_profiles?user_id=eq.${pendingA.id}&select=user_id,phone,student_number`, leaderA.token);
+  pass('Pending visibility', 'Cell Leader A cannot read pending applicant user_profiles details', !(Array.isArray(upA.data) && upA.data.length > 0), `HTTP ${upA.status}`);
   pass('Pending visibility', 'Cell Leader B (other cell) roster excludes pending applicant A', Array.isArray(rosterB.data) && !rosterB.data.some((r) => r.id === pendingA.id));
   pass('Pending visibility', 'BSC-only Leader cannot see pending applicant A (profile row)', !(await visibleTo(bscOnly, pendingA.id)));
   pass('Pending visibility', 'BSC-only Leader roster excludes pending applicant A', !(await rosterHas(bscOnly, pendingA.id)));
@@ -246,13 +248,17 @@ async function main() {
   const pbAfterAdmin = mustOk('read pendingB after admin placement', await svc('GET', `/profiles?id=eq.${pendingB.id}&select=cell_id`), true)[0];
   pass('Placement', 'Admin places a pending applicant through the RPC', adminPlace.status < 300 && pbAfterAdmin.cell_id === cellA.id);
 
+  const oldCaller = await rpc('transfer_member_cell', coord.token, { p_member_id: memberA.id, p_cell_id: cellB.id });
+  const memberAAfterOld = mustOk('read member A after old-client call', await svc('GET', `/profiles?id=eq.${memberA.id}&select=cell_id`), true)[0];
+  pass('Placement', 'Older two-argument caller is refused and changes nothing', oldCaller.status >= 400 && memberAAfterOld.cell_id === cellA.id, `HTTP ${oldCaller.status}`);
   const blankReason = await rpc('transfer_member_cell', coord.token, { p_member_id: memberA.id, p_cell_id: cellB.id, p_reason: '  ' });
   const memberAAfterBlank = mustOk('read member A after blank reason', await svc('GET', `/profiles?id=eq.${memberA.id}&select=cell_id`), true)[0];
   pass('Placement', 'A transfer with a blank reason is refused and changes nothing', blankReason.status >= 400 && memberAAfterBlank.cell_id === cellA.id, `HTTP ${blankReason.status}`);
   const audited = mustOk('member_cell_audit', await svc('GET', `/member_cell_audit?member_id=eq.${pendingB.id}&select=to_cell_id,actor_id`), false);
-  const reasonRows = mustOk('member_cell_audit reasons', await svc('GET', `/member_cell_audit?member_id=eq.${pendingB.id}&select=reason,to_cell_id,actor_id`), false);
+  const reasonRows = mustOk('member_cell_audit reasons', await svc('GET', `/member_cell_audit?member_id=eq.${pendingB.id}&select=reason,to_cell_id,actor_id,changed_at`), false);
   pass('Placement', 'Admin placement writes exactly one audit row with the reason, actor and destination',
-    Array.isArray(reasonRows) && reasonRows.length === 1 && reasonRows[0].reason === 'Real-session placement' && reasonRows[0].to_cell_id === cellA.id && reasonRows[0].actor_id === admin.id);
+    Array.isArray(reasonRows) && reasonRows.length === 1 && reasonRows[0].reason === 'Real-session placement' && reasonRows[0].to_cell_id === cellA.id && reasonRows[0].actor_id === admin.id
+      && typeof reasonRows[0].changed_at === 'string' && Date.now() - Date.parse(reasonRows[0].changed_at) < 3600_000);
   pass('Placement', 'member_cell_audit records the admin placement with the admin as actor',
     Array.isArray(audited) && audited.some((a) => a.to_cell_id === cellA.id && a.actor_id === admin.id));
 

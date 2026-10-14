@@ -5,7 +5,11 @@ import { Badge } from '../components/foundation/Badge';
 import { Button } from '../components/foundation/Button';
 import { getInitials } from '../lib/utils';
 import { approvePendingMember } from '../lib/queries/members';
+import { fetchCells } from '../lib/queries/contacts';
+import { assignPendingApplicantToCell } from '../lib/queries/cellAdmin';
+import { CELL_CHANGE_REASON_MAX, validateCellChangeReason } from '../lib/cells/cellAdmin';
 import type { AuthUser } from '../lib/auth';
+import type { Cell } from '../types';
 import { PageHeader } from '../components/foundation/PageHeader';
 
 interface Props { user: AuthUser | null; }
@@ -17,12 +21,98 @@ interface PendingProfile {
   student_number: string | null;
   joined_at: string;
   status: 'pending' | 'inactive' | 'rejected';
+  cell_id: string | null;
 }
 
 const CAN_APPROVE = ['admin', 'coordinator'];
 
+const selectClass =
+  'w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-york-600';
+
+/**
+ * Places one pending applicant in a cell, with a required reason. Only admins and coordinators see this control (the
+ * page gate). The database refuses any other caller (migration 093). Approval and rejection are separate buttons.
+ */
+export const PlacementControl: React.FC<{
+  applicant: PendingProfile;
+  cells: Cell[];
+  actor: AuthUser;
+  onPlaced: (applicantId: string, cellName: string) => void;
+}> = ({ applicant, cells, actor, onPlaced }) => {
+  const [cellId, setCellId] = useState('');
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const reasonCheck = validateCellChangeReason(reason);
+  const cell = cells.find((c) => c.id === cellId);
+
+  const save = async () => {
+    if (!cell || !reasonCheck.ok) return;
+    setSaving(true);
+    setError('');
+    try {
+      await assignPendingApplicantToCell(
+        { id: applicant.id, full_name: applicant.full_name, status: 'pending' },
+        cell.id,
+        { role: actor.role, status: actor.status },
+        cells,
+        reasonCheck.value,
+      );
+      onPlaced(applicant.id, cell.name);
+      setReason('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'The applicant was not placed.');
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="mt-3 border-t border-gray-100 dark:border-slate-800 pt-3 space-y-2">
+      <p className="text-xs font-semibold text-gray-700 dark:text-slate-300">Place in a cell</p>
+      {cells.length === 0 ? (
+        <p className="text-xs text-gray-500 dark:text-slate-400">No active cells exist yet. Create one on the Cells page first.</p>
+      ) : (
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_auto] sm:items-start">
+          <select
+            aria-label={`Cell for ${applicant.full_name || applicant.email}`}
+            className={selectClass}
+            value={cellId}
+            onChange={(e) => setCellId(e.target.value)}
+            disabled={saving}
+          >
+            <option value="">Select a cell…</option>
+            {cells.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <textarea
+            aria-label={`Reason for placing ${applicant.full_name || applicant.email}`}
+            className={selectClass}
+            rows={2}
+            maxLength={CELL_CHANGE_REASON_MAX}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            disabled={saving}
+            placeholder="Reason (required), recorded in the cell history"
+          />
+          <Button
+            variant="secondary"
+            size="small"
+            loading={saving}
+            disabled={!cell || !reasonCheck.ok}
+            onClick={save}
+          >
+            Place in cell
+          </Button>
+        </div>
+      )}
+      {error && <p role="alert" className="text-xs text-york-700 dark:text-york-300">{error}</p>}
+    </div>
+  );
+};
+
 export const AdminPendingApprovals: React.FC<Props> = ({ user }) => {
   const [pending, setPending] = useState<PendingProfile[]>([]);
+  const [cells, setCells] = useState<Cell[]>([]);
+  const [placed, setPlaced] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -34,7 +124,7 @@ export const AdminPendingApprovals: React.FC<Props> = ({ user }) => {
     if (!canApprove) { setLoading(false); return; }
     supabase
       .from('member_directory')
-      .select('id, email, full_name, student_number, joined_at, status')
+      .select('id, email, full_name, student_number, joined_at, status, cell_id')
       .in('status', ['pending', 'rejected'])
       .order('joined_at', { ascending: true })
       .then(({ data, error: e }) => {
@@ -42,6 +132,9 @@ export const AdminPendingApprovals: React.FC<Props> = ({ user }) => {
         else setPending((data ?? []) as PendingProfile[]);
         setLoading(false);
       });
+    fetchCells().then(setCells).catch((e: unknown) => {
+      setError(e instanceof Error ? e.message : 'Could not load cells.');
+    });
   }, [canApprove]);
 
   const handleApprove = async (id: string) => {
@@ -118,7 +211,7 @@ export const AdminPendingApprovals: React.FC<Props> = ({ user }) => {
       {!loading && pending.length > 0 && (
         <div className="space-y-3">
           {pending.map((p) => (
-            <div key={p.id} className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg p-5 flex items-center gap-4">
+            <div key={p.id} className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg p-5 flex flex-wrap items-center gap-4">
               <div className="w-10 h-10 rounded-full bg-york-600 text-white flex items-center justify-center text-sm font-bold shrink-0">
                 {getInitials(p.full_name || p.email)}
               </div>
@@ -153,6 +246,20 @@ export const AdminPendingApprovals: React.FC<Props> = ({ user }) => {
                   Reject
                 </Button>
               </div>
+              {p.status === 'pending' && user && (
+                <div className="w-full">
+                  {placed[p.id] ? (
+                    <p className="text-xs text-green-700 dark:text-green-400 mt-2">Placed in {placed[p.id]}. The applicant is still pending approval.</p>
+                  ) : (
+                    <PlacementControl
+                      applicant={p}
+                      cells={cells}
+                      actor={user}
+                      onPlaced={(id, name) => setPlaced((prev) => ({ ...prev, [id]: name }))}
+                    />
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
