@@ -101,7 +101,9 @@ begin
   update public.profiles set status = 'active', role = 'member', cell_id = null
     where id in (member_a1, member_a2, member_b1, member_b2, pending_id, rejected_id);
   insert into public.cells (id, name, leader_id) values (cell_a, 'Msg Cell A', leader_a_id), (cell_b, 'Msg Cell B', null);
+  perform set_config('app.cell_change_reason', 'owner fixture setup', false);
   update public.profiles set cell_id = cell_a where id in (leader_a_id, member_a1, member_a2, pending_id, rejected_id);
+  perform set_config('app.cell_change_reason', 'owner fixture setup', false);
   update public.profiles set cell_id = cell_b where id in (member_b1, member_b2);
   update public.profiles set status = 'pending', role = 'member' where id = pending_id;
   update public.profiles set status = 'rejected', role = 'member' where id = rejected_id;
@@ -346,6 +348,7 @@ begin
   update public.profiles set status = 'active', role = 'cell_leader', cell_id = null where id = leader_id;
   update public.profiles set status = 'active', role = 'member', cell_id = null where id = member_id;
   insert into public.cells (id, name, leader_id) values (cell_x, 'BC Cell', leader_id);
+  perform set_config('app.cell_change_reason', 'owner fixture setup', false);
   update public.profiles set cell_id = cell_x where id in (leader_id, member_id);
 
   -- 17. A cell leader cannot write a fellowship-wide announcement (null spec).
@@ -418,7 +421,9 @@ begin
     (cell_x, 'Ld Cell X', lead_ab),
     (cell_y, 'Ld Cell Y', lead_ab),
     (cell_z, 'Ld Cell Z', former);
+  perform set_config('app.cell_change_reason', 'owner fixture setup', false);
   update public.profiles set cell_id = cell_x where id in (lead_ab, lead_b, member_x);
+  perform set_config('app.cell_change_reason', 'owner fixture setup', false);
   update public.profiles set cell_id = cell_z where id = former;
 
   -- 20. Leader belongs to and leads the same cell: may send to it.

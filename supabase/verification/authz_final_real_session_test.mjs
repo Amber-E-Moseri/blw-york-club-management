@@ -115,9 +115,9 @@ async function main() {
   const cellA = mustOk('cell A', await svc('POST', '/cells', { name: `${run} cell A` }), true)[0];
   created.cells.push(cellA.id);
   mustOk('cell A leader', await svc('PATCH', `/cells?id=eq.${cellA.id}`, { leader_id: leaderA.id }), true);
-  mustOk('place leader A', await rpc('transfer_member_cell', coord.token, { p_member_id: leaderA.id, p_cell_id: cellA.id }), false);
-  mustOk('place BSC-only leader', await rpc('transfer_member_cell', coord.token, { p_member_id: bscOnly.id, p_cell_id: cellA.id }), false);
-  mustOk('place member A', await rpc('transfer_member_cell', coord.token, { p_member_id: memberA.id, p_cell_id: cellA.id }), false);
+  mustOk('place leader A', await rpc('transfer_member_cell', coord.token, { p_member_id: leaderA.id, p_cell_id: cellA.id, p_reason: 'Real-session placement' }), false);
+  mustOk('place BSC-only leader', await rpc('transfer_member_cell', coord.token, { p_member_id: bscOnly.id, p_cell_id: cellA.id, p_reason: 'Real-session placement' }), false);
+  mustOk('place member A', await rpc('transfer_member_cell', coord.token, { p_member_id: memberA.id, p_cell_id: cellA.id, p_reason: 'Real-session placement' }), false);
   const bscA = mustOk('BSC A', await svc('POST', '/bscs', { name: `${run} BSC A`, cell_id: cellA.id, leader_id: bscOnly.id }), true)[0];
   created.bscs.push(bscA.id);
   mustOk('BSC A place (approved RPC)', await rpc('assign_member_to_bsc', coord.token, { p_member_id: bscOnly.id, p_bsc_id: bscA.id }), false);
@@ -128,10 +128,10 @@ async function main() {
   const cellB = mustOk('cell B', await svc('POST', '/cells', { name: `${run} cell B` }), true)[0];
   created.cells.push(cellB.id);
   mustOk('cell B leader', await svc('PATCH', `/cells?id=eq.${cellB.id}`, { leader_id: leaderB.id }), true);
-  mustOk('place leader B', await rpc('transfer_member_cell', coord.token, { p_member_id: leaderB.id, p_cell_id: cellB.id }), false);
+  mustOk('place leader B', await rpc('transfer_member_cell', coord.token, { p_member_id: leaderB.id, p_cell_id: cellB.id, p_reason: 'Real-session placement' }), false);
 
   // Pending applicant placed in cell A through the audited RPC (migration 093), and a second applicant left unplaced.
-  mustOk('admin places pending A', await rpc('assign_pending_applicant_to_cell', admin.token, { p_member_id: pendingA.id, p_cell_id: cellA.id }), false);
+  mustOk('admin places pending A', await rpc('assign_pending_applicant_to_cell', admin.token, { p_member_id: pendingA.id, p_cell_id: cellA.id, p_reason: 'Real-session placement' }), false);
 
   // ── Pending visibility (migration 091 and profiles RLS) ─────────────────────────────────────────────────────────────
   const visibleTo = async (who, targetId) => {
@@ -143,9 +143,13 @@ async function main() {
     return Array.isArray(r.data) && r.data.some((row) => row.id === targetId);
   };
 
-  pass('Pending visibility', 'Cell Leader A sees pending applicant placed in cell A', await visibleTo(leaderA, pendingA.id));
-  pass('Pending visibility', 'Cell Leader A does not see pending applicant B (unplaced)', !(await visibleTo(leaderA, pendingB.id)));
-  pass('Pending visibility', 'Cell Leader B (other cell) cannot see pending applicant A', !(await visibleTo(leaderB, pendingA.id)));
+  const rosterA = await rpc('cell_leader_pending_roster', leaderA.token, {});
+  const rosterB = await rpc('cell_leader_pending_roster', leaderB.token, {});
+  pass('Pending visibility', 'Cell Leader A roster lists pending applicant placed in cell A', Array.isArray(rosterA.data) && rosterA.data.some((r) => r.id === pendingA.id));
+  pass('Pending visibility', 'Cell Leader A roster rows carry only id, full_name and cell_id', Array.isArray(rosterA.data) && rosterA.data.length > 0 && rosterA.data.every((r) => Object.keys(r).sort().join(',') === 'cell_id,full_name,id'));
+  pass('Pending visibility', 'Cell Leader A cannot read the pending profile row (no email or student number)', !(await visibleTo(leaderA, pendingA.id)));
+  pass('Pending visibility', 'Cell Leader A roster excludes pending applicant B (unplaced)', Array.isArray(rosterA.data) && !rosterA.data.some((r) => r.id === pendingB.id));
+  pass('Pending visibility', 'Cell Leader B (other cell) roster excludes pending applicant A', Array.isArray(rosterB.data) && !rosterB.data.some((r) => r.id === pendingA.id));
   pass('Pending visibility', 'BSC-only Leader cannot see pending applicant A (profile row)', !(await visibleTo(bscOnly, pendingA.id)));
   pass('Pending visibility', 'BSC-only Leader roster excludes pending applicant A', !(await rosterHas(bscOnly, pendingA.id)));
   pass('Pending visibility', 'Ordinary active member cannot see pending applicant A', !(await visibleTo(memberA, pendingA.id)));
@@ -224,25 +228,31 @@ async function main() {
   pass('Contacts', 'Pending applicant cannot log a contact', (await contactRow(pendingContact)).length === 0, `HTTP ${pendingTry.status}`);
 
   // ── Placement (migration 093) ───────────────────────────────────────────────────────────────────────────────────────
-  const placeAsLeader = await rpc('assign_pending_applicant_to_cell', leaderA.token, { p_member_id: pendingB.id, p_cell_id: cellA.id });
+  const placeAsLeader = await rpc('assign_pending_applicant_to_cell', leaderA.token, { p_member_id: pendingB.id, p_cell_id: cellA.id, p_reason: 'Real-session placement' });
   const pbAfterLeader = mustOk('read pendingB after leader attempt', await svc('GET', `/profiles?id=eq.${pendingB.id}&select=cell_id`), true)[0];
   pass('Placement', 'Cell Leader cannot place a pending applicant', pbAfterLeader.cell_id === null, `HTTP ${placeAsLeader.status}`);
 
-  const placeAsMember = await rpc('assign_pending_applicant_to_cell', memberA.token, { p_member_id: pendingB.id, p_cell_id: cellA.id });
+  const placeAsMember = await rpc('assign_pending_applicant_to_cell', memberA.token, { p_member_id: pendingB.id, p_cell_id: cellA.id, p_reason: 'Real-session placement' });
   pass('Placement', 'Active member cannot place a pending applicant', placeAsMember.status >= 400, `HTTP ${placeAsMember.status}`);
 
   const directPlace = await call('PATCH', `/rest/v1/profiles?id=eq.${pendingB.id}`, coord.token, { cell_id: cellA.id }, 'return=minimal');
   const pbAfterDirect = mustOk('read pendingB after direct PATCH', await svc('GET', `/profiles?id=eq.${pendingB.id}&select=cell_id`), true)[0];
   pass('Placement', 'Coordinator direct PATCH cannot place a pending applicant', pbAfterDirect.cell_id === null, `HTTP ${directPlace.status}`);
 
-  const selfPlace = await rpc('assign_pending_applicant_to_cell', pendingB.token, { p_member_id: pendingB.id, p_cell_id: cellA.id });
+  const selfPlace = await rpc('assign_pending_applicant_to_cell', pendingB.token, { p_member_id: pendingB.id, p_cell_id: cellA.id, p_reason: 'Real-session placement' });
   pass('Placement', 'Pending applicant cannot place self', selfPlace.status >= 400, `HTTP ${selfPlace.status}`);
 
-  const adminPlace = await rpc('assign_pending_applicant_to_cell', admin.token, { p_member_id: pendingB.id, p_cell_id: cellA.id });
+  const adminPlace = await rpc('assign_pending_applicant_to_cell', admin.token, { p_member_id: pendingB.id, p_cell_id: cellA.id, p_reason: 'Real-session placement' });
   const pbAfterAdmin = mustOk('read pendingB after admin placement', await svc('GET', `/profiles?id=eq.${pendingB.id}&select=cell_id`), true)[0];
   pass('Placement', 'Admin places a pending applicant through the RPC', adminPlace.status < 300 && pbAfterAdmin.cell_id === cellA.id);
 
+  const blankReason = await rpc('transfer_member_cell', coord.token, { p_member_id: memberA.id, p_cell_id: cellB.id, p_reason: '  ' });
+  const memberAAfterBlank = mustOk('read member A after blank reason', await svc('GET', `/profiles?id=eq.${memberA.id}&select=cell_id`), true)[0];
+  pass('Placement', 'A transfer with a blank reason is refused and changes nothing', blankReason.status >= 400 && memberAAfterBlank.cell_id === cellA.id, `HTTP ${blankReason.status}`);
   const audited = mustOk('member_cell_audit', await svc('GET', `/member_cell_audit?member_id=eq.${pendingB.id}&select=to_cell_id,actor_id`), false);
+  const reasonRows = mustOk('member_cell_audit reasons', await svc('GET', `/member_cell_audit?member_id=eq.${pendingB.id}&select=reason,to_cell_id,actor_id`), false);
+  pass('Placement', 'Admin placement writes exactly one audit row with the reason, actor and destination',
+    Array.isArray(reasonRows) && reasonRows.length === 1 && reasonRows[0].reason === 'Real-session placement' && reasonRows[0].to_cell_id === cellA.id && reasonRows[0].actor_id === admin.id);
   pass('Placement', 'member_cell_audit records the admin placement with the admin as actor',
     Array.isArray(audited) && audited.some((a) => a.to_cell_id === cellA.id && a.actor_id === admin.id));
 

@@ -8,10 +8,12 @@ import {
   createCell,
   fetchArchivedCells,
   fetchBscMembershipNames,
+  fetchCellLeaderPendingRoster,
   renameCell,
   setCellArchived,
   setCellLeader,
   setMemberCell,
+  type PendingApplicant,
 } from '../lib/queries/cellAdmin';
 import { CellNameModal, CellLeaderModal, MemberPlacementModal, ConfirmModal } from '../components/cells/CellAdminModals';
 import { Button } from '../components/foundation/Button';
@@ -44,6 +46,9 @@ export const Cells: React.FC<Props> = ({ user }) => {
   const [cells, setCells] = useState<Cell[]>([]);
   const [archivedCells, setArchivedCells] = useState<Cell[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  // Pending applicants in a leader's own cell, from the restricted roster RPC. Empty for every other role.
+  const [pendingRoster, setPendingRoster] = useState<PendingApplicant[]>([]);
+  const isCellLeader = user?.role === 'cell_leader';
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -53,24 +58,26 @@ export const Cells: React.FC<Props> = ({ user }) => {
   const load = useCallback(async (cancelled: () => boolean = () => false) => {
     setLoading(true);
     try {
-      const [cellRows, memberRows, bscNames, archivedRows] = await Promise.all([
+      const [cellRows, memberRows, bscNames, archivedRows, roster] = await Promise.all([
         fetchCells(),
         fetchMembersFiltered(),
         // Guidance only: a failed lookup must not block the page, because the transfer RPC refuses a BSC member anyway.
         fetchBscMembershipNames().catch(() => ({} as Record<string, string>)),
         canManage ? fetchArchivedCells() : Promise.resolve([] as Cell[]),
+        isCellLeader ? fetchCellLeaderPendingRoster() : Promise.resolve([] as PendingApplicant[]),
       ]);
       if (cancelled()) return;
       setCells(cellRows);
       setArchivedCells(archivedRows);
       setMembers(memberRows.map((m) => ({ ...m, bsc_name: bscNames[m.id] ?? null })));
+      setPendingRoster(roster);
       setError(null);
     } catch (e: unknown) {
       if (!cancelled()) setError(e instanceof Error ? e.message : 'Could not load cells.');
     } finally {
       if (!cancelled()) setLoading(false);
     }
-  }, [canManage]);
+  }, [canManage, isCellLeader]);
 
   useEffect(() => {
     if (level < 1) return;
@@ -126,6 +133,18 @@ export const Cells: React.FC<Props> = ({ user }) => {
       )}
 
       {loading && <p className="text-sm text-gray-500 dark:text-slate-400">Loading cells…</p>}
+
+      {isCellLeader && pendingRoster.length > 0 && (
+        <section aria-labelledby="pending-roster-heading" className="rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+          <h2 id="pending-roster-heading" className="text-sm font-bold text-gray-900 dark:text-slate-100">Pending applicants in your cell</h2>
+          <p className="text-xs text-gray-500 dark:text-slate-400 mb-2">Names only, from the applicant roster for your cell.</p>
+          <ul className="divide-y divide-gray-100 dark:divide-slate-800">
+            {pendingRoster.map((a) => (
+              <li key={a.id} className="py-2 text-sm text-gray-800 dark:text-slate-200">{a.full_name}</li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {!loading && !error && summaries.length === 0 && (
         <div className="text-sm text-gray-500 dark:text-slate-400 space-y-2">
@@ -313,9 +332,9 @@ export const Cells: React.FC<Props> = ({ user }) => {
             currentCell={dialog?.kind === 'place' ? dialog.from : null}
             cells={cells}
             onClose={() => setDialog(null)}
-            onSave={async (targetCellId) => {
+            onSave={async (targetCellId, reason) => {
               if (dialog?.kind !== 'place' || !targetCellId) throw new Error('Choose a destination cell.');
-              await setMemberCell(dialog.member, targetCellId, actor!, cells);
+              await setMemberCell(dialog.member, targetCellId, actor!, cells, reason);
               reportSaved(`${dialog.member.full_name} moved.`);
             }}
           />
@@ -330,9 +349,10 @@ export const Cells: React.FC<Props> = ({ user }) => {
                 : ''
             }
             confirmLabel="Remove"
-            onConfirm={async () => {
+            requireReason
+            onConfirm={async (reason) => {
               if (dialog?.kind !== 'remove') return;
-              await setMemberCell(dialog.member, null, actor!, cells);
+              await setMemberCell(dialog.member, null, actor!, cells, reason);
               reportSaved(`${dialog.member.full_name} removed from the cell.`);
             }}
           />

@@ -254,7 +254,7 @@ async function main() {
   const leftGroup = await attempt(db, 'authenticated', B1, `select count(*)::int n from public.announcements where id = $1`, [annGId]);
   record('membership', 'person removed from the group keeps access they were given at publication', leftGroup.ok && leftGroup.rows[0].n === 1);
 
-  await db.exec(`update public.profiles set cell_id = '${CELL_B}' where id = '${A2}'`);
+  await db.exec(`select set_config('app.cell_change_reason', 'owner fixture setup', false); update public.profiles set cell_id = '${CELL_B}' where id = '${A2}'`);
   const movedIn = await attempt(db, 'authenticated', A2, `select count(*)::int n from public.announcements where id = $1`, [annCellAId]);
   record('membership', 'member moved to another cell keeps access to earlier cell A content', movedIn.ok && movedIn.rows[0].n === 1);
   const movedInB = await attempt(db, 'authenticated', B1, `select count(*)::int n from public.announcements where id = $1`, [annCellAId]);

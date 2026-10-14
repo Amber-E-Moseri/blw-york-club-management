@@ -113,7 +113,9 @@ begin
 
   insert into public.cells (name, leader_id) values ('Cert Cell A', leader_a_id) returning id into cell_a;
   insert into public.cells (name, leader_id) values ('Cert Cell B', leader_b_id) returning id into cell_b;
+  perform set_config('app.cell_change_reason', 'owner fixture setup', false);
   update public.profiles set cell_id = cell_a where id in (member_id, leader_a_id, custom_id);
+  perform set_config('app.cell_change_reason', 'owner fixture setup', false);
   update public.profiles set cell_id = cell_b where id = leader_b_id;
 
   insert into public.events (title, date, time, category, created_by)
@@ -193,6 +195,7 @@ begin
 
   begin
     perform pg_temp.as_auth(member_id);
+    perform set_config('app.cell_change_reason', 'owner fixture setup', false);
     update public.profiles set cell_id = cell_b where id = member_id;
     perform pg_temp.as_postgres();
     select cell_id into observed_uuid from public.profiles where id = member_id;

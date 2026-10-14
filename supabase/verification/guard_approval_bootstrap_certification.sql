@@ -75,6 +75,7 @@ begin
   insert into public.cells (name, leader_id) values ('Cert Guard Cell', leader_id) returning id into cert_cell;
   -- A pending account cannot be placed in a cell (migration 074). Place it while active, then move it to pending.
   update public.profiles set status = 'active' where id = pending_id;
+  perform set_config('app.cell_change_reason', 'owner fixture setup', false);
   update public.profiles set cell_id = cert_cell where id in (leader_id, member_id, pending_id);
   update public.profiles set status = 'pending' where id = pending_id;
 

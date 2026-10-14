@@ -73,7 +73,9 @@ begin
 
   insert into public.cells (id, name, leader_id) values
     (cell_a, 'Write A', leader_a), (cell_b, 'Write B', leader_b), (cell_empty, 'Write Empty', null);
+  perform set_config('app.cell_change_reason', 'owner fixture setup', false);
   update public.profiles set cell_id = cell_a where id in (a1, a2);
+  perform set_config('app.cell_change_reason', 'owner fixture setup', false);
   update public.profiles set cell_id = cell_b where id = b1;
 
   -- Saved groups

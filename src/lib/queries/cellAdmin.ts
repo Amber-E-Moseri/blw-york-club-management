@@ -5,9 +5,17 @@ import {
   validateLeaderCandidate,
   validateArchive,
   validateMemberPlacement,
+  validateCellChangeReason,
   type CellActor,
 } from '../cells/cellAdmin';
 import type { Cell, Member } from '../../types';
+
+/** A pending applicant in a cell leader's own cell: the restricted roster only (migration 091). */
+export interface PendingApplicant {
+  id: string;
+  full_name: string;
+  cell_id: string | null;
+}
 
 /**
  * Write paths for cell administration. Each function:
@@ -91,28 +99,74 @@ export async function setCellLeader(
 
 /**
  * Places a member in a cell (add or transfer), or removes them from their cell when `targetCellId` is null.
- * Goes through transfer_member_cell (migration 068), which checks authorization, active status, Bible Study Class
- * membership and cell leadership, then writes the row and its audit record in one transaction. The RPC returns the
- * saved row, so a refused or unsaved write is reported as a failure.
+ * Goes through transfer_member_cell (migrations 068 and 093), which checks authorization, active status, Bible Study
+ * Class membership and cell leadership, then writes the row and its audit record in one transaction. The reason is
+ * required and is recorded in member_cell_audit. The RPC returns the saved row, so a refused or unsaved write is
+ * reported as a failure.
  */
 export async function setMemberCell(
   member: Member,
   targetCellId: string | null,
   actor: CellActor,
   cells: Cell[],
+  reason: string,
 ): Promise<void> {
   requireManager(actor);
   const problem = validateMemberPlacement(member, targetCellId, cells);
   if (problem) throw new Error(problem);
+  const reasonCheck = validateCellChangeReason(reason);
+  if (!reasonCheck.ok) throw new Error(reasonCheck.error);
 
   const { data, error } = await supabase.rpc('transfer_member_cell', {
     p_member_id: member.id,
     p_cell_id: targetCellId,
+    p_reason: reasonCheck.value,
   });
   if (error) fail(error.message, 'Could not change the member’s cell.');
   if (!Array.isArray(data) || data.length !== 1) {
     fail(undefined, 'The member’s cell was not changed. Check that your account is still active.');
   }
+}
+
+/**
+ * Places a pending applicant in a cell (migration 093). Only admins and coordinators may do this; the database
+ * refuses any other caller, any active member and any applicant with a Bible Study Class or a led cell.
+ */
+export async function assignPendingApplicantToCell(
+  applicant: Pick<Member, 'id' | 'full_name' | 'status'>,
+  cellId: string,
+  actor: CellActor,
+  cells: Cell[],
+  reason: string,
+): Promise<void> {
+  requireManager(actor);
+  if (applicant.status !== 'pending') {
+    throw new Error('This applies to pending applicants only. Use the member transfer for active members.');
+  }
+  if (!cells.some((c) => c.id === cellId)) throw new Error('Choose a cell for this applicant.');
+  const reasonCheck = validateCellChangeReason(reason);
+  if (!reasonCheck.ok) throw new Error(reasonCheck.error);
+
+  const { data, error } = await supabase.rpc('assign_pending_applicant_to_cell', {
+    p_member_id: applicant.id,
+    p_cell_id: cellId,
+    p_reason: reasonCheck.value,
+  });
+  if (error) fail(error.message, 'Could not place the applicant in the cell.');
+  if (!Array.isArray(data) || data.length !== 1) {
+    fail(undefined, 'The applicant was not placed. Check that your account is still active.');
+  }
+}
+
+/**
+ * Pending applicants in the signed-in cell leader's own cell. The database returns only the restricted roster (id,
+ * name, cell) and nothing for an admin, a BSC-only leader or an ordinary member. Pending email and student number are
+ * never returned to a cell leader.
+ */
+export async function fetchCellLeaderPendingRoster(): Promise<PendingApplicant[]> {
+  const { data, error } = await supabase.rpc('cell_leader_pending_roster');
+  if (error) throw new Error(error.message ?? 'Could not load pending applicants.');
+  return (data ?? []) as PendingApplicant[];
 }
 
 /**

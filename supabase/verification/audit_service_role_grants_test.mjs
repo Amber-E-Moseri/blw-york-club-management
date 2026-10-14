@@ -55,6 +55,7 @@ const cellA = crypto.randomUUID();
 const cellB = crypto.randomUUID();
 await db.query("insert into public.cells (id, name) values ($1, 'Cell A'), ($2, 'Cell B')", [cellA, cellB]);
 // Place members first: a BSC leader must already be an active member of the BSC's cell (guard_bsc_leader_eligibility).
+await db.query("select set_config('app.cell_change_reason', 'owner fixture setup', false)");
 await db.query('update public.profiles set cell_id = $2 where id = any($1::uuid[])',
   [[ids.member, ids.deactivate, ids.leader, ids.trigger], cellA]);
 const bsc = crypto.randomUUID();
@@ -67,7 +68,7 @@ const count = async (sql, params = []) => Number((await db.query(sql, params)).r
 const adminCtx = ['authenticated', ids.admin];
 
 const memberCellBefore = await count('select count(*)::int n from public.member_cell_audit where member_id = $1', [ids.member]);
-const transfer = await attempt(db, ...adminCtx, 'select * from public.transfer_member_cell($1, $2)', [ids.member, cellB]);
+const transfer = await attempt(db, ...adminCtx, 'select * from public.transfer_member_cell($1, $2, $3)', [ids.member, cellB, 'Fixture transfer']);
 const memberCellRow = await db.query(
   'select from_cell_id, to_cell_id, actor_id from public.member_cell_audit where member_id = $1 order by id desc limit 1',
   [ids.member]);

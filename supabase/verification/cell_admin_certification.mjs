@@ -53,7 +53,7 @@ async function main() {
     update public.profiles set role = 'coordinator' where id = '${COORD}';
     update public.profiles set role = 'cell_leader' where id = '${LEAD}';
     insert into public.cells (id, name, leader_id) values ('${CA}', 'Cell A', '${LEAD}'), ('${CB}', 'Cell B', null);
-    update public.profiles set cell_id = '${CA}' where id in ('${LEAD}', '${M1}', '${M2}');
+    select set_config('app.cell_change_reason', 'owner fixture setup', false); update public.profiles set cell_id = '${CA}' where id in ('${LEAD}', '${M1}', '${M2}');
     insert into public.bscs (id, cell_id, name) values ('${BSC1}', '${CA}', 'Thursday BSC'), ('${BSC2}', '${CB}', 'Sunday BSC');
     update public.profiles set bsc_id = '${BSC1}' where id = '${M2}';
     update public.profiles set status = 'pending' where id = '${PEND}';
@@ -70,7 +70,7 @@ async function main() {
     await attempt(db, 'authenticated', M1, `insert into public.cells (id, name) values ($1, 'Member Cell') returning id`, [uid(43)]));
 
   // ─── 2. Transfer across cells, with an audit row ───────────────────────────────────────────────────────────────────
-  const t1 = await attempt(db, 'authenticated', COORD, `select * from public.transfer_member_cell($1, $2)`, [M1, CB]);
+  const t1 = await attempt(db, 'authenticated', COORD, `select * from public.transfer_member_cell($1, $2, $3)`, [M1, CB, 'Fixture transfer']);
   allowed('transfer', 'coordinator transfers a member A → B', t1);
   const auditTransfer = await count(db,
     `select count(*) n from public.member_cell_audit where member_id=$1 and from_cell_id=$2 and to_cell_id=$3 and actor_id=$4`,
@@ -79,24 +79,24 @@ async function main() {
 
   // ─── 3. BSC conflict blocks the transfer ───────────────────────────────────────────────────────────────────────────
   denied('bsc', 'transfer is blocked for a member in a Bible Study Class',
-    await attempt(db, 'authenticated', COORD, `select * from public.transfer_member_cell($1, $2)`, [M2, CB]), 'Bible Study Class');
+    await attempt(db, 'authenticated', COORD, `select * from public.transfer_member_cell($1, $2, $3)`, [M2, CB, 'Fixture transfer']), 'Bible Study Class');
   const m2Still = await count(db, `select count(*) n from public.profiles where id=$1 and cell_id=$2`, [M2, CA]);
   record('bsc', 'a blocked BSC transfer leaves the member in their cell', m2Still === 1);
 
   // ─── 4. Leader reassignment requirement: a leader cannot be moved out of the cell they lead ───────────────────────
   denied('leader', 'a cell leader cannot be moved until a new leader is assigned',
-    await attempt(db, 'authenticated', COORD, `select * from public.transfer_member_cell($1, $2)`, [LEAD, CB]), 'leads');
+    await attempt(db, 'authenticated', COORD, `select * from public.transfer_member_cell($1, $2, $3)`, [LEAD, CB, 'Fixture transfer']), 'leads');
 
   // ─── 5. Removal from cell ──────────────────────────────────────────────────────────────────────────────────────────
   allowed('removal', 'coordinator removes a member from their cell',
-    await attempt(db, 'authenticated', COORD, `select * from public.transfer_member_cell($1, null)`, [M1]));
+    await attempt(db, 'authenticated', COORD, `select * from public.transfer_member_cell($1, null, $2)`, [M1, 'Fixture removal']));
   const removalAudit = await count(db,
     `select count(*) n from public.member_cell_audit where member_id=$1 and from_cell_id=$2 and to_cell_id is null`, [M1, CB]);
   record('audit', 'removal writes a member_cell_audit row with a null target', removalAudit === 1, `rows=${removalAudit}`);
 
   // ─── 6. Zero-row and unauthorized writes do not report success ─────────────────────────────────────────────────────
   denied('zero-row', 'transfer of a missing member is refused, not reported as saved',
-    await attempt(db, 'authenticated', COORD, `select * from public.transfer_member_cell($1, $2)`, [MISSING, CB]), 'Member not found');
+    await attempt(db, 'authenticated', COORD, `select * from public.transfer_member_cell($1, $2, $3)`, [MISSING, CB, 'Fixture transfer']), 'Member not found');
   const direct = await attempt(db, 'authenticated', M2, `update public.profiles set cell_id = $1 where id = $2 returning id`, [CCOORD, M2]);
   const directLanded = direct.ok && direct.rows.length > 0;
   record('direct', 'member cannot move another member with a direct profile update', !directLanded,
@@ -104,9 +104,9 @@ async function main() {
   const m2Cell = await count(db, `select count(*) n from public.profiles where id=$1 and cell_id=$2`, [M2, CA]);
   record('direct', 'the refused direct update leaves the cell unchanged', m2Cell === 1);
   denied('pending', 'a pending member cannot be placed in a cell',
-    await attempt(db, 'authenticated', COORD, `select * from public.transfer_member_cell($1, $2)`, [PEND, CB]), 'Only active members');
+    await attempt(db, 'authenticated', COORD, `select * from public.transfer_member_cell($1, $2, $3)`, [PEND, CB, 'Fixture transfer']), 'Only active members');
   denied('pending', 'a rejected member cannot be placed in a cell',
-    await attempt(db, 'authenticated', COORD, `select * from public.transfer_member_cell($1, $2)`, [REJ, CB]), 'Only active members');
+    await attempt(db, 'authenticated', COORD, `select * from public.transfer_member_cell($1, $2, $3)`, [REJ, CB, 'Fixture transfer']), 'Only active members');
 
   // ─── 7. Archive and restore ───────────────────────────────────────────────────────────────────────────────────────
   denied('archive', 'a cell with members cannot be archived',
@@ -114,7 +114,7 @@ async function main() {
   allowed('archive', 'an empty cell is archived by a coordinator',
     await attempt(db, 'authenticated', COORD, `update public.cells set archived_at = now() where id = $1 returning id`, [CCOORD]));
   denied('archive', 'an archived cell takes no new members',
-    await attempt(db, 'authenticated', COORD, `select * from public.transfer_member_cell($1, $2)`, [NEW, CCOORD]), 'archived');
+    await attempt(db, 'authenticated', COORD, `select * from public.transfer_member_cell($1, $2, $3)`, [NEW, CCOORD, 'Fixture transfer']), 'archived');
   allowed('archive', 'an archived cell is restored',
     await attempt(db, 'authenticated', COORD, `update public.cells set archived_at = null where id = $1 returning id`, [CCOORD]));
   const cellAudit = await count(db, `select count(*) n from public.cell_admin_audit where cell_id=$1`, [CCOORD]);
@@ -150,7 +150,7 @@ async function main() {
 
   // ─── 10. BSC leadership is released when its leader becomes inactive ──────────────────────────────────────────────
   // A BSC leader must be an active member of the BSC's cell (migration 040 guard), so place M1 in that cell first.
-  await db.exec(`update public.profiles set cell_id = '${CB}' where id = '${M1}'; update public.bscs set leader_id = '${M1}' where id = '${BSC2}';`);
+  await db.exec(`select set_config('app.cell_change_reason', 'owner fixture setup', false); update public.profiles set cell_id = '${CB}' where id = '${M1}'; update public.bscs set leader_id = '${M1}' where id = '${BSC2}';`);
   const bscDeact = await attempt(db, 'authenticated', COORD, `select * from public.set_member_status($1, 'inactive', 'bsc release certification')`, [M1]);
   record('deactivate', 'coordinator sets a BSC leader to inactive via set_member_status (one row saved)', bscDeact.ok && bscDeact.rows.length === 1,
     bscDeact.ok ? `rows=${bscDeact.rows.length}` : bscDeact.error.slice(0, 110));

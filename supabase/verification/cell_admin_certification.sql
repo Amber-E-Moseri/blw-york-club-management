@@ -44,8 +44,10 @@ begin
   update public.cells set leader_id = leader_a where id = cell_a;
 
   -- Placement: only active members, only into live cells.
+  perform set_config('app.cell_change_reason', 'owner fixture setup', false);
   state := pg_temp.try(format('update public.profiles set cell_id = %L where id = %L', cell_a, pend));
   perform pg_temp.record('Placement', 'a pending account cannot be placed in a cell', state = 'P0001', state);
+  perform set_config('app.cell_change_reason', 'owner fixture setup', false);
   update public.profiles set cell_id = cell_a where id = m1;
   perform pg_temp.record('Placement', 'an active member can be placed in a cell (owner setup)', (select cell_id from public.profiles where id = m1) = cell_a, null);
 
@@ -74,18 +76,19 @@ begin
   state := pg_temp.try(format('update public.cells set leader_id = %L where id = %L', leader_b, cell_empty));
   perform pg_temp.record('Lifecycle', 'an archived cell cannot be given a leader', state = 'P0001', state);
   perform pg_temp.as_postgres();
+  perform set_config('app.cell_change_reason', 'owner fixture setup', false);
   state := pg_temp.try(format('update public.profiles set cell_id = %L where id = %L', cell_empty, m2));
   perform pg_temp.record('Placement', 'no member can be placed into an archived cell', state = 'P0001', state);
 
   -- Audited transfer RPC.
   perform pg_temp.as_auth(m1);
-  state := pg_temp.try(format('select * from public.transfer_member_cell(%L, %L)', m2, cell_b));
+  state := pg_temp.try(format('select * from public.transfer_member_cell(%L, %L, %L)', m2, cell_b, 'Fixture transfer'));
   perform pg_temp.as_postgres();
   perform pg_temp.record('Transfer', 'a member cannot call transfer_member_cell', state = '42501', state);
 
   select count(*) into v_audit_before from public.member_cell_audit where member_id = m1;
   perform pg_temp.as_auth(coord_id);
-  state := pg_temp.try(format('select * from public.transfer_member_cell(%L, %L)', m1, cell_b));
+  state := pg_temp.try(format('select * from public.transfer_member_cell(%L, %L, %L)', m1, cell_b, 'Fixture transfer'));
   perform pg_temp.as_postgres();
   perform pg_temp.record('Transfer', 'a coordinator can move an active member between cells', state = 'none', state);
   perform pg_temp.record('Transfer', 'the move is recorded in member_cell_audit',
@@ -93,7 +96,7 @@ begin
 
   -- A cell leader cannot be moved until leadership is reassigned.
   perform pg_temp.as_auth(coord_id);
-  state := pg_temp.try(format('select * from public.transfer_member_cell(%L, %L)', leader_a, cell_b));
+  state := pg_temp.try(format('select * from public.transfer_member_cell(%L, %L, %L)', leader_a, cell_b, 'Fixture transfer'));
   perform pg_temp.as_postgres();
   perform pg_temp.record('Transfer', 'a cell leader cannot be moved while leading', state = 'P0001', state);
 

@@ -91,7 +91,9 @@ begin
   on conflict (id) do update set status = excluded.status, role = excluded.role, cell_id = excluded.cell_id, full_name = excluded.full_name;
 
   insert into public.cells (id, name, leader_id) values (cell_a, 'Cert Cell A', leader_a), (cell_b, 'Cert Cell B', leader_b);
+  perform set_config('app.cell_change_reason', 'owner fixture setup', false);
   update public.profiles set cell_id = cell_a where id in (a1, a2, a3, a4);
+  perform set_config('app.cell_change_reason', 'owner fixture setup', false);
   update public.profiles set cell_id = cell_b where id = b1;
 
   insert into public.saved_groups (id, name, created_by) values (group_x, 'Cert Group X', coord_id);

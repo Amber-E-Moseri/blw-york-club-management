@@ -2,7 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { Modal } from '../foundation/Modal';
 import { Button } from '../foundation/Button';
 import { Input } from '../foundation/Input';
-import { CELL_NAME_MAX_LENGTH, validateMemberPlacement } from '../../lib/cells/cellAdmin';
+import {
+  CELL_CHANGE_REASON_MAX,
+  CELL_NAME_MAX_LENGTH,
+  validateCellChangeReason,
+  validateMemberPlacement,
+} from '../../lib/cells/cellAdmin';
 import type { Cell, Member } from '../../types';
 
 const selectClass =
@@ -147,7 +152,7 @@ interface MemberPlacementModalProps {
   /** Cell the member is moving from, if any. */
   currentCell: Cell | null;
   cells: Cell[];
-  onSave: (targetCellId: string | null) => Promise<void>;
+  onSave: (targetCellId: string | null, reason: string) => Promise<void>;
 }
 
 /** Choose a destination cell for a member. Choosing "No cell" removes them from their current cell. */
@@ -155,15 +160,17 @@ export const MemberPlacementModal: React.FC<MemberPlacementModalProps> = ({
   isOpen, onClose, member, currentCell, cells, onSave,
 }) => {
   const [target, setTarget] = useState('');
+  const [reason, setReason] = useState('');
   const { saving, error, run, reset } = useSave(onClose);
   const destinations = cells.filter((c) => c.id !== currentCell?.id);
   const isActive = member?.status === 'active';
   const title = currentCell ? 'Transfer member' : 'Add to cell';
   // Blocks that do not depend on the destination: a Bible Study Class or a led cell must be resolved first.
   const preflight = member && currentCell ? validateMemberPlacement(member, null, cells) : null;
+  const reasonCheck = validateCellChangeReason(reason);
 
   useEffect(() => {
-    if (isOpen) { setTarget(''); reset(); }
+    if (isOpen) { setTarget(''); setReason(''); reset(); }
   }, [isOpen, member]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
@@ -179,8 +186,8 @@ export const MemberPlacementModal: React.FC<MemberPlacementModalProps> = ({
           <Button
             variant="primary"
             loading={saving}
-            disabled={!isActive || !target || !!preflight}
-            onClick={() => run(() => onSave(target))}
+            disabled={!isActive || !target || !!preflight || !reasonCheck.ok}
+            onClick={() => run(() => onSave(target, reasonCheck.ok ? reasonCheck.value : ''))}
           >
             {currentCell ? 'Transfer' : 'Add to cell'}
           </Button>
@@ -216,6 +223,19 @@ export const MemberPlacementModal: React.FC<MemberPlacementModalProps> = ({
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
+        <label className="block text-sm font-bold text-gray-800 dark:text-slate-200 mb-1.5" htmlFor="member-cell-reason">
+          Reason
+        </label>
+        <textarea
+          id="member-cell-reason"
+          className={selectClass}
+          rows={2}
+          maxLength={CELL_CHANGE_REASON_MAX}
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          disabled={!isActive}
+          placeholder="Why this change is being made. Recorded in the cell history."
+        />
         {error && <p role="alert" className={errorClass}>{error}</p>}
       </div>
     </Modal>
@@ -230,17 +250,23 @@ interface ConfirmModalProps {
   title: string;
   message: string;
   confirmLabel: string;
-  onConfirm: () => Promise<void>;
+  /** When set, the user must enter a reason, which is passed to onConfirm (a cell change needs one). */
+  requireReason?: boolean;
+  onConfirm: (reason: string) => Promise<void>;
 }
 
 export const ConfirmModal: React.FC<ConfirmModalProps> = ({
-  isOpen, onClose, title, message, confirmLabel, onConfirm,
+  isOpen, onClose, title, message, confirmLabel, requireReason = false, onConfirm,
 }) => {
+  const [reason, setReason] = useState('');
   const { saving, error, run, reset } = useSave(onClose);
+  const reasonCheck = validateCellChangeReason(reason);
 
   useEffect(() => {
-    if (isOpen) reset();
+    if (isOpen) { setReason(''); reset(); }
   }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const blocked = requireReason && !reasonCheck.ok;
 
   return (
     <Modal
@@ -251,12 +277,35 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button variant="danger" loading={saving} onClick={() => run(onConfirm)}>{confirmLabel}</Button>
+          <Button
+            variant="danger"
+            loading={saving}
+            disabled={blocked}
+            onClick={() => run(() => onConfirm(requireReason && reasonCheck.ok ? reasonCheck.value : ''))}
+          >
+            {confirmLabel}
+          </Button>
         </>
       }
     >
       <div className="space-y-3">
         <p className="text-sm text-gray-700 dark:text-slate-300">{message}</p>
+        {requireReason && (
+          <>
+            <label className="block text-sm font-bold text-gray-800 dark:text-slate-200 mb-1.5" htmlFor="confirm-cell-reason">
+              Reason
+            </label>
+            <textarea
+              id="confirm-cell-reason"
+              className={selectClass}
+              rows={2}
+              maxLength={CELL_CHANGE_REASON_MAX}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Why this change is being made. Recorded in the cell history."
+            />
+          </>
+        )}
         {error && <p role="alert" className={errorClass}>{error}</p>}
       </div>
     </Modal>

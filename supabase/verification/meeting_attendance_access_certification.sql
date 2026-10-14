@@ -72,6 +72,7 @@ begin
   insert into public.cells (id, name, leader_id)
   values (test_cell_id, 'Attendance Test Cell', leader_id);
 
+  perform set_config('app.cell_change_reason', 'owner fixture setup', false);
   update public.profiles set cell_id = test_cell_id where id in (leader_id, active_member_id);
 
   insert into public.meetings (id, title, date, time, visibility, cell_id, created_by)

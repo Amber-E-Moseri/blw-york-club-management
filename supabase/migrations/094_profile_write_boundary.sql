@@ -15,7 +15,7 @@
 -- before RLS or any trigger runs, whatever current_user is, and whatever a client sets in a session variable.
 -- The owner-run RPCs keep full access because they are SECURITY DEFINER and owned by postgres:
 --   approve_pending_member, reject_pending_member, set_member_status (status);
---   transfer_member_cell, assign_pending_applicant_to_cell (cell_id);
+--   transfer_member_cell(member, cell, reason), assign_pending_applicant_to_cell(member, cell, reason) (cell_id, 093);
 --   assign_member_to_bsc (bsc_id).
 --
 -- Granted directly, unchanged: email, full_name, role, admin_role, avatar_url, joined_at, person_id, student_number.
@@ -27,7 +27,8 @@
 -- Dependencies: 022 (profiles policies), 024 (table grants), 048 (guard), 055 and 058 (assign_member_to_bsc),
 -- 072 (transfer_member_cell), 080 and 083 (set_member_status), 089 and 090 (status guard), 092 and 093 (placement).
 
-revoke update, delete on table public.profiles from authenticated, service_role;
+-- PUBLIC and anon are listed explicitly, so no inherited grant can restore a direct write.
+revoke update, delete on table public.profiles from public, anon, authenticated, service_role;
 
 grant update (email, full_name, role, admin_role, avatar_url, joined_at, person_id, student_number)
   on table public.profiles to authenticated, service_role;

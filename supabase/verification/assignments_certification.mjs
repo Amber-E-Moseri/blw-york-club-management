@@ -42,7 +42,7 @@ async function main() {
     update public.profiles set role = 'admin' where id = '${ADMIN}';
     update public.profiles set role = 'cell_leader' where id = '${LEADER}';
     insert into public.cells (id, name, leader_id) values ('${CELL}', 'Assign Cell', '${LEADER}');
-    update public.profiles set cell_id = '${CELL}' where id in ('${LEADER}', '${A1}');
+    select set_config('app.cell_change_reason', 'owner fixture setup', false); update public.profiles set cell_id = '${CELL}' where id in ('${LEADER}', '${A1}');
   `);
 
   // ─── Creation ──────────────────────────────────────────────────────────────────────────────────────────────────────

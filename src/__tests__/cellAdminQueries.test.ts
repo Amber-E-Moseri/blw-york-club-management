@@ -1,5 +1,7 @@
 import {
+  assignPendingApplicantToCell,
   createCell,
+  fetchCellLeaderPendingRoster,
   renameCell,
   setCellArchived,
   setCellLeader,
@@ -50,7 +52,7 @@ describe('cell administration writes', () => {
     await expect(createCell('East', actorLeader, cells)).rejects.toThrow('Only active coordinators and admins');
     await expect(renameCell('c1', 'East', actorLeader, cells)).rejects.toThrow('Only active coordinators');
     await expect(setCellLeader('c1', 'm1', actorLeader, [active])).rejects.toThrow('Only active coordinators');
-    await expect(setMemberCell(active, 'c2', actorLeader, cells)).rejects.toThrow('Only active coordinators');
+    await expect(setMemberCell(active, 'c2', actorLeader, cells, 'Moved after the cell review')).rejects.toThrow('Only active coordinators');
     await expect(setCellArchived(cells[0], true, actorLeader, [])).rejects.toThrow('Only active coordinators');
     expect(mockCalls).toHaveLength(0);
   });
@@ -90,14 +92,14 @@ describe('cell administration writes', () => {
   });
 
   it('refuses to place a pending member in a cell', async () => {
-    await expect(setMemberCell(pending, 'c1', actorManager, cells)).rejects.toThrow('Only active members');
+    await expect(setMemberCell(pending, 'c1', actorManager, cells, 'Moved after the cell review')).rejects.toThrow('Only active members');
     expect(mockCalls).toHaveLength(0);
   });
 });
 
 describe('member placement through the transfer RPC', () => {
   it('adds an active member to a cell through transfer_member_cell', async () => {
-    await setMemberCell(active, 'c1', actorManager, cells);
+    await setMemberCell(active, 'c1', actorManager, cells, 'Moved after the cell review');
     expect(mockCalls[0]).toMatchObject({
       table: 'transfer_member_cell',
       op: 'rpc',
@@ -106,35 +108,102 @@ describe('member placement through the transfer RPC', () => {
   });
 
   it('transfers an active member between cells', async () => {
-    await setMemberCell({ ...active, cell_id: 'c1' }, 'c2', actorManager, cells);
+    await setMemberCell({ ...active, cell_id: 'c1' }, 'c2', actorManager, cells, 'Moved after the cell review');
     expect(mockCalls[0]).toMatchObject({ payload: { p_member_id: 'm1', p_cell_id: 'c2' } });
   });
 
   it('removes a member from their cell with a null target', async () => {
-    await setMemberCell({ ...active, cell_id: 'c1' }, null, actorManager, cells);
+    await setMemberCell({ ...active, cell_id: 'c1' }, null, actorManager, cells, 'Moved after the cell review');
     expect(mockCalls[0]).toMatchObject({ payload: { p_member_id: 'm1', p_cell_id: null } });
   });
 
   it('reports an RPC that saved no row', async () => {
     mockRpcNext = { data: [], error: null };
-    await expect(setMemberCell(active, 'c1', actorManager, cells)).rejects.toThrow('was not changed');
+    await expect(setMemberCell(active, 'c1', actorManager, cells, 'Moved after the cell review')).rejects.toThrow('was not changed');
   });
 
   it('shows the database refusal message when the RPC is denied', async () => {
     mockRpcNext = { data: null, error: { message: 'This member is in a Bible Study Class. Remove them from it before changing cells.' } };
-    await expect(setMemberCell({ ...active, cell_id: 'c1' }, 'c2', actorManager, cells)).rejects.toThrow('Bible Study Class');
+    await expect(setMemberCell({ ...active, cell_id: 'c1' }, 'c2', actorManager, cells, 'Moved after the cell review')).rejects.toThrow('Bible Study Class');
   });
 
   it('blocks a transfer for a member in a Bible Study Class before the RPC', async () => {
     const inClass = { ...active, cell_id: 'c1', bsc_name: 'Thursday BSC' };
-    await expect(setMemberCell(inClass, 'c2', actorManager, cells)).rejects.toThrow('Bible Study Class “Thursday BSC”');
+    await expect(setMemberCell(inClass, 'c2', actorManager, cells, 'Moved after the cell review')).rejects.toThrow('Bible Study Class “Thursday BSC”');
     expect(mockCalls).toHaveLength(0);
   });
 
   it('blocks a transfer for a member who leads a cell until a new leader is assigned', async () => {
     const leadingCells: Cell[] = [{ id: 'c1', name: 'North', leader_id: 'm1' }, { id: 'c2', name: 'South' }];
-    await expect(setMemberCell({ ...active, cell_id: 'c1' }, 'c2', actorManager, leadingCells)).rejects.toThrow('leads “North”');
+    await expect(setMemberCell({ ...active, cell_id: 'c1' }, 'c2', actorManager, leadingCells, 'Moved after the cell review')).rejects.toThrow('leads “North”');
     expect(mockCalls).toHaveLength(0);
+  });
+});
+
+describe('cell change reasons', () => {
+  it('refuses a placement with a blank reason before any write', async () => {
+    await expect(setMemberCell(active, 'c1', actorManager, cells, '   ')).rejects.toThrow('Give a reason');
+    expect(mockCalls).toHaveLength(0);
+  });
+
+  it('refuses a removal with a reason shorter than three characters', async () => {
+    await expect(setMemberCell({ ...active, cell_id: 'c1' }, null, actorManager, cells, 'ok')).rejects.toThrow('Give a reason');
+    expect(mockCalls).toHaveLength(0);
+  });
+
+  it('sends the trimmed reason with the transfer', async () => {
+    await setMemberCell(active, 'c1', actorManager, cells, '  Asked to join North  ');
+    expect(mockCalls[0]).toMatchObject({
+      table: 'transfer_member_cell',
+      payload: { p_member_id: 'm1', p_cell_id: 'c1', p_reason: 'Asked to join North' },
+    });
+  });
+});
+
+describe('pending applicant placement', () => {
+  it('refuses a non-manager before the RPC', async () => {
+    await expect(assignPendingApplicantToCell(pending, 'c1', actorLeader, cells, 'Joined the group')).rejects.toThrow('Only active coordinators');
+    expect(mockCalls).toHaveLength(0);
+  });
+
+  it('refuses an active member, which belongs to the transfer path', async () => {
+    await expect(assignPendingApplicantToCell(active, 'c1', actorManager, cells, 'Joined the group')).rejects.toThrow('pending applicants only');
+    expect(mockCalls).toHaveLength(0);
+  });
+
+  it('refuses an unknown cell and a blank reason before the RPC', async () => {
+    await expect(assignPendingApplicantToCell(pending, 'missing', actorManager, cells, 'Joined the group')).rejects.toThrow('Choose a cell');
+    await expect(assignPendingApplicantToCell(pending, 'c1', actorManager, cells, '')).rejects.toThrow('Give a reason');
+    expect(mockCalls).toHaveLength(0);
+  });
+
+  it('places a pending applicant through assign_pending_applicant_to_cell with the reason', async () => {
+    mockRpcNext = { data: [{ member_id: 'm2', cell_id: 'c1' }], error: null };
+    await assignPendingApplicantToCell(pending, 'c1', actorManager, cells, 'Joined the group');
+    expect(mockCalls[0]).toMatchObject({
+      table: 'assign_pending_applicant_to_cell',
+      op: 'rpc',
+      payload: { p_member_id: 'm2', p_cell_id: 'c1', p_reason: 'Joined the group' },
+    });
+  });
+
+  it('reports a placement that saved no row', async () => {
+    mockRpcNext = { data: [], error: null };
+    await expect(assignPendingApplicantToCell(pending, 'c1', actorManager, cells, 'Joined the group')).rejects.toThrow('was not placed');
+  });
+});
+
+describe('cell leader pending roster', () => {
+  it('reads only the restricted roster RPC (no profiles or member_directory read)', async () => {
+    mockRpcNext = { data: [{ id: 'm2', full_name: 'Thabo Radebe', cell_id: 'c1' }], error: null };
+    const roster = await fetchCellLeaderPendingRoster();
+    expect(roster).toEqual([{ id: 'm2', full_name: 'Thabo Radebe', cell_id: 'c1' }]);
+    expect(mockCalls).toEqual([{ table: 'cell_leader_pending_roster', op: 'rpc', payload: undefined, filters: [] }]);
+  });
+
+  it('surfaces a roster error instead of showing an empty list', async () => {
+    mockRpcNext = { data: null, error: { message: 'permission denied' } };
+    await expect(fetchCellLeaderPendingRoster()).rejects.toThrow('permission denied');
   });
 });
 

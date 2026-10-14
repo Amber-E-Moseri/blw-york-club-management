@@ -79,6 +79,24 @@ export function validateMemberPlacement(
   return null;
 }
 
+export const CELL_CHANGE_REASON_MIN = 3;
+export const CELL_CHANGE_REASON_MAX = 500;
+
+/**
+ * Every cell change needs a reason: a transfer, a removal or a pending-applicant placement (migration 093). The
+ * database refuses a blank reason and records the trimmed one in member_cell_audit.
+ */
+export function validateCellChangeReason(reason: string): ValidationResult<string> {
+  const value = reason.trim();
+  if (value.length < CELL_CHANGE_REASON_MIN || value.length > CELL_CHANGE_REASON_MAX) {
+    return {
+      ok: false,
+      error: `Give a reason for this cell change (${CELL_CHANGE_REASON_MIN} to ${CELL_CHANGE_REASON_MAX} characters).`,
+    };
+  }
+  return { ok: true, value };
+}
+
 /** A cell can be archived only when no members are in it. Bible Study Classes are checked by the database. */
 export function validateArchive(cellName: string, memberCount: number): string | null {
   if (memberCount > 0) {
