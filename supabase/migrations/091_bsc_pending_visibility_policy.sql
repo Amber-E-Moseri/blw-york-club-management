@@ -68,7 +68,9 @@ create policy user_profiles_select_scoped on public.user_profiles
     or (public.is_cell_leader_for_profile(user_id) and not public.profile_is_pending(user_id))
   );
 
--- ─── 2. Restricted roster for a cell leader: pending applicants in the leader's own cell ─────────────────────────────────
+-- ─── 2. Restricted roster for a cell leader: pending applicants in every cell the caller actually leads ───────────────────
+-- Returns only id, full name and cell. No email, student number, BSC or joined date. Leaders of several cells see each of
+-- their cells. A caller who leads no cell gets no rows.
 
 create or replace function public.cell_leader_pending_roster()
 returns table (id uuid, full_name text, cell_id uuid)

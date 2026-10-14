@@ -79,6 +79,10 @@ begin
 
   insert into public.member_cell_audit (member_id, from_cell_id, to_cell_id, actor_id, reason)
   values (new.id, old.cell_id, new.cell_id, auth.uid(), v_reason);
+
+  -- The reason is consumed by the one row it describes. A later cell change in the same transaction must state its own
+  -- reason through begin_cell_change(); it cannot reuse this one (no stale reason can leak into another change).
+  perform set_config('app.cell_change_reason', '', true);
   return new;
 end;
 $function$;
