@@ -615,6 +615,106 @@ CREATE TRIGGER contacts_guard_person_reassignment
 ALTER FUNCTION public.merge_people(uuid, uuid, text) SET search_path = pg_catalog, public;
 
 -- ---------------------------------------------------------------------------------------------------------------------
+-- ---------------------------------------------------------------------------------------------------------------------
+-- 5b. Attribution integrity (findings N2 and N3).
+-- ---------------------------------------------------------------------------------------------------------------------
+
+-- N2. The insert policy derived logged_by from the caller only for ordinary members. Admins, coordinators and cell
+-- leaders could insert a contact attributed to any user. logged_by = auth.uid() now applies to every role. The scope
+-- checks are otherwise unchanged. No client write path logs a contact for someone else.
+DROP POLICY IF EXISTS contacts_insert_scoped ON public.contacts;
+CREATE POLICY contacts_insert_scoped ON public.contacts
+  FOR INSERT
+  WITH CHECK (
+    logged_by = auth.uid()
+    AND (
+         public.is_admin_or_coordinator()
+      OR public.is_cell_leader_of(cell_id)
+      OR (
+           public.is_active_member()
+           AND (cell_id IS NULL
+                OR cell_id IS NOT DISTINCT FROM (SELECT p.cell_id FROM public.profiles p WHERE p.id = auth.uid()))
+         )
+    )
+  );
+
+-- N3. contacts.logged_by is owner-controlled. A client can not change it, even where the UPDATE policy would allow the
+-- row to be edited. Corrections go through correct_contact_attribution below, which records who made the change and why.
+CREATE OR REPLACE FUNCTION public._f2_guard_contact_logger()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public
+AS $$
+BEGIN
+  IF NEW.logged_by IS DISTINCT FROM OLD.logged_by
+     AND current_user NOT IN ('postgres', 'supabase_admin') THEN
+    RAISE EXCEPTION 'The person who logged a contact cannot be changed here.' USING ERRCODE = '42501';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS contacts_guard_logger ON public.contacts;
+CREATE TRIGGER contacts_guard_logger
+  BEFORE UPDATE OF logged_by ON public.contacts
+  FOR EACH ROW EXECUTE FUNCTION public._f2_guard_contact_logger();
+
+CREATE TABLE IF NOT EXISTS public.contact_attribution_audit (
+  id              bigint      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  contact_id      uuid        NOT NULL,
+  old_logged_by   uuid        NOT NULL,
+  new_logged_by   uuid        NOT NULL,
+  actor_id        uuid        NOT NULL,
+  reason          text        NOT NULL,
+  created_at      timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.contact_attribution_audit ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.contact_attribution_audit FROM PUBLIC, anon, authenticated;
+CREATE TRIGGER contact_attribution_audit_append_only
+  BEFORE UPDATE OR DELETE ON public.contact_attribution_audit
+  FOR EACH ROW EXECUTE FUNCTION public._f2_refuse_audit_mutation();
+
+-- Privileged correction. Admin or coordinator only, with a reason. Writes one audit row in the same transaction.
+CREATE OR REPLACE FUNCTION public.correct_contact_attribution(
+  p_contact_id    uuid,
+  p_new_logged_by uuid,
+  p_reason        text
+)
+RETURNS void
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+DECLARE
+  v_actor uuid := public._f2_staff_actor();
+  v_old   uuid;
+BEGIN
+  PERFORM public._f2_valid_reason(p_reason);
+  IF p_new_logged_by IS NULL OR NOT EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = p_new_logged_by) THEN
+    RAISE EXCEPTION 'Choose an existing user.' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT c.logged_by INTO v_old FROM public.contacts c WHERE c.id = p_contact_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Contact not found.' USING ERRCODE = 'P0002';
+  END IF;
+  IF v_old = p_new_logged_by THEN
+    RAISE EXCEPTION 'The contact already has that logger.' USING ERRCODE = 'P0001';
+  END IF;
+
+  UPDATE public.contacts SET logged_by = p_new_logged_by WHERE id = p_contact_id;
+
+  INSERT INTO public.contact_attribution_audit (contact_id, old_logged_by, new_logged_by, actor_id, reason)
+  VALUES (p_contact_id, v_old, p_new_logged_by, v_actor, btrim(p_reason));
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public._f2_guard_contact_logger() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.correct_contact_attribution(uuid, uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.correct_contact_attribution(uuid, uuid, text) TO authenticated;
+
+-- ---------------------------------------------------------------------------------------------------------------------
 -- 6. Function privileges. Start from no EXECUTE, then grant only the client-facing functions.
 -- ---------------------------------------------------------------------------------------------------------------------
 
