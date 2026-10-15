@@ -83,6 +83,25 @@ if [[ -z "$src_fp" || "$src_fp" != "$dst_fp" ]]; then
       if (x && y && typeof x === "object" && !Array.isArray(x)) {
         const names = [...new Set([...Object.keys(x), ...Object.keys(y)])].filter((n) => JSON.stringify(x[n]) !== JSON.stringify(y[n]));
         console.error("  entries differing (" + names.length + "): " + names.slice(0, 40).join(", "));
+        const short = (v) => JSON.stringify(v).slice(0, 200);
+        for (const n of names.slice(0, 12)) {
+          if (x[n] === undefined || y[n] === undefined) {
+            console.error("  " + n + ": " + (x[n] === undefined ? "missing in source" : "missing in clone"));
+            continue;
+          }
+          const props = [...new Set([...Object.keys(x[n] || {}), ...Object.keys(y[n] || {})])]
+            .filter((p) => JSON.stringify(x[n][p]) !== JSON.stringify(y[n][p]));
+          for (const p of props) {
+            const sv = x[n][p], dv = y[n][p];
+            if (Array.isArray(sv) && Array.isArray(dv)) {
+              const os = sv.filter((v) => !dv.includes(v)), od = dv.filter((v) => !sv.includes(v));
+              console.error("  " + n + "." + p + " only in source (" + os.length + "): " + os.slice(0, 6).map((v) => String(v).slice(0, 200)).join(" | "));
+              console.error("  " + n + "." + p + " only in clone (" + od.length + "): " + od.slice(0, 6).map((v) => String(v).slice(0, 200)).join(" | "));
+            } else {
+              console.error("  " + n + "." + p + " source=" + short(sv) + " clone=" + short(dv));
+            }
+          }
+        }
       } else if (Array.isArray(x) && Array.isArray(y)) {
         const onlySrc = x.filter((v) => !y.includes(v)), onlyDst = y.filter((v) => !x.includes(v));
         console.error("  only in source (" + onlySrc.length + "): " + onlySrc.slice(0, 20).map((v) => String(v).slice(0, 160)).join(" | "));
