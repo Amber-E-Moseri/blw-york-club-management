@@ -1,0 +1,383 @@
+psql:bsc_corrected_run.sql:21: WARNING:  there is already a transaction in progress
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_rows 
+-------------
+ 
+(1 row)
+
+ expect_rows 
+-------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_rows 
+-------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_rows 
+-------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_rows 
+-------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_rows 
+-------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_rows 
+-------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_rows 
+-------------
+ 
+(1 row)
+
+ expect_rows 
+-------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_rows 
+-------------
+ 
+(1 row)
+
+ expect_rows 
+-------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_rows 
+-------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+                                                                         name                                                                          | ok |                                     detail                                      
+-------------------------------------------------------------------------------------------------------------------------------------------------------+----+---------------------------------------------------------------------------------
+ A1 cell leader CL1 sees the other C1 profiles that are neither pending nor rejected (7; pending MP d004 and rejected MR d005 hidden by migration 102) | t  | 7 visible (expected 7)
+ A2 ROLE-ONLY leader CLR sees no other C1 profiles (not cells.leader_id)                                                                               | t  | 0 visible (expected 0)
+ A3 CLX (leads C2, profile in C1) sees C2 profiles (3)                                                                                                 | t  | 3 visible (expected 3)
+ A4 CLX (leads C2, profile in C1) sees no other C1 profiles                                                                                            | t  | 0 visible (expected 0)
+ A5 cell leader CL1 sees no C2 profiles (other cell)                                                                                                   | t  | 0 visible (expected 0)
+ A6 role-only leader CLR cannot read a C1 member row by id (M1)                                                                                        | t  | 0 visible (expected 0)
+ A7 role-only leader CLR cannot change own role to coordinator                                                                                         | t  | 42501: Not authorised to change role or admin_role.
+ A8 role-only leader CLR cannot create a BSC in C1 (not cells.leader_id)                                                                               | t  | 42501: new row violates row-level security policy for table "bscs"
+ B1 BSC leader BL1 sees only active B1 members (M1)                                                                                                    | t  | 1 visible (expected 1)
+ B10 BSC leader BL1 cannot move own profile to another cell                                                                                            | t  | 42501: permission denied for table profiles
+ B11 BSC leader BL1 cannot rename a BSC (zero rows)                                                                                                    | t  | 0 rows (expected 0)
+ B2 BSC leader BL2 sees only B2 members (M2)                                                                                                           | t  | 1 visible (expected 1)
+ B3 STALE leader BLM (leads B4 from C1, now in C2) sees no roster (M3 is in B4)                                                                        | t  | 0 visible (expected 0)
+ B4 STALE leader BLM is not a BSC leader of B4                                                                                                         | t  | 0 visible (expected 0)
+ B5 INACTIVE leader BLI (legacy row) sees no roster                                                                                                    | t  | 0 visible (expected 0)
+ B6 cell leader CL1 sees the active C1 BSC members (M1 in B1, M3 in B4)                                                                                | t  | 2 visible (expected 2)
+ B7 rejected member MR sees no BSCs                                                                                                                    | t  | 0 visible (expected 0)
+ B8 pending member MP sees no BSCs                                                                                                                     | t  | 0 visible (expected 0)
+ B9 member MN sees no roster                                                                                                                           | t  | 0 visible (expected 0)
+ C1 cell leader CL1 creates a BSC in C1 with an active C1 leader (M3)                                                                                  | t  | 1 rows (expected 1)
+ C10 member MN cannot create a BSC                                                                                                                     | t  | 42501: new row violates row-level security policy for table "bscs"
+ C11 inactive coordinator COI cannot create a BSC                                                                                                      | t  | 42501: new row violates row-level security policy for table "bscs"
+ C12 admin AD creates a BSC in C2 with an active C2 leader (M2)                                                                                        | t  | 1 rows (expected 1)
+ C13 admin AD cannot create a BSC whose leader is in another cell                                                                                      | t  | P0001: A BSC leader must be an active member of the BSC's cell.
+ C14 cell leader CL1 cannot re-point the leader of BSC B2 in C2 by update (zero rows)                                                                  | t  | 0 rows (expected 0)
+ C2 cell leader CL1 cannot set an INACTIVE leader (BLI)                                                                                                | t  | P0001: A BSC leader must be an active member of the BSC's cell.
+ C3 cell leader CL1 cannot set a PENDING leader (MP)                                                                                                   | t  | P0001: A BSC leader must be an active member of the BSC's cell.
+ C4 cell leader CL1 cannot set a REJECTED leader (MR)                                                                                                  | t  | P0001: A BSC leader must be an active member of the BSC's cell.
+ C5 cell leader CL1 cannot set a leader from another cell (M2, C2)                                                                                     | t  | P0001: A BSC leader must be an active member of the BSC's cell.
+ C6 cell leader CL1 cannot create a BSC in C2 (not led)                                                                                                | t  | 42501: new row violates row-level security policy for table "bscs"
+ C7 cell leader CL1 cannot re-point BSC B2 in C2 (zero rows)                                                                                           | t  | 0 rows (expected 0)
+ C8 cell leader CL1 cannot move a led BSC into C2 (new cell must be led)                                                                               | t  | 42501: new row violates row-level security policy for table "bscs"
+ C9 CLX (leads C2) creates a BSC in C2 with an active C2 leader (M2)                                                                                   | t  | 1 rows (expected 1)
+ D1 admin AD assigns M3 (C1) to B1 through the RPC (1 row)                                                                                             | t  | 1 visible (expected 1)
+ D10 inactive admin AI cannot use the RPC                                                                                                              | t  | 42501: Not authorised to change BSC assignments.
+ D11 member M1 cannot write the BSC field directly                                                                                                     | t  | 42501: permission denied for table profiles
+ D12 admin AD direct UPDATE of a profile BSC is refused (42501, no admin profile policy)                                                               | t  | 42501: permission denied for table profiles
+ D13 admin AD direct UPDATE of a profile role matches zero rows                                                                                        | t  | 0 rows (expected 0)
+ D14 admin AD direct UPDATE of a profile cell is refused (42501)                                                                                       | t  | 42501: permission denied for table profiles
+ D15 audit: admin sees the two RPC assignments                                                                                                         | t  | 2 visible (expected 2)
+ D16 audit: an ordinary member sees no audit rows                                                                                                      | t  | 0 visible (expected 0)
+ D17 audit: a member cannot forge an audit row                                                                                                         | t  | 42501: permission denied for table bsc_assignment_audit
+ D2 coordinator CO assigns M1 to B1 through the RPC (1 row)                                                                                            | t  | 1 visible (expected 1)
+ D3 admin AD cannot assign M2 (C2) to a C1 BSC (cell mismatch)                                                                                         | t  | P0001: The BSC must belong to the member's current cell.
+ D4 admin AD cannot assign a PENDING member                                                                                                            | t  | P0001: Only active members can be assigned to a BSC.
+ D5 admin AD cannot assign a REJECTED member                                                                                                           | t  | P0001: Only active members can be assigned to a BSC.
+ D6 admin AD: unknown member id is a zero-row failure, not success                                                                                     | t  | P0002: Member not found.
+ D7 cell leader CL1 cannot use the RPC (roster is staff-only)                                                                                          | t  | 42501: Not authorised to change BSC assignments.
+ D8 BSC leader BL1 cannot use the RPC                                                                                                                  | t  | 42501: Not authorised to change BSC assignments.
+ D9 ordinary member M1 cannot assign himself to another BSC via the RPC                                                                                | t  | 42501: Not authorised to change BSC assignments.
+ E1 admin AD cannot delete a BSC that still has members (B1)                                                                                           | t  | P0001: This BSC still has members. Move them to another BSC before deleting it.
+ E2 cell leader CL1 cannot delete a BSC (staff-only, zero rows)                                                                                        | t  | 0 rows (expected 0)
+ E3 coordinator CO deletes an empty BSC                                                                                                                | t  | 1 rows (expected 1)
+ F1 member M1 cannot change own cell                                                                                                                   | t  | 42501: permission denied for table profiles
+ F2 member M1 cannot change another profile (pending MP) status (refused, 42501)                                                                       | t  | 42501: permission denied for table profiles
+ F3 cell leader CL1 cannot re-point cells.leader_id (zero rows)                                                                                        | t  | 0 rows (expected 0)
+ G1 cell leader CL1 creates a meeting in C1                                                                                                            | t  | 1 rows (expected 1)
+ G2 role-only leader CLR cannot create a meeting in C1                                                                                                 | t  | 42501: new row violates row-level security policy for table "meetings"
+ G3 cell leader CL1 cannot create a meeting in C2                                                                                                      | t  | 42501: new row violates row-level security policy for table "meetings"
+ G4 CLX creates a meeting in C2 (led)                                                                                                                  | t  | 1 rows (expected 1)
+ G5 BSC-category meetings stay public: member M3 sees the C1 BSC meeting (unchanged visibility)                                                        | t  | 1 visible (expected 1)
+ H1 coordinator CO sees every profile (unchanged)                                                                                                      | t  | 18 visible (expected 18)
+(62 rows)
+
+ passed | failed 
+--------+--------
+     62 |      0
+(1 row)
+
+psql:bsc_corrected_run.sql:289: WARNING:  there is no transaction in progress

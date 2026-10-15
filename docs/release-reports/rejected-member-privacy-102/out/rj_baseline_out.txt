@@ -1,0 +1,167 @@
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_anon_error 
+-------------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_anon_error 
+-------------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_anon_error 
+-------------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+ expect_count 
+--------------
+ 
+(1 row)
+
+                                      name                                      | ok |             detail              
+--------------------------------------------------------------------------------+----+---------------------------------
+ D1 ordinary member M3 sees no rejected member_directory row                    | t  | 0 visible (expected 0)
+ D2 cell leader CL sees no rejected member_directory row                        | f  | 1 visible (expected 0)
+ D3 administrator AD sees both rejected member_directory rows                   | t  | 2 visible (expected 2)
+ D4 coordinator CO sees both rejected member_directory rows                     | t  | 2 visible (expected 2)
+ D5 rejected MR sees own member_directory row only                              | t  | 1 visible (expected 1)
+ D6 anonymous cannot read member_directory                                      | t  | SQLSTATE 42501 (expected 42501)
+ P1 ordinary member M3 sees only own profile                                    | t  | 1 visible (expected 1)
+ P10 anonymous cannot read profiles                                             | t  | SQLSTATE 42501 (expected 42501)
+ P2 ordinary member M3 sees no rejected profile                                 | t  | 0 visible (expected 0)
+ P3 meeting invitee M1 sees no rejected profile                                 | t  | 0 visible (expected 0)
+ P4 cell leader CL sees no rejected profile (C1 or C2)                          | f  | 1 visible (expected 0)
+ P5 cell leader CL sees active C1 members M1 and M3 (unchanged), and no pending | f  | 3 visible (expected 2)
+ P6 rejected member MR sees own profile only                                    | t  | 1 visible (expected 1)
+ P7 administrator AD sees both rejected profiles                                | t  | 2 visible (expected 2)
+ P8 coordinator CO sees both rejected profiles                                  | t  | 2 visible (expected 2)
+ P9 coordinator CO sees every profile (8)                                       | t  | 8 visible (expected 8)
+ R1 rejected RX row preserved (owner check)                                     | t  | row exists
+ U1 cell leader CL reads no rejected MR user_profiles row                       | f  | 1 visible (expected 0)
+ U2 cell leader CL still reads active member M3 user_profiles row               | t  | 1 visible (expected 1)
+ U3 administrator AD reads MR user_profiles row                                 | t  | 1 visible (expected 1)
+ U4 coordinator CO reads MR user_profiles row                                   | t  | 1 visible (expected 1)
+ U5 rejected MR reads own user_profiles row                                     | t  | 1 visible (expected 1)
+ U6 ordinary member M3 reads no rejected user_profiles row                      | t  | 0 visible (expected 0)
+ U7 anonymous cannot read user_profiles                                         | t  | SQLSTATE 42501 (expected 42501)
+ W1 coordinator reopens rejected MR to pending (workflow RPC)                   | t  | 1 visible (expected 1)
+ W2 reopened MR is pending (owner check)                                        | t  | status after reopen
+ W3 cell leader CL does not see the reopened pending account                    | t  | 0 visible (expected 0)
+ W4 administrator AD sees the reopened pending account                          | t  | 1 visible (expected 1)
+(28 rows)
+
+ passed | failed 
+--------+--------
+     24 |      4
+(1 row)
+
