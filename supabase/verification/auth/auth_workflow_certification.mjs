@@ -28,6 +28,11 @@ try {
   expect('signup', !signUp.error && !!signUp.data.user, signUp.error?.message);
   userId = signUp.data.user?.id;
 
+  // Confirm the synthetic email through the admin API. The OTP path is covered by otp_delivery_check.mjs; this
+  // check exercises approval, so login must succeed. Approval state is still asserted from the profile, not email.
+  const confirmed = await admin.auth.admin.updateUserById(userId, { email_confirm: true });
+  expect('test account email confirmed through the admin API', !confirmed.error, confirmed.error?.message);
+
   const wrong = await h.newAnon().auth.signInWithPassword({ email, password: randomPassword() });
   expect('login with a wrong password is refused', !!wrong.error && !wrong.data.session, 'session issued');
 
