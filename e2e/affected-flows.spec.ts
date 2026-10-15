@@ -4,15 +4,12 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   approveApplicant, assignBsc, coordinatorSession, placeActiveMember, placeApplicant, setRole,
 } from './support/authorizedFixtures';
+import { localSupabaseEnv } from './support/env';
 
 // Browser coverage for the flows changed by the authorisation remediation (confessions, BSC, habits), run against the
 // LOCAL Supabase stack with throwaway accounts. Requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (local only).
 // Prayer requests have no UI route yet (see the round-5 report), so prayers are not covered here.
-const url = process.env.SUPABASE_URL;
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const anonKey = process.env.SUPABASE_ANON_KEY;
-if (!url || !serviceKey || !anonKey) throw new Error('SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY and SUPABASE_ANON_KEY are required');
-if (!/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url)) throw new Error('affected-flows only runs against a local Supabase stack');
+const { url, anonKey, serviceKey } = localSupabaseEnv();
 
 // The flows share one dev server and one database. Run them one at a time, with a longer assertion timeout, so a
 // first-load compile under parallel sign-ins cannot fail an otherwise correct assertion.
@@ -62,7 +59,7 @@ test.beforeAll(async ({}, testInfo) => {
   await waitForAuthReadiness();
 
   // The provisioned coordinator performs every profile change below, through the approved workflow.
-  const coord = await coordinatorSession(url!, anonKey!);
+  const coord = await coordinatorSession(url, anonKey);
   ids.coordinator = coord.id;
 
   for (const [key, p] of Object.entries(people) as [Key, (typeof people)[Key]][]) {

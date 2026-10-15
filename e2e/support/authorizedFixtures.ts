@@ -6,12 +6,13 @@
 // the suite does not create itself. Required environment (local stack only):
 //   SUPABASE_URL, SUPABASE_ANON_KEY, E2E_COORDINATOR_EMAIL, E2E_COORDINATOR_PASSWORD
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { requireEnv } from './env';
 
 const options = { auth: { persistSession: false, autoRefreshToken: false } };
 
 export function requireCoordinatorEnv(): { email: string; password: string } {
-  const email = process.env.E2E_COORDINATOR_EMAIL;
-  const password = process.env.E2E_COORDINATOR_PASSWORD;
+  const email = requireEnv('E2E_COORDINATOR_EMAIL');
+  const password = requireEnv('E2E_COORDINATOR_PASSWORD');
   if (!email || !password) {
     throw new Error('E2E_COORDINATOR_EMAIL and E2E_COORDINATOR_PASSWORD are required: provision the coordinator with the owner bootstrap first');
   }

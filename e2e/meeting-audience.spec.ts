@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { expect, test, type BrowserContext, type Page, type TestInfo } from '@playwright/test';
 import { approveApplicant, coordinatorSession, placeActiveMember, requireCoordinatorEnv } from './support/authorizedFixtures';
+import { localSupabaseEnv, requireEnv } from './support/env';
 
 // Restricted-meeting audience certification: a real browser, real Supabase Auth, and RLS checked through each user's own
 // session. Runs ONLY against a local Supabase stack, with synthetic accounts that the suite creates and deletes.
@@ -12,13 +13,8 @@ import { approveApplicant, coordinatorSession, placeActiveMember, requireCoordin
 // Status of every scenario is recorded in the test title. A scenario that has not been executed against a live stack is
 // NOT TESTED, not PASS.
 
-const url = process.env.SUPABASE_URL;
-const anonKey = process.env.SUPABASE_ANON_KEY;
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const cellId = process.env.E2E_CELL_ID;
-if (!url || !anonKey || !serviceKey) throw new Error('SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY are required');
-if (!cellId) throw new Error('E2E_CELL_ID is required: the synthetic members are placed in a cell through the approved workflow');
-if (!/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url)) throw new Error('meeting audience E2E only runs against a local Supabase stack');
+const { url, anonKey, serviceKey } = localSupabaseEnv();
+const cellId = requireEnv('E2E_CELL_ID');
 requireCoordinatorEnv();
 
 const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
@@ -35,7 +31,7 @@ const ids: Record<keyof typeof people, string> = { invitee: '', outsider: '' };
 let meetingId = '';
 
 function anonClient(): SupabaseClient {
-  return createClient(url!, anonKey!, { auth: { persistSession: false, autoRefreshToken: false } });
+  return createClient(url, anonKey, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
 async function signedInClient(email: string): Promise<SupabaseClient> {
@@ -90,10 +86,10 @@ test.describe('restricted meeting audience', () => {
       ids[key] = data.user.id;
     }
     // Activation and placement go through the approved coordinator workflow, never a direct profile write.
-    const coord = await coordinatorSession(url!, anonKey!);
+    const coord = await coordinatorSession(url, anonKey);
     for (const key of Object.keys(people) as (keyof typeof people)[]) {
       await approveApplicant(coord.client, ids[key]);
-      await placeActiveMember(coord.client, ids[key], cellId!, `E2E placement ${run}`);
+      await placeActiveMember(coord.client, ids[key], cellId, `E2E placement ${run}`);
     }
     coordinatorContext = await browser.newContext({ baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3100' });
     coordinatorPage = await coordinatorContext.newPage();
