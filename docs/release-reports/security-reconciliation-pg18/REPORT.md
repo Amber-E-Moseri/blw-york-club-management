@@ -1,5 +1,8 @@
 # Security reconciliation evidence (release SHA 60825c0)
 
+> **SQL evidence relocation.** The executable SQL in this report's `sql/` and `proposed-test-only/` folders moved to `supabase/verification/evidence/pg18-security-reconciliation/` with the same sub-paths (history kept with `git mv`). This report, `out/`, `sql/README.txt`, the `.patch` files and `sql/audience_audit_authz_test_60825c0.mjs` stay here. Raw outputs in `out/` still show the original `psql:<file>` names and were not edited.
+> Post-102 BSC fixture: `supabase/verification/evidence/rejected-member-privacy-102/proposed-test-only/bsc_test.corrected.sql`. Pre-102 BSC fixture: `supabase/verification/evidence/pg18-security-reconciliation/proposed-test-only/bsc_test.corrected.sql`. Both are kept unchanged.
+
 Environment: PostgreSQL 18.3 on a private cluster (not PG17, not Supabase, not production). The database cert_full1 was replayed from the 000-101 migrations; the migration tree is byte-identical to 60825c0 (git diff of supabase/migrations between 4d4eb3d and 60825c0 is empty). Auth and storage are shims (auth.uid() reads request.jwt.claim.sub). Probes ran inside begin/rollback; nothing persisted.
 
 ## Results

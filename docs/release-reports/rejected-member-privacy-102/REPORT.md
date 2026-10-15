@@ -1,5 +1,8 @@
 # Migration 102: rejected-member privacy (evidence)
 
+> **SQL evidence relocation.** The post-102 corrected BSC fixture moved to `supabase/verification/evidence/rejected-member-privacy-102/proposed-test-only/bsc_test.corrected.sql`. The pre-102 corrected fixture is at `supabase/verification/evidence/pg18-security-reconciliation/proposed-test-only/bsc_test.corrected.sql`. Both are kept unchanged. This report and `proposed-test-only/bsc-test-expectations-after-102.patch` stay here.
+> **Evidence limitation.** The `.patch` file is present. Its diff header names `supabase/verification/bsc_remediation_rls_test.sql`, which is not a path in this tree, so the patch does not apply to the moved fixtures as-is. It is kept as a record of the expectation change, not as an applied change.
+
 Baseline: 60825c0. Evidence base: 4fff731. Migration: supabase/migrations/102_rejected_profile_privacy.sql.
 
 ## Change
