@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { getUpcomingEvents, getAllEvents } from '../lib/queries';
 import type { Event } from '../types';
 
@@ -22,12 +22,16 @@ export function useAllEvents() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const refetch = useCallback(() => {
+    setLoading(true);
+    setError(null);
     getAllEvents()
       .then(setEvents)
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
-  return { events, loading, error };
+  useEffect(() => { refetch(); }, [refetch]);
+
+  return { events, loading, error, refetch };
 }

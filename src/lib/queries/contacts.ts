@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import { resolvePersonId } from './people';
 import type {
   Contact, ContactInput, ContactFilters, ContactTag, ContactStatus,
   Cell, ContactTagRelation, ContactFollowUp, ContactAuditLogEntry,
@@ -41,11 +42,34 @@ export async function fetchContactWithTags(
   return { contact, tags };
 }
 
+// cell_id is a nullable uuid column. An empty string is not a valid uuid, so an unassigned
+// cell must be sent as null. logged_by and the other fields are passed through unchanged.
+function withNullableCellId<T extends { cell_id?: string }>(input: T): T {
+  return input.cell_id === '' ? ({ ...input, cell_id: null } as unknown as T) : input;
+}
+
 export async function createContact(
   input: ContactInput & { logged_by: string }
 ): Promise<Contact> {
+  // contacts.person_id is NOT NULL. Resolve or create the person first, the same way Quick Add does,
+  // so every Outreach contact is linked to a person record.
+  const person_id = await resolvePersonId({
+    fullName: input.contact_name,
+    email: input.email,
+    phone: input.contact_phone,
+  });
   const { data, error } = await supabase
-    .from('contacts').insert(input).select().single();
+    .from('contacts').insert(withNullableCellId({ ...input, person_id })).select().single();
+  if (error && input.idempotency_key && /duplicate key|unique/i.test(error.message ?? '')) {
+    const { data: existing, error: existingError } = await supabase
+      .from('contacts')
+      .select('*')
+      .eq('logged_by', input.logged_by)
+      .eq('idempotency_key', input.idempotency_key)
+      .maybeSingle();
+    if (existingError) throw new Error(existingError.message ?? 'Unknown error');
+    if (existing) return existing;
+  }
   if (error) throw new Error(error.message ?? 'Unknown error');
   return data;
 }
@@ -55,7 +79,7 @@ export async function updateContact(
   input: Partial<ContactInput>
 ): Promise<Contact> {
   const { data, error } = await supabase
-    .from('contacts').update(input).eq('id', id).select().single();
+    .from('contacts').update(withNullableCellId(input)).eq('id', id).select().single();
   if (error) throw new Error(error.message ?? 'Unknown error');
   return data;
 }
@@ -90,16 +114,30 @@ export async function bulkDeleteContacts(ids: string[]): Promise<void> {
 
 export async function fetchTags(): Promise<ContactTag[]> {
   const { data, error } = await supabase
-    .from('tags_settings').select('*').order('sort_order', { ascending: true });
+    .from('tags_settings')
+    .select('*')
+    .order('sort_order', { ascending: true });
   if (error) throw new Error(error.message ?? 'Unknown error');
-  return data ?? [];
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    id: r.id as string,
+    tag_name: r.tag_name as string,
+    color: r.color as string,
+    sort_order: (r.sort_order ?? r.order ?? 0) as number,
+  }));
 }
 
 export async function fetchStatuses(): Promise<ContactStatus[]> {
   const { data, error } = await supabase
-    .from('status_settings').select('*').order('sort_order', { ascending: true });
+    .from('status_settings')
+    .select('*')
+    .order('sort_order', { ascending: true });
   if (error) throw new Error(error.message ?? 'Unknown error');
-  return data ?? [];
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    id: r.id as string,
+    status_name: r.status_name as string,
+    color: r.color as string,
+    sort_order: (r.sort_order ?? r.order ?? 0) as number,
+  }));
 }
 
 // ─── Cells ────────────────────────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react';
+import { Download, Plus, Upload } from 'lucide-react';
 import { Button } from '../components/foundation/Button';
 import { BulkImportModal } from '../components/feature/BulkImportModal';
 import { ContactCard } from '../components/feature/ContactCard';
@@ -69,14 +70,6 @@ export const ContactLogging: React.FC<Props> = ({ user }) => {
     setMoveOpen(true);
   }, []);
 
-  if (!manage) {
-    return (
-      <div className="flex-1 p-8 flex items-center justify-center">
-        <p className="text-sm text-red-600 font-medium">Access denied.</p>
-      </div>
-    );
-  }
-
   const handleAdd = () => {
     setEditing(null);
     setFormOpen(true);
@@ -116,22 +109,22 @@ export const ContactLogging: React.FC<Props> = ({ user }) => {
     <div className="max-w-7xl mx-auto space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <p className="text-xs text-gray-400 mb-1">Dashboard / CRM / Contacts</p>
-          <h1 className="text-2xl font-bold text-gray-900">Contact Logging</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Outreach CRM: track contacts, cells, tags, and follow-up assignments.</p>
+          <p className="text-xs text-gray-400 dark:text-slate-500 mb-1">People / Contacts</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Contacts</h1>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">Track outreach contacts, follow-ups, and cell handoffs.</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <Button variant="ghost" size="small" onClick={handleExport}>
-            Export CSV
+            <Download className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />Export CSV
           </Button>
           {manage && (
             <Button variant="secondary" size="small" onClick={() => setBulkOpen(true)}>
-              Bulk Import
+              <Upload className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />Bulk Import
             </Button>
           )}
           {manage && (
             <Button variant="primary" onClick={handleAdd}>
-              Add Contact
+              <Plus className="w-4 h-4 mr-1" aria-hidden="true" />Add Contact
             </Button>
           )}
         </div>

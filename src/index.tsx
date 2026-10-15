@@ -31,8 +31,10 @@ if (typeof twemoji !== 'undefined') {
   new MutationObserver(applyTwemoji).observe(document.body, { childList: true, subtree: true });
 }
 
-// Register the custom push notification service worker separately
-if ('serviceWorker' in navigator) {
+// Register the custom push notification service worker (production only — dev
+// bundles are served at stable /static/ paths which the SW would cache-first,
+// causing stale bundles after HMR recompiles).
+if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
   navigator.serviceWorker
     .register('/service-worker.js')
     .then((reg) => console.log('[Push SW] Registered, scope:', reg.scope))

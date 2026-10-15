@@ -37,7 +37,7 @@ export const ContactFilters: React.FC<Props> = ({
   const count = activeCount(filters);
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+    <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3 dark:bg-slate-800 dark:border-slate-700">
       <div className="flex flex-wrap gap-3">
         {/* Search */}
         <div className="flex-1 min-w-[200px]">

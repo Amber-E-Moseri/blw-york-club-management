@@ -42,8 +42,8 @@ test('signs in and reaches the dashboard', async ({ page }) => {
   await page.getByLabel('Password').fill('secret1');
   await page.getByRole('button', { name: 'Sign In' }).click();
 
-  await expect(page.getByRole('heading', { name: /Welcome back, Jordan/i })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Open Daily Bread' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Good to see you, Jordan\./i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Daily Bread/i })).toBeVisible();
   await expect(page.getByText('Sunday Service')).toBeVisible();
   await expect(page.getByText('Leadership Sync').first()).toBeVisible();
 });
@@ -55,10 +55,13 @@ test('toggles between dark and light mode', async ({ page }) => {
   await page.getByLabel('Password').fill('secret1');
   await page.getByRole('button', { name: 'Sign In' }).click();
 
-  await page.getByRole('button', { name: 'Dark mode' }).click();
-  await expect(page.locator('html')).toHaveClass(/dark/);
-  await expect(page.getByRole('button', { name: 'Light mode' })).toBeVisible();
+  const themeToggle = page.getByRole('button', { name: 'Toggle dark mode' });
 
-  await page.getByRole('button', { name: 'Light mode' }).click();
+  await themeToggle.click();
+  await expect(page.locator('html')).toHaveClass(/dark/);
+  await expect(themeToggle).toContainText('Light mode');
+
+  await themeToggle.click();
   await expect(page.locator('html')).not.toHaveClass(/dark/);
+  await expect(themeToggle).toContainText('Dark mode');
 });

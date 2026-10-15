@@ -40,3 +40,4 @@ export { PushNotificationSettings } from './PushNotificationSettings';
 export { EmailPreferencesList } from './EmailPreferencesList';
 export { PushPermissionPrompt } from './PushPermissionPrompt';
 export { ZoomMeetingForm } from './ZoomMeetingForm';
+export { QuickAddModal } from './QuickAddModal';

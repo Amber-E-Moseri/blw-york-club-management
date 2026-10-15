@@ -57,6 +57,7 @@ export const ContactForm: React.FC<Props> = ({
   const [form, setForm] = useState<ContactInput>({ ...EMPTY, cell_id: cellId });
   const [errors, setErrors] = useState<Errors>({});
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (contact) {
@@ -85,12 +86,14 @@ export const ContactForm: React.FC<Props> = ({
   const handleSave = async () => {
     const e = validate(form);
     if (Object.keys(e).length) { setErrors(e); return; }
+    setSaveError(null);
     setSaving(true);
     try {
       await onSave(form, contact?.id);
       onClose();
     } catch (err) {
-      setErrors({ contact_name: err instanceof Error ? err.message : 'Save failed.' });
+      // Keep the dialog open and say what went wrong. A silent close looks like a successful save.
+      setSaveError(err instanceof Error && err.message ? err.message : 'Unknown error');
     } finally {
       setSaving(false);
     }
@@ -116,6 +119,11 @@ export const ContactForm: React.FC<Props> = ({
       }
     >
       <div className="space-y-4">
+        {saveError && (
+          <p role="alert" className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+            Could not save contact: {saveError}
+          </p>
+        )}
         {/* Name */}
         <Input
           label="Contact Name"
@@ -165,7 +173,7 @@ export const ContactForm: React.FC<Props> = ({
               Tag <span className="text-york-600">*</span>
             </label>
             <select
-              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-york-600"
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-york-600"
               value={form.tag}
               onChange={(e) => set('tag', e.target.value)}
             >
@@ -188,7 +196,7 @@ export const ContactForm: React.FC<Props> = ({
               Follow-up Status <span className="text-york-600">*</span>
             </label>
             <select
-              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-york-600"
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-york-600"
               value={form.follow_up_status}
               onChange={(e) => set('follow_up_status', e.target.value)}
             >
@@ -214,7 +222,7 @@ export const ContactForm: React.FC<Props> = ({
               Follow-up Assignee
             </label>
             <select
-              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-york-600"
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-york-600"
               value={form.follow_up_assignee ?? ''}
               onChange={(e) => set('follow_up_assignee', e.target.value)}
             >

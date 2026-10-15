@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { BookOpen } from 'lucide-react';
 import { ConfessionCard } from '../components/feature/ConfessionCard';
 import { Button } from '../components/foundation/Button';
 import { Input } from '../components/foundation/Input';
@@ -96,8 +97,8 @@ export const DailyConfessions: React.FC<Props> = ({ user }) => {
       )}
 
       {!loading && confessions.length === 0 && (
-        <div className="text-center py-16 bg-white border border-gray-200 rounded-lg">
-          <p className="text-3xl mb-3">📖</p>
+        <div className="text-center py-16 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg">
+          <BookOpen className="w-10 h-10 mx-auto mb-3 text-gray-300 dark:text-slate-600" />
           <p className="text-base font-semibold text-gray-700">No confessions for this day</p>
           {isManager && (
             <p className="text-sm text-gray-400 mt-1">

@@ -38,7 +38,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ currentUser, viewUserI
   const isOwnProfile = !viewUserId || viewUserId === currentUser?.id;
   const [editing, setEditing] = useState(false);
 
-  const { profile, loading, saving, error, updateProfile, uploadAvatar } = useUserProfile(targetId);
+  const { profile, loading, saving, error, notFound, updateProfile, uploadAvatar } = useUserProfile(targetId);
 
   if (loading) {
     return (
@@ -48,7 +48,15 @@ export const UserProfile: React.FC<UserProfileProps> = ({ currentUser, viewUserI
     );
   }
 
-  if (!profile) {
+  if (error) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-8">
+        <p className="text-sm text-york-600 font-medium">{error}</p>
+      </div>
+    );
+  }
+
+  if (notFound || !profile) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
         <p className="text-sm text-gray-400">Profile not found.</p>
@@ -105,13 +113,10 @@ export const UserProfile: React.FC<UserProfileProps> = ({ currentUser, viewUserI
                 </div>
                 <div className="flex-1 min-w-0">
                   <h2 className="text-h2 truncate">{displayName}</h2>
-                  {currentUser && (
-                    <Badge variant={roleBadgeVariant(currentUser.role)} className="mt-1">
-                      {ROLE_LABELS[currentUser.role]}
+                  {profile.role && (
+                    <Badge variant={roleBadgeVariant(profile.role)} className="mt-1">
+                      {ROLE_LABELS[profile.role]}
                     </Badge>
-                  )}
-                  {profile.spiritualRole && (
-                    <p className="text-tiny text-gray-400 mt-1">{profile.spiritualRole}</p>
                   )}
                 </div>
                 {isOwnProfile && (
@@ -129,7 +134,6 @@ export const UserProfile: React.FC<UserProfileProps> = ({ currentUser, viewUserI
                   <Row label="Student #" value={profile.studentNumber} />
                 )}
                 {profile.cellName && <Row label="Cell" value={profile.cellName} />}
-                {profile.bscAssignment && <Row label="BSC" value={profile.bscAssignment} />}
                 <Row label="Joined" value={joinedFormatted} />
               </dl>
 

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { LayoutList, Building2, BookOpen, Users, Star, Calendar, Plus, type LucideIcon } from 'lucide-react';
 import { Button } from '../components/foundation/Button';
 import { MeetingCard } from '../components/feature/MeetingCard';
 import { MeetingForm } from '../components/feature/MeetingForm';
@@ -10,12 +11,12 @@ interface Props { user: AuthUser | null; }
 
 const canManage = (role: string) => ['coordinator', 'admin', 'cell_leader'].includes(role);
 
-const CATEGORY_TABS: { value: MeetingCategory | 'all'; label: string; icon: string }[] = [
-  { value: 'all',        label: 'All',        icon: '📋' },
-  { value: 'general',   label: 'General',    icon: '🏛️' },
-  { value: 'bsc',       label: 'BSC',        icon: '📖' },
-  { value: 'cell',      label: 'Cell',       icon: '👥' },
-  { value: 'leadership',label: 'Leadership', icon: '⭐' },
+const CATEGORY_TABS: { value: MeetingCategory | 'all'; label: string; icon: LucideIcon }[] = [
+  { value: 'all',        label: 'All',        icon: LayoutList },
+  { value: 'general',   label: 'General',    icon: Building2 },
+  { value: 'bsc',       label: 'BSC',        icon: BookOpen },
+  { value: 'cell',      label: 'Cell',       icon: Users },
+  { value: 'leadership',label: 'Leadership', icon: Star },
 ];
 
 export const Meetings: React.FC<Props> = ({ user }) => {
@@ -70,8 +71,8 @@ export const Meetings: React.FC<Props> = ({ user }) => {
     <div className="max-w-3xl mx-auto space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Meetings</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Confirm your attendance and stay connected</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Meetings</h1>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">Confirm your attendance and stay connected</p>
         </div>
         <div className="flex gap-2">
           <Button
@@ -82,7 +83,9 @@ export const Meetings: React.FC<Props> = ({ user }) => {
             {showPast ? 'Upcoming' : 'Past Meetings'}
           </Button>
           {isManager && (
-            <Button variant="primary" onClick={handleAdd}>+ New Meeting</Button>
+            <Button variant="primary" onClick={handleAdd}>
+              <Plus className="w-4 h-4 mr-1" aria-hidden="true" />New Meeting
+            </Button>
           )}
         </div>
       </div>
@@ -97,10 +100,10 @@ export const Meetings: React.FC<Props> = ({ user }) => {
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
               activeTab === tab.value
                 ? 'bg-york-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
             }`}
           >
-            <span>{tab.icon}</span>
+            <tab.icon className="w-3.5 h-3.5 shrink-0" />
             {tab.label}
           </button>
         ))}
@@ -119,9 +122,9 @@ export const Meetings: React.FC<Props> = ({ user }) => {
       )}
 
       {!loading && filtered.length === 0 && (
-        <div className="text-center py-16 bg-white border border-gray-200 rounded-lg">
-          <p className="text-3xl mb-3">📅</p>
-          <p className="text-base font-semibold text-gray-700">
+        <div className="text-center py-16 bg-white border border-gray-200 rounded-lg dark:bg-slate-800 dark:border-slate-700">
+          <Calendar className="w-10 h-10 mx-auto mb-3 text-gray-300 dark:text-slate-600" />
+          <p className="text-base font-semibold text-gray-700 dark:text-slate-300">
             No {showPast ? 'past' : 'upcoming'} meetings
             {activeTab !== 'all' ? ` in ${activeTab}` : ''}
           </p>

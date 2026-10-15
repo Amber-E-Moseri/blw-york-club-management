@@ -1,0 +1,2325 @@
+{
+  "views": {
+    "member_directory": {
+      "options": "security_invoker=true",
+      "privileges": {
+        "anon": "",
+        "service_role": "SELECT",
+        "authenticated": "SELECT"
+      },
+      "definition_md5": "6d5e8a9986f0ae8bb3e3671afa93f537"
+    }
+  },
+  "tables": {
+    "cells": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "leader_id:uuid:null:",
+        "name:text:NOT NULL:",
+        "updated_at:timestamp with time zone:NOT NULL:now()"
+      ],
+      "indexes": [
+        "cells_pkey CREATE UNIQUE INDEX cells_pkey ON public.cells USING btree (id)"
+      ],
+      "policies": [
+        "cells_manage | ALL | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'coordinator'::text)))) | check=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'coordinator'::text))))",
+        "cells_read | SELECT | {public} | using=is_active_member() | check="
+      ],
+      "triggers": [
+        "CREATE TRIGGER cells_updated_at BEFORE UPDATE ON public.cells FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      ],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "cells_leader_id_fkey FOREIGN KEY (leader_id) REFERENCES profiles(id) ON DELETE SET NULL",
+        "cells_name_check CHECK ((char_length(name) >= 1))",
+        "cells_pkey PRIMARY KEY (id)"
+      ],
+      "maintain_acl": 0
+    },
+    "events": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "category:text:NOT NULL:'Other'::text",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "created_by:uuid:NOT NULL:",
+        "date:date:NOT NULL:",
+        "description:text:null:",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "image_url:text:null:",
+        "location:text:null:",
+        "time:time without time zone:null:",
+        "title:text:NOT NULL:"
+      ],
+      "indexes": [
+        "events_pkey CREATE UNIQUE INDEX events_pkey ON public.events USING btree (id)"
+      ],
+      "policies": [
+        "events_manage | ALL | {public} | using=is_admin_or_coordinator() | check=(is_admin_or_coordinator() AND (created_by = auth.uid()))",
+        "events_read | SELECT | {public} | using=is_active_member() | check="
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "events_category_check CHECK ((category = ANY (ARRAY['Bible Study'::text, 'Worship'::text, 'Fellowship'::text, 'Outreach'::text, 'Prayer'::text, 'Other'::text])))",
+        "events_created_by_fkey FOREIGN KEY (created_by) REFERENCES profiles(id)",
+        "events_pkey PRIMARY KEY (id)"
+      ],
+      "maintain_acl": 0
+    },
+    "people": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "email:text:null:",
+        "full_name:text:NOT NULL:",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "phone:text:null:",
+        "updated_at:timestamp with time zone:NOT NULL:now()"
+      ],
+      "indexes": [
+        "people_email_normalized_unique CREATE UNIQUE INDEX people_email_normalized_unique ON public.people USING btree (normalize_identity_email(email)) WHERE (normalize_identity_email(email) IS NOT NULL)",
+        "people_email_unique CREATE UNIQUE INDEX people_email_unique ON public.people USING btree (email) WHERE (email IS NOT NULL)",
+        "people_phone_normalized_unique CREATE UNIQUE INDEX people_phone_normalized_unique ON public.people USING btree (normalize_identity_phone(phone)) WHERE (normalize_identity_phone(phone) IS NOT NULL)",
+        "people_phone_unique CREATE UNIQUE INDEX people_phone_unique ON public.people USING btree (phone) WHERE (phone IS NOT NULL)",
+        "people_pkey CREATE UNIQUE INDEX people_pkey ON public.people USING btree (id)"
+      ],
+      "policies": [
+        "people_delete | DELETE | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'coordinator'::text)))) | check=",
+        "people_insert | INSERT | {public} | using= | check=is_active_member()",
+        "people_read | SELECT | {public} | using=is_active_member() | check=",
+        "people_update | UPDATE | {public} | using=is_core_admin() | check=is_core_admin()"
+      ],
+      "triggers": [
+        "CREATE TRIGGER people_updated_at BEFORE UPDATE ON public.people FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      ],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "people_full_name_check CHECK ((char_length(full_name) >= 1))",
+        "people_pkey PRIMARY KEY (id)"
+      ],
+      "maintain_acl": 0
+    },
+    "contacts": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "archived:boolean:NOT NULL:false",
+        "cell_id:uuid:null:",
+        "contact_name:text:NOT NULL:",
+        "contact_phone:text:null:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "date_contacted:date:NOT NULL:CURRENT_DATE",
+        "email:text:null:",
+        "follow_up_assignee:uuid:null:",
+        "follow_up_date:date:null:",
+        "follow_up_status:text:null:",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "idempotency_key:text:null:",
+        "is_member:boolean:NOT NULL:false",
+        "logged_by:uuid:NOT NULL:",
+        "member_id:uuid:null:",
+        "notes:text:null:",
+        "person_id:uuid:NOT NULL:",
+        "phone_hidden:boolean:NOT NULL:false",
+        "tag:text:null:",
+        "updated_at:timestamp with time zone:NOT NULL:now()"
+      ],
+      "indexes": [
+        "contacts_archived_idx CREATE INDEX contacts_archived_idx ON public.contacts USING btree (archived) WHERE (archived = false)",
+        "contacts_cell_idx CREATE INDEX contacts_cell_idx ON public.contacts USING btree (cell_id)",
+        "contacts_date_idx CREATE INDEX contacts_date_idx ON public.contacts USING btree (date_contacted DESC)",
+        "contacts_follow_up_date_idx CREATE INDEX contacts_follow_up_date_idx ON public.contacts USING btree (follow_up_date) WHERE ((follow_up_date IS NOT NULL) AND (archived = false))",
+        "contacts_logged_by_idempotency_key_unique CREATE UNIQUE INDEX contacts_logged_by_idempotency_key_unique ON public.contacts USING btree (logged_by, idempotency_key) WHERE (idempotency_key IS NOT NULL)",
+        "contacts_logged_by_idx CREATE INDEX contacts_logged_by_idx ON public.contacts USING btree (logged_by)",
+        "contacts_person_idx CREATE INDEX contacts_person_idx ON public.contacts USING btree (person_id)",
+        "contacts_pkey CREATE UNIQUE INDEX contacts_pkey ON public.contacts USING btree (id)"
+      ],
+      "policies": [
+        "contacts_delete_admin_only | DELETE | {public} | using=is_admin_or_coordinator() | check=",
+        "contacts_insert_scoped | INSERT | {authenticated} | using= | check=((logged_by = auth.uid()) AND (is_admin_or_coordinator() OR is_cell_leader_of(cell_id)))",
+        "contacts_read | SELECT | {public} | using=(is_core_admin() OR is_cell_leader_of(cell_id) OR (logged_by = auth.uid())) | check=",
+        "contacts_update_scoped | UPDATE | {public} | using=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id)) | check=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id))"
+      ],
+      "triggers": [
+        "CREATE TRIGGER contacts_updated_at BEFORE UPDATE ON public.contacts FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      ],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "contacts_cell_id_fkey FOREIGN KEY (cell_id) REFERENCES cells(id) ON DELETE SET NULL",
+        "contacts_contact_name_check CHECK ((char_length(contact_name) >= 2))",
+        "contacts_follow_up_assignee_fkey FOREIGN KEY (follow_up_assignee) REFERENCES profiles(id) ON DELETE SET NULL",
+        "contacts_logged_by_fkey FOREIGN KEY (logged_by) REFERENCES profiles(id) ON DELETE RESTRICT",
+        "contacts_member_id_fkey FOREIGN KEY (member_id) REFERENCES profiles(id) ON DELETE SET NULL",
+        "contacts_person_id_fkey FOREIGN KEY (person_id) REFERENCES people(id) ON DELETE RESTRICT",
+        "contacts_pkey PRIMARY KEY (id)"
+      ],
+      "maintain_acl": 0
+    },
+    "meetings": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "allow_join_requests:boolean:NOT NULL:false",
+        "category:text:NOT NULL:'general'::text",
+        "cell_id:uuid:null:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "created_by:uuid:NOT NULL:",
+        "date:date:NOT NULL:",
+        "description:text:null:",
+        "end_time:time without time zone:null:",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "location:text:null:",
+        "reminder_sent:boolean:NOT NULL:false",
+        "time:time without time zone:NOT NULL:",
+        "title:text:NOT NULL:",
+        "updated_at:timestamp with time zone:NOT NULL:now()",
+        "visibility:text:NOT NULL:'public'::text",
+        "zoom_created:boolean:NOT NULL:false",
+        "zoom_join_url:character varying:null:",
+        "zoom_link:text:null:",
+        "zoom_meeting_id:character varying:null:",
+        "zoom_password:character varying:null:",
+        "zoom_start_url:character varying:null:"
+      ],
+      "indexes": [
+        "meetings_pkey CREATE UNIQUE INDEX meetings_pkey ON public.meetings USING btree (id)"
+      ],
+      "policies": [
+        "meetings_cell_read | SELECT | {public} | using=((visibility = 'cell'::text) AND (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cell_id = meetings.cell_id))))) | check=",
+        "meetings_leaders_read | SELECT | {public} | using=((visibility = 'leaders'::text) AND (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['cell_leader'::text, 'admin'::text, 'coordinator'::text])))))) | check=",
+        "meetings_manage_scoped | ALL | {public} | using=(is_admin_or_coordinator() OR ((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'cell_leader'::text)))) AND ((created_by = auth.uid()) OR is_cell_leader_of(cell_id)))) | check=(is_admin_or_coordinator() OR ((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'cell_leader'::text)))) AND (created_by = auth.uid()) AND is_cell_leader_of(cell_id)))",
+        "meetings_public_read | SELECT | {public} | using=(is_active_member() AND (visibility = 'public'::text)) | check="
+      ],
+      "triggers": [
+        "CREATE TRIGGER meetings_updated_at BEFORE UPDATE ON public.meetings FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      ],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "meetings_category_check CHECK ((category = ANY (ARRAY['general'::text, 'bsc'::text, 'cell'::text, 'leadership'::text])))",
+        "meetings_cell_id_fkey FOREIGN KEY (cell_id) REFERENCES cells(id)",
+        "meetings_created_by_fkey FOREIGN KEY (created_by) REFERENCES profiles(id)",
+        "meetings_pkey PRIMARY KEY (id)",
+        "meetings_visibility_check CHECK ((visibility = ANY (ARRAY['public'::text, 'leaders'::text, 'cell'::text, 'explicit'::text])))"
+      ],
+      "maintain_acl": 0
+    },
+    "profiles": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "admin_role:text:null:",
+        "avatar_url:text:null:",
+        "cell_id:uuid:null:",
+        "email:text:null:",
+        "full_name:text:null:",
+        "id:uuid:NOT NULL:",
+        "joined_at:timestamp with time zone:NOT NULL:now()",
+        "person_id:uuid:null:",
+        "role:text:NOT NULL:'member'::text",
+        "status:text:NOT NULL:'active'::text",
+        "student_number:text:null:",
+        "updated_at:timestamp with time zone:NOT NULL:now()"
+      ],
+      "indexes": [
+        "profiles_person_idx CREATE INDEX profiles_person_idx ON public.profiles USING btree (person_id)",
+        "profiles_pkey CREATE UNIQUE INDEX profiles_pkey ON public.profiles USING btree (id)"
+      ],
+      "policies": [
+        "profiles_coordinator_administer | ALL | {public} | using=is_coordinator() | check=is_coordinator()",
+        "profiles_select_scoped | SELECT | {public} | using=((id = auth.uid()) OR is_admin_or_coordinator() OR is_cell_leader_for_profile(id)) | check=",
+        "profiles_self_onboarding_update | UPDATE | {authenticated} | using=((id = auth.uid()) AND (status = 'pending'::text)) | check=((id = auth.uid()) AND (status = 'pending'::text))"
+      ],
+      "triggers": [
+        "CREATE TRIGGER profiles_guard_privileged_columns BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION guard_profile_privileged_columns()",
+        "CREATE TRIGGER profiles_staff_edit_audit AFTER UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION audit_staff_profile_edits()",
+        "CREATE TRIGGER profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      ],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE",
+        "profiles_person_id_fkey FOREIGN KEY (person_id) REFERENCES people(id) ON DELETE SET NULL",
+        "profiles_pkey PRIMARY KEY (id)",
+        "profiles_role_check CHECK ((role = ANY (ARRAY['coordinator'::text, 'admin'::text, 'cell_leader'::text, 'member'::text])))",
+        "profiles_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'active'::text, 'inactive'::text, 'rejected'::text])))"
+      ],
+      "maintain_acl": 0
+    },
+    "email_log": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "clicked_at:timestamp with time zone:null:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "failed_reason:character varying(500):null:",
+        "html_content:text:null:",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "member_id:uuid:null:",
+        "opened_at:timestamp with time zone:null:",
+        "provider_message_id:text:null:",
+        "recipient_email:character varying(320):NOT NULL:",
+        "retry_count:integer:NOT NULL:0",
+        "sent_at:timestamp with time zone:null:",
+        "status:character varying(20):NOT NULL:'queued'::character varying",
+        "subject:character varying(998):NOT NULL:",
+        "template_type:character varying(50):NOT NULL:'generic'::character varying",
+        "text_content:text:null:",
+        "tracking_token:uuid:NOT NULL:gen_random_uuid()"
+      ],
+      "indexes": [
+        "email_log_pkey CREATE UNIQUE INDEX email_log_pkey ON public.email_log USING btree (id)",
+        "email_log_tracking_token_unique CREATE UNIQUE INDEX email_log_tracking_token_unique ON public.email_log USING btree (tracking_token)",
+        "idx_email_log_member CREATE INDEX idx_email_log_member ON public.email_log USING btree (member_id)",
+        "idx_email_log_status CREATE INDEX idx_email_log_status ON public.email_log USING btree (status, created_at DESC)",
+        "idx_email_log_template CREATE INDEX idx_email_log_template ON public.email_log USING btree (template_type, created_at DESC)"
+      ],
+      "policies": [
+        "email_log_admin_manage | ALL | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['admin'::text, 'coordinator'::text]))))) | check=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['admin'::text, 'coordinator'::text])))))",
+        "email_log_admin_read | SELECT | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['admin'::text, 'coordinator'::text]))))) | check=",
+        "email_log_own_read | SELECT | {public} | using=(auth.uid() = member_id) | check="
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "email_log_member_id_fkey FOREIGN KEY (member_id) REFERENCES profiles(id) ON DELETE SET NULL",
+        "email_log_pkey PRIMARY KEY (id)",
+        "email_log_template_type_check CHECK (((template_type)::text = ANY ((ARRAY['meeting_reminder_8am'::character varying, 'meeting_reminder_1hr'::character varying, 'message_notification'::character varying, 'habit_milestone'::character varying, 'devotional_reminder'::character varying, 'testimony_approved'::character varying, 'weekly_digest'::character varying, 'account_approved'::character varying, 'generic'::character varying])::text[])))"
+      ],
+      "maintain_acl": 0
+    },
+    "admin_roles": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "created_by:uuid:NOT NULL:",
+        "description:text:null:",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "is_system:boolean:NOT NULL:false",
+        "name:text:NOT NULL:",
+        "updated_at:timestamp with time zone:NOT NULL:now()"
+      ],
+      "indexes": [
+        "admin_roles_name_key CREATE UNIQUE INDEX admin_roles_name_key ON public.admin_roles USING btree (name)",
+        "admin_roles_pkey CREATE UNIQUE INDEX admin_roles_pkey ON public.admin_roles USING btree (id)"
+      ],
+      "policies": [
+        "admin_roles_manage | ALL | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'coordinator'::text)))) | check=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'coordinator'::text))))",
+        "admin_roles_read_explicit | SELECT | {public} | using=is_admin_or_coordinator() | check="
+      ],
+      "triggers": [
+        "CREATE TRIGGER admin_roles_updated_at BEFORE UPDATE ON public.admin_roles FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      ],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "admin_roles_created_by_fkey FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE RESTRICT",
+        "admin_roles_name_check CHECK (((char_length(name) >= 2) AND (char_length(name) <= 80)))",
+        "admin_roles_name_key UNIQUE (name)",
+        "admin_roles_pkey PRIMARY KEY (id)"
+      ],
+      "maintain_acl": 0
+    },
+    "confessions": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "body:text:NOT NULL:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "created_by:uuid:NOT NULL:",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "is_active:boolean:NOT NULL:true",
+        "scheduled_date:date:NOT NULL:",
+        "title:text:NOT NULL:"
+      ],
+      "indexes": [
+        "confessions_pkey CREATE UNIQUE INDEX confessions_pkey ON public.confessions USING btree (id)"
+      ],
+      "policies": [
+        "confessions_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
+        "confessions_read | SELECT | {public} | using=(is_active_member() AND (is_active = true)) | check="
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "confessions_created_by_fkey FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE CASCADE",
+        "confessions_pkey PRIMARY KEY (id)"
+      ],
+      "maintain_acl": 0
+    },
+    "event_rsvps": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "event_id:uuid:NOT NULL:",
+        "user_id:uuid:NOT NULL:"
+      ],
+      "indexes": [
+        "event_rsvps_pkey CREATE UNIQUE INDEX event_rsvps_pkey ON public.event_rsvps USING btree (event_id, user_id)"
+      ],
+      "policies": [
+        "event_rsvps_delete_own | DELETE | {public} | using=((auth.uid() = user_id) AND is_active_member()) | check=",
+        "event_rsvps_read_own | SELECT | {public} | using=(auth.uid() = user_id) | check=",
+        "event_rsvps_update_own | UPDATE | {public} | using=((auth.uid() = user_id) AND is_active_member()) | check=((auth.uid() = user_id) AND is_active_member())",
+        "event_rsvps_write_own | INSERT | {public} | using= | check=((auth.uid() = user_id) AND is_active_member())"
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "event_rsvps_event_id_fkey FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE",
+        "event_rsvps_pkey PRIMARY KEY (event_id, user_id)",
+        "event_rsvps_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE"
+      ],
+      "maintain_acl": 0
+    },
+    "memberships": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "cell_id:uuid:null:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "joined_at:timestamp with time zone:NOT NULL:now()",
+        "person_id:uuid:NOT NULL:",
+        "role:text:NOT NULL:'member'::text",
+        "status:text:NOT NULL:'active'::text",
+        "updated_at:timestamp with time zone:NOT NULL:now()"
+      ],
+      "indexes": [
+        "memberships_one_active_per_person CREATE UNIQUE INDEX memberships_one_active_per_person ON public.memberships USING btree (person_id) WHERE (status = 'active'::text)",
+        "memberships_one_pending_per_person CREATE UNIQUE INDEX memberships_one_pending_per_person ON public.memberships USING btree (person_id) WHERE (status = 'pending'::text)",
+        "memberships_person_idx CREATE INDEX memberships_person_idx ON public.memberships USING btree (person_id)",
+        "memberships_pkey CREATE UNIQUE INDEX memberships_pkey ON public.memberships USING btree (id)",
+        "memberships_status_idx CREATE INDEX memberships_status_idx ON public.memberships USING btree (status)"
+      ],
+      "policies": [
+        "memberships_insert | INSERT | {public} | using= | check=is_core_admin()",
+        "memberships_read | SELECT | {public} | using=is_active_member() | check=",
+        "memberships_update | UPDATE | {public} | using=is_core_admin() | check=is_core_admin()"
+      ],
+      "triggers": [
+        "CREATE TRIGGER memberships_updated_at BEFORE UPDATE ON public.memberships FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      ],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "memberships_cell_id_fkey FOREIGN KEY (cell_id) REFERENCES cells(id) ON DELETE SET NULL",
+        "memberships_person_id_fkey FOREIGN KEY (person_id) REFERENCES people(id) ON DELETE RESTRICT",
+        "memberships_pkey PRIMARY KEY (id)",
+        "memberships_role_check CHECK ((role = ANY (ARRAY['member'::text, 'cell_leader'::text, 'admin'::text, 'coordinator'::text])))",
+        "memberships_status_check CHECK ((status = ANY (ARRAY['active'::text, 'pending'::text, 'inactive'::text, 'rejected'::text])))"
+      ],
+      "maintain_acl": 0
+    },
+    "testimonies": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "archived_at:timestamp with time zone:null:",
+        "author_id:uuid:NOT NULL:",
+        "author_name:text:NOT NULL:",
+        "body:text:NOT NULL:",
+        "category:text:NOT NULL:'other'::text",
+        "cell_id:uuid:null:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "entry_type:text:NOT NULL:'testimony'::text",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "image_url:text:null:",
+        "status:text:NOT NULL:'pending'::text",
+        "title:text:NOT NULL:",
+        "updated_at:timestamp with time zone:NOT NULL:now()",
+        "visibility:text:NOT NULL:'members'::text"
+      ],
+      "indexes": [
+        "testimonies_pkey CREATE UNIQUE INDEX testimonies_pkey ON public.testimonies USING btree (id)"
+      ],
+      "policies": [
+        "testimonies_delete | DELETE | {public} | using=(author_id = auth.uid()) | check=",
+        "testimonies_insert | INSERT | {public} | using= | check=(author_id = auth.uid())",
+        "testimonies_select | SELECT | {public} | using=((author_id = auth.uid()) OR ((status = 'approved'::text) AND ((visibility = 'public'::text) OR ((visibility = 'members'::text) AND is_active_member()) OR ((visibility = 'cell'::text) AND is_active_member()))) OR (is_active_member() AND (EXISTS ( SELECT 1\n   FROM user_profiles\n  WHERE (user_profiles.user_id = auth.uid()))))) | check=",
+        "testimonies_update | UPDATE | {public} | using=(author_id = auth.uid()) | check=(author_id = auth.uid())"
+      ],
+      "triggers": [
+        "CREATE TRIGGER testimonies_updated_at BEFORE UPDATE ON public.testimonies FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      ],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "testimonies_author_id_fkey FOREIGN KEY (author_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+        "testimonies_body_check CHECK ((char_length(body) >= 10))",
+        "testimonies_category_check CHECK ((category = ANY (ARRAY['provision'::text, 'healing'::text, 'prayer_answered'::text, 'growth'::text, 'other'::text])))",
+        "testimonies_entry_type_check CHECK ((entry_type = ANY (ARRAY['testimony'::text, 'prophecy'::text])))",
+        "testimonies_pkey PRIMARY KEY (id)",
+        "testimonies_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text, 'archived'::text])))",
+        "testimonies_visibility_check CHECK ((visibility = ANY (ARRAY['draft'::text, 'private'::text, 'cell'::text, 'members'::text, 'public'::text])))"
+      ],
+      "maintain_acl": 0
+    },
+    "contact_tags": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "contact_id:uuid:NOT NULL:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "tag_color:text:NOT NULL:'#cccccc'::text",
+        "tag_name:text:NOT NULL:",
+        "tag_notes:text:null:",
+        "tagged_by:uuid:NOT NULL:",
+        "tagged_on:date:NOT NULL:CURRENT_DATE"
+      ],
+      "indexes": [
+        "contact_tags_contact_idx CREATE INDEX contact_tags_contact_idx ON public.contact_tags USING btree (contact_id)",
+        "contact_tags_pkey CREATE UNIQUE INDEX contact_tags_pkey ON public.contact_tags USING btree (id)"
+      ],
+      "policies": [
+        "contact_tags_delete | DELETE | {public} | using=(is_core_admin() OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_tags.contact_id) AND (is_cell_leader_of(c.cell_id) OR (c.logged_by = auth.uid())))))) | check=",
+        "contact_tags_insert | INSERT | {public} | using= | check=(is_core_admin() OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_tags.contact_id) AND (is_cell_leader_of(c.cell_id) OR (c.logged_by = auth.uid()))))))",
+        "contact_tags_read | SELECT | {public} | using=(is_core_admin() OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_tags.contact_id) AND (is_cell_leader_of(c.cell_id) OR (c.logged_by = auth.uid())))))) | check="
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT"
+      },
+      "constraints": [
+        "contact_tags_contact_id_fkey FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE",
+        "contact_tags_pkey PRIMARY KEY (id)",
+        "contact_tags_tagged_by_fkey FOREIGN KEY (tagged_by) REFERENCES profiles(id) ON DELETE RESTRICT"
+      ],
+      "maintain_acl": 0
+    },
+    "email_drafts": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "body_markdown:text:NOT NULL:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "created_by:uuid:NOT NULL:",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "recipient_filter:jsonb:NOT NULL:'{}'::jsonb",
+        "recipient_ids:uuid[]:NOT NULL:'{}'::uuid[]",
+        "subject:text:NOT NULL:",
+        "template_id:uuid:null:",
+        "updated_at:timestamp with time zone:NOT NULL:now()",
+        "updated_by:uuid:null:"
+      ],
+      "indexes": [
+        "email_drafts_pkey CREATE UNIQUE INDEX email_drafts_pkey ON public.email_drafts USING btree (id)",
+        "idx_email_drafts_created_by CREATE INDEX idx_email_drafts_created_by ON public.email_drafts USING btree (created_by)",
+        "idx_email_drafts_updated_at CREATE INDEX idx_email_drafts_updated_at ON public.email_drafts USING btree (updated_at DESC)"
+      ],
+      "policies": [
+        "email_drafts_manage_notifications | ALL | {authenticated} | using=(is_active_member() AND has_admin_permission('notifications.send'::text) AND (created_by = auth.uid())) | check=(is_active_member() AND has_admin_permission('notifications.send'::text) AND (created_by = auth.uid()))"
+      ],
+      "triggers": [
+        "CREATE TRIGGER email_drafts_updated_at BEFORE UPDATE ON public.email_drafts FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      ],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "email_drafts_body_not_blank CHECK ((length(btrim(body_markdown)) > 0))",
+        "email_drafts_created_by_fkey FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE CASCADE",
+        "email_drafts_pkey PRIMARY KEY (id)",
+        "email_drafts_subject_not_blank CHECK ((length(btrim(subject)) > 0))",
+        "email_drafts_template_id_fkey FOREIGN KEY (template_id) REFERENCES email_templates(id) ON DELETE SET NULL",
+        "email_drafts_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES profiles(id) ON DELETE SET NULL"
+      ],
+      "maintain_acl": 0
+    },
+    "announcements": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "author_id:uuid:NOT NULL:",
+        "author_name:text:NOT NULL:",
+        "body:text:NOT NULL:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "title:text:NOT NULL:"
+      ],
+      "indexes": [
+        "announcements_pkey CREATE UNIQUE INDEX announcements_pkey ON public.announcements USING btree (id)"
+      ],
+      "policies": [
+        "announcements_manage | ALL | {public} | using=(is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'cell_leader'::text) AND (profiles.status = 'active'::text))))) | check=(is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'cell_leader'::text) AND (profiles.status = 'active'::text)))))",
+        "announcements_read | SELECT | {public} | using=is_active_member() | check="
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "announcements_author_id_fkey FOREIGN KEY (author_id) REFERENCES profiles(id)",
+        "announcements_pkey PRIMARY KEY (id)"
+      ],
+      "maintain_acl": 0
+    },
+    "habit_entries": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "entry_date:date:NOT NULL:",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "status:character varying(10):NOT NULL:",
+        "template_id:uuid:NOT NULL:",
+        "user_id:uuid:NOT NULL:"
+      ],
+      "indexes": [
+        "habit_entries_pkey CREATE UNIQUE INDEX habit_entries_pkey ON public.habit_entries USING btree (id)",
+        "habit_entries_template_id_user_id_entry_date_key CREATE UNIQUE INDEX habit_entries_template_id_user_id_entry_date_key ON public.habit_entries USING btree (template_id, user_id, entry_date)",
+        "idx_habit_entries_template CREATE INDEX idx_habit_entries_template ON public.habit_entries USING btree (template_id, entry_date)",
+        "idx_habit_entries_user_date CREATE INDEX idx_habit_entries_user_date ON public.habit_entries USING btree (user_id, entry_date)"
+      ],
+      "policies": [
+        "habit_entries_admin_read | SELECT | {public} | using=((auth.uid() = user_id) OR is_admin_or_coordinator()) | check=",
+        "habit_entries_own | ALL | {public} | using=(auth.uid() = user_id) | check=(auth.uid() = user_id)"
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "habit_entries_pkey PRIMARY KEY (id)",
+        "habit_entries_status_check CHECK (((status)::text = ANY ((ARRAY['done'::character varying, 'skipped'::character varying])::text[])))",
+        "habit_entries_template_id_fkey FOREIGN KEY (template_id) REFERENCES habit_templates(id) ON DELETE CASCADE",
+        "habit_entries_template_id_user_id_entry_date_key UNIQUE (template_id, user_id, entry_date)",
+        "habit_entries_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE"
+      ],
+      "maintain_acl": 0
+    },
+    "tags_settings": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "color:text:NOT NULL:'#0066FF'::text",
+        "coordinator_id:uuid:NOT NULL:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "sort_order:integer:NOT NULL:0",
+        "tag_name:text:NOT NULL:"
+      ],
+      "indexes": [
+        "tags_settings_pkey CREATE UNIQUE INDEX tags_settings_pkey ON public.tags_settings USING btree (id)"
+      ],
+      "policies": [
+        "tags_settings_manage | ALL | {public} | using=is_core_admin() | check=is_core_admin()",
+        "tags_settings_read | SELECT | {public} | using=is_active_member() | check="
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "tags_settings_coordinator_id_fkey FOREIGN KEY (coordinator_id) REFERENCES profiles(id) ON DELETE CASCADE",
+        "tags_settings_pkey PRIMARY KEY (id)",
+        "tags_settings_tag_name_check CHECK ((char_length(tag_name) >= 1))"
+      ],
+      "maintain_acl": 0
+    },
+    "user_profiles": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "avatar_url:text:null:",
+        "bio:text:null:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "first_name:text:null:",
+        "last_name:text:null:",
+        "phone:text:null:",
+        "student_number:text:null:",
+        "updated_at:timestamp with time zone:NOT NULL:now()",
+        "user_id:uuid:NOT NULL:"
+      ],
+      "indexes": [
+        "user_profiles_pkey CREATE UNIQUE INDEX user_profiles_pkey ON public.user_profiles USING btree (user_id)"
+      ],
+      "policies": [
+        "profiles_delete | DELETE | {authenticated} | using=((auth.uid() = user_id) AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.status = 'active'::text))))) | check=",
+        "profiles_insert | INSERT | {authenticated} | using= | check=((auth.uid() = user_id) AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.status = ANY (ARRAY['pending'::text, 'active'::text]))))))",
+        "profiles_update | UPDATE | {authenticated} | using=((auth.uid() = user_id) AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.status = ANY (ARRAY['pending'::text, 'active'::text])))))) | check=((auth.uid() = user_id) AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.status = ANY (ARRAY['pending'::text, 'active'::text]))))))",
+        "user_profiles_select_scoped | SELECT | {public} | using=((user_id = auth.uid()) OR is_admin_or_coordinator() OR is_cell_leader_for_profile(user_id)) | check=",
+        "user_profiles_staff_insert | INSERT | {authenticated} | using= | check=is_admin_or_coordinator()",
+        "user_profiles_staff_update | UPDATE | {authenticated} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()"
+      ],
+      "triggers": [
+        "CREATE TRIGGER user_profiles_staff_edit_audit AFTER UPDATE ON public.user_profiles FOR EACH ROW EXECUTE FUNCTION audit_staff_profile_edits()",
+        "CREATE TRIGGER user_profiles_updated_at BEFORE UPDATE ON public.user_profiles FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      ],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "user_profiles_bio_check CHECK ((char_length(bio) <= 500))",
+        "user_profiles_pkey PRIMARY KEY (user_id)",
+        "user_profiles_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+      ],
+      "maintain_acl": 0
+    },
+    "zoom_settings": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "is_active:boolean:NOT NULL:false",
+        "organization_id:uuid:null:",
+        "updated_at:timestamp with time zone:NOT NULL:now()",
+        "zoom_account_id:character varying(100):NOT NULL:''::character varying",
+        "zoom_user_id:character varying(100):NOT NULL:''::character varying"
+      ],
+      "indexes": [
+        "zoom_settings_pkey CREATE UNIQUE INDEX zoom_settings_pkey ON public.zoom_settings USING btree (id)"
+      ],
+      "policies": [
+        "zoom_settings_admin_explicit | ALL | {public} | using=has_admin_permission('integrations.manage'::text) | check=has_admin_permission('integrations.manage'::text)"
+      ],
+      "triggers": [
+        "CREATE TRIGGER set_zoom_settings_updated_at BEFORE UPDATE ON public.zoom_settings FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      ],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "zoom_settings_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES profiles(id) ON DELETE SET NULL",
+        "zoom_settings_pkey PRIMARY KEY (id)"
+      ],
+      "maintain_acl": 0
+    },
+    "books_of_month": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "active_from:date:NOT NULL:",
+        "active_until:date:NOT NULL:",
+        "author:text:NOT NULL:",
+        "cover_image_url:text:null:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "created_by:uuid:NOT NULL:",
+        "description:text:null:",
+        "drive_url:text:NOT NULL:",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "title:text:NOT NULL:",
+        "updated_at:timestamp with time zone:NOT NULL:now()"
+      ],
+      "indexes": [
+        "books_of_month_pkey CREATE UNIQUE INDEX books_of_month_pkey ON public.books_of_month USING btree (id)",
+        "idx_books_active_period CREATE INDEX idx_books_active_period ON public.books_of_month USING btree (active_from, active_until)"
+      ],
+      "policies": [
+        "books_manage | ALL | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['coordinator'::text, 'admin'::text]))))) | check=",
+        "books_read | SELECT | {public} | using=is_active_member() | check="
+      ],
+      "triggers": [
+        "CREATE TRIGGER books_of_month_updated_at BEFORE UPDATE ON public.books_of_month FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      ],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "books_of_month_created_by_fkey FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE CASCADE",
+        "books_of_month_pkey PRIMARY KEY (id)",
+        "valid_date_range CHECK ((active_until >= active_from))"
+      ],
+      "maintain_acl": 0
+    },
+    "email_templates": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "body_markdown:text:NOT NULL:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "created_by:uuid:NOT NULL:",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "name:text:NOT NULL:",
+        "subject:text:NOT NULL:",
+        "updated_at:timestamp with time zone:NOT NULL:now()",
+        "updated_by:uuid:null:"
+      ],
+      "indexes": [
+        "email_templates_pkey CREATE UNIQUE INDEX email_templates_pkey ON public.email_templates USING btree (id)",
+        "idx_email_templates_created_by CREATE INDEX idx_email_templates_created_by ON public.email_templates USING btree (created_by)",
+        "idx_email_templates_updated_at CREATE INDEX idx_email_templates_updated_at ON public.email_templates USING btree (updated_at DESC)"
+      ],
+      "policies": [
+        "email_templates_manage_notifications | ALL | {authenticated} | using=(is_active_member() AND has_admin_permission('notifications.send'::text)) | check=(is_active_member() AND has_admin_permission('notifications.send'::text))"
+      ],
+      "triggers": [
+        "CREATE TRIGGER email_templates_updated_at BEFORE UPDATE ON public.email_templates FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      ],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "email_templates_body_not_blank CHECK ((length(btrim(body_markdown)) > 0))",
+        "email_templates_created_by_fkey FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE RESTRICT",
+        "email_templates_name_not_blank CHECK ((length(btrim(name)) > 0))",
+        "email_templates_pkey PRIMARY KEY (id)",
+        "email_templates_subject_not_blank CHECK ((length(btrim(subject)) > 0))",
+        "email_templates_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES profiles(id) ON DELETE SET NULL"
+      ],
+      "maintain_acl": 0
+    },
+    "habit_templates": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "created_by:uuid:NOT NULL:",
+        "description:text:null:",
+        "icon:character varying(10):NOT NULL:'*'::character varying",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "is_active:boolean:NOT NULL:true",
+        "name:character varying(100):NOT NULL:",
+        "order:integer:NOT NULL:0",
+        "target_days:integer[]:null:"
+      ],
+      "indexes": [
+        "habit_templates_pkey CREATE UNIQUE INDEX habit_templates_pkey ON public.habit_templates USING btree (id)",
+        "idx_habit_templates_active CREATE INDEX idx_habit_templates_active ON public.habit_templates USING btree (is_active, \"order\")"
+      ],
+      "policies": [
+        "habit_templates_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
+        "habit_templates_read | SELECT | {public} | using=is_active_member() | check="
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "habit_templates_created_by_fkey FOREIGN KEY (created_by) REFERENCES profiles(id)",
+        "habit_templates_pkey PRIMARY KEY (id)"
+      ],
+      "maintain_acl": 0
+    },
+    "prayer_requests": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "answered_at:timestamp with time zone:null:",
+        "answered_by:uuid:null:",
+        "author_id:uuid:NOT NULL:",
+        "author_name:text:NOT NULL:",
+        "content:text:NOT NULL:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "is_active:boolean:NOT NULL:true",
+        "is_anonymous:boolean:NOT NULL:false",
+        "updated_at:timestamp with time zone:NOT NULL:now()",
+        "visibility:text:NOT NULL:'shared'::text"
+      ],
+      "indexes": [
+        "idx_prayer_requests_active_created CREATE INDEX idx_prayer_requests_active_created ON public.prayer_requests USING btree (is_active, created_at DESC)",
+        "idx_prayer_requests_author_id CREATE INDEX idx_prayer_requests_author_id ON public.prayer_requests USING btree (author_id)",
+        "prayer_requests_pkey CREATE UNIQUE INDEX prayer_requests_pkey ON public.prayer_requests USING btree (id)"
+      ],
+      "policies": [
+        "prayers_coordinator_manage | UPDATE | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['coordinator'::text, 'admin'::text]))))) | check=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['coordinator'::text, 'admin'::text])))))",
+        "prayers_leadership_read | SELECT | {public} | using=((visibility = ANY (ARRAY['leadership'::text, 'shared'::text])) AND (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['coordinator'::text, 'admin'::text, 'cell_leader'::text])))))) | check=",
+        "prayers_own | ALL | {public} | using=(auth.uid() = author_id) | check=",
+        "prayers_shared_read | SELECT | {public} | using=((visibility = 'shared'::text) AND is_active_member()) | check="
+      ],
+      "triggers": [
+        "CREATE TRIGGER prayer_requests_updated_at BEFORE UPDATE ON public.prayer_requests FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      ],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "prayer_requests_answered_by_fkey FOREIGN KEY (answered_by) REFERENCES profiles(id) ON DELETE SET NULL",
+        "prayer_requests_author_id_fkey FOREIGN KEY (author_id) REFERENCES profiles(id) ON DELETE CASCADE",
+        "prayer_requests_pkey PRIMARY KEY (id)",
+        "prayer_requests_visibility_check CHECK ((visibility = ANY (ARRAY['private'::text, 'leadership'::text, 'shared'::text])))"
+      ],
+      "maintain_acl": 0
+    },
+    "status_settings": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "color:text:NOT NULL:'#4CAF50'::text",
+        "coordinator_id:uuid:NOT NULL:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "sort_order:integer:NOT NULL:0",
+        "status_name:text:NOT NULL:"
+      ],
+      "indexes": [
+        "status_settings_pkey CREATE UNIQUE INDEX status_settings_pkey ON public.status_settings USING btree (id)"
+      ],
+      "policies": [
+        "status_settings_manage | ALL | {public} | using=is_core_admin() | check=is_core_admin()",
+        "status_settings_read | SELECT | {public} | using=is_active_member() | check="
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "status_settings_coordinator_id_fkey FOREIGN KEY (coordinator_id) REFERENCES profiles(id) ON DELETE CASCADE",
+        "status_settings_pkey PRIMARY KEY (id)",
+        "status_settings_status_name_check CHECK ((char_length(status_name) >= 1))"
+      ],
+      "maintain_acl": 0
+    },
+    "weekly_messages": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "author_name:character varying(255):NOT NULL:",
+        "body:text:NOT NULL:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "created_by:uuid:NOT NULL:",
+        "drive_link:character varying(2048):null:",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "is_recurring:boolean:NOT NULL:false",
+        "recurrence_type:character varying(20):NOT NULL:'none'::character varying",
+        "recurrence_weeks:integer:NOT NULL:1",
+        "scope:character varying(20):NOT NULL:'org'::character varying",
+        "title:character varying(255):NOT NULL:",
+        "updated_at:timestamp with time zone:NOT NULL:now()",
+        "week_end:date:NOT NULL:",
+        "week_start:date:NOT NULL:"
+      ],
+      "indexes": [
+        "idx_weekly_messages_creator CREATE INDEX idx_weekly_messages_creator ON public.weekly_messages USING btree (created_by)",
+        "idx_weekly_messages_scope CREATE INDEX idx_weekly_messages_scope ON public.weekly_messages USING btree (scope)",
+        "idx_weekly_messages_week CREATE INDEX idx_weekly_messages_week ON public.weekly_messages USING btree (week_start, week_end)",
+        "weekly_messages_pkey CREATE UNIQUE INDEX weekly_messages_pkey ON public.weekly_messages USING btree (id)"
+      ],
+      "policies": [
+        "weekly_messages_delete | DELETE | {public} | using=((auth.uid() = created_by) OR is_admin_or_coordinator()) | check=",
+        "weekly_messages_insert | INSERT | {public} | using= | check=((auth.uid() = created_by) AND (((scope)::text = 'personal'::text) OR is_admin_or_coordinator()))",
+        "weekly_messages_read | SELECT | {public} | using=(((scope)::text = 'org'::text) OR (auth.uid() = created_by)) | check=",
+        "weekly_messages_update | UPDATE | {public} | using=((auth.uid() = created_by) OR is_admin_or_coordinator()) | check=((auth.uid() = created_by) OR is_admin_or_coordinator())"
+      ],
+      "triggers": [
+        "CREATE TRIGGER weekly_messages_updated_at BEFORE UPDATE ON public.weekly_messages FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      ],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "weekly_messages_created_by_fkey FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE CASCADE",
+        "weekly_messages_pkey PRIMARY KEY (id)",
+        "weekly_messages_recurrence_type_check CHECK (((recurrence_type)::text = ANY ((ARRAY['none'::character varying, 'weekly'::character varying, 'biweekly'::character varying])::text[])))",
+        "weekly_messages_scope_check CHECK (((scope)::text = ANY ((ARRAY['org'::character varying, 'personal'::character varying])::text[])))"
+      ],
+      "maintain_acl": 0
+    },
+    "zoom_attendance": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "duration_minutes:integer:NOT NULL:0",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "join_time:timestamp with time zone:NOT NULL:",
+        "leave_time:timestamp with time zone:NOT NULL:",
+        "meeting_id:uuid:NOT NULL:",
+        "member_id:uuid:null:",
+        "participant_email:character varying(320):NOT NULL:''::character varying",
+        "participant_name:character varying(200):NOT NULL:",
+        "synced_from_zoom:boolean:NOT NULL:true",
+        "zoom_participant_id:character varying(100):NOT NULL:"
+      ],
+      "indexes": [
+        "idx_zoom_attendance_meeting CREATE INDEX idx_zoom_attendance_meeting ON public.zoom_attendance USING btree (meeting_id)",
+        "idx_zoom_attendance_member CREATE INDEX idx_zoom_attendance_member ON public.zoom_attendance USING btree (member_id)",
+        "zoom_attendance_pkey CREATE UNIQUE INDEX zoom_attendance_pkey ON public.zoom_attendance USING btree (id)"
+      ],
+      "policies": [
+        "zoom_attendance_read_scoped | SELECT | {public} | using=(is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM meetings m\n  WHERE ((m.id = zoom_attendance.meeting_id) AND ((m.created_by = auth.uid()) OR is_cell_leader_of(m.cell_id)))))) | check="
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "SELECT"
+      },
+      "constraints": [
+        "zoom_attendance_meeting_id_fkey FOREIGN KEY (meeting_id) REFERENCES meetings(id) ON DELETE CASCADE",
+        "zoom_attendance_member_id_fkey FOREIGN KEY (member_id) REFERENCES profiles(id) ON DELETE SET NULL",
+        "zoom_attendance_pkey PRIMARY KEY (id)"
+      ],
+      "maintain_acl": 0
+    },
+    "devotional_views": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "day_of_month:integer:NOT NULL:",
+        "devotional_id:uuid:NOT NULL:",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "member_id:uuid:NOT NULL:",
+        "viewed_at:timestamp with time zone:NOT NULL:now()",
+        "viewed_date:date:NOT NULL:"
+      ],
+      "indexes": [
+        "devotional_views_member_id_devotional_id_day_of_month_viewe_key CREATE UNIQUE INDEX devotional_views_member_id_devotional_id_day_of_month_viewe_key ON public.devotional_views USING btree (member_id, devotional_id, day_of_month, viewed_date)",
+        "devotional_views_pkey CREATE UNIQUE INDEX devotional_views_pkey ON public.devotional_views USING btree (id)",
+        "devotional_views_viewed_date_devotional_idx CREATE INDEX devotional_views_viewed_date_devotional_idx ON public.devotional_views USING btree (viewed_date, devotional_id)",
+        "idx_devotional_views_devotional_id CREATE INDEX idx_devotional_views_devotional_id ON public.devotional_views USING btree (devotional_id, day_of_month)",
+        "idx_devotional_views_member_id CREATE INDEX idx_devotional_views_member_id ON public.devotional_views USING btree (member_id, viewed_date DESC)"
+      ],
+      "policies": [
+        "views_admin_read | SELECT | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['coordinator'::text, 'admin'::text]))))) | check=",
+        "views_own | ALL | {public} | using=(auth.uid() = member_id) | check="
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "devotional_views_day_of_month_check CHECK (((day_of_month >= 1) AND (day_of_month <= 31)))",
+        "devotional_views_devotional_id_fkey FOREIGN KEY (devotional_id) REFERENCES monthly_devotionals(id) ON DELETE CASCADE",
+        "devotional_views_member_id_devotional_id_day_of_month_viewe_key UNIQUE (member_id, devotional_id, day_of_month, viewed_date)",
+        "devotional_views_member_id_fkey FOREIGN KEY (member_id) REFERENCES profiles(id) ON DELETE CASCADE",
+        "devotional_views_pkey PRIMARY KEY (id)"
+      ],
+      "maintain_acl": 0
+    },
+    "scheduled_emails": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "html_content:text:NOT NULL:",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "member_id:uuid:null:",
+        "recipient_email:character varying(320):NOT NULL:",
+        "scheduled_for:timestamp with time zone:NOT NULL:",
+        "sent:boolean:NOT NULL:false",
+        "sent_at:timestamp with time zone:null:",
+        "subject:character varying(998):NOT NULL:",
+        "template_type:text:NOT NULL:'generic'::text"
+      ],
+      "indexes": [
+        "idx_scheduled_emails_member_id CREATE INDEX idx_scheduled_emails_member_id ON public.scheduled_emails USING btree (member_id) WHERE (member_id IS NOT NULL)",
+        "idx_scheduled_emails_pending CREATE INDEX idx_scheduled_emails_pending ON public.scheduled_emails USING btree (scheduled_for) WHERE (sent = false)",
+        "scheduled_emails_pkey CREATE UNIQUE INDEX scheduled_emails_pkey ON public.scheduled_emails USING btree (id)"
+      ],
+      "policies": [],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": ""
+      },
+      "constraints": [
+        "scheduled_emails_member_id_fkey FOREIGN KEY (member_id) REFERENCES profiles(id) ON DELETE SET NULL",
+        "scheduled_emails_pkey PRIMARY KEY (id)"
+      ],
+      "maintain_acl": 0
+    },
+    "contact_audit_log": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "action:text:NOT NULL:",
+        "change_details:jsonb:NOT NULL:'{}'::jsonb",
+        "changed_by:uuid:NOT NULL:",
+        "contact_id:uuid:null:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "reason:text:null:"
+      ],
+      "indexes": [
+        "contact_audit_log_contact_idx CREATE INDEX contact_audit_log_contact_idx ON public.contact_audit_log USING btree (contact_id)",
+        "contact_audit_log_pkey CREATE UNIQUE INDEX contact_audit_log_pkey ON public.contact_audit_log USING btree (id)"
+      ],
+      "policies": [
+        "contact_audit_log_insert_admin | INSERT | {public} | using= | check=(is_admin_or_coordinator() AND (changed_by = auth.uid()))",
+        "contact_audit_log_read_admin | SELECT | {public} | using=is_admin_or_coordinator() | check="
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "INSERT,SELECT"
+      },
+      "constraints": [
+        "contact_audit_log_changed_by_fkey FOREIGN KEY (changed_by) REFERENCES profiles(id) ON DELETE RESTRICT",
+        "contact_audit_log_contact_id_fkey FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE SET NULL",
+        "contact_audit_log_pkey PRIMARY KEY (id)"
+      ],
+      "maintain_acl": 0
+    },
+    "email_preferences": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "admin_announcements:boolean:NOT NULL:true",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "devotional_reminders:boolean:NOT NULL:true",
+        "habit_milestones:boolean:NOT NULL:true",
+        "meeting_reminders_1hr:boolean:NOT NULL:true",
+        "meeting_reminders_8am:boolean:NOT NULL:true",
+        "message_notifications:boolean:NOT NULL:true",
+        "opt_out_all:boolean:NOT NULL:false",
+        "testimony_approved:boolean:NOT NULL:true",
+        "updated_at:timestamp with time zone:NOT NULL:now()",
+        "user_id:uuid:NOT NULL:",
+        "weekly_digest:boolean:NOT NULL:false"
+      ],
+      "indexes": [
+        "email_preferences_pkey CREATE UNIQUE INDEX email_preferences_pkey ON public.email_preferences USING btree (user_id)"
+      ],
+      "policies": [
+        "email_preferences_insert_own | INSERT | {public} | using= | check=(user_id = auth.uid())",
+        "email_preferences_select_own | SELECT | {public} | using=(user_id = auth.uid()) | check=",
+        "email_preferences_update_own | UPDATE | {public} | using=(user_id = auth.uid()) | check=(user_id = auth.uid())"
+      ],
+      "triggers": [
+        "CREATE TRIGGER email_preferences_updated_at BEFORE UPDATE ON public.email_preferences FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      ],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "email_preferences_pkey PRIMARY KEY (user_id)",
+        "email_preferences_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE"
+      ],
+      "maintain_acl": 0
+    },
+    "attendance_imports": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "provider:text:NOT NULL:'cmp'::text",
+        "source_event_id:text:null:",
+        "source_payload:jsonb:NOT NULL:'{}'::jsonb",
+        "synced_at:timestamp with time zone:NOT NULL:now()",
+        "synced_by:uuid:null:"
+      ],
+      "indexes": [
+        "attendance_imports_pkey CREATE UNIQUE INDEX attendance_imports_pkey ON public.attendance_imports USING btree (id)"
+      ],
+      "policies": [
+        "attendance_imports_admin | ALL | {public} | using=is_core_admin() | check=is_core_admin()"
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "attendance_imports_pkey PRIMARY KEY (id)",
+        "attendance_imports_synced_by_fkey FOREIGN KEY (synced_by) REFERENCES profiles(id) ON DELETE SET NULL"
+      ],
+      "maintain_acl": 0
+    },
+    "contact_follow_ups": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "assigned_by:uuid:NOT NULL:",
+        "assigned_on:timestamp with time zone:NOT NULL:now()",
+        "assigned_to:uuid:NOT NULL:",
+        "completed_on:timestamp with time zone:null:",
+        "contact_id:uuid:NOT NULL:",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "notes:text:null:",
+        "status:text:NOT NULL:'active'::text",
+        "updated_at:timestamp with time zone:NOT NULL:now()"
+      ],
+      "indexes": [
+        "contact_follow_ups_assignee_idx CREATE INDEX contact_follow_ups_assignee_idx ON public.contact_follow_ups USING btree (assigned_to)",
+        "contact_follow_ups_contact_idx CREATE INDEX contact_follow_ups_contact_idx ON public.contact_follow_ups USING btree (contact_id)",
+        "contact_follow_ups_pkey CREATE UNIQUE INDEX contact_follow_ups_pkey ON public.contact_follow_ups USING btree (id)"
+      ],
+      "policies": [
+        "contact_follow_ups_insert_scoped | INSERT | {public} | using= | check=(is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_follow_ups.contact_id) AND is_cell_leader_of(c.cell_id)))))",
+        "contact_follow_ups_read | SELECT | {public} | using=(is_core_admin() OR (assigned_to = auth.uid()) OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_follow_ups.contact_id) AND (is_cell_leader_of(c.cell_id) OR (c.logged_by = auth.uid())))))) | check=",
+        "contact_follow_ups_update_scoped | UPDATE | {public} | using=(is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_follow_ups.contact_id) AND is_cell_leader_of(c.cell_id))))) | check=(is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_follow_ups.contact_id) AND is_cell_leader_of(c.cell_id)))))"
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "contact_follow_ups_assigned_by_fkey FOREIGN KEY (assigned_by) REFERENCES profiles(id) ON DELETE RESTRICT",
+        "contact_follow_ups_assigned_to_fkey FOREIGN KEY (assigned_to) REFERENCES profiles(id) ON DELETE RESTRICT",
+        "contact_follow_ups_contact_id_fkey FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE",
+        "contact_follow_ups_pkey PRIMARY KEY (id)",
+        "contact_follow_ups_status_check CHECK ((status = ANY (ARRAY['active'::text, 'completed'::text, 'reassigned'::text])))"
+      ],
+      "maintain_acl": 0
+    },
+    "push_subscriptions": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "auth:text:NOT NULL:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "endpoint:text:NOT NULL:",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "is_active:boolean:NOT NULL:true",
+        "last_used:timestamp with time zone:null:",
+        "p256dh:text:NOT NULL:",
+        "subscribed_at:timestamp with time zone:NOT NULL:now()",
+        "user_agent:text:null:",
+        "user_id:uuid:NOT NULL:"
+      ],
+      "indexes": [
+        "idx_push_subs_user CREATE INDEX idx_push_subs_user ON public.push_subscriptions USING btree (user_id, is_active)",
+        "push_subscriptions_endpoint_key CREATE UNIQUE INDEX push_subscriptions_endpoint_key ON public.push_subscriptions USING btree (endpoint)",
+        "push_subscriptions_pkey CREATE UNIQUE INDEX push_subscriptions_pkey ON public.push_subscriptions USING btree (id)"
+      ],
+      "policies": [
+        "push_subscriptions_delete_own | DELETE | {public} | using=(user_id = auth.uid()) | check=",
+        "push_subscriptions_insert_own | INSERT | {public} | using= | check=(user_id = auth.uid())",
+        "push_subscriptions_select_own | SELECT | {public} | using=(user_id = auth.uid()) | check=",
+        "push_subscriptions_update_own | UPDATE | {public} | using=(user_id = auth.uid()) | check=(user_id = auth.uid())"
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "push_subscriptions_endpoint_key UNIQUE (endpoint)",
+        "push_subscriptions_pkey PRIMARY KEY (id)",
+        "push_subscriptions_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE"
+      ],
+      "maintain_acl": 0
+    },
+    "testimony_comments": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "author_id:uuid:NOT NULL:",
+        "author_name:text:NOT NULL:",
+        "body:text:NOT NULL:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "testimony_id:uuid:NOT NULL:",
+        "updated_at:timestamp with time zone:NOT NULL:now()"
+      ],
+      "indexes": [
+        "testimony_comments_pkey CREATE UNIQUE INDEX testimony_comments_pkey ON public.testimony_comments USING btree (id)"
+      ],
+      "policies": [
+        "comments_delete | DELETE | {public} | using=(author_id = auth.uid()) | check=",
+        "comments_insert | INSERT | {public} | using= | check=(author_id = auth.uid())",
+        "comments_select | SELECT | {public} | using=is_active_member() | check="
+      ],
+      "triggers": [
+        "CREATE TRIGGER testimony_comments_updated_at BEFORE UPDATE ON public.testimony_comments FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      ],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT"
+      },
+      "constraints": [
+        "testimony_comments_author_id_fkey FOREIGN KEY (author_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+        "testimony_comments_body_check CHECK (((char_length(body) >= 1) AND (char_length(body) <= 1000)))",
+        "testimony_comments_pkey PRIMARY KEY (id)",
+        "testimony_comments_testimony_id_fkey FOREIGN KEY (testimony_id) REFERENCES testimonies(id) ON DELETE CASCADE"
+      ],
+      "maintain_acl": 0
+    },
+    "drive_link_metadata": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "embed_url:text:null:",
+        "file_id:text:null:",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "owner_id:uuid:null:",
+        "permission_status:text:NOT NULL:'unchecked'::text",
+        "resource_type:text:NOT NULL:'unknown'::text",
+        "source_id:uuid:null:",
+        "source_table:text:null:",
+        "thumbnail_url:text:null:",
+        "title:text:NOT NULL:",
+        "updated_at:timestamp with time zone:NOT NULL:now()",
+        "url:text:NOT NULL:"
+      ],
+      "indexes": [
+        "drive_link_metadata_pkey CREATE UNIQUE INDEX drive_link_metadata_pkey ON public.drive_link_metadata USING btree (id)"
+      ],
+      "policies": [
+        "drive_links_manage | ALL | {public} | using=((owner_id = auth.uid()) OR is_core_admin()) | check=((owner_id = auth.uid()) OR is_core_admin())",
+        "drive_links_read | SELECT | {public} | using=is_active_member() | check="
+      ],
+      "triggers": [
+        "CREATE TRIGGER drive_link_metadata_updated_at BEFORE UPDATE ON public.drive_link_metadata FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      ],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "drive_link_metadata_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES profiles(id) ON DELETE SET NULL",
+        "drive_link_metadata_permission_status_check CHECK ((permission_status = ANY (ARRAY['unchecked'::text, 'accessible'::text, 'restricted'::text, 'deleted'::text])))",
+        "drive_link_metadata_pkey PRIMARY KEY (id)",
+        "drive_link_metadata_resource_type_check CHECK ((resource_type = ANY (ARRAY['doc'::text, 'sheet'::text, 'pdf'::text, 'presentation'::text, 'image'::text, 'folder'::text, 'unknown'::text])))"
+      ],
+      "maintain_acl": 0
+    },
+    "meeting_attendances": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "attended:boolean:null:",
+        "confirmed_at:timestamp with time zone:NOT NULL:now()",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "meeting_id:uuid:NOT NULL:",
+        "user_id:uuid:NOT NULL:",
+        "user_name:text:NOT NULL:"
+      ],
+      "indexes": [
+        "meeting_attendances_meeting_id_user_id_key CREATE UNIQUE INDEX meeting_attendances_meeting_id_user_id_key ON public.meeting_attendances USING btree (meeting_id, user_id)",
+        "meeting_attendances_pkey CREATE UNIQUE INDEX meeting_attendances_pkey ON public.meeting_attendances USING btree (id)"
+      ],
+      "policies": [
+        "meeting_attendances_delete_own_or_manager | DELETE | {authenticated} | using=(is_active_member() AND ((user_id = auth.uid()) OR has_admin_permission('attendance.view_all'::text) OR (EXISTS ( SELECT 1\n   FROM meetings m\n  WHERE ((m.id = meeting_attendances.meeting_id) AND ((m.created_by = auth.uid()) OR is_cell_leader_of(m.cell_id))))))) | check=",
+        "meeting_attendances_insert_own_visible | INSERT | {authenticated} | using= | check=(is_active_member() AND (EXISTS ( SELECT 1\n   FROM meetings m\n  WHERE ((m.id = meeting_attendances.meeting_id) AND ((meeting_attendances.user_id = auth.uid()) OR (is_active_profile(meeting_attendances.user_id) AND (is_admin_or_coordinator() OR (m.created_by = auth.uid()) OR is_cell_leader_of(m.cell_id))))))))",
+        "meeting_attendances_select_scoped | SELECT | {authenticated} | using=(is_active_member() AND ((user_id = auth.uid()) OR has_admin_permission('attendance.view_all'::text) OR (EXISTS ( SELECT 1\n   FROM meetings m\n  WHERE ((m.id = meeting_attendances.meeting_id) AND ((m.created_by = auth.uid()) OR is_cell_leader_of(m.cell_id))))))) | check=",
+        "meeting_attendances_update_manager | UPDATE | {authenticated} | using=(is_active_member() AND (has_admin_permission('attendance.view_all'::text) OR (EXISTS ( SELECT 1\n   FROM meetings m\n  WHERE ((m.id = meeting_attendances.meeting_id) AND ((m.created_by = auth.uid()) OR is_cell_leader_of(m.cell_id))))))) | check=(is_active_member() AND (has_admin_permission('attendance.view_all'::text) OR (EXISTS ( SELECT 1\n   FROM meetings m\n  WHERE ((m.id = meeting_attendances.meeting_id) AND ((m.created_by = auth.uid()) OR is_cell_leader_of(m.cell_id)))))))"
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "meeting_attendances_meeting_id_fkey FOREIGN KEY (meeting_id) REFERENCES meetings(id) ON DELETE CASCADE",
+        "meeting_attendances_meeting_id_user_id_key UNIQUE (meeting_id, user_id)",
+        "meeting_attendances_pkey PRIMARY KEY (id)",
+        "meeting_attendances_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE"
+      ],
+      "maintain_acl": 0
+    },
+    "monthly_devotionals": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "author:character varying(160):null:",
+        "book_title:character varying(160):NOT NULL:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "created_by:uuid:NOT NULL:",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "month:integer:NOT NULL:",
+        "title:character varying(160):NOT NULL:",
+        "total_days:integer:NOT NULL:",
+        "total_pages:integer:NOT NULL:",
+        "updated_at:timestamp with time zone:NOT NULL:now()",
+        "year:integer:NOT NULL:"
+      ],
+      "indexes": [
+        "idx_monthly_devotionals_month_year CREATE INDEX idx_monthly_devotionals_month_year ON public.monthly_devotionals USING btree (month, year DESC)",
+        "monthly_devotionals_month_year_book_title_key CREATE UNIQUE INDEX monthly_devotionals_month_year_book_title_key ON public.monthly_devotionals USING btree (month, year, book_title)",
+        "monthly_devotionals_pkey CREATE UNIQUE INDEX monthly_devotionals_pkey ON public.monthly_devotionals USING btree (id)"
+      ],
+      "policies": [
+        "devotional_manage | ALL | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['coordinator'::text, 'admin'::text]))))) | check=",
+        "devotional_read | SELECT | {public} | using=is_active_member() | check="
+      ],
+      "triggers": [
+        "CREATE TRIGGER monthly_devotionals_updated_at BEFORE UPDATE ON public.monthly_devotionals FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      ],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "monthly_devotionals_created_by_fkey FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE CASCADE",
+        "monthly_devotionals_month_check CHECK (((month >= 1) AND (month <= 12)))",
+        "monthly_devotionals_month_year_book_title_key UNIQUE (month, year, book_title)",
+        "monthly_devotionals_pkey PRIMARY KEY (id)",
+        "monthly_devotionals_total_days_check CHECK (((total_days >= 28) AND (total_days <= 31)))",
+        "monthly_devotionals_total_pages_check CHECK ((total_pages > 0))",
+        "monthly_devotionals_year_check CHECK (((year >= 2000) AND (year <= 2100)))"
+      ],
+      "maintain_acl": 0
+    },
+    "testimony_reactions": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "reaction_type:text:NOT NULL:",
+        "testimony_id:uuid:NOT NULL:",
+        "user_id:uuid:NOT NULL:"
+      ],
+      "indexes": [
+        "testimony_reactions_pkey CREATE UNIQUE INDEX testimony_reactions_pkey ON public.testimony_reactions USING btree (id)",
+        "testimony_reactions_testimony_id_user_id_reaction_type_key CREATE UNIQUE INDEX testimony_reactions_testimony_id_user_id_reaction_type_key ON public.testimony_reactions USING btree (testimony_id, user_id, reaction_type)"
+      ],
+      "policies": [
+        "reactions_delete | DELETE | {public} | using=(user_id = auth.uid()) | check=",
+        "reactions_insert | INSERT | {public} | using= | check=(user_id = auth.uid())",
+        "reactions_select | SELECT | {public} | using=is_active_member() | check="
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT"
+      },
+      "constraints": [
+        "testimony_reactions_pkey PRIMARY KEY (id)",
+        "testimony_reactions_reaction_type_check CHECK ((reaction_type = ANY (ARRAY['heart'::text, 'fire'::text, 'pray'::text])))",
+        "testimony_reactions_testimony_id_fkey FOREIGN KEY (testimony_id) REFERENCES testimonies(id) ON DELETE CASCADE",
+        "testimony_reactions_testimony_id_user_id_reaction_type_key UNIQUE (testimony_id, user_id, reaction_type)",
+        "testimony_reactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+      ],
+      "maintain_acl": 0
+    },
+    "admin_bootstrap_audit": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "note:text:null:",
+        "performed_at:timestamp with time zone:NOT NULL:now()",
+        "performed_by:text:NOT NULL:",
+        "target_user_id:uuid:null:"
+      ],
+      "indexes": [
+        "admin_bootstrap_audit_pkey CREATE UNIQUE INDEX admin_bootstrap_audit_pkey ON public.admin_bootstrap_audit USING btree (id)"
+      ],
+      "policies": [],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "",
+        "authenticated": ""
+      },
+      "constraints": [
+        "admin_bootstrap_audit_pkey PRIMARY KEY (id)",
+        "admin_bootstrap_audit_target_user_id_fkey FOREIGN KEY (target_user_id) REFERENCES profiles(id) ON DELETE SET NULL"
+      ],
+      "maintain_acl": 0
+    },
+    "push_notification_log": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "body:text:NOT NULL:",
+        "clicked_at:timestamp with time zone:null:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "notification_type:text:NOT NULL:",
+        "response_data:jsonb:null:",
+        "sent_at:timestamp with time zone:NOT NULL:now()",
+        "status:text:NOT NULL:'queued'::text",
+        "title:text:NOT NULL:",
+        "user_id:uuid:NOT NULL:"
+      ],
+      "indexes": [
+        "idx_push_log_type CREATE INDEX idx_push_log_type ON public.push_notification_log USING btree (notification_type, sent_at DESC)",
+        "idx_push_log_user CREATE INDEX idx_push_log_user ON public.push_notification_log USING btree (user_id, sent_at DESC)",
+        "push_notification_log_pkey CREATE UNIQUE INDEX push_notification_log_pkey ON public.push_notification_log USING btree (id)"
+      ],
+      "policies": [
+        "push_notification_log_select_admin | SELECT | {public} | using=is_admin_or_coordinator() | check=",
+        "push_notification_log_select_own | SELECT | {public} | using=(user_id = auth.uid()) | check="
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "SELECT"
+      },
+      "constraints": [
+        "push_notification_log_pkey PRIMARY KEY (id)",
+        "push_notification_log_status_check CHECK ((status = ANY (ARRAY['queued'::text, 'sent'::text, 'failed'::text, 'clicked'::text, 'dismissed'::text])))",
+        "push_notification_log_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE"
+      ],
+      "maintain_acl": 0
+    },
+    "admin_role_assignments": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "assigned_at:timestamp with time zone:NOT NULL:now()",
+        "assigned_by:uuid:NOT NULL:",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "role_id:uuid:NOT NULL:",
+        "user_id:uuid:NOT NULL:"
+      ],
+      "indexes": [
+        "admin_role_assignments_pkey CREATE UNIQUE INDEX admin_role_assignments_pkey ON public.admin_role_assignments USING btree (id)",
+        "admin_role_assignments_role_id_user_id_key CREATE UNIQUE INDEX admin_role_assignments_role_id_user_id_key ON public.admin_role_assignments USING btree (role_id, user_id)",
+        "admin_role_assignments_user_idx CREATE INDEX admin_role_assignments_user_idx ON public.admin_role_assignments USING btree (user_id)"
+      ],
+      "policies": [
+        "admin_role_assignments_manage | ALL | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'coordinator'::text)))) | check=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'coordinator'::text))))",
+        "admin_role_assignments_read_explicit | SELECT | {public} | using=(is_admin_or_coordinator() OR (auth.uid() = user_id)) | check="
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "admin_role_assignments_assigned_by_fkey FOREIGN KEY (assigned_by) REFERENCES profiles(id) ON DELETE RESTRICT",
+        "admin_role_assignments_pkey PRIMARY KEY (id)",
+        "admin_role_assignments_role_id_fkey FOREIGN KEY (role_id) REFERENCES admin_roles(id) ON DELETE CASCADE",
+        "admin_role_assignments_role_id_user_id_key UNIQUE (role_id, user_id)",
+        "admin_role_assignments_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE"
+      ],
+      "maintain_acl": 0
+    },
+    "admin_role_permissions": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "permission_key:text:NOT NULL:",
+        "role_id:uuid:NOT NULL:"
+      ],
+      "indexes": [
+        "admin_role_permissions_pkey CREATE UNIQUE INDEX admin_role_permissions_pkey ON public.admin_role_permissions USING btree (role_id, permission_key)"
+      ],
+      "policies": [
+        "admin_role_permissions_manage | ALL | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'coordinator'::text)))) | check=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'coordinator'::text))))",
+        "admin_role_permissions_read_explicit | SELECT | {public} | using=is_admin_or_coordinator() | check="
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "admin_role_permissions_permission_key_check CHECK ((permission_key = ANY (ARRAY['contacts.view_all'::text, 'contacts.write'::text, 'attendance.view_all'::text, 'testimonies.view_all'::text, 'testimonies.approve'::text, 'reports.generate'::text, 'settings.manage_tags'::text, 'devotionals.manage'::text, 'notifications.send'::text, 'integrations.manage'::text])))",
+        "admin_role_permissions_pkey PRIMARY KEY (role_id, permission_key)",
+        "admin_role_permissions_role_id_fkey FOREIGN KEY (role_id) REFERENCES admin_roles(id) ON DELETE CASCADE"
+      ],
+      "maintain_acl": 0
+    },
+    "devotional_daily_pages": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "day_of_month:integer:NOT NULL:",
+        "devotional_id:uuid:NOT NULL:",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "image_url:character varying(2048):NOT NULL:",
+        "page_range:character varying(32):NOT NULL:",
+        "title:character varying(160):null:"
+      ],
+      "indexes": [
+        "devotional_daily_pages_devotional_id_day_of_month_key CREATE UNIQUE INDEX devotional_daily_pages_devotional_id_day_of_month_key ON public.devotional_daily_pages USING btree (devotional_id, day_of_month)",
+        "devotional_daily_pages_pkey CREATE UNIQUE INDEX devotional_daily_pages_pkey ON public.devotional_daily_pages USING btree (id)",
+        "idx_devotional_daily_pages_devotional_id CREATE INDEX idx_devotional_daily_pages_devotional_id ON public.devotional_daily_pages USING btree (devotional_id, day_of_month)"
+      ],
+      "policies": [
+        "daily_pages_manage | ALL | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['coordinator'::text, 'admin'::text]))))) | check=",
+        "daily_pages_read | SELECT | {public} | using=is_active_member() | check="
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "devotional_daily_pages_day_of_month_check CHECK (((day_of_month >= 1) AND (day_of_month <= 31)))",
+        "devotional_daily_pages_devotional_id_day_of_month_key UNIQUE (devotional_id, day_of_month)",
+        "devotional_daily_pages_devotional_id_fkey FOREIGN KEY (devotional_id) REFERENCES monthly_devotionals(id) ON DELETE CASCADE",
+        "devotional_daily_pages_pkey PRIMARY KEY (id)"
+      ],
+      "maintain_acl": 0
+    },
+    "email_notification_log": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "email:text:NOT NULL:",
+        "error_message:text:null:",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "notification_type:text:NOT NULL:",
+        "provider:text:null:",
+        "provider_message_id:text:null:",
+        "sent_at:timestamp with time zone:null:",
+        "status:text:NOT NULL:'queued'::text",
+        "subject:text:NOT NULL:",
+        "user_id:uuid:null:"
+      ],
+      "indexes": [
+        "email_notification_log_pkey CREATE UNIQUE INDEX email_notification_log_pkey ON public.email_notification_log USING btree (id)"
+      ],
+      "policies": [
+        "email_log_admin_write | INSERT | {public} | using= | check=is_core_admin()",
+        "email_log_read | SELECT | {public} | using=(is_core_admin() OR (user_id = auth.uid())) | check="
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "INSERT,SELECT"
+      },
+      "constraints": [
+        "email_notification_log_pkey PRIMARY KEY (id)",
+        "email_notification_log_status_check CHECK ((status = ANY (ARRAY['queued'::text, 'sent'::text, 'failed'::text, 'opened'::text, 'clicked'::text])))",
+        "email_notification_log_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE SET NULL"
+      ],
+      "maintain_acl": 0
+    },
+    "membership_transitions": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "from_type:text:null:",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "notes:text:null:",
+        "performed_by:uuid:null:",
+        "person_id:uuid:NOT NULL:",
+        "to_type:text:NOT NULL:",
+        "transitioned_at:timestamp with time zone:NOT NULL:now()"
+      ],
+      "indexes": [
+        "membership_transitions_person_idx CREATE INDEX membership_transitions_person_idx ON public.membership_transitions USING btree (person_id)",
+        "membership_transitions_pkey CREATE UNIQUE INDEX membership_transitions_pkey ON public.membership_transitions USING btree (id)"
+      ],
+      "policies": [
+        "membership_transitions_insert | INSERT | {public} | using= | check=is_active_member()",
+        "membership_transitions_read | SELECT | {public} | using=is_core_admin() | check="
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "INSERT,SELECT"
+      },
+      "constraints": [
+        "membership_transitions_performed_by_fkey FOREIGN KEY (performed_by) REFERENCES profiles(id) ON DELETE SET NULL",
+        "membership_transitions_person_id_fkey FOREIGN KEY (person_id) REFERENCES people(id) ON DELETE RESTRICT",
+        "membership_transitions_pkey PRIMARY KEY (id)"
+      ],
+      "maintain_acl": 0
+    },
+    "confession_declarations": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "confession_id:uuid:NOT NULL:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "user_id:uuid:NOT NULL:"
+      ],
+      "indexes": [
+        "confession_declarations_pkey CREATE UNIQUE INDEX confession_declarations_pkey ON public.confession_declarations USING btree (confession_id, user_id)"
+      ],
+      "policies": [
+        "confession_declarations_delete_own | DELETE | {public} | using=((auth.uid() = user_id) AND is_active_member()) | check=",
+        "confession_declarations_read | SELECT | {public} | using=is_active_member() | check=",
+        "confession_declarations_read_own | SELECT | {public} | using=(auth.uid() = user_id) | check=",
+        "confession_declarations_update_own | UPDATE | {public} | using=((auth.uid() = user_id) AND is_active_member()) | check=((auth.uid() = user_id) AND is_active_member())",
+        "confession_declarations_write_own | INSERT | {public} | using= | check=((auth.uid() = user_id) AND is_active_member())"
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "confession_declarations_confession_id_fkey FOREIGN KEY (confession_id) REFERENCES confessions(id) ON DELETE CASCADE",
+        "confession_declarations_pkey PRIMARY KEY (confession_id, user_id)",
+        "confession_declarations_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE"
+      ],
+      "maintain_acl": 0
+    },
+    "staff_profile_edit_audit": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "changed_at:timestamp with time zone:NOT NULL:now()",
+        "changed_by:uuid:null:",
+        "changed_fields:text[]:NOT NULL:",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "redacted_changes:jsonb:NOT NULL:'{}'::jsonb",
+        "source_table:text:NOT NULL:",
+        "target_user_id:uuid:NOT NULL:"
+      ],
+      "indexes": [
+        "staff_profile_edit_audit_actor_idx CREATE INDEX staff_profile_edit_audit_actor_idx ON public.staff_profile_edit_audit USING btree (changed_by, changed_at DESC)",
+        "staff_profile_edit_audit_pkey CREATE UNIQUE INDEX staff_profile_edit_audit_pkey ON public.staff_profile_edit_audit USING btree (id)",
+        "staff_profile_edit_audit_target_idx CREATE INDEX staff_profile_edit_audit_target_idx ON public.staff_profile_edit_audit USING btree (target_user_id, changed_at DESC)"
+      ],
+      "policies": [
+        "staff_profile_edit_audit_admin_read | SELECT | {authenticated} | using=is_admin_or_coordinator() | check="
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "SELECT"
+      },
+      "constraints": [
+        "staff_profile_edit_audit_changed_by_fkey FOREIGN KEY (changed_by) REFERENCES profiles(id) ON DELETE SET NULL",
+        "staff_profile_edit_audit_pkey PRIMARY KEY (id)",
+        "staff_profile_edit_audit_source_table_check CHECK ((source_table = ANY (ARRAY['profiles'::text, 'user_profiles'::text])))",
+        "staff_profile_edit_audit_target_user_id_fkey FOREIGN KEY (target_user_id) REFERENCES profiles(id) ON DELETE CASCADE"
+      ],
+      "maintain_acl": 0
+    },
+    "attendance_member_matches": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "confidence:numeric(5,4):NOT NULL:0",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "import_id:uuid:null:",
+        "matched_user_id:uuid:null:",
+        "reviewed_at:timestamp with time zone:null:",
+        "reviewed_by:uuid:null:",
+        "source_email:text:null:",
+        "source_name:text:NOT NULL:",
+        "status:text:NOT NULL:'pending'::text"
+      ],
+      "indexes": [
+        "attendance_member_matches_pkey CREATE UNIQUE INDEX attendance_member_matches_pkey ON public.attendance_member_matches USING btree (id)"
+      ],
+      "policies": [
+        "attendance_matches_admin | ALL | {public} | using=is_core_admin() | check=is_core_admin()"
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "attendance_member_matches_import_id_fkey FOREIGN KEY (import_id) REFERENCES attendance_imports(id) ON DELETE CASCADE",
+        "attendance_member_matches_matched_user_id_fkey FOREIGN KEY (matched_user_id) REFERENCES profiles(id) ON DELETE SET NULL",
+        "attendance_member_matches_pkey PRIMARY KEY (id)",
+        "attendance_member_matches_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES profiles(id) ON DELETE SET NULL",
+        "attendance_member_matches_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'matched'::text, 'ignored'::text])))"
+      ],
+      "maintain_acl": 0
+    },
+    "foundation_school_classes": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "class_number:integer:NOT NULL:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "description:text:null:",
+        "duration_hours:integer:null:",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "is_active:boolean:NOT NULL:true",
+        "title:text:NOT NULL:",
+        "updated_at:timestamp with time zone:NOT NULL:now()"
+      ],
+      "indexes": [
+        "foundation_school_classes_class_number_key CREATE UNIQUE INDEX foundation_school_classes_class_number_key ON public.foundation_school_classes USING btree (class_number)",
+        "foundation_school_classes_pkey CREATE UNIQUE INDEX foundation_school_classes_pkey ON public.foundation_school_classes USING btree (id)",
+        "idx_foundation_classes_number CREATE INDEX idx_foundation_classes_number ON public.foundation_school_classes USING btree (class_number)"
+      ],
+      "policies": [
+        "classes_manage | ALL | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['coordinator'::text, 'admin'::text]))))) | check=",
+        "classes_read | SELECT | {public} | using=is_active_member() | check="
+      ],
+      "triggers": [
+        "CREATE TRIGGER foundation_classes_updated_at BEFORE UPDATE ON public.foundation_school_classes FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      ],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "foundation_school_classes_class_number_check CHECK (((class_number >= 1) AND (class_number <= 10)))",
+        "foundation_school_classes_class_number_key UNIQUE (class_number)",
+        "foundation_school_classes_pkey PRIMARY KEY (id)"
+      ],
+      "maintain_acl": 0
+    },
+    "foundation_school_progress": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "class_id:uuid:NOT NULL:",
+        "completed_at:timestamp with time zone:null:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "enrollment_id:uuid:NOT NULL:",
+        "id:uuid:NOT NULL:gen_random_uuid()"
+      ],
+      "indexes": [
+        "foundation_school_progress_enrollment_id_class_id_key CREATE UNIQUE INDEX foundation_school_progress_enrollment_id_class_id_key ON public.foundation_school_progress USING btree (enrollment_id, class_id)",
+        "foundation_school_progress_pkey CREATE UNIQUE INDEX foundation_school_progress_pkey ON public.foundation_school_progress USING btree (id)",
+        "idx_foundation_progress_class CREATE INDEX idx_foundation_progress_class ON public.foundation_school_progress USING btree (class_id)",
+        "idx_foundation_progress_enrollment CREATE INDEX idx_foundation_progress_enrollment ON public.foundation_school_progress USING btree (enrollment_id, completed_at DESC)"
+      ],
+      "policies": [
+        "progress_coordinator | ALL | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['coordinator'::text, 'admin'::text]))))) | check=",
+        "progress_own | SELECT | {public} | using=(EXISTS ( SELECT 1\n   FROM foundation_school_enrollments\n  WHERE ((foundation_school_enrollments.id = foundation_school_progress.enrollment_id) AND (foundation_school_enrollments.student_id = auth.uid())))) | check=",
+        "progress_teacher_read | SELECT | {public} | using=(EXISTS ( SELECT 1\n   FROM foundation_school_enrollments\n  WHERE ((foundation_school_enrollments.id = foundation_school_progress.enrollment_id) AND (foundation_school_enrollments.teacher_id = auth.uid())))) | check="
+      ],
+      "triggers": [],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "foundation_school_progress_class_id_fkey FOREIGN KEY (class_id) REFERENCES foundation_school_classes(id) ON DELETE CASCADE",
+        "foundation_school_progress_enrollment_id_class_id_key UNIQUE (enrollment_id, class_id)",
+        "foundation_school_progress_enrollment_id_fkey FOREIGN KEY (enrollment_id) REFERENCES foundation_school_enrollments(id) ON DELETE CASCADE",
+        "foundation_school_progress_pkey PRIMARY KEY (id)"
+      ],
+      "maintain_acl": 0
+    },
+    "foundation_school_enrollments": {
+      "rls": true,
+      "owner": "postgres",
+      "columns": [
+        "completion_date:date:null:",
+        "created_at:timestamp with time zone:NOT NULL:now()",
+        "enrollment_date:date:NOT NULL:CURRENT_DATE",
+        "id:uuid:NOT NULL:gen_random_uuid()",
+        "is_graduated:boolean:NOT NULL:false",
+        "student_id:uuid:NOT NULL:",
+        "teacher_id:uuid:null:",
+        "updated_at:timestamp with time zone:NOT NULL:now()"
+      ],
+      "indexes": [
+        "foundation_school_enrollments_pkey CREATE UNIQUE INDEX foundation_school_enrollments_pkey ON public.foundation_school_enrollments USING btree (id)",
+        "foundation_school_enrollments_student_id_key CREATE UNIQUE INDEX foundation_school_enrollments_student_id_key ON public.foundation_school_enrollments USING btree (student_id)",
+        "idx_foundation_enrollments_student_id CREATE INDEX idx_foundation_enrollments_student_id ON public.foundation_school_enrollments USING btree (student_id)",
+        "idx_foundation_enrollments_teacher_id CREATE INDEX idx_foundation_enrollments_teacher_id ON public.foundation_school_enrollments USING btree (teacher_id)"
+      ],
+      "policies": [
+        "enrollments_coordinator | ALL | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['coordinator'::text, 'admin'::text]))))) | check=",
+        "enrollments_own | SELECT | {public} | using=(auth.uid() = student_id) | check=",
+        "enrollments_teacher_read | SELECT | {public} | using=(auth.uid() = teacher_id) | check="
+      ],
+      "triggers": [
+        "CREATE TRIGGER foundation_enrollments_updated_at BEFORE UPDATE ON public.foundation_school_enrollments FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      ],
+      "force_rls": false,
+      "privileges": {
+        "anon": "",
+        "service_role": "DELETE,INSERT,SELECT,UPDATE",
+        "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+      },
+      "constraints": [
+        "foundation_school_enrollments_pkey PRIMARY KEY (id)",
+        "foundation_school_enrollments_student_id_fkey FOREIGN KEY (student_id) REFERENCES profiles(id) ON DELETE CASCADE",
+        "foundation_school_enrollments_student_id_key UNIQUE (student_id)",
+        "foundation_school_enrollments_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES profiles(id) ON DELETE SET NULL"
+      ],
+      "maintain_acl": 0
+    }
+  },
+  "functions": {
+    "is_core_admin()": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": false,
+        "authenticated": true
+      },
+      "security": "invoker",
+      "volatility": "s",
+      "definition_md5": "29871e80f63a22ebbeb6f057d58090d6"
+    },
+    "is_coordinator()": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": false,
+        "authenticated": true
+      },
+      "security": "definer",
+      "volatility": "s",
+      "definition_md5": "8bf43f1a7bf579f6d7d615363c837a68"
+    },
+    "set_updated_at()": {
+      "owner": "postgres",
+      "config": "",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": false,
+        "authenticated": false
+      },
+      "security": "invoker",
+      "volatility": "v",
+      "definition_md5": "ecf5ded41df34ed5f01351d7f2eabb7a"
+    },
+    "handle_new_user()": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": false,
+        "authenticated": false
+      },
+      "security": "definer",
+      "volatility": "v",
+      "definition_md5": "1bdfcab1277bd408aaad4125d05d9eb7"
+    },
+    "is_active_member()": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": false,
+        "authenticated": true
+      },
+      "security": "definer",
+      "volatility": "s",
+      "definition_md5": "fed306ee90f5509e1dc6a04fb4cdac6a"
+    },
+    "current_user_role()": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": false,
+        "authenticated": true
+      },
+      "security": "definer",
+      "volatility": "s",
+      "definition_md5": "a4bceb1a38db1df494e7ac16a42340a9"
+    },
+    "is_devotional_admin()": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": false,
+        "authenticated": true
+      },
+      "security": "invoker",
+      "volatility": "s",
+      "definition_md5": "7f7f076ca3c97356023d8b2fdf6673a8"
+    },
+    "is_active_profile(uuid)": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": true,
+        "authenticated": true
+      },
+      "security": "definer",
+      "volatility": "s",
+      "definition_md5": "5e20012318656576f8da34e06331971f"
+    },
+    "is_cell_leader_of(uuid)": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": false,
+        "authenticated": true
+      },
+      "security": "invoker",
+      "volatility": "s",
+      "definition_md5": "8a096ac7db3bb476066e328419ccce40"
+    },
+    "is_admin_or_coordinator()": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": false,
+        "authenticated": true
+      },
+      "security": "definer",
+      "volatility": "s",
+      "definition_md5": "06dfefc614f0d53e4b362f5e6810e101"
+    },
+    "find_person_by_email(text)": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": true,
+        "authenticated": true
+      },
+      "security": "invoker",
+      "volatility": "s",
+      "definition_md5": "ba2b4d22e3b65dd070199f8a98f6d8ae"
+    },
+    "has_admin_permission(text)": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": false,
+        "authenticated": true
+      },
+      "security": "definer",
+      "volatility": "s",
+      "definition_md5": "8c38eb51f053e950beaff9be345d06b5"
+    },
+    "audit_staff_profile_edits()": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": false,
+        "authenticated": false
+      },
+      "security": "definer",
+      "volatility": "v",
+      "definition_md5": "f7fb4ecfc5587b75ac12ac30d13b0ecb"
+    },
+    "reject_pending_member(uuid)": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": false,
+        "authenticated": true
+      },
+      "security": "definer",
+      "volatility": "v",
+      "definition_md5": "de67c7611f24e4853333f6e4a8f5647a"
+    },
+    "track_email_open(uuid,uuid)": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": true,
+        "authenticated": false
+      },
+      "security": "definer",
+      "volatility": "v",
+      "definition_md5": "3136aa336253a5ec00930a5101b750c9"
+    },
+    "approve_pending_member(uuid)": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": false,
+        "authenticated": true
+      },
+      "security": "definer",
+      "volatility": "v",
+      "definition_md5": "6d62dd2dc6795e3b0b3b4a2660a44a63"
+    },
+    "merge_people(uuid,uuid,text)": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": false,
+        "authenticated": true
+      },
+      "security": "definer",
+      "volatility": "v",
+      "definition_md5": "aa01ec89353f70babf8cb70f4b2421de"
+    },
+    "normalize_identity_email(text)": {
+      "owner": "postgres",
+      "config": "",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": true,
+        "authenticated": true
+      },
+      "security": "invoker",
+      "volatility": "i",
+      "definition_md5": "be6be59808bf02cf03e5a2618140a379"
+    },
+    "normalize_identity_phone(text)": {
+      "owner": "postgres",
+      "config": "",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": true,
+        "authenticated": true
+      },
+      "security": "invoker",
+      "volatility": "i",
+      "definition_md5": "d8834b1fceb3fe45b9b3c8ce95fdeea9"
+    },
+    "export_members_authorized(text)": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": false,
+        "authenticated": true
+      },
+      "security": "definer",
+      "volatility": "v",
+      "definition_md5": "1d6ec0fdb1c4d4a5a05cf51495b7c211"
+    },
+    "is_cell_leader_for_profile(uuid)": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": false,
+        "authenticated": true
+      },
+      "security": "definer",
+      "volatility": "s",
+      "definition_md5": "9d95dd084f551fb0773c0c3d4658db23"
+    },
+    "guard_profile_privileged_columns()": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": false,
+        "authenticated": false
+      },
+      "security": "invoker",
+      "volatility": "v",
+      "definition_md5": "61ac7a9d1794c3f2afb8500461f0608e"
+    },
+    "bootstrap_first_administrator(text,text)": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": false,
+        "authenticated": false
+      },
+      "security": "definer",
+      "volatility": "v",
+      "definition_md5": "e50c23cd07562908e7486e505a124dec"
+    },
+    "redacted_profile_changes(jsonb,jsonb,text[])": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": true,
+        "authenticated": true
+      },
+      "security": "invoker",
+      "volatility": "s",
+      "definition_md5": "0cf12397d53fffbacb38a7572c96c8b3"
+    },
+    "profile_edit_changed_fields(jsonb,jsonb,text[])": {
+      "owner": "postgres",
+      "config": "search_path=public, pg_temp",
+      "execute": {
+        "anon": false,
+        "public": false,
+        "service_role": true,
+        "authenticated": true
+      },
+      "security": "invoker",
+      "volatility": "s",
+      "definition_md5": "e9b233196b2ab9ea9d9672f23886e020"
+    }
+  },
+  "extensions": [
+    "pg_net",
+    "pg_stat_statements",
+    "pgcrypto",
+    "plpgsql",
+    "supabase_vault",
+    "uuid-ossp"
+  ],
+  "extra_schemas": [],
+  "storage_buckets": [
+    "devotional-images | public=true | max=10485760 | mime=image/jpeg,image/png,image/webp",
+    "testimony-images | public=true | max=5242880 | mime=image/jpeg,image/png,image/webp",
+    "user-media | public=true | max=5242880 | mime=image/jpeg,image/png,image/webp"
+  ],
+  "storage_policies": [
+    "devotional_images_admin_delete | DELETE | {authenticated} | using=((bucket_id = 'devotional-images'::text) AND is_devotional_admin()) | check=",
+    "devotional_images_admin_insert | INSERT | {authenticated} | using= | check=((bucket_id = 'devotional-images'::text) AND is_devotional_admin())",
+    "devotional_images_admin_update | UPDATE | {authenticated} | using=((bucket_id = 'devotional-images'::text) AND is_devotional_admin()) | check=((bucket_id = 'devotional-images'::text) AND is_devotional_admin())",
+    "devotional_images_read | SELECT | {authenticated} | using=((bucket_id = 'devotional-images'::text) AND is_active_member()) | check=",
+    "testimony_images_owner_insert | INSERT | {authenticated} | using= | check=((bucket_id = 'testimony-images'::text) AND is_active_member() AND ((storage.foldername(name))[1] = (auth.uid())::text))",
+    "testimony_images_owner_or_moderator_delete | DELETE | {authenticated} | using=((bucket_id = 'testimony-images'::text) AND (((storage.foldername(name))[1] = (auth.uid())::text) OR is_admin_or_coordinator())) | check=",
+    "testimony_images_owner_update | UPDATE | {authenticated} | using=((bucket_id = 'testimony-images'::text) AND is_active_member() AND ((storage.foldername(name))[1] = (auth.uid())::text)) | check=((bucket_id = 'testimony-images'::text) AND is_active_member() AND ((storage.foldername(name))[1] = (auth.uid())::text))",
+    "testimony_images_read | SELECT | {authenticated} | using=((bucket_id = 'testimony-images'::text) AND is_active_member()) | check=",
+    "user_media_avatar_delete | DELETE | {authenticated} | using=((bucket_id = 'user-media'::text) AND ((storage.foldername(name))[1] = 'avatars'::text) AND (split_part(storage.filename(name), '.'::text, 1) = (auth.uid())::text)) | check=",
+    "user_media_avatar_insert | INSERT | {authenticated} | using= | check=((bucket_id = 'user-media'::text) AND is_active_member() AND ((storage.foldername(name))[1] = 'avatars'::text) AND (split_part(storage.filename(name), '.'::text, 1) = (auth.uid())::text))",
+    "user_media_avatar_update | UPDATE | {authenticated} | using=((bucket_id = 'user-media'::text) AND is_active_member() AND ((storage.foldername(name))[1] = 'avatars'::text) AND (split_part(storage.filename(name), '.'::text, 1) = (auth.uid())::text)) | check=((bucket_id = 'user-media'::text) AND is_active_member() AND ((storage.foldername(name))[1] = 'avatars'::text) AND (split_part(storage.filename(name), '.'::text, 1) = (auth.uid())::text))",
+    "user_media_read | SELECT | {authenticated} | using=((bucket_id = 'user-media'::text) AND is_active_member()) | check="
+  ],
+  "auth_user_triggers": [
+    "CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_user()"
+  ],
+  "default_privileges": [
+    "postgres | public | S | postgres=SELECT,postgres=UPDATE,postgres=USAGE",
+    "postgres | public | f | postgres=EXECUTE",
+    "postgres | public | r | postgres=DELETE,postgres=INSERT,postgres=MAINTAIN,postgres=REFERENCES,postgres=SELECT,postgres=TRIGGER,postgres=TRUNCATE,postgres=UPDATE",
+    "supabase_admin | public | S | postgres=SELECT,postgres=UPDATE,postgres=USAGE,anon=SELECT,anon=UPDATE,anon=USAGE,authenticated=SELECT,authenticated=UPDATE,authenticated=USAGE,service_role=SELECT,service_role=UPDATE,service_role=USAGE",
+    "supabase_admin | public | f | postgres=EXECUTE,anon=EXECUTE,authenticated=EXECUTE,service_role=EXECUTE",
+    "supabase_admin | public | r | postgres=DELETE,postgres=INSERT,postgres=MAINTAIN,postgres=REFERENCES,postgres=SELECT,postgres=TRIGGER,postgres=TRUNCATE,postgres=UPDATE,anon=DELETE,anon=INSERT,anon=MAINTAIN,anon=REFERENCES,anon=SELECT,anon=TRIGGER,anon=TRUNCATE,anon=UPDATE,authenticated=DELETE,authenticated=INSERT,authenticated=MAINTAIN,authenticated=REFERENCES,authenticated=SELECT,authenticated=TRIGGER,authenticated=TRUNCATE,authenticated=UPDATE,service_role=DELETE,service_role=INSERT,service_role=MAINTAIN,service_role=REFERENCES,service_role=SELECT,service_role=TRIGGER,service_role=TRUNCATE,service_role=UPDATE"
+  ]
+}

@@ -83,7 +83,8 @@ export function usePushNotifications(userId: string | undefined): UsePushNotific
           p256dh: subJson.keys?.p256dh ?? '',
           auth: subJson.keys?.auth ?? '',
           user_agent: navigator.userAgent.slice(0, 200),
-          permission: 'granted',
+          is_active: true,
+          subscribed_at: new Date().toISOString(),
         },
         { onConflict: 'endpoint' }
       );

@@ -2,6 +2,14 @@ import { supabase } from '../supabase';
 import type { AuthUser } from '../auth';
 import type { ActivityItem, EnhancedDashboardStats, Meeting } from '../../types';
 
+export interface AttentionContact {
+  id: string;
+  contact_name: string;
+  date_contacted: string;
+  follow_up_status: string;
+  follow_up_assignee?: string;
+}
+
 function toDate(d: Date): string {
   return d.toISOString().split('T')[0];
 }
@@ -146,6 +154,30 @@ export async function getRecentActivity(
     .slice(0, limit);
 }
 
+export async function getContactsNeedingAttention(
+  role: AuthUser['role'],
+  userId: string,
+  cellId?: string,
+  limit = 6,
+): Promise<AttentionContact[]> {
+  if (role === 'member') return [];
+
+  let query = supabase
+    .from('contacts')
+    .select('id, contact_name, date_contacted, follow_up_status, follow_up_assignee')
+    .eq('archived', false)
+    .in('follow_up_status', ['Will Follow Up', 'Following Up'])
+    .order('date_contacted', { ascending: true })
+    .limit(limit);
+
+  if (role === 'cell_leader' && cellId) {
+    query = query.eq('cell_id', cellId);
+  }
+
+  const { data } = await query;
+  return (data ?? []) as AttentionContact[];
+}
+
 export async function getUpcomingMeetings(
   _userId: string,
   cellId?: string,
@@ -154,7 +186,7 @@ export async function getUpcomingMeetings(
   const today = toDate(new Date());
   let query = supabase
     .from('meetings')
-    .select('*, meeting_attendances(id,user_id)')
+    .select('*')
     .gte('date', today)
     .order('date', { ascending: true })
     .order('time', { ascending: true })
@@ -169,7 +201,5 @@ export async function getUpcomingMeetings(
 
   return (data ?? []).map((row: Record<string, any>) => ({
     ...(row as Meeting),
-    attendance_count: row.meeting_attendances?.length ?? 0,
-    user_confirmed: row.meeting_attendances?.some((a: { user_id: string }) => a.user_id === _userId) ?? false,
   }));
 }

@@ -36,7 +36,7 @@ export const EmailPreferences: React.FC<Props> = () => {
 
   useEffect(() => {
     if (saved) {
-      const { id: _id, member_id: _mid, created_at: _c, updated_at: _u, ...rest } = saved as EmailPreferencesInput & { id: string; member_id: string; created_at: string; updated_at: string };
+      const { user_id: _uid, created_at: _c, updated_at: _u, ...rest } = saved;
       setPrefs(rest);
     }
   }, [saved]);

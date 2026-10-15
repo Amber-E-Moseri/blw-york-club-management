@@ -1,4 +1,5 @@
 import React from 'react';
+import { Flame } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../foundation/Button';
 import type { HabitWithStats } from '../../types';
@@ -39,22 +40,22 @@ export const HabitCard: React.FC<Props> = ({ habit: h, onCheckIn }) => {
   const pct = Math.round(completion_rate_7d * 100);
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4 hover:shadow-sm transition-shadow">
+    <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4 hover:shadow-sm transition-shadow dark:bg-slate-800 dark:border-slate-700">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="text-2xl leading-none" aria-hidden="true">{t.icon}</span>
           <div>
-            <h3 className="text-sm font-bold text-gray-900">{t.name}</h3>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100">{t.name}</h3>
             {t.description && (
               <p className="text-xs text-gray-400 mt-0.5">{t.description}</p>
             )}
           </div>
         </div>
         {streak > 0 && (
-          <div className="flex items-center gap-1 shrink-0 bg-orange-50 border border-orange-200 rounded-full px-2.5 py-1">
-            <span className="text-sm" aria-hidden="true">🔥</span>
-            <span className="text-xs font-bold text-orange-700">{streak}</span>
+          <div className="flex items-center gap-1 shrink-0 bg-orange-50 border border-orange-200 rounded-full px-2.5 py-1 dark:bg-orange-900/20 dark:border-orange-800">
+            <Flame className="w-3.5 h-3.5 text-orange-500" aria-hidden="true" />
+            <span className="text-xs font-bold text-orange-700 dark:text-orange-400">{streak}</span>
           </div>
         )}
       </div>
@@ -106,7 +107,7 @@ export const HabitCard: React.FC<Props> = ({ habit: h, onCheckIn }) => {
       </div>
 
       {/* Today's check-in */}
-      <div className="flex gap-2 pt-1 border-t border-gray-100">
+      <div className="flex gap-2 pt-1 border-t border-gray-100 dark:border-slate-700">
         <Button
           size="small"
           variant={today_status === 'done' ? 'success' : 'secondary'}

@@ -5,15 +5,16 @@ import { MainLayout } from './components/layout/MainLayout';
 import { Dashboard } from './pages/Dashboard';
 import { Events } from './pages/Events';
 import { Members } from './pages/Members';
+import { Cells } from './pages/Cells';
 import { Announcements } from './pages/Announcements';
 import { UserProfile } from './pages/UserProfile';
-import { AdminPanel } from './pages/AdminPanel';
+import { AdminHub } from './pages/AdminHub';
 import { AdminDevotionalReport } from './pages/AdminDevotionalReport';
 import { Login } from './pages/Login';
-import { ContactLogging } from './pages/ContactLogging';
+import { Outreach } from './pages/Outreach';
 import { DailyConfessions } from './pages/DailyConfessions';
 import { TestimonyLog } from './pages/TestimonyLog';
-import { Meetings } from './pages/Meetings';
+import { MeetingsHub } from './pages/MeetingsHub';
 import { DevotionalViewer } from './pages/DevotionalViewer';
 import { AdminDevotionalUpload } from './pages/AdminDevotionalUpload';
 import { AdminTestimonies } from './pages/AdminTestimonies';
@@ -26,6 +27,7 @@ import { EmailPreferences } from './pages/EmailPreferences';
 import { AdminZoomSettings } from './pages/AdminZoomSettings';
 import { AdminDataExport } from './pages/AdminDataExport';
 import { AdminEmailLog } from './pages/AdminEmailLog';
+import { Growth } from './pages/Growth';
 import { PushPermissionPrompt } from './components/feature/PushPermissionPrompt';
 import { usePushNotifications } from './hooks/usePushNotifications';
 import { PendingApproval } from './pages/PendingApproval';
@@ -50,7 +52,7 @@ function AppShell() {
     return <Login onSignIn={signIn} onSignUp={signUp} error={error} loading={loading} />;
   }
 
-  if (user.status === 'pending' || user.status === 'rejected') {
+  if (user.status === 'pending' || user.status === 'rejected' || user.status === 'inactive') {
     return <PendingApproval user={user} onSignOut={signOut} />;
   }
 
@@ -60,11 +62,12 @@ function AppShell() {
         <Route path="/" element={<Dashboard user={user} />} />
         <Route path="/events" element={<Events user={user} />} />
         <Route path="/members" element={<Members user={user} />} />
+        <Route path="/cells" element={<Cells user={user} />} />
         <Route path="/announcements" element={<Announcements user={user} />} />
         <Route path="/devotionals" element={<DevotionalViewer user={user} />} />
         <Route path="/profile" element={<UserProfile currentUser={user} />} />
         <Route path="/email-preferences" element={<EmailPreferences user={user} />} />
-        <Route path="/admin" element={<AdminPanel user={user} />} />
+        <Route path="/admin" element={<AdminHub user={user} />} />
         <Route path="/admin/devotionals" element={<AdminDevotionalUpload user={user} />} />
         <Route path="/admin/testimonies" element={<AdminTestimonies user={user} />} />
         <Route path="/admin/reports" element={<AdminDevotionalReport user={user} />} />
@@ -75,12 +78,13 @@ function AppShell() {
         <Route path="/admin/email-log" element={<AdminEmailLog user={user} />} />
         <Route path="/admin/pending" element={<AdminPendingApprovals user={user} />} />
         <Route path="/books" element={<BookOfMonthPage user={user} />} />
-        <Route path="/contacts" element={<ContactLogging user={user} />} />
+        <Route path="/contacts" element={<Outreach user={user} />} />
         <Route path="/confessions" element={<DailyConfessions user={user} />} />
         <Route path="/testimonies" element={<TestimonyLog user={user} />} />
-        <Route path="/meetings" element={<Meetings user={user} />} />
+        <Route path="/meetings" element={<MeetingsHub user={user} />} />
         <Route path="/messages" element={<WeeklyMessages user={user} />} />
         <Route path="/habits" element={<HabitTracker user={user} />} />
+        <Route path="/growth" element={<Growth user={user} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
@@ -96,7 +100,7 @@ function AppShell() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AppShell />
     </BrowserRouter>
   );

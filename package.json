@@ -6,6 +6,7 @@
     "@supabase/supabase-js": "^2.45.0",
     "date-fns": "^3.6.0",
     "lucide-react": "^1.44.0",
+    "nodemailer": "^10.0.15",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.0",
@@ -13,21 +14,27 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
-    "@types/jest": "^30.0.0",
+    "@types/jest": "^27.5.2",
     "@types/node": "^20.14.0",
+    "@types/nodemailer": "^6.4.17",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
+    "@vercel/node": "^13.0.1",
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.40",
     "react-scripts": "5.0.1",
+    "supabase": "^2.120.0",
     "tailwindcss": "^3.4.7",
-    "typescript": "^4.9.5"
+    "typescript": "^4.9.5",
+    "undici": "5.28.4",
+    "web-push": "^3.6.7"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "test": "react-scripts test --watchAll=false --coverage --collectCoverageFrom=src/components/feature/StatCard.tsx --collectCoverageFrom=src/components/foundation/Badge.tsx --collectCoverageFrom=src/lib/queries.ts --collectCoverageFrom=src/lib/queries/reports.ts",
+    "test": "react-scripts test --watchAll=false --coverage --collectCoverageFrom='src/**/*.{ts,tsx}' --collectCoverageFrom='!src/**/__tests__/**' --collectCoverageFrom='!src/**/*.d.ts' --collectCoverageFrom='!src/index.tsx'",
     "test:watch": "react-scripts test",
+    "typecheck": "tsc --noEmit",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
     "eject": "react-scripts eject"

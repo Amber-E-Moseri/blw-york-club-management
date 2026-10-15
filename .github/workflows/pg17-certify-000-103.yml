@@ -1,0 +1,317 @@
+name: PostgreSQL 17 certification through migration 103 (review only)
+
+# Manual only (workflow_dispatch). Review-only certification of the complete 000-103 frontier at one pinned commit.
+#
+# - Adds a NEW workflow. The 60825c0 workflow (pg17-candidate-fingerprint.yml) and the 000-101 and 000-102 workflows and
+#   scripts are not modified, so those runs stay reproducible.
+# - Checks out one exact commit by full SHA and fails if HEAD differs.
+# - Requires exactly 104 migrations, contiguous 000-103, and the ledger to end at 103 with 104 rows.
+# - Confirms PostgreSQL server major version 17 at run time (server_version_num), not only in config.toml.
+# - Confirms that auth.users has email_change, email_change_token_new and email_confirmed_at on the disposable stack's
+#   real GoTrue schema (the identity-linking suite writes the first and last).
+# - Runs the target-guard, frontier and fingerprint-compare self-tests, then the clone security-equivalence check.
+# - Runs the membership suite (68 checks), the rejected-member privacy suite (28), the read-path suite (22), the corrected
+#   BSC expectations (62) and the migration 103 identity-linking suite (39), all against the clone.
+# - Verification evidence is read from the relocated paths under supabase/verification/evidence/ and the suites under
+#   supabase/verification/, and every required file is checked present before anything runs.
+# - Generates a CANDIDATE fingerprint and runs the schema contract check. It never reads or writes the golden: the golden
+#   blob is compared by hash and must be unchanged. A contract failure fails the run and is uploaded for review.
+# - Uses no secrets, no environment with protection rules, no hosted Supabase project, no Preview deployment, and no
+#   production project. The target guard refuses any project id that is not a disposable f2 id.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # The reviewed certification candidate: fada4a3 on rc/blwyork-000-103-reconcile. It is 440ebd8 (the reconciled migration 103)
+  # plus the test-only integration of the migration 103 identity suite, the frontier self-test and the identity PGlite exit fix.
+  # Supersedes 87bf96d and 93555f3. Change only by a reviewed edit to this file.
+  RELEASE_SHA: fada4a3af3416d9c8943ffa6fb68e377157f9c99
+  # The golden fingerprint blob at the candidate commit. The workflow fails if the golden differs.
+  GOLDEN_BLOB: 6bb7075efc276c2fd99a09361ec5cd76ac12ab73
+  EXPECTED_MIGRATIONS: "104"
+  LAST_MIGRATION: "103"
+  EXPECTED_MEMBERSHIP_CHECKS: "68"
+  EXPECTED_REJECTED_CHECKS: "28"
+  EXPECTED_READPATH_CHECKS: "22"
+  EXPECTED_BSC_CHECKS: "62"
+  EXPECTED_IDENTITY_CHECKS: "39"
+
+jobs:
+  pg17-certify-103:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Check out the pinned candidate commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.RELEASE_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify HEAD and the golden blob
+        run: |
+          set -euo pipefail
+          [ "$(git rev-parse HEAD)" = "$RELEASE_SHA" ] || { echo "FAIL: HEAD is not the pinned candidate" >&2; exit 1; }
+          [ "$(git rev-parse HEAD:supabase/verification/schema_fingerprint.golden.json)" = "$GOLDEN_BLOB" ] \
+            || { echo "FAIL: the golden fingerprint differs from the pinned blob" >&2; exit 1; }
+          echo "PASS: HEAD is $RELEASE_SHA and the golden blob is unchanged"
+
+      - name: Confirm exactly 104 migrations (000-103) and the required files
+        run: |
+          set -euo pipefail
+          fail() { echo "FAIL: $1" >&2; exit 1; }
+          mapfile -t MIG < <(ls supabase/migrations | grep -E '^[0-9]{3}_.*\.sql$' | sort)
+          [ "${#MIG[@]}" -eq "$EXPECTED_MIGRATIONS" ] || fail "expected $EXPECTED_MIGRATIONS migrations, found ${#MIG[@]}"
+          i=0
+          for f in "${MIG[@]}"; do
+            [ $((10#${f%%_*})) -eq "$i" ] || fail "migration numbering has a gap or duplicate at $(printf '%03d' "$i")"
+            i=$((i + 1))
+          done
+          [ "${MIG[-1]%%_*}" = "$LAST_MIGRATION" ] || fail "last migration is ${MIG[-1]}, expected $LAST_MIGRATION"
+          echo "PASS: 104 migrations, contiguous 000-$LAST_MIGRATION"
+          for f in \
+            scripts/f2_target_guard.sh scripts/f2_frontier_lib.sh scripts/f2_clone_db.sh \
+            scripts/f2_fingerprint_compare.js scripts/test_f2_target_guard.sh scripts/test_f2_frontier.sh \
+            scripts/test_f2_fingerprint_compare.js \
+            supabase/verification/run_f2_sql.sh supabase/verification/f2_suite_membership.sql \
+            supabase/verification/check_schema_contract.mjs supabase/verification/schema_fingerprint.sql \
+            supabase/verification/schema_contract.json supabase/config.toml \
+            supabase/verification/rejected_profile_privacy_test.sql \
+            supabase/verification/rejected_profile_readpaths_test.sql \
+            supabase/verification/identity_link_103_suite.sql \
+            supabase/verification/evidence/rejected-member-privacy-102/proposed-test-only/bsc_test.corrected.sql \
+            supabase/migrations/102_rejected_profile_privacy.sql \
+            supabase/migrations/103_identity_link_queue_and_approval_gate.sql; do
+            [ -f "$f" ] || fail "required file is missing: $f"
+          done
+          echo "PASS: required files present (fixtures under supabase/verification/evidence/)"
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies from the lockfile
+        run: npm ci
+
+      - name: Record and verify the exact Supabase CLI version
+        run: |
+          set -euo pipefail
+          LOCKED="$(node -p "require('./package-lock.json').packages['node_modules/supabase'].version")"
+          INSTALLED="$(npx supabase --version | tr -d '[:space:]')"
+          [ "$INSTALLED" = "$LOCKED" ] || { echo "FAIL: installed CLI $INSTALLED differs from locked $LOCKED" >&2; exit 1; }
+          mkdir -p "$RUNNER_TEMP/pg17-103-out"
+          { echo "supabase_cli_version=$INSTALLED"; echo "release_sha=$RELEASE_SHA"; echo "postgres_major_expected=17"; echo "last_migration=$LAST_MIGRATION"; } \
+            > "$RUNNER_TEMP/pg17-103-out/cli-and-release.txt"
+          cat "$RUNNER_TEMP/pg17-103-out/cli-and-release.txt"
+
+      - name: Target guard, frontier and fingerprint self-tests (no Docker, no database)
+        run: |
+          set -euo pipefail
+          bash scripts/test_f2_target_guard.sh
+          bash scripts/test_f2_frontier.sh
+          node scripts/test_f2_fingerprint_compare.js
+
+      - name: Point the local stack at a per-run disposable project on PostgreSQL 17
+        run: |
+          set -euo pipefail
+          ID="f2pg103-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          sed -i -E "s/^project_id = \".*\"/project_id = \"$ID\"/" supabase/config.toml
+          grep -qE '^major_version = 17$' supabase/config.toml || { echo "FAIL: major_version is not 17" >&2; exit 1; }
+          grep -E '^(project_id|major_version)' supabase/config.toml
+          echo "F2_DISPOSABLE_PROJECT_ID=$ID" >> "$GITHUB_ENV"
+
+      - name: Start the disposable local stack
+        run: |
+          # The start output lists the local stack's anon and service keys. Keep it out of the log; show only redacted lines on failure.
+          set +e
+          npx supabase start > "$RUNNER_TEMP/supabase-start.log" 2>&1
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ]; then grep -viE 'key|secret|token|jwt|password' "$RUNNER_TEMP/supabase-start.log" || true; exit "$rc"; fi
+          echo "Disposable local stack started (credentials withheld from the log)"
+
+      - name: Confirm the running server is PostgreSQL 17 and GoTrue has email_change
+        env:
+          F2_DB_ADMIN: supabase_admin
+        run: |
+          set -euo pipefail
+          source scripts/f2_target_guard.sh
+          f2_guard_static "$F2_DISPOSABLE_PROJECT_ID" && f2_guard_config "$F2_DISPOSABLE_PROJECT_ID" \
+            && f2_guard_confirm "$F2_DISPOSABLE_PROJECT_ID" \
+            && f2_guard_container "$F2_DISPOSABLE_PROJECT_ID" "$(docker ps --format "{{.Names}}")" \
+            || { echo "REFUSED by the disposable target guard; no SQL was run" >&2; exit 2; }
+          C="supabase_db_${F2_DISPOSABLE_PROJECT_ID}"
+          major="$(docker exec -i "$C" psql -U supabase_admin -d postgres -X -At -c "show server_version_num" | cut -c1-2)"
+          [ "$major" = "17" ] || { echo "FAIL: server major version is $major, expected 17" >&2; exit 1; }
+          echo "PASS: server major version 17"
+          cols="$(docker exec -i "$C" psql -U supabase_admin -d postgres -X -At -c \
+            "select string_agg(column_name, ',' order by column_name) from information_schema.columns where table_schema='auth' and table_name='users' and column_name in ('email_change','email_change_token_new','email_confirmed_at')")"
+          [ "$cols" = "email_change,email_change_token_new,email_confirmed_at" ] \
+            || { echo "FAIL: auth.users does not carry email_change, email_change_token_new and email_confirmed_at (found: '$cols')" >&2; exit 1; }
+          echo "PASS: auth.users has email_change, email_change_token_new and email_confirmed_at on the real GoTrue schema"
+          mkdir -p "$RUNNER_TEMP/pg17-103-out"
+          docker exec -i "$C" psql -U supabase_admin -d postgres -X -At -c "show server_version" \
+            > "$RUNNER_TEMP/pg17-103-out/server-version.txt"
+          cat "$RUNNER_TEMP/pg17-103-out/server-version.txt"
+
+      - name: Replay 000-103 and verify the ledger (104 rows, last 103)
+        env:
+          F2_DB_ADMIN: supabase_admin
+        run: |
+          set -euo pipefail
+          source scripts/f2_target_guard.sh
+          f2_guard_static "$F2_DISPOSABLE_PROJECT_ID" && f2_guard_config "$F2_DISPOSABLE_PROJECT_ID" \
+            && f2_guard_confirm "$F2_DISPOSABLE_PROJECT_ID" \
+            && f2_guard_container "$F2_DISPOSABLE_PROJECT_ID" "$(docker ps --format "{{.Names}}")" \
+            || { echo "REFUSED by the disposable target guard; no SQL was run" >&2; exit 2; }
+          C="supabase_db_${F2_DISPOSABLE_PROJECT_ID}"
+          npx supabase db reset --local
+          row="$(docker exec -i "$C" psql -U supabase_admin -d postgres -X -At -c \
+            "select count(*), max(version) from supabase_migrations.schema_migrations")"
+          [ "$row" = "$EXPECTED_MIGRATIONS|$LAST_MIGRATION" ] || { echo "FAIL: ledger is $row, expected $EXPECTED_MIGRATIONS|$LAST_MIGRATION" >&2; exit 1; }
+          echo "PASS: ledger $row"
+
+      - name: Clone the replay with the security-equivalence check
+        env:
+          F2_DB_ADMIN: supabase_admin
+        run: |
+          set -euo pipefail
+          source scripts/f2_target_guard.sh
+          f2_guard_static "$F2_DISPOSABLE_PROJECT_ID" && f2_guard_config "$F2_DISPOSABLE_PROJECT_ID" \
+            && f2_guard_confirm "$F2_DISPOSABLE_PROJECT_ID" \
+            && f2_guard_container "$F2_DISPOSABLE_PROJECT_ID" "$(docker ps --format "{{.Names}}")" \
+            || { echo "REFUSED by the disposable target guard; no SQL was run" >&2; exit 2; }
+          C="supabase_db_${F2_DISPOSABLE_PROJECT_ID}"
+          bash scripts/f2_clone_db.sh "$C" postgres f2_integrated103
+          echo "PASS: clone f2_integrated103 matches the source (security fingerprint)"
+
+      - name: Membership SQL suite on the clone (68 checks)
+        run: |
+          set -euo pipefail
+          source scripts/f2_target_guard.sh
+          f2_guard_static "$F2_DISPOSABLE_PROJECT_ID" && f2_guard_config "$F2_DISPOSABLE_PROJECT_ID" \
+            && f2_guard_confirm "$F2_DISPOSABLE_PROJECT_ID" \
+            && f2_guard_container "$F2_DISPOSABLE_PROJECT_ID" "$(docker ps --format "{{.Names}}")" \
+            || { echo "REFUSED by the disposable target guard; no SQL was run" >&2; exit 2; }
+          C="supabase_db_${F2_DISPOSABLE_PROJECT_ID}"
+          out="$RUNNER_TEMP/pg17-103-out/membership-103.log"
+          set +e
+          F2_PSQL_CMD="docker exec -i $C psql -U supabase_admin" F2_ALLOWED_DBS="f2_integrated103" \
+            bash supabase/verification/run_f2_sql.sh f2_integrated103 grants supabase/verification/f2_suite_membership.sql > "$out" 2>&1
+          rc=$?
+          set -e
+          cat "$out"
+          [ "$rc" -eq 0 ] || { echo "FAIL: membership suite exited $rc" >&2; exit 1; }
+          grep -q "F2 SQL VERDICT: $EXPECTED_MEMBERSHIP_CHECKS checks recorded (declared $EXPECTED_MEMBERSHIP_CHECKS), 0 failed" "$out" \
+            || { echo "FAIL: membership verdict is not $EXPECTED_MEMBERSHIP_CHECKS of $EXPECTED_MEMBERSHIP_CHECKS" >&2; exit 1; }
+          echo "PASS: membership suite $EXPECTED_MEMBERSHIP_CHECKS of $EXPECTED_MEMBERSHIP_CHECKS"
+
+      - name: Rejected-member privacy suite on the clone (28 checks)
+        run: |
+          set -euo pipefail
+          source scripts/f2_target_guard.sh
+          f2_guard_static "$F2_DISPOSABLE_PROJECT_ID" && f2_guard_config "$F2_DISPOSABLE_PROJECT_ID" \
+            && f2_guard_confirm "$F2_DISPOSABLE_PROJECT_ID" \
+            && f2_guard_container "$F2_DISPOSABLE_PROJECT_ID" "$(docker ps --format "{{.Names}}")" \
+            || { echo "REFUSED by the disposable target guard; no SQL was run" >&2; exit 2; }
+          C="supabase_db_${F2_DISPOSABLE_PROJECT_ID}"
+          out="$RUNNER_TEMP/pg17-103-out/rejected-privacy-103.log"
+          docker exec -i "$C" psql -U supabase_admin -d f2_integrated103 -X -q -At -v ON_ERROR_STOP=1 \
+            < supabase/verification/rejected_profile_privacy_test.sql > "$out" 2>&1
+          cat "$out"
+          if grep -qE '^(ERROR|psql:)' "$out"; then echo "FAIL: unexpected SQL error in the output" >&2; exit 1; fi
+          tail_line="$(grep -E '^[0-9]+\|[0-9]+$' "$out" | tail -1 || true)"
+          [ "$tail_line" = "$EXPECTED_REJECTED_CHECKS|0" ] || { echo "FAIL: rejected-privacy result is '$tail_line', expected $EXPECTED_REJECTED_CHECKS|0" >&2; exit 1; }
+          echo "PASS: rejected-privacy $EXPECTED_REJECTED_CHECKS of $EXPECTED_REJECTED_CHECKS"
+
+      - name: Read-path suite on the clone (22 checks)
+        run: |
+          set -euo pipefail
+          source scripts/f2_target_guard.sh
+          f2_guard_static "$F2_DISPOSABLE_PROJECT_ID" && f2_guard_config "$F2_DISPOSABLE_PROJECT_ID" \
+            && f2_guard_confirm "$F2_DISPOSABLE_PROJECT_ID" \
+            && f2_guard_container "$F2_DISPOSABLE_PROJECT_ID" "$(docker ps --format "{{.Names}}")" \
+            || { echo "REFUSED by the disposable target guard; no SQL was run" >&2; exit 2; }
+          C="supabase_db_${F2_DISPOSABLE_PROJECT_ID}"
+          out="$RUNNER_TEMP/pg17-103-out/readpaths-103.log"
+          docker exec -i "$C" psql -U supabase_admin -d f2_integrated103 -X -q -At -v ON_ERROR_STOP=1 \
+            < supabase/verification/rejected_profile_readpaths_test.sql > "$out" 2>&1
+          cat "$out"
+          tail_line="$(grep -E '^[0-9]+\|[0-9]+$' "$out" | tail -1 || true)"
+          [ "$tail_line" = "$EXPECTED_READPATH_CHECKS|0" ] || { echo "FAIL: read-path result is '$tail_line', expected $EXPECTED_READPATH_CHECKS|0" >&2; exit 1; }
+          echo "PASS: read-path $EXPECTED_READPATH_CHECKS of $EXPECTED_READPATH_CHECKS"
+
+      - name: Corrected BSC expectations on the clone (62 checks, reviewed test-only file)
+        run: |
+          set -euo pipefail
+          source scripts/f2_target_guard.sh
+          f2_guard_static "$F2_DISPOSABLE_PROJECT_ID" && f2_guard_config "$F2_DISPOSABLE_PROJECT_ID" \
+            && f2_guard_confirm "$F2_DISPOSABLE_PROJECT_ID" \
+            && f2_guard_container "$F2_DISPOSABLE_PROJECT_ID" "$(docker ps --format "{{.Names}}")" \
+            || { echo "REFUSED by the disposable target guard; no SQL was run" >&2; exit 2; }
+          C="supabase_db_${F2_DISPOSABLE_PROJECT_ID}"
+          out="$RUNNER_TEMP/pg17-103-out/bsc-corrected-103.log"
+          docker exec -i "$C" psql -U supabase_admin -d f2_integrated103 -X -q -At -v ON_ERROR_STOP=1 \
+            < supabase/verification/evidence/rejected-member-privacy-102/proposed-test-only/bsc_test.corrected.sql > "$out" 2>&1
+          fails="$(grep -cE '\|f\|' "$out" || true)"
+          passes="$(grep -cE '\|t\|' "$out" || true)"
+          cat "$out" | tail -5
+          if grep -qE '^(ERROR|psql:)' "$out"; then echo "FAIL: unexpected SQL error in the output" >&2; exit 1; fi
+          [ "$passes" = "$EXPECTED_BSC_CHECKS" ] && [ "$fails" = "0" ] \
+            || { echo "FAIL: BSC corrected suite $passes pass, $fails fail" >&2; exit 1; }
+          echo "PASS: BSC corrected suite $passes of $EXPECTED_BSC_CHECKS"
+
+      - name: Migration 103 identity-linking suite on the clone (39 checks)
+        run: |
+          set -euo pipefail
+          source scripts/f2_target_guard.sh
+          f2_guard_static "$F2_DISPOSABLE_PROJECT_ID" && f2_guard_config "$F2_DISPOSABLE_PROJECT_ID" \
+            && f2_guard_confirm "$F2_DISPOSABLE_PROJECT_ID" \
+            && f2_guard_container "$F2_DISPOSABLE_PROJECT_ID" "$(docker ps --format "{{.Names}}")" \
+            || { echo "REFUSED by the disposable target guard; no SQL was run" >&2; exit 2; }
+          C="supabase_db_${F2_DISPOSABLE_PROJECT_ID}"
+          out="$RUNNER_TEMP/pg17-103-out/identity-link-103.log"
+          docker exec -i "$C" psql -U supabase_admin -d f2_integrated103 -X -q -At -v ON_ERROR_STOP=1 \
+            < supabase/verification/identity_link_103_suite.sql > "$out" 2>&1
+          cat "$out"
+          if grep -qE '^(ERROR|psql:)' "$out"; then echo "FAIL: unexpected SQL error in the output" >&2; exit 1; fi
+          tail_line="$(grep -E '^[0-9]+\|[0-9]+$' "$out" | tail -1 || true)"
+          [ "$tail_line" = "$EXPECTED_IDENTITY_CHECKS|0" ] || { echo "FAIL: identity-linking result is '$tail_line', expected $EXPECTED_IDENTITY_CHECKS|0" >&2; exit 1; }
+          echo "PASS: identity-linking $EXPECTED_IDENTITY_CHECKS of $EXPECTED_IDENTITY_CHECKS"
+
+      - name: Candidate fingerprint and schema contract (structure only; no golden)
+        run: |
+          set -euo pipefail
+          source scripts/f2_target_guard.sh
+          f2_guard_static "$F2_DISPOSABLE_PROJECT_ID" && f2_guard_config "$F2_DISPOSABLE_PROJECT_ID" \
+            && f2_guard_confirm "$F2_DISPOSABLE_PROJECT_ID" \
+            && f2_guard_container "$F2_DISPOSABLE_PROJECT_ID" "$(docker ps --format "{{.Names}}")" \
+            || { echo "REFUSED by the disposable target guard; no SQL was run" >&2; exit 2; }
+          C="supabase_db_${F2_DISPOSABLE_PROJECT_ID}"
+          OUT="$RUNNER_TEMP/pg17-103-out"
+          docker exec -i "$C" psql -U supabase_admin -d postgres -X -q -At < supabase/verification/schema_fingerprint.sql \
+            > "$OUT/schema_fingerprint.candidate-103.json"
+          node supabase/verification/check_schema_contract.mjs "$OUT/schema_fingerprint.candidate-103.json" > "$OUT/contract-check-103.txt" 2>&1 \
+            || { cat "$OUT/contract-check-103.txt"; echo "FAIL: schema contract structure checks failed (see the uploaded contract-check-103.txt)" >&2; exit 1; }
+          tail -1 "$OUT/contract-check-103.txt"
+          node -e "JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))" "$OUT/schema_fingerprint.candidate-103.json"
+          echo "PASS: candidate fingerprint written (not the golden)"
+
+      - name: Upload the candidate outputs and logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: pg17-certify-103-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/pg17-103-out/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Stop the local stack
+        if: always()
+        run: npx supabase stop --no-backup

@@ -7,7 +7,7 @@ export async function fetchMeetings(upcoming = true): Promise<Meeting[]> {
 
   let q = supabase
     .from('meetings')
-    .select('*, meeting_attendances(id, user_id)')
+    .select('*')
     .order('date', { ascending: true })
     .order('time', { ascending: true });
 
@@ -16,14 +16,25 @@ export async function fetchMeetings(upcoming = true): Promise<Meeting[]> {
   const { data, error } = await q;
   if (error) throw new Error(error.message);
 
-  return (data ?? []).map((row: Record<string, unknown>) => {
-    const attendances = (row.meeting_attendances as { user_id: string }[]) ?? [];
-    return {
-      ...(row as unknown as Meeting),
-      attendance_count: attendances.length,
-      user_confirmed: attendances.some((a) => a.user_id === userId),
-    };
-  });
+  const meetings = (data ?? []) as Meeting[];
+  if (!userId || meetings.length === 0) return meetings;
+
+  const { data: ownAttendances, error: attendanceError } = await supabase
+    .from('meeting_attendances')
+    .select('meeting_id')
+    .eq('user_id', userId)
+    .in('meeting_id', meetings.map((meeting) => meeting.id));
+
+  if (attendanceError) {
+    console.warn('Unable to load meeting attendance status', attendanceError.message);
+    return meetings.map((meeting) => ({ ...meeting, user_confirmed: false }));
+  }
+
+  const confirmedMeetingIds = new Set((ownAttendances ?? []).map((row) => row.meeting_id as string));
+  return meetings.map((meeting) => ({
+    ...meeting,
+    user_confirmed: confirmedMeetingIds.has(meeting.id),
+  }));
 }
 
 export async function fetchMeeting(id: string): Promise<Meeting | null> {
@@ -33,11 +44,19 @@ export async function fetchMeeting(id: string): Promise<Meeting | null> {
   return data;
 }
 
+function normalizeInput<T extends Partial<MeetingInput>>(input: T): T {
+  const out = { ...input };
+  if ('end_time' in out && !out.end_time) delete out.end_time;
+  if ('location' in out && !out.location) (out as Record<string, unknown>).location = null;
+  if ('zoom_link' in out && !out.zoom_link) (out as Record<string, unknown>).zoom_link = null;
+  return out;
+}
+
 export async function createMeeting(
   input: MeetingInput & { created_by: string }
 ): Promise<Meeting> {
   const { data, error } = await supabase
-    .from('meetings').insert(input).select().single();
+    .from('meetings').insert(normalizeInput(input)).select().single();
   if (error) throw new Error(error.message);
   return data;
 }
@@ -47,7 +66,7 @@ export async function updateMeeting(
   input: Partial<MeetingInput>
 ): Promise<Meeting> {
   const { data, error } = await supabase
-    .from('meetings').update(input).eq('id', id).select().single();
+    .from('meetings').update(normalizeInput(input)).eq('id', id).select().single();
   if (error) throw new Error(error.message);
   return data;
 }
@@ -64,7 +83,10 @@ export async function confirmAttendance(
 ): Promise<void> {
   const { error } = await supabase
     .from('meeting_attendances')
-    .upsert({ meeting_id: meetingId, user_id: userId, user_name: userName });
+    .upsert(
+      { meeting_id: meetingId, user_id: userId, user_name: userName },
+      { onConflict: 'meeting_id,user_id', ignoreDuplicates: true },
+    );
   if (error) throw new Error(error.message);
 }
 

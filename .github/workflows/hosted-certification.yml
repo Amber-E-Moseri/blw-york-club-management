@@ -1,0 +1,118 @@
+name: Hosted certification (Preview, read-only verification)
+
+# Manual only. This workflow never runs on push or pull request. It verifies the identity of the Preview certification
+# project and reads its migration history and data presence, using read-only transactions. It performs no writes, no
+# resets and no migrations. Writes against any hosted project need a separate, reviewed workflow and explicit approval.
+#
+# Secret values are passed through env so GitHub masks them. The job never prints a secret value: identity is checked by
+# comparison, and only PASS or FAIL lines are printed.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-hosted-project:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Explicit so the Preview secrets are the only ones in scope. Production is never declared by this workflow.
+    environment: Preview
+    env:
+      EXPECTED_CERT_PROJECT_ID: yziuhtxtznginhdpqurb
+      PROTECTED_PRODUCTION_PROJECT_ID: rjtstjmtddqhesexltbj
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify project identity (comparison only; no value is printed)
+        env:
+          CERT_SUPABASE_PROJECT_ID: ${{ secrets.CERT_SUPABASE_PROJECT_ID }}
+          CERT_SUPABASE_URL: ${{ secrets.CERT_SUPABASE_URL }}
+        run: |
+          set -euo pipefail
+          fail() { echo "FAIL: $1"; exit 1; }
+          [ -n "${CERT_SUPABASE_PROJECT_ID:-}" ] || fail "CERT_SUPABASE_PROJECT_ID is not set in the Preview environment"
+          [ -n "${CERT_SUPABASE_URL:-}" ] || fail "CERT_SUPABASE_URL is not set in the Preview environment"
+          [ "$CERT_SUPABASE_PROJECT_ID" != "$PROTECTED_PRODUCTION_PROJECT_ID" ] || fail "Preview points at the protected production project"
+          [ "$CERT_SUPABASE_PROJECT_ID" = "$EXPECTED_CERT_PROJECT_ID" ] || fail "project id is not the certification project"
+          URL_REF="$(printf '%s' "$CERT_SUPABASE_URL" | sed -E 's#^https://([^.]+)\.supabase\.co.*#\1#')"
+          [ "$URL_REF" = "$EXPECTED_CERT_PROJECT_ID" ] || fail "CERT_SUPABASE_URL does not name the certification project"
+          echo "PASS: project id and URL both name the certification project (values not printed)"
+
+      # The direct connection (db.<ref>.supabase.co) is IPv6-only and fails on IPv4-only runners. This job uses the Session
+      # Pooler from the certification project's Connect panel instead. Every value comes from the Preview environment and
+      # is validated before any connection. Nothing is printed except PASS or FAIL.
+      - name: Validate Session Pooler configuration (fail closed; no value printed)
+        env:
+          CERT_SUPABASE_PROJECT_ID: ${{ secrets.CERT_SUPABASE_PROJECT_ID }}
+          CERT_SUPABASE_POOLER_HOST: ${{ secrets.CERT_SUPABASE_POOLER_HOST }}
+          CERT_SUPABASE_POOLER_PORT: ${{ secrets.CERT_SUPABASE_POOLER_PORT }}
+          CERT_SUPABASE_POOLER_USER: ${{ secrets.CERT_SUPABASE_POOLER_USER }}
+          CERT_SUPABASE_POOLER_DATABASE: ${{ secrets.CERT_SUPABASE_POOLER_DATABASE }}
+          CERT_SUPABASE_DB_PASSWORD: ${{ secrets.CERT_SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          fail() { echo "FAIL: $1"; exit 1; }
+          for v in CERT_SUPABASE_POOLER_HOST CERT_SUPABASE_POOLER_PORT CERT_SUPABASE_POOLER_USER CERT_SUPABASE_POOLER_DATABASE CERT_SUPABASE_DB_PASSWORD; do
+            [ -n "${!v:-}" ] || fail "$v is not set in the Preview environment"
+          done
+          # The pooler user is postgres.<project ref> on Supabase. It must name the certification project exactly.
+          [ "$CERT_SUPABASE_POOLER_USER" = "postgres.$EXPECTED_CERT_PROJECT_ID" ] || fail "CERT_SUPABASE_POOLER_USER does not name the certification project"
+          # Session Pooler host: aws-<n>-<region>.pooler.supabase.com (IPv4-compatible).
+          printf '%s' "$CERT_SUPABASE_POOLER_HOST" | grep -qE '^aws-[0-9]+-[a-z0-9-]+\.pooler\.supabase\.com$' || fail "CERT_SUPABASE_POOLER_HOST is not a Supabase Session Pooler host"
+          # Session mode is port 5432. Transaction mode (6543) is refused: it does not support the session settings used here.
+          [ "$CERT_SUPABASE_POOLER_PORT" = "5432" ] || fail "CERT_SUPABASE_POOLER_PORT must be the Session Pooler port 5432"
+          [ "$CERT_SUPABASE_POOLER_DATABASE" = "postgres" ] || fail "CERT_SUPABASE_POOLER_DATABASE must be postgres"
+          # Refuse any pooler setting that names the protected production project, and any direct database host.
+          for v in CERT_SUPABASE_POOLER_HOST CERT_SUPABASE_POOLER_USER; do
+            case "${!v}" in *"$PROTECTED_PRODUCTION_PROJECT_ID"*) fail "$v names the protected production project" ;; esac
+          done
+          case "$CERT_SUPABASE_POOLER_HOST" in db.*) fail "CERT_SUPABASE_POOLER_HOST is a direct database host, not the pooler" ;; esac
+          echo "PASS: Session Pooler configuration is valid (values not printed)"
+
+      - name: Read-only migration history and data presence
+        env:
+          CERT_SUPABASE_POOLER_HOST: ${{ secrets.CERT_SUPABASE_POOLER_HOST }}
+          CERT_SUPABASE_POOLER_PORT: ${{ secrets.CERT_SUPABASE_POOLER_PORT }}
+          CERT_SUPABASE_POOLER_USER: ${{ secrets.CERT_SUPABASE_POOLER_USER }}
+          CERT_SUPABASE_POOLER_DATABASE: ${{ secrets.CERT_SUPABASE_POOLER_DATABASE }}
+          CERT_SUPABASE_DB_PASSWORD: ${{ secrets.CERT_SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          [ -n "${CERT_SUPABASE_DB_PASSWORD:-}" ] || { echo "FAIL: CERT_SUPABASE_DB_PASSWORD is not set"; exit 1; }
+          export PGPASSWORD="$CERT_SUPABASE_DB_PASSWORD"
+          conn="host=$CERT_SUPABASE_POOLER_HOST port=$CERT_SUPABASE_POOLER_PORT dbname=$CERT_SUPABASE_POOLER_DATABASE user=$CERT_SUPABASE_POOLER_USER sslmode=require"
+          # Each query runs in its own read-only transaction and returns exactly one aggregate value. No row data is selected.
+          ro() {
+            psql "$conn" -X -q -t -A -v ON_ERROR_STOP=1 <<SQL
+          begin read only;
+          $1
+          commit;
+          SQL
+          }
+          table_exists() { ro "select to_regclass('$1') is not null;"; }
+          rowcount() { ro "select count(*) from $1;"; }
+          # Each result is assigned to a variable before it is used, so a failed query stops the step (set -e). Inside an
+          # echo or a test, a failed command substitution would otherwise pass silently.
+          # Check the ledger before querying it. Its absence is reported, never inferred into a migration state.
+          ledger=$(table_exists supabase_migrations.schema_migrations)
+          if [ "$ledger" = "t" ]; then
+            echo "Ledger: PRESENT"
+            migrations=$(rowcount supabase_migrations.schema_migrations)
+            echo "Migrations recorded: $migrations"
+          else
+            echo "Ledger: ABSENT"
+          fi
+          public_tables=$(ro "select count(*) from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE';")
+          echo "Public tables: $public_tables"
+          for t in auth.users public.profiles public.people; do
+            present=$(table_exists "$t")
+            if [ "$present" = "t" ]; then
+              n=$(rowcount "$t")
+              echo "$t rows: $n"
+            else
+              echo "$t: TABLE ABSENT"
+            fi
+          done
+          echo "PASS: read-only aggregate queries completed (counts only; nothing was written)"

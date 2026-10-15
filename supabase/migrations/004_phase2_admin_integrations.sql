@@ -145,6 +145,7 @@ create policy drive_links_manage on public.drive_link_metadata
 
 create table if not exists public.email_preferences (
   user_id uuid primary key references public.profiles(id) on delete cascade,
+  member_id uuid references public.profiles(id) on delete cascade,
   meeting_reminders boolean not null default true,
   weekly_messages boolean not null default true,
   habit_streaks boolean not null default true,
@@ -153,6 +154,17 @@ create table if not exists public.email_preferences (
   unsubscribed_at timestamptz,
   updated_at timestamptz not null default now()
 );
+
+alter table public.email_preferences
+  add column if not exists member_id uuid references public.profiles(id) on delete cascade;
+
+update public.email_preferences
+set member_id = user_id
+where member_id is null;
+
+create unique index if not exists email_preferences_member_id_bridge_unique
+  on public.email_preferences (member_id)
+  where member_id is not null;
 
 drop trigger if exists email_preferences_updated_at on public.email_preferences;
 create trigger email_preferences_updated_at

@@ -1,0 +1,156 @@
+name: PostgreSQL 17 candidate fingerprint (review only)
+
+# Manual only (workflow_dispatch). Runs the full 000-101 frontier certification on a disposable local Supabase stack
+# (PostgreSQL 17, pinned by supabase/config.toml major_version = 17) and uploads a CANDIDATE schema fingerprint for review.
+#
+# - Checks out one exact, reviewed release commit by full SHA, not a moving branch, and fails if HEAD differs.
+# - Fails closed on a missing migration, a missing certification script, a target-guard failure, a frontier mismatch,
+#   any failed mandatory suite, or a missing or failing artifact.
+# - Reads and writes NO golden fingerprint (scripts/certify-integrated-101.sh never names it; checked below).
+# - Uses no hosted Supabase credentials, no Preview environment and no production access. It declares no secrets.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # The reviewed release commit on fix/non-docker-closure. Change only by a reviewed edit to this file.
+  RELEASE_SHA: 60825c0760705f60f418618b61da6199843720cb
+  EXPECTED_MIGRATIONS: "102"
+  LAST_MIGRATION: "101"
+
+jobs:
+  pg17-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out the pinned release commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify HEAD is the expected release commit
+        run: |
+          set -euo pipefail
+          HEAD_SHA="$(git rev-parse HEAD)"
+          if [ "$HEAD_SHA" != "$RELEASE_SHA" ]; then
+            echo "FAIL: checked out $HEAD_SHA, expected $RELEASE_SHA" >&2
+            exit 1
+          fi
+          echo "PASS: HEAD is $HEAD_SHA"
+
+      - name: Confirm migrations 000-101 and the required certification files exist
+        run: |
+          set -euo pipefail
+          fail() { echo "FAIL: $1" >&2; exit 1; }
+          # Migrations: exactly 102 files, numbered 000..101 with no gaps or duplicates.
+          mapfile -t MIG < <(ls supabase/migrations | grep -E '^[0-9]{3}_.*\.sql$' | sort)
+          [ "${#MIG[@]}" -eq "$EXPECTED_MIGRATIONS" ] || fail "expected $EXPECTED_MIGRATIONS migrations, found ${#MIG[@]}"
+          i=0
+          for f in "${MIG[@]}"; do
+            v=$((10#${f%%_*}))
+            [ "$v" -eq "$i" ] || fail "migration numbering has a gap or duplicate at $(printf '%03d' "$i") (found $f)"
+            i=$((i + 1))
+          done
+          [ "${MIG[-1]%%_*}" = "$LAST_MIGRATION" ] || fail "last migration is ${MIG[-1]}, expected $LAST_MIGRATION"
+          echo "PASS: migrations 000-$LAST_MIGRATION present (${#MIG[@]} files, contiguous)"
+          # Required certification files: fail on any missing one (absence is never a pass).
+          for f in \
+            scripts/certify-integrated-101.sh scripts/f2_target_guard.sh scripts/f2_frontier_lib.sh \
+            scripts/f2_clone_db.sh scripts/test_f2_target_guard.sh scripts/test_f2_frontier.sh \
+            supabase/verification/run_f2_sql.sh supabase/verification/run_f2_concurrency.sh \
+            supabase/verification/f2_harness.sql supabase/verification/f2_fixture.sql \
+            supabase/verification/f2_suite_membership.sql supabase/verification/check_schema_contract.mjs \
+            supabase/verification/schema_fingerprint.sql supabase/verification/schema_contract.json \
+            supabase/config.toml; do
+            [ -f "$f" ] || fail "required file is missing: $f"
+          done
+          echo "PASS: required certification files present"
+          # The integrated certification must not reference the authoritative golden fingerprint.
+          if grep -n 'schema_fingerprint\.golden' scripts/certify-integrated-101.sh; then
+            fail "scripts/certify-integrated-101.sh names the golden fingerprint"
+          fi
+          echo "PASS: the integrated certification does not name the golden fingerprint"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies from the lockfile
+        run: npm ci
+
+      - name: Record and verify the exact Supabase CLI version
+        run: |
+          set -euo pipefail
+          LOCKED="$(node -p "require('./package-lock.json').packages['node_modules/supabase'].version")"
+          INSTALLED="$(npx supabase --version | tr -d '[:space:]')"
+          [ -n "$LOCKED" ] || { echo "FAIL: no locked supabase CLI version" >&2; exit 1; }
+          [ "$INSTALLED" = "$LOCKED" ] || { echo "FAIL: installed CLI $INSTALLED differs from locked $LOCKED" >&2; exit 1; }
+          mkdir -p "$RUNNER_TEMP/pg17-out"
+          { echo "supabase_cli_version=$INSTALLED"; echo "release_sha=$RELEASE_SHA"; echo "postgres_major=17"; } \
+            > "$RUNNER_TEMP/pg17-out/cli-and-release.txt"
+          cat "$RUNNER_TEMP/pg17-out/cli-and-release.txt"
+
+      - name: Target guard self-tests (no Docker, no database)
+        run: |
+          set -euo pipefail
+          bash scripts/test_f2_target_guard.sh
+          bash scripts/test_f2_frontier.sh
+
+      - name: Point the local stack at a per-run disposable project on PostgreSQL 17
+        run: |
+          set -euo pipefail
+          ID="f2pg17cand-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          sed -i -E "s/^project_id = \".*\"/project_id = \"$ID\"/" supabase/config.toml
+          grep -qE '^major_version = 17$' supabase/config.toml || { echo "FAIL: major_version is not 17" >&2; exit 1; }
+          grep -E '^(project_id|major_version)' supabase/config.toml
+          echo "F2_DISPOSABLE_PROJECT_ID=$ID" >> "$GITHUB_ENV"
+
+      - name: Start the disposable local stack
+        run: npx supabase start
+
+      - name: Full 101-frontier certification (replay, frontier, membership suite, candidate fingerprint)
+        env:
+          F2_DB_ADMIN: supabase_admin
+          F2_OUT_DIR: ${{ runner.temp }}/pg17-out
+        run: bash scripts/certify-integrated-101.sh
+
+      - name: Verify the candidate outputs (fail closed)
+        run: |
+          set -euo pipefail
+          fail() { echo "FAIL: $1" >&2; exit 1; }
+          OUT="$RUNNER_TEMP/pg17-out"
+          FP="$OUT/schema_fingerprint.candidate-101.json"
+          CONTRACT="$OUT/contract-check-101.txt"
+          MEMB="$OUT/membership-101.log"
+          for f in "$FP" "$CONTRACT" "$MEMB"; do
+            [ -s "$f" ] || fail "artifact missing or empty: $f"
+          done
+          node -e "JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8'))" "$FP" || fail "candidate fingerprint is not valid JSON"
+          grep -q '^PASS' "$CONTRACT" || fail "contract check printed no PASS line"
+          if grep -q '^FAIL' "$CONTRACT"; then fail "contract check reports a FAIL"; fi
+          grep -q 'F2 SQL VERDICT: 68 checks recorded (declared 68), 0 failed' "$MEMB" \
+            || fail "membership suite verdict is not 68 of 68 with 0 failed"
+          echo "PASS: candidate fingerprint, contract check and membership verdict verified"
+
+      - name: Upload the candidate outputs for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pg17-candidate-fingerprint-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/pg17-out/schema_fingerprint.candidate-101.json
+            ${{ runner.temp }}/pg17-out/contract-check-101.txt
+            ${{ runner.temp }}/pg17-out/membership-101.log
+            ${{ runner.temp }}/pg17-out/cli-and-release.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Stop the local stack
+        if: always()
+        run: npx supabase stop --no-backup

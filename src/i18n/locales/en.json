@@ -18,7 +18,17 @@
     "email_preferences": "Email Preferences",
     "email_log": "Email Log",
     "data_export": "Data Export",
-    "admin_panel": "Admin Panel"
+    "admin_panel": "Admin Panel",
+    "growth": "Growth",
+    "people": "People",
+    "cells": "Cells",
+    "outreach": "Outreach",
+    "approvals": "Approvals",
+    "books": "Books",
+    "reports": "Reports",
+    "roles": "Roles & Access",
+    "communications": "Communications",
+    "admin": "Admin"
   },
   "dashboard": {
     "welcome": "Welcome back, {{name}}!"

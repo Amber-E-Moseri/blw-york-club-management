@@ -1,4 +1,5 @@
 import React from 'react';
+import { Clock, XCircle } from 'lucide-react';
 import { Button } from '../components/foundation/Button';
 import type { AuthUser } from '../lib/auth';
 
@@ -9,6 +10,7 @@ interface Props {
 
 export const PendingApproval: React.FC<Props> = ({ user, onSignOut }) => {
   const rejected = user.status === 'rejected';
+  const inactive = user.status === 'inactive';
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
@@ -24,14 +26,20 @@ export const PendingApproval: React.FC<Props> = ({ user, onSignOut }) => {
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-8 text-center space-y-5">
-          <div className="text-5xl">{rejected ? '❌' : '⏳'}</div>
+          <div className="flex items-center justify-center">
+            {rejected || inactive
+              ? <XCircle className="w-14 h-14 text-red-400" aria-hidden="true" />
+              : <Clock className="w-14 h-14 text-york-400" aria-hidden="true" />}
+          </div>
 
           <div>
             <h2 className="text-xl font-bold text-gray-900 mb-1">
-              {rejected ? 'Access not approved' : 'Account pending approval'}
+              {inactive ? 'Account inactive' : rejected ? 'Access not approved' : 'Account pending approval'}
             </h2>
             <p className="text-sm text-gray-500">
-              {rejected
+              {inactive
+                ? 'Your account is inactive. Please contact a coordinator if you need access restored.'
+                : rejected
                 ? 'Your account request was not approved. Please contact a leader if you think this is a mistake.'
                 : 'A leader will review and approve your account. Check back soon.'}
             </p>

@@ -1,8 +1,9 @@
 import { supabase } from '../supabase';
-import type { PushSubscriptionRecord, PushNotificationLog, PushNotificationType, PushStatus } from '../../types';
+import type { PushSubscriptionRecord, PushNotificationLog, PushNotificationType } from '../../types';
 
+/** Subscriptions belong to an authenticated account; one account may hold many (one per endpoint/device). */
 export async function createPushSubscription(
-  memberId: string,
+  userId: string,
   subscription: PushSubscription
 ): Promise<PushSubscriptionRecord> {
   const json = subscription.toJSON();
@@ -10,7 +11,7 @@ export async function createPushSubscription(
     .from('push_subscriptions')
     .upsert(
       {
-        member_id: memberId,
+        user_id: userId,
         endpoint: subscription.endpoint,
         auth: json.keys?.auth ?? '',
         p256dh: json.keys?.p256dh ?? '',
@@ -39,43 +40,27 @@ export async function deletePushSubscription(id: string): Promise<void> {
   if (error) throw new Error(error.message ?? 'Unknown error');
 }
 
-export async function fetchPushSubscriptions(memberId: string): Promise<PushSubscriptionRecord[]> {
+export async function fetchPushSubscriptions(userId: string): Promise<PushSubscriptionRecord[]> {
   const { data, error } = await supabase
     .from('push_subscriptions')
     .select('*')
-    .eq('member_id', memberId)
+    .eq('user_id', userId)
     .eq('is_active', true)
     .order('subscribed_at', { ascending: false });
   if (error) throw new Error(error.message ?? 'Unknown error');
   return data ?? [];
 }
 
-export interface PushLogInput {
-  member_id: string;
-  notification_type: PushNotificationType;
-  title: string;
-  body: string;
-  status: PushStatus;
-}
-
-export async function createPushLog(input: PushLogInput): Promise<PushNotificationLog> {
-  const { data, error } = await supabase
-    .from('push_notification_log')
-    .insert(input)
-    .select()
-    .single();
-  if (error) throw new Error(error.message ?? 'Unknown error');
-  return data;
-}
+// Notification logs are written by the backend (service_role) only: there is deliberately no client insert.
 
 export async function fetchPushLog(
-  memberId: string,
+  userId: string,
   filter?: { type?: PushNotificationType }
 ): Promise<PushNotificationLog[]> {
   let q = supabase
     .from('push_notification_log')
     .select('*')
-    .eq('member_id', memberId)
+    .eq('user_id', userId)
     .order('sent_at', { ascending: false })
     .limit(100);
 

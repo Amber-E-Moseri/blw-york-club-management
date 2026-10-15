@@ -1,31 +1,39 @@
 /* eslint-disable */
-// Temporary seeder — delete after use
+// Local test-user seeder. Requires explicit local environment configuration.
 const { createClient } = require('@supabase/supabase-js');
 
-const SUPABASE_URL = 'https://hecropqaidcveeoagsgy.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhlY3JvcHFhaWRjdmVlb2Fnc2d5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MzUzOTAsImV4cCI6MjEwNDQxMTM5MH0.Exrh1TywC87FIMr3c9VZUpYpPWdP8NOF2xUsD3CEk_g';
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_ANON_KEY;
+const TEST_USER_PASSWORD = process.env.TEST_USER_PASSWORD;
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !TEST_USER_PASSWORD) {
+  console.error('Missing required environment variables: SUPABASE_URL, SUPABASE_ANON_KEY, TEST_USER_PASSWORD');
+  process.exit(1);
+}
 
 const TEST_USERS = [
-  { email: 'blwcan.elvanto+testcoord@gmail.com',  password: 'Test1234!', fullName: 'Test Coordinator', role: 'coordinator' },
-  { email: 'blwcan.elvanto+testleader@gmail.com', password: 'Test1234!', fullName: 'Test Cell Leader', role: 'cell_leader' },
-  { email: 'blwcan.elvanto+testmember@gmail.com', password: 'Test1234!', fullName: 'Test Member',      role: 'member' },
+  { email: 'test.coordinator@example.com', fullName: 'Test Coordinator', role: 'coordinator' },
+  { email: 'test.cell-leader@example.com', fullName: 'Test Cell Leader', role: 'cell_leader' },
+  { email: 'test.member@example.com', fullName: 'Test Member', role: 'member' },
 ];
 
-async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+async function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 async function createUser(user) {
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  console.log('\n── ' + user.role + ': ' + user.email);
+  console.log(`\n-- ${user.role}: ${user.email}`);
 
   const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
     email: user.email,
-    password: user.password,
+    password: TEST_USER_PASSWORD,
     options: { data: { full_name: user.fullName } },
   });
 
   if (signUpError) {
     if (signUpError.message.includes('already registered') || signUpError.message.includes('already been registered')) {
-      console.log('  Already registered — signing in');
+      console.log('  Already registered; signing in');
     } else {
       console.error('  Sign-up ERROR:', signUpError.message);
       return false;
@@ -38,7 +46,7 @@ async function createUser(user) {
 
   const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
     email: user.email,
-    password: user.password,
+    password: TEST_USER_PASSWORD,
   });
 
   if (signInError) {
@@ -55,7 +63,7 @@ async function createUser(user) {
   if (updateError) {
     console.error('  Profile update ERROR:', updateError.message);
   } else {
-    console.log('  Profile updated to status=active, role=' + user.role);
+    console.log(`  Profile updated to status=active, role=${user.role}`);
   }
 
   const { data: profile, error: readErr } = await supabase
@@ -77,12 +85,11 @@ async function createUser(user) {
 (async () => {
   for (const user of TEST_USERS) {
     await createUser(user);
-    await sleep(2000); // avoid rate limits
+    await sleep(2000);
   }
 
-  console.log('\n\n✅ Test credentials:');
-  TEST_USERS.forEach(u =>
-    console.log('  ' + u.role.padEnd(14) + u.email + '  /  ' + u.password)
-  );
-  console.log('\nDelete this file when done: create-test-users.js');
-})().catch(err => { console.error('Fatal:', err); process.exit(1); });
+  console.log('\nTest users created. Password was read from TEST_USER_PASSWORD.');
+})().catch((err) => {
+  console.error('Fatal:', err);
+  process.exit(1);
+});

@@ -1,4 +1,5 @@
 import React from 'react';
+import { CheckCircle, Heart } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../foundation/Button';
 import { Badge } from '../foundation/Badge';
@@ -26,8 +27,8 @@ export const ConfessionCard: React.FC<Props> = ({
   return (
     <div
       className={cn(
-        'bg-white border rounded-lg p-5 transition-all duration-200',
-        declared ? 'border-green-300 bg-green-50/40' : 'border-gray-200'
+        'bg-white border rounded-lg p-5 transition-all duration-200 dark:bg-slate-800',
+        declared ? 'border-green-300 bg-green-50/40 dark:border-green-700 dark:bg-green-900/20' : 'border-gray-200 dark:border-slate-700'
       )}
     >
       {/* Date + count */}
@@ -54,10 +55,10 @@ export const ConfessionCard: React.FC<Props> = ({
       </div>
 
       {/* Title */}
-      <h3 className="text-base font-bold text-gray-900 mb-2">{c.title}</h3>
+      <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 mb-2">{c.title}</h3>
 
       {/* Body */}
-      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap mb-4">
+      <p className="text-sm text-gray-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap mb-4">
         {c.body}
       </p>
 
@@ -67,7 +68,7 @@ export const ConfessionCard: React.FC<Props> = ({
           variant={declared ? 'secondary' : 'primary'}
           size="small"
           onClick={() => declared ? onUndeclare(c.id) : onDeclare(c.id)}
-          icon={<span>{declared ? '✓' : '🙏'}</span>}
+          icon={declared ? <CheckCircle className="w-4 h-4" /> : <Heart className="w-4 h-4" />}
         >
           {declared ? 'Declared!' : 'I Declare This'}
         </Button>

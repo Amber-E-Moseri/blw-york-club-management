@@ -1,0 +1,323 @@
+name: Preview migrations 000-103 (manual, gated)
+
+# Manual only. Never runs on push, pull request or schedule.
+#
+# Installs the certified migrations 000-103 on the disposable Preview project, and nothing else.
+#   - Migrations come from the frozen candidate commit below, unmodified. The job checks the migrations tree hash.
+#   - The job verifies the exact target project, the Session Pooler connection and the PostgreSQL major version first.
+#   - It checks read-only that the database is empty and has no migration history.
+#   - It runs `supabase db push --dry-run` and requires exactly the 104 expected migrations.
+#   - Only the apply job, which needs the dry-run job to succeed and a typed confirmation, performs a writable push.
+#   - The apply job waits for approval in the protected environment `preview-migration-write` before any secret is read.
+#   - A migration failure stops the job. There is no rollback, retry or reset step.
+#
+# Never used: db reset, --include-seed, --include-roles, --include-all, --linked, --project-ref, the live blwcanon
+# supabase/config.toml. The CLI runs against a temporary project directory created from the certified migrations.
+# Production project access is denied: no step reads a production secret, and the protected production project ref is
+# refused by every guard.
+#
+# Secret values are passed through env so GitHub masks them. Nothing here prints a secret, a connection string or raw CLI
+# output. Only PASS and FAIL lines and counts are printed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_project_id:
+        description: "Approved Preview project ref. Must be yziuhtxtznginhdpqurb."
+        required: true
+        type: string
+      apply_confirmation:
+        description: "Leave empty for dry-run only. To request the writable apply job, type exactly: apply-yziuhtxtznginhdpqurb-000-103"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preview-migrations-yziuhtxtznginhdpqurb
+  cancel-in-progress: false
+
+env:
+  FROZEN_SHA: fada4a3af3416d9c8943ffa6fb68e377157f9c99
+  EXPECTED_MIGRATIONS_TREE: faa9474e991635366eac728d9eb8c21c46f53080
+  EXPECTED_PROJECT_ID: yziuhtxtznginhdpqurb
+  PROTECTED_PRODUCTION_PROJECT_ID: rjtstjmtddqhesexltbj
+  EXPECTED_PG_MAJOR: "17"
+  EXPECTED_MIGRATION_COUNT: "104"
+  SUPABASE_CLI_VERSION: "2.120.0"
+
+jobs:
+  dry-run:
+    name: Preflight and dry run (read-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Preview secrets only. This environment holds no writable approval gate, and the job issues no writes.
+    environment: Preview
+    env:
+      TARGET_PROJECT_ID: ${{ inputs.target_project_id }}
+      CERT_SUPABASE_PROJECT_ID: ${{ secrets.CERT_SUPABASE_PROJECT_ID }}
+      CERT_SUPABASE_URL: ${{ secrets.CERT_SUPABASE_URL }}
+      CERT_SUPABASE_POOLER_HOST: ${{ secrets.CERT_SUPABASE_POOLER_HOST }}
+      CERT_SUPABASE_POOLER_PORT: ${{ secrets.CERT_SUPABASE_POOLER_PORT }}
+      CERT_SUPABASE_POOLER_USER: ${{ secrets.CERT_SUPABASE_POOLER_USER }}
+      CERT_SUPABASE_POOLER_DATABASE: ${{ secrets.CERT_SUPABASE_POOLER_DATABASE }}
+      CERT_SUPABASE_DB_PASSWORD: ${{ secrets.CERT_SUPABASE_DB_PASSWORD }}
+    steps:
+      - name: Check out the frozen candidate commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: fada4a3af3416d9c8943ffa6fb68e377157f9c99
+          persist-credentials: false
+
+      - name: Guard the frozen commit and the migration set
+        run: |
+          set -euo pipefail
+          fail() { echo "FAIL: $1"; exit 1; }
+          [ "$(git rev-parse HEAD)" = "$FROZEN_SHA" ] || fail "checkout is not the frozen candidate commit"
+          [ "$(git rev-parse HEAD:supabase/migrations)" = "$EXPECTED_MIGRATIONS_TREE" ] || fail "supabase/migrations differs from the certified tree"
+          count=0
+          while IFS= read -r f; do
+            printf -v want '%03d' "$count"
+            case "$f" in "${want}_"*.sql) ;; *) fail "unexpected migration name at position $count" ;; esac
+            count=$((count + 1))
+          done < <(ls supabase/migrations | sort)
+          [ "$count" = "$EXPECTED_MIGRATION_COUNT" ] || fail "migration count is $count, expected 104"
+          echo "PASS: frozen commit, certified migrations tree, and 000-103 contiguous naming"
+
+      - name: Guard the target project identity (comparison only)
+        run: |
+          set -euo pipefail
+          fail() { echo "FAIL: $1"; exit 1; }
+          for v in TARGET_PROJECT_ID CERT_SUPABASE_PROJECT_ID CERT_SUPABASE_URL CERT_SUPABASE_POOLER_HOST CERT_SUPABASE_POOLER_USER CERT_SUPABASE_POOLER_PORT CERT_SUPABASE_POOLER_DATABASE CERT_SUPABASE_DB_PASSWORD; do
+            [ -n "${!v:-}" ] || fail "$v is not set"
+          done
+          [ "$TARGET_PROJECT_ID" = "$EXPECTED_PROJECT_ID" ] || fail "target_project_id is not the approved Preview project"
+          [ "$CERT_SUPABASE_PROJECT_ID" = "$EXPECTED_PROJECT_ID" ] || fail "Preview secret names a different project"
+          URL_REF="$(printf '%s' "$CERT_SUPABASE_URL" | sed -E 's#^https://([^.]+)\.supabase\.co.*#\1#')"
+          [ "$URL_REF" = "$EXPECTED_PROJECT_ID" ] || fail "CERT_SUPABASE_URL does not name the approved project"
+          # Refuse anything that names the protected production project, in any value.
+          for v in TARGET_PROJECT_ID CERT_SUPABASE_PROJECT_ID CERT_SUPABASE_URL CERT_SUPABASE_POOLER_HOST CERT_SUPABASE_POOLER_USER; do
+            case "${!v}" in *"$PROTECTED_PRODUCTION_PROJECT_ID"*) fail "$v names the protected production project" ;; esac
+          done
+          [ "$CERT_SUPABASE_POOLER_USER" = "postgres.$EXPECTED_PROJECT_ID" ] || fail "pooler user does not name the approved project"
+          printf '%s' "$CERT_SUPABASE_POOLER_HOST" | grep -qE '^aws-[0-9]+-[a-z0-9-]+\.pooler\.supabase\.com$' || fail "pooler host is not a Supabase Session Pooler host"
+          case "$CERT_SUPABASE_POOLER_HOST" in db.*) fail "a direct database host is refused" ;; esac
+          # Session mode only. Transaction mode (6543) is refused.
+          [ "$CERT_SUPABASE_POOLER_PORT" = "5432" ] || fail "pooler port must be the Session Pooler port 5432"
+          [ "$CERT_SUPABASE_POOLER_DATABASE" = "postgres" ] || fail "pooler database must be postgres"
+          echo "PASS: target is the approved Preview project, reached through the Session Pooler (values not printed)"
+
+      - name: Build the masked connection string
+        run: |
+          set -euo pipefail
+          umask 077
+          echo "::add-mask::$CERT_SUPABASE_DB_PASSWORD"
+          URL="$(python3 -I -c 'import os, urllib.parse as u; e = os.environ; print("postgresql://" + e["CERT_SUPABASE_POOLER_USER"] + ":" + u.quote(e["CERT_SUPABASE_DB_PASSWORD"], safe="") + "@" + e["CERT_SUPABASE_POOLER_HOST"] + ":" + e["CERT_SUPABASE_POOLER_PORT"] + "/" + e["CERT_SUPABASE_POOLER_DATABASE"] + "?sslmode=require")')"
+          echo "::add-mask::$URL"
+          printf '%s' "$URL" > "$RUNNER_TEMP/db-url"
+          echo "PASS: connection string built and masked"
+
+      - name: Read-only checks (server major, empty database, no migration history)
+        run: |
+          set -euo pipefail
+          fail() { echo "FAIL: $1"; exit 1; }
+          URL="$(cat "$RUNNER_TEMP/db-url")"
+          export PGCONNECT_TIMEOUT=20
+          # Every statement runs inside one read-only transaction.
+          checks="$(psql "$URL" -X -q -A -t -v ON_ERROR_STOP=1 <<'SQL'
+          begin read only;
+          select 'pgmajor=' || (current_setting('server_version_num')::int / 10000);
+          select 'public_tables=' || count(*) from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE';
+          select 'user_tables=' || count(*) from information_schema.tables where table_type = 'BASE TABLE' and table_schema not like 'pg\_%' and table_schema not in ('information_schema', 'auth', 'storage', 'extensions', 'realtime', 'graphql', 'graphql_public', 'vault', 'supabase_functions', 'supabase_migrations', 'pgsodium', 'net', 'cron', '_realtime');
+          select 'auth_users=' || count(*) from auth.users;
+          select 'history_table=' || count(*) from information_schema.tables where table_schema = 'supabase_migrations' and table_name = 'schema_migrations';
+          commit;
+          SQL
+          )" || fail "read-only checks could not run"
+          server_major="$(printf '%s\n' "$checks" | sed -n 's/^pgmajor=//p')"
+          [ "$server_major" = "$EXPECTED_PG_MAJOR" ] || fail "server major version is not $EXPECTED_PG_MAJOR"
+          [ "$(printf '%s\n' "$checks" | sed -n 's/^public_tables=//p')" = "0" ] || fail "public schema is not empty"
+          [ "$(printf '%s\n' "$checks" | sed -n 's/^user_tables=//p')" = "0" ] || fail "non-system schemas are not empty"
+          [ "$(printf '%s\n' "$checks" | sed -n 's/^auth_users=//p')" = "0" ] || fail "auth.users is not empty"
+          if [ "$(printf '%s\n' "$checks" | sed -n 's/^history_table=//p')" = "1" ]; then
+            rows="$(psql "$URL" -X -q -A -t -v ON_ERROR_STOP=1 -c 'begin read only; select count(*) from supabase_migrations.schema_migrations; commit;' | grep -E '^[0-9]+$' | tail -1)"
+            [ "$rows" = "0" ] || fail "migration history already has rows"
+          fi
+          echo "PASS: PostgreSQL $EXPECTED_PG_MAJOR, empty database, no migration history (counts only)"
+
+      - name: Install the pinned Supabase CLI into a temporary project directory
+        run: |
+          set -euo pipefail
+          P="$RUNNER_TEMP/preview-project"
+          rm -rf "$P"
+          mkdir -p "$P/supabase"
+          cp -R supabase/migrations "$P/supabase/migrations"
+          # Minimal temporary config. The live blwcanon config is never read.
+          printf 'project_id = "preview-migration-%s"\n' "$EXPECTED_PROJECT_ID" > "$P/supabase/config.toml"
+          [ "$(cd "$P/supabase/migrations" && ls | wc -l | tr -d ' ')" = "$EXPECTED_MIGRATION_COUNT" ] || { echo "FAIL: copied migration count"; exit 1; }
+          npx --yes "supabase@$SUPABASE_CLI_VERSION" --version
+          echo "PASS: temporary project directory ready"
+
+      - name: Dry run (must identify exactly the 104 certified migrations)
+        run: |
+          set -euo pipefail
+          fail() { echo "FAIL: $1"; exit 1; }
+          P="$RUNNER_TEMP/preview-project"
+          # Output is kept in a file and only counted or compared. It is never printed.
+          npx --yes "supabase@$SUPABASE_CLI_VERSION" db push --workdir "$P" --db-url "$(cat "$RUNNER_TEMP/db-url")" --skip-vault --dry-run > "$RUNNER_TEMP/dry-run.log" 2>&1 || fail "dry run exited non-zero"
+          found="$(grep -oE '[0-9]{3}_[A-Za-z0-9_]+\.sql' "$RUNNER_TEMP/dry-run.log" | sort -u || true)"
+          expected="$(ls supabase/migrations | sort)"
+          n="$(printf '%s\n' "$found" | grep -c . || true)"
+          [ "$n" = "$EXPECTED_MIGRATION_COUNT" ] || fail "dry run identified $n migrations, expected 104"
+          [ "$found" = "$expected" ] || fail "dry run list differs from the certified list"
+          echo "PASS: dry run identified exactly the 104 certified migrations (000-103)"
+
+      - name: Remove the connection string
+        if: always()
+        run: rm -f "$RUNNER_TEMP/db-url" "$RUNNER_TEMP/dry-run.log"
+
+  apply:
+    name: Apply migrations 000-103 (writable, approval required)
+    needs: dry-run
+    # Runs only when the dispatcher typed the exact confirmation. Otherwise the workflow stops after the dry run.
+    if: ${{ inputs.apply_confirmation == 'apply-yziuhtxtznginhdpqurb-000-103' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Protected environment. Required reviewers approve this job before any secret is read. Configure in GitHub settings.
+    environment: preview-migration-write
+    env:
+      TARGET_PROJECT_ID: ${{ inputs.target_project_id }}
+      CERT_SUPABASE_PROJECT_ID: ${{ secrets.CERT_SUPABASE_PROJECT_ID }}
+      CERT_SUPABASE_URL: ${{ secrets.CERT_SUPABASE_URL }}
+      CERT_SUPABASE_POOLER_HOST: ${{ secrets.CERT_SUPABASE_POOLER_HOST }}
+      CERT_SUPABASE_POOLER_PORT: ${{ secrets.CERT_SUPABASE_POOLER_PORT }}
+      CERT_SUPABASE_POOLER_USER: ${{ secrets.CERT_SUPABASE_POOLER_USER }}
+      CERT_SUPABASE_POOLER_DATABASE: ${{ secrets.CERT_SUPABASE_POOLER_DATABASE }}
+      CERT_SUPABASE_DB_PASSWORD: ${{ secrets.CERT_SUPABASE_DB_PASSWORD }}
+    steps:
+      - name: Check out the frozen candidate commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: fada4a3af3416d9c8943ffa6fb68e377157f9c99
+          persist-credentials: false
+
+      - name: Guard the frozen commit and the migration set
+        run: |
+          set -euo pipefail
+          fail() { echo "FAIL: $1"; exit 1; }
+          [ "$(git rev-parse HEAD)" = "$FROZEN_SHA" ] || fail "checkout is not the frozen candidate commit"
+          [ "$(git rev-parse HEAD:supabase/migrations)" = "$EXPECTED_MIGRATIONS_TREE" ] || fail "supabase/migrations differs from the certified tree"
+          count=0
+          while IFS= read -r f; do
+            printf -v want '%03d' "$count"
+            case "$f" in "${want}_"*.sql) ;; *) fail "unexpected migration name at position $count" ;; esac
+            count=$((count + 1))
+          done < <(ls supabase/migrations | sort)
+          [ "$count" = "$EXPECTED_MIGRATION_COUNT" ] || fail "migration count is $count, expected 104"
+          echo "PASS: frozen commit, certified migrations tree, and 000-103 contiguous naming"
+
+      - name: Guard the target project identity (comparison only)
+        run: |
+          set -euo pipefail
+          fail() { echo "FAIL: $1"; exit 1; }
+          for v in TARGET_PROJECT_ID CERT_SUPABASE_PROJECT_ID CERT_SUPABASE_URL CERT_SUPABASE_POOLER_HOST CERT_SUPABASE_POOLER_USER CERT_SUPABASE_POOLER_PORT CERT_SUPABASE_POOLER_DATABASE CERT_SUPABASE_DB_PASSWORD; do
+            [ -n "${!v:-}" ] || fail "$v is not set"
+          done
+          [ "$TARGET_PROJECT_ID" = "$EXPECTED_PROJECT_ID" ] || fail "target_project_id is not the approved Preview project"
+          [ "$CERT_SUPABASE_PROJECT_ID" = "$EXPECTED_PROJECT_ID" ] || fail "Preview secret names a different project"
+          URL_REF="$(printf '%s' "$CERT_SUPABASE_URL" | sed -E 's#^https://([^.]+)\.supabase\.co.*#\1#')"
+          [ "$URL_REF" = "$EXPECTED_PROJECT_ID" ] || fail "CERT_SUPABASE_URL does not name the approved project"
+          for v in TARGET_PROJECT_ID CERT_SUPABASE_PROJECT_ID CERT_SUPABASE_URL CERT_SUPABASE_POOLER_HOST CERT_SUPABASE_POOLER_USER; do
+            case "${!v}" in *"$PROTECTED_PRODUCTION_PROJECT_ID"*) fail "$v names the protected production project" ;; esac
+          done
+          [ "$CERT_SUPABASE_POOLER_USER" = "postgres.$EXPECTED_PROJECT_ID" ] || fail "pooler user does not name the approved project"
+          printf '%s' "$CERT_SUPABASE_POOLER_HOST" | grep -qE '^aws-[0-9]+-[a-z0-9-]+\.pooler\.supabase\.com$' || fail "pooler host is not a Supabase Session Pooler host"
+          case "$CERT_SUPABASE_POOLER_HOST" in db.*) fail "a direct database host is refused" ;; esac
+          [ "$CERT_SUPABASE_POOLER_PORT" = "5432" ] || fail "pooler port must be the Session Pooler port 5432"
+          [ "$CERT_SUPABASE_POOLER_DATABASE" = "postgres" ] || fail "pooler database must be postgres"
+          echo "PASS: target is the approved Preview project, reached through the Session Pooler (values not printed)"
+
+      - name: Build the masked connection string
+        run: |
+          set -euo pipefail
+          umask 077
+          echo "::add-mask::$CERT_SUPABASE_DB_PASSWORD"
+          URL="$(python3 -I -c 'import os, urllib.parse as u; e = os.environ; print("postgresql://" + e["CERT_SUPABASE_POOLER_USER"] + ":" + u.quote(e["CERT_SUPABASE_DB_PASSWORD"], safe="") + "@" + e["CERT_SUPABASE_POOLER_HOST"] + ":" + e["CERT_SUPABASE_POOLER_PORT"] + "/" + e["CERT_SUPABASE_POOLER_DATABASE"] + "?sslmode=require")')"
+          echo "::add-mask::$URL"
+          printf '%s' "$URL" > "$RUNNER_TEMP/db-url"
+          echo "PASS: connection string built and masked"
+
+      - name: Read-only checks (server major, empty database, no migration history)
+        run: |
+          set -euo pipefail
+          fail() { echo "FAIL: $1"; exit 1; }
+          URL="$(cat "$RUNNER_TEMP/db-url")"
+          export PGCONNECT_TIMEOUT=20
+          checks="$(psql "$URL" -X -q -A -t -v ON_ERROR_STOP=1 <<'SQL'
+          begin read only;
+          select 'pgmajor=' || (current_setting('server_version_num')::int / 10000);
+          select 'public_tables=' || count(*) from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE';
+          select 'user_tables=' || count(*) from information_schema.tables where table_type = 'BASE TABLE' and table_schema not like 'pg\_%' and table_schema not in ('information_schema', 'auth', 'storage', 'extensions', 'realtime', 'graphql', 'graphql_public', 'vault', 'supabase_functions', 'supabase_migrations', 'pgsodium', 'net', 'cron', '_realtime');
+          select 'auth_users=' || count(*) from auth.users;
+          select 'history_table=' || count(*) from information_schema.tables where table_schema = 'supabase_migrations' and table_name = 'schema_migrations';
+          commit;
+          SQL
+          )" || fail "read-only checks could not run"
+          server_major="$(printf '%s\n' "$checks" | sed -n 's/^pgmajor=//p')"
+          [ "$server_major" = "$EXPECTED_PG_MAJOR" ] || fail "server major version is not $EXPECTED_PG_MAJOR"
+          [ "$(printf '%s\n' "$checks" | sed -n 's/^public_tables=//p')" = "0" ] || fail "public schema is not empty"
+          [ "$(printf '%s\n' "$checks" | sed -n 's/^user_tables=//p')" = "0" ] || fail "non-system schemas are not empty"
+          [ "$(printf '%s\n' "$checks" | sed -n 's/^auth_users=//p')" = "0" ] || fail "auth.users is not empty"
+          if [ "$(printf '%s\n' "$checks" | sed -n 's/^history_table=//p')" = "1" ]; then
+            rows="$(psql "$URL" -X -q -A -t -v ON_ERROR_STOP=1 -c 'begin read only; select count(*) from supabase_migrations.schema_migrations; commit;' | grep -E '^[0-9]+$' | tail -1)"
+            [ "$rows" = "0" ] || fail "migration history already has rows"
+          fi
+          echo "PASS: PostgreSQL $EXPECTED_PG_MAJOR, empty database, no migration history (counts only)"
+
+      - name: Prepare the temporary project directory
+        run: |
+          set -euo pipefail
+          P="$RUNNER_TEMP/preview-project"
+          rm -rf "$P"
+          mkdir -p "$P/supabase"
+          cp -R supabase/migrations "$P/supabase/migrations"
+          printf 'project_id = "preview-migration-%s"\n' "$EXPECTED_PROJECT_ID" > "$P/supabase/config.toml"
+          [ "$(cd "$P/supabase/migrations" && ls | wc -l | tr -d ' ')" = "$EXPECTED_MIGRATION_COUNT" ] || { echo "FAIL: copied migration count"; exit 1; }
+          echo "PASS: temporary project directory ready"
+
+      - name: Dry run again immediately before apply (must be exactly 104)
+        run: |
+          set -euo pipefail
+          fail() { echo "FAIL: $1"; exit 1; }
+          P="$RUNNER_TEMP/preview-project"
+          npx --yes "supabase@$SUPABASE_CLI_VERSION" db push --workdir "$P" --db-url "$(cat "$RUNNER_TEMP/db-url")" --skip-vault --dry-run > "$RUNNER_TEMP/dry-run.log" 2>&1 || fail "dry run exited non-zero"
+          found="$(grep -oE '[0-9]{3}_[A-Za-z0-9_]+\.sql' "$RUNNER_TEMP/dry-run.log" | sort -u || true)"
+          expected="$(ls supabase/migrations | sort)"
+          n="$(printf '%s\n' "$found" | grep -c . || true)"
+          [ "$n" = "$EXPECTED_MIGRATION_COUNT" ] || fail "dry run identified $n migrations, expected 104"
+          [ "$found" = "$expected" ] || fail "dry run list differs from the certified list"
+          echo "PASS: dry run identified exactly the 104 certified migrations (000-103)"
+
+      # Single apply attempt. No retry, no rollback, no reset. A failure stops the job here.
+      - name: Apply migrations 000-103 (writable)
+        run: |
+          set -euo pipefail
+          P="$RUNNER_TEMP/preview-project"
+          npx --yes "supabase@$SUPABASE_CLI_VERSION" db push --workdir "$P" --db-url "$(cat "$RUNNER_TEMP/db-url")" --skip-vault --yes > "$RUNNER_TEMP/apply.log" 2>&1 || { echo "FAIL: apply stopped; no automatic recovery is performed. Inspect with a person before any further action."; exit 1; }
+          echo "PASS: db push completed (output not printed)"
+
+      - name: Post-apply read-only verification (counts only)
+        run: |
+          set -euo pipefail
+          fail() { echo "FAIL: $1"; exit 1; }
+          URL="$(cat "$RUNNER_TEMP/db-url")"
+          export PGCONNECT_TIMEOUT=20
+          rows="$(psql "$URL" -X -q -A -t -v ON_ERROR_STOP=1 -c 'begin read only; select count(*) from supabase_migrations.schema_migrations; commit;' | grep -E '^[0-9]+$' | tail -1)" || fail "could not read migration history"
+          [ "$rows" = "$EXPECTED_MIGRATION_COUNT" ] || fail "history has $rows rows, expected 104"
+          echo "PASS: migration history records exactly 104 rows"
+
+      - name: Remove the connection string
+        if: always()
+        run: rm -f "$RUNNER_TEMP/db-url" "$RUNNER_TEMP/apply.log" "$RUNNER_TEMP/dry-run.log"

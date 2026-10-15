@@ -6,7 +6,8 @@ export interface SendEmailOptions {
   subject: string;
   html: string;
   text?: string;
-  templateId?: string;
+  memberId?: string;
+  templateType?: EmailTemplateType;
 }
 
 export interface BatchRecipient {
@@ -26,6 +27,8 @@ export async function sendEmail(options: SendEmailOptions): Promise<{ id: string
       subject: options.subject,
       html: options.html,
       text: options.text,
+      memberId: options.memberId,
+      templateType: options.templateType,
     },
   });
   if (error) throw new Error(`Email send failed: ${error.message}`);
@@ -87,9 +90,9 @@ export async function resendEmail(messageId: string): Promise<void> {
 /**
  * Record that the tracking pixel was loaded (sets opened_at in email_log).
  */
-export async function trackEmailOpen(messageId: string): Promise<void> {
+export async function trackEmailOpen(messageId: string, trackingToken: string): Promise<void> {
   const { error } = await supabase.functions.invoke('send-email', {
-    body: { action: 'track_open', messageId },
+    body: { action: 'track_open', messageId, trackingToken },
   });
   if (error) throw new Error(`Track open failed: ${error.message}`);
 }
@@ -99,13 +102,8 @@ export async function trackEmailOpen(messageId: string): Promise<void> {
  * Uses btoa to encode a base64 token (server validates full JWT; this is just
  * the client payload — the edge function signs it with UNSUBSCRIBE_SECRET).
  */
-export function buildUnsubscribeUrl(memberId: string, notifType: EmailTemplateType, origin?: string): string {
-  const json = JSON.stringify({ memberId, notifType, ts: Date.now() });
-  const payload = typeof btoa === 'function'
-    ? btoa(json)
-    : Buffer.from(json).toString('base64');
-  const base = origin ?? getSupabaseFunctionUrl('unsubscribe');
-  return `${base}?token=${encodeURIComponent(payload)}&type=${notifType}`;
+export function buildUnsubscribeUrl(_memberId: string, _notifType: EmailTemplateType, origin?: string): string {
+  return `${origin ?? getAppOrigin()}/email-preferences`;
 }
 
 export function getAppOrigin(): string {

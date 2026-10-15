@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Banknote, HeartHandshake, Sparkles, Leaf, BookOpen, PenLine, Lock, Home, Users, Globe, type LucideIcon } from 'lucide-react';
 import { Badge } from '../foundation/Badge';
 import { formatRelativeTime } from '../../lib/utils';
 import { TestimonyComments } from './TestimonyComments';
@@ -17,16 +18,20 @@ interface Props {
   onReject?: (id: string) => void;
 }
 
-const CATEGORY_META: Record<TestimonyCategory, { label: string; emoji: string }> = {
-  provision:       { label: 'Provision',       emoji: '💰' },
-  healing:         { label: 'Healing',          emoji: '🙏' },
-  prayer_answered: { label: 'Prayer Answered',  emoji: '✨' },
-  growth:          { label: 'Spiritual Growth', emoji: '🌱' },
-  other:           { label: 'Other',            emoji: '📖' },
+const CATEGORY_META: Record<TestimonyCategory, { label: string; icon: LucideIcon }> = {
+  provision:       { label: 'Provision',       icon: Banknote       },
+  healing:         { label: 'Healing',          icon: HeartHandshake },
+  prayer_answered: { label: 'Prayer Answered',  icon: Sparkles       },
+  growth:          { label: 'Spiritual Growth', icon: Leaf           },
+  other:           { label: 'Other',            icon: BookOpen       },
 };
 
-const VISIBILITY_ICON: Record<string, string> = {
-  draft: '✏️', private: '🔒', cell: '🏠', members: '👥', public: '🌐',
+const VISIBILITY_META: Record<string, { label: string; icon: LucideIcon }> = {
+  draft:   { label: 'Draft',    icon: PenLine },
+  private: { label: 'Private',  icon: Lock    },
+  cell:    { label: 'Cell',     icon: Home    },
+  members: { label: 'Members',  icon: Users   },
+  public:  { label: 'Public',   icon: Globe   },
 };
 
 const STATUS_BADGE: Record<string, { label: string; variant: 'warning' | 'success' | 'error' }> = {
@@ -48,26 +53,36 @@ export const TestimonyCard: React.FC<Props> = ({
   const [expanded, setExpanded]       = useState(false);
   const [showComments, setShowComments] = useState(false);
   const meta = CATEGORY_META[t.category];
+  const visibilityMeta = VISIBILITY_META[t.visibility];
+  const VisIcon = visibilityMeta?.icon;
+  const CatIcon = meta.icon;
   const preview = t.body.length > 240 && !expanded ? t.body.slice(0, 240) + '…' : t.body;
   const statusInfo = t.status !== 'approved' ? STATUS_BADGE[t.status] : null;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3 hover:shadow-sm transition-shadow">
+    <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3 hover:shadow-sm transition-shadow dark:bg-slate-800 dark:border-slate-700">
       {/* Header row */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2 flex-wrap">
           {/* Entry type pill */}
-          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+          <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${
             t.entry_type === 'prophecy'
               ? 'bg-purple-100 text-purple-700'
               : 'bg-york-100 text-york-700'
           }`}>
-            {t.entry_type === 'prophecy' ? '🔮 Prophecy' : '✨ Testimony'}
+            {t.entry_type === 'prophecy' ? 'Prophecy' : 'Testimony'}
           </span>
-          <Badge variant="light">{meta.emoji} {meta.label}</Badge>
-          <span className="text-sm" title={`Visibility: ${t.visibility}`}>
-            {VISIBILITY_ICON[t.visibility]}
-          </span>
+          <Badge variant="light">
+            <span className="inline-flex items-center gap-1">
+              <CatIcon className="w-3 h-3" />
+              {meta.label}
+            </span>
+          </Badge>
+          {VisIcon && (
+            <span className="text-gray-400 dark:text-slate-500" title={`Visibility: ${t.visibility}`}>
+              <VisIcon className="w-3.5 h-3.5" />
+            </span>
+          )}
           {statusInfo && (
             <Badge variant={statusInfo.variant} size="small">{statusInfo.label}</Badge>
           )}
@@ -112,7 +127,7 @@ export const TestimonyCard: React.FC<Props> = ({
       </div>
 
       {/* Title */}
-      <h3 className="text-base font-bold text-gray-900">{t.title}</h3>
+      <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">{t.title}</h3>
 
       {/* Image */}
       {t.image_url && (
@@ -124,7 +139,7 @@ export const TestimonyCard: React.FC<Props> = ({
       )}
 
       {/* Body */}
-      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{preview}</p>
+      <p className="text-sm text-gray-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">{preview}</p>
       {t.body.length > 240 && (
         <button
           onClick={() => setExpanded((v) => !v)}
@@ -186,9 +201,9 @@ export const TestimonyCard: React.FC<Props> = ({
       )}
 
       {/* Footer */}
-      <div className="flex items-center justify-between pt-1 border-t border-gray-100">
-        <p className="text-xs font-semibold text-gray-500">{t.author_name}</p>
-        <p className="text-xs text-gray-400">{formatRelativeTime(t.created_at)}</p>
+      <div className="flex items-center justify-between pt-1 border-t border-gray-100 dark:border-slate-700">
+        <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">{t.author_name}</p>
+        <p className="text-xs text-gray-400 dark:text-slate-500">{formatRelativeTime(t.created_at)}</p>
       </div>
 
       {/* Comments section */}

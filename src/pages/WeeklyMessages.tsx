@@ -1,4 +1,8 @@
 import React, { useState, useCallback } from 'react';
+import {
+  CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Lock,
+  NotebookPen,
+} from 'lucide-react';
 import { Button } from '../components/foundation/Button';
 import { WeeklyMessageCard } from '../components/feature/WeeklyMessageCard';
 import { WeeklyMessageForm } from '../components/feature/WeeklyMessageForm';
@@ -159,7 +163,11 @@ export const WeeklyMessages: React.FC<Props> = ({ user }) => {
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
-            {t === 'schedule' ? '📅 Org Schedule' : '🔒 My Messages'}
+            {t === 'schedule' ? (
+              <><CalendarDays className="w-3.5 h-3.5 mr-1.5 inline" aria-hidden="true" />Org Schedule</>
+            ) : (
+              <><Lock className="w-3.5 h-3.5 mr-1.5 inline" aria-hidden="true" />My Messages</>
+            )}
           </button>
         ))}
       </div>
@@ -169,11 +177,15 @@ export const WeeklyMessages: React.FC<Props> = ({ user }) => {
         <div className="space-y-4">
           {/* Month navigation */}
           <div className="flex items-center justify-between">
-            <button onClick={prevMonth} className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-600">‹</button>
-            <h2 className="text-base font-bold text-gray-800">
+            <button onClick={prevMonth} aria-label="Previous month" className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-300">
+              <ChevronLeft className="w-4 h-4" aria-hidden="true" />
+            </button>
+            <h2 className="text-base font-bold text-gray-800 dark:text-slate-200">
               {MONTHS[viewMonth - 1]} {viewYear}
             </h2>
-            <button onClick={nextMonth} className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-600">›</button>
+            <button onClick={nextMonth} aria-label="Next month" className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-300">
+              <ChevronRight className="w-4 h-4" aria-hidden="true" />
+            </button>
           </div>
 
           {loading && (
@@ -208,7 +220,9 @@ export const WeeklyMessages: React.FC<Props> = ({ user }) => {
                     ) : (
                       <span className="w-2 h-2 rounded-full bg-gray-200" />
                     )}
-                    <span className="text-gray-400 text-xs">{isExpanded ? '▲' : '▼'}</span>
+                    {isExpanded
+                      ? <ChevronUp className="w-4 h-4 text-gray-400" aria-hidden="true" />
+                      : <ChevronDown className="w-4 h-4 text-gray-400" aria-hidden="true" />}
                   </div>
                 </button>
 
@@ -250,9 +264,13 @@ export const WeeklyMessages: React.FC<Props> = ({ user }) => {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <button onClick={prevMonth} className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-gray-500 text-sm">‹</button>
-              <span className="text-sm font-semibold text-gray-700">{MONTHS[viewMonth - 1]} {viewYear}</span>
-              <button onClick={nextMonth} className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-gray-500 text-sm">›</button>
+              <button onClick={prevMonth} aria-label="Previous month" className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-500 dark:text-slate-400">
+                <ChevronLeft className="w-4 h-4" aria-hidden="true" />
+              </button>
+              <span className="text-sm font-semibold text-gray-700 dark:text-slate-200">{MONTHS[viewMonth - 1]} {viewYear}</span>
+              <button onClick={nextMonth} aria-label="Next month" className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-500 dark:text-slate-400">
+                <ChevronRight className="w-4 h-4" aria-hidden="true" />
+              </button>
             </div>
             <Button variant="secondary" size="small" onClick={() => openCreate(currentWeekStart, 'personal')}>
               + Personal Note
@@ -262,10 +280,10 @@ export const WeeklyMessages: React.FC<Props> = ({ user }) => {
           {loading && <div className="h-20 bg-gray-100 rounded-lg animate-pulse" />}
 
           {!loading && personalMessages.length === 0 && (
-            <div className="text-center py-12 bg-white border border-gray-200 rounded-lg">
-              <p className="text-2xl mb-2">📝</p>
-              <p className="text-sm font-semibold text-gray-700">No personal notes yet</p>
-              <p className="text-xs text-gray-400 mt-1">Use personal messages to write your own weekly reflections.</p>
+            <div className="text-center py-12 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg">
+              <NotebookPen className="w-8 h-8 mx-auto mb-2 text-gray-300 dark:text-slate-600" aria-hidden="true" />
+              <p className="text-sm font-semibold text-gray-700 dark:text-slate-300">No personal notes yet</p>
+              <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">Use personal messages to write your own weekly reflections.</p>
               <div className="mt-4">
                 <Button variant="primary" size="small" onClick={() => openCreate(currentWeekStart, 'personal')}>
                   Write First Note

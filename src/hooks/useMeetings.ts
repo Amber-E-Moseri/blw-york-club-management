@@ -47,7 +47,12 @@ export function useMeetings(upcoming = true) {
     setMeetings((prev) =>
       prev.map((m) =>
         m.id === meetingId
-          ? { ...m, user_confirmed: true, attendance_count: (m.attendance_count ?? 0) + 1 }
+          ? {
+              ...m,
+              user_confirmed: true,
+              attendance_count:
+                typeof m.attendance_count === 'number' ? m.attendance_count + 1 : m.attendance_count,
+            }
           : m
       )
     );
@@ -58,7 +63,14 @@ export function useMeetings(upcoming = true) {
     setMeetings((prev) =>
       prev.map((m) =>
         m.id === meetingId
-          ? { ...m, user_confirmed: false, attendance_count: Math.max(0, (m.attendance_count ?? 1) - 1) }
+          ? {
+              ...m,
+              user_confirmed: false,
+              attendance_count:
+                typeof m.attendance_count === 'number'
+                  ? Math.max(0, m.attendance_count - 1)
+                  : m.attendance_count,
+            }
           : m
       )
     );

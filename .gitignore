@@ -31,3 +31,9 @@ yarn-error.log*
 
 # Test coverage
 coverage/
+test-results/
+
+# Local generated artifacts
+seed-output.log
+BLW_York_Hub_Prototype.html
+BLW_York_Hub_v2.html

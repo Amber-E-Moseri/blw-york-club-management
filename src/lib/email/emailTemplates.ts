@@ -253,7 +253,31 @@ export function testimonyApprovedTemplate(data: TestimonyApprovedData): Template
   return wrap(data.memberId, 'testimony_approved', bodyHtml, bodyText, subject);
 }
 
-// ─── Template 7: Generic ──────────────────────────────────────────────────────
+// ─── Template 7: Account Approved ────────────────────────────────────────────
+
+export interface AccountApprovedData {
+  memberId: string;
+  memberName: string;
+  loginUrl: string;
+}
+
+export function accountApprovedTemplate(data: AccountApprovedData): TemplateOutput {
+  const subject = 'Your BLW York Hub account is ready';
+
+  const bodyHtml = `
+    ${h2('Account Approved!')}
+    ${p(`Hi ${data.memberName},`)}
+    ${p('Your BLW York Hub account has been approved. You can now sign in and access the hub.')}
+    <p style="margin:0 0 24px;">${btn('Sign in to BLW York Hub', data.loginUrl)}</p>
+    ${p(`Or copy this link: <a href="${data.loginUrl}" style="color:#E31837;">${data.loginUrl}</a>`)}
+    ${p('<em>— BLW York Hub</em>')}`;
+
+  const bodyText = `Hi ${data.memberName},\n\nYour BLW York Hub account has been approved. You can now sign in using the account you created.\n\nSign in here: ${data.loginUrl}\n\n— BLW York Hub`;
+
+  return wrap(data.memberId, 'account_approved', bodyHtml, bodyText, subject);
+}
+
+// ─── Template 8: Generic ──────────────────────────────────────────────────────
 
 export interface GenericTemplateData {
   memberId: string;
@@ -331,6 +355,12 @@ export function renderSampleEmailTemplate(type: EmailTemplateType): TemplateOutp
         subject: 'Your weekly BLW York digest',
         htmlBody: `${h2('Weekly Digest')}${p('Here is a quick summary of meetings, messages, and testimonies from this week.')}`,
         textBody: 'Weekly Digest: here is a quick summary from this week.',
+      });
+    case 'account_approved':
+      return accountApprovedTemplate({
+        memberId: 'preview',
+        memberName: 'Member',
+        loginUrl: `${origin}/`,
       });
     case 'generic':
     default:

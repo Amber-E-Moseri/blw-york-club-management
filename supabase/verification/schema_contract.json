@@ -1,0 +1,87 @@
+{
+  "_comment": "The reviewed, human-readable security contract for the database. check_schema_contract.mjs asserts every item against schema_fingerprint.sql output. Changing this file is a security decision.",
+  "tables": [
+    "admin_bootstrap_audit", "admin_role_assignments", "admin_role_permissions", "admin_roles", "announcements",
+    "attendance_imports", "attendance_member_matches", "books_of_month", "cells", "confession_declarations",
+    "confessions", "contact_audit_log", "contact_follow_ups", "contact_tags", "contacts", "devotional_daily_pages",
+    "devotional_views", "drive_link_metadata", "email_drafts", "email_log", "email_notification_log", "email_preferences",
+    "email_templates", "event_rsvps", "events", "foundation_school_classes", "foundation_school_enrollments",
+    "foundation_school_progress", "habit_entries", "habit_templates", "meeting_attendances", "meetings",
+    "membership_transitions", "memberships", "monthly_devotionals", "people", "prayer_requests", "profiles",
+    "push_notification_log", "push_subscriptions", "scheduled_emails", "staff_profile_edit_audit", "status_settings", "tags_settings",
+    "testimonies", "testimony_comments", "testimony_reactions", "user_profiles", "weekly_messages",
+    "zoom_attendance", "zoom_settings"
+  ],
+  "views": ["member_directory"],
+  "authenticatedPrivileges": {
+    "DELETE,INSERT,SELECT,UPDATE": [
+      "admin_role_assignments", "admin_role_permissions", "admin_roles", "announcements", "attendance_imports",
+      "attendance_member_matches", "books_of_month", "cells", "confession_declarations", "confessions", "contacts",
+      "devotional_daily_pages", "devotional_views", "drive_link_metadata", "email_drafts", "email_log", "email_templates", "event_rsvps", "events",
+      "foundation_school_classes", "foundation_school_enrollments", "foundation_school_progress", "habit_entries",
+      "habit_templates", "meeting_attendances", "meetings", "monthly_devotionals", "people", "prayer_requests", "profiles",
+      "push_subscriptions", "status_settings", "tags_settings", "testimonies", "user_profiles", "weekly_messages",
+      "zoom_settings"
+    ],
+    "INSERT,SELECT": ["contact_audit_log", "email_notification_log", "membership_transitions"],
+    "INSERT,SELECT,UPDATE": ["contact_follow_ups", "email_preferences", "memberships"],
+    "DELETE,INSERT,SELECT": ["contact_tags", "testimony_comments", "testimony_reactions"],
+    "SELECT": ["push_notification_log", "staff_profile_edit_audit", "zoom_attendance"],
+    "": ["admin_bootstrap_audit", "scheduled_emails"]
+  },
+  "serviceRoleNoAccess": ["admin_bootstrap_audit"],
+  "forbiddenPrivileges": ["TRUNCATE", "REFERENCES", "TRIGGER"],
+  "profilePolicyAllowList": {
+    "profiles": ["profiles_coordinator_administer", "profiles_select_scoped", "profiles_self_onboarding_update"],
+    "user_profiles": ["profiles_delete", "profiles_insert", "profiles_update", "user_profiles_select_scoped", "user_profiles_staff_insert", "user_profiles_staff_update"]
+  },
+  "identityContract": {
+    "email_preferences": { "mustHave": ["user_id:uuid:NOT NULL"], "mustNotHave": ["member_id", "id"] },
+    "push_subscriptions": { "mustHave": ["user_id:uuid:NOT NULL", "endpoint:text:NOT NULL"], "mustNotHave": ["member_id"] },
+    "push_notification_log": { "mustHave": ["user_id:uuid:NOT NULL"], "mustNotHave": ["member_id"] }
+  },
+  "functions": {
+    "approve_pending_member(uuid)": { "security": "definer", "execute": ["authenticated"] },
+    "reject_pending_member(uuid)": { "security": "definer", "execute": ["authenticated"] },
+    "export_members_authorized(text)": { "security": "definer", "execute": ["authenticated"] },
+    "merge_people(uuid,uuid,text)": { "security": "definer", "execute": ["authenticated"] },
+    "bootstrap_first_administrator(text,text)": { "security": "definer", "execute": [] },
+    "current_user_role()": { "security": "definer", "execute": ["authenticated"] },
+    "is_active_member()": { "security": "definer", "execute": ["authenticated"] },
+    "is_coordinator()": { "security": "definer", "execute": ["authenticated"] },
+    "is_admin_or_coordinator()": { "security": "definer", "execute": ["authenticated"] },
+    "is_cell_leader_for_profile(uuid)": { "security": "definer", "execute": ["authenticated"] },
+    "has_admin_permission(text)": { "security": "definer", "execute": ["authenticated"] },
+    "is_cell_leader_of(uuid)": { "security": "invoker", "execute": ["authenticated"] },
+    "is_core_admin()": { "security": "invoker", "execute": ["authenticated"] },
+    "is_devotional_admin()": { "security": "invoker", "execute": ["authenticated"] },
+    "normalize_identity_email(text)": { "security": "invoker", "execute": ["authenticated", "service_role"] },
+    "normalize_identity_phone(text)": { "security": "invoker", "execute": ["authenticated", "service_role"] },
+    "is_active_profile(uuid)": { "security": "definer", "execute": ["authenticated", "service_role"] },
+    "find_person_by_email(text)": { "security": "invoker", "execute": ["authenticated", "service_role"] },
+    "profile_edit_changed_fields(jsonb,jsonb,text[])": { "security": "invoker", "execute": ["authenticated", "service_role"] },
+    "redacted_profile_changes(jsonb,jsonb,text[])": { "security": "invoker", "execute": ["authenticated", "service_role"] },
+    "track_email_open(uuid,uuid)": { "security": "definer", "execute": ["service_role"] },
+    "audit_staff_profile_edits()": { "security": "definer", "execute": [] },
+    "guard_profile_privileged_columns()": { "security": "invoker", "execute": [] },
+    "handle_new_user()": { "security": "definer", "execute": [] },
+    "set_updated_at()": { "security": "invoker", "execute": [] }
+  },
+  "definerSearchPath": "search_path=public, pg_temp",
+  "storage": {
+    "buckets": [
+      "devotional-images | public=true | max=10485760 | mime=image/jpeg,image/png,image/webp",
+      "testimony-images | public=true | max=5242880 | mime=image/jpeg,image/png,image/webp",
+      "user-media | public=true | max=5242880 | mime=image/jpeg,image/png,image/webp"
+    ],
+    "policyNames": [
+      "devotional_images_admin_delete", "devotional_images_admin_insert", "devotional_images_admin_update", "devotional_images_read",
+      "testimony_images_owner_insert", "testimony_images_owner_or_moderator_delete", "testimony_images_owner_update", "testimony_images_read",
+      "user_media_avatar_delete", "user_media_avatar_insert", "user_media_avatar_update", "user_media_read"
+    ]
+  },
+  "requiredTriggers": {
+    "profiles": ["profiles_guard_privileged_columns", "profiles_staff_edit_audit", "profiles_updated_at"],
+    "user_profiles": ["user_profiles_staff_edit_audit", "user_profiles_updated_at"]
+  }
+}

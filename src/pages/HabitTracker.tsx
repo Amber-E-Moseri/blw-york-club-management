@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Leaf, Flame, Settings } from 'lucide-react';
 import { Button } from '../components/foundation/Button';
 import { Input } from '../components/foundation/Input';
 import { Modal } from '../components/foundation/Modal';
@@ -189,7 +190,8 @@ export const HabitTracker: React.FC<Props> = ({ user }) => {
         </div>
         {isAdmin && (
           <Button variant="secondary" onClick={() => setAdminOpen((v) => !v)}>
-            {adminOpen ? '▲ Hide Admin' : '⚙️ Manage Habits'}
+            <Settings className="w-4 h-4 mr-1.5 inline-block" />
+            {adminOpen ? 'Hide Admin' : 'Manage Habits'}
           </Button>
         )}
       </div>
@@ -208,8 +210,8 @@ export const HabitTracker: React.FC<Props> = ({ user }) => {
       )}
 
       {!loading && habitsWithStats.length === 0 && (
-        <div className="text-center py-16 bg-white border border-gray-200 rounded-lg">
-          <p className="text-3xl mb-3">🌱</p>
+        <div className="text-center py-16 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg">
+          <Leaf className="w-10 h-10 mx-auto mb-3 text-gray-300 dark:text-slate-600" />
           <p className="text-base font-semibold text-gray-700">No habits set up yet</p>
           <p className="text-sm text-gray-400 mt-1">
             {isAdmin
@@ -237,8 +239,9 @@ export const HabitTracker: React.FC<Props> = ({ user }) => {
               / {habitsWithStats.length} done today
             </div>
             {habitsWithStats.some((h) => h.streak >= 7) && (
-              <div className="text-sm text-orange-600 font-semibold">
-                🔥 On a roll! {Math.max(...habitsWithStats.map((h) => h.streak))} day streak
+              <div className="flex items-center gap-1.5 text-sm text-orange-600 font-semibold">
+                <Flame className="w-4 h-4" />
+                On a roll! {Math.max(...habitsWithStats.map((h) => h.streak))} day streak
               </div>
             )}
           </div>
@@ -253,8 +256,8 @@ export const HabitTracker: React.FC<Props> = ({ user }) => {
 
       {/* Admin panel */}
       {isAdmin && adminOpen && (
-        <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gray-50">
+        <div className="border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
             <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Habit Templates</h2>
             <Button variant="primary" size="small" onClick={() => { setEditingTemplate(null); setFormOpen(true); }}>
               + New Habit

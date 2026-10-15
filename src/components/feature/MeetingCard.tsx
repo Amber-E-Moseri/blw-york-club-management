@@ -1,4 +1,5 @@
 import React from 'react';
+import { Building2, BookOpen, Users, Star, Calendar, Clock, MapPin, Video, type LucideIcon } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Badge } from '../foundation/Badge';
 import { Button } from '../foundation/Button';
@@ -30,11 +31,11 @@ function dayLabel(d: string) {
   return new Date(d + 'T00:00:00').toLocaleDateString('en-CA', { weekday: 'long', month: 'short', day: 'numeric' });
 }
 
-const CAT_BADGE: Record<string, { variant: string; label: string; icon: string }> = {
-  general:    { variant: 'info',    label: 'General',    icon: '🏛️' },
-  bsc:        { variant: 'success', label: 'BSC',        icon: '📖' },
-  cell:       { variant: 'warning', label: 'Cell',       icon: '👥' },
-  leadership: { variant: 'error',   label: 'Leadership', icon: '⭐' },
+const CAT_BADGE: Record<string, { variant: string; label: string; icon: LucideIcon }> = {
+  general:    { variant: 'info',    label: 'General',    icon: Building2 },
+  bsc:        { variant: 'success', label: 'BSC',        icon: BookOpen },
+  cell:       { variant: 'warning', label: 'Cell',       icon: Users },
+  leadership: { variant: 'error',   label: 'Leadership', icon: Star },
 };
 
 export const MeetingCard: React.FC<Props> = ({
@@ -42,8 +43,8 @@ export const MeetingCard: React.FC<Props> = ({
 }) => (
   <div
     className={cn(
-      'bg-white border rounded-lg p-5 space-y-3 hover:shadow-sm transition-shadow',
-      isToday(m.date) ? 'border-york-600/30' : 'border-gray-200'
+      'bg-white border rounded-lg p-5 space-y-3 hover:shadow-sm transition-shadow dark:bg-slate-800',
+      isToday(m.date) ? 'border-york-600/30 dark:border-york-600/40' : 'border-gray-200 dark:border-slate-700'
     )}
   >
     {/* Top bar */}
@@ -53,9 +54,10 @@ export const MeetingCard: React.FC<Props> = ({
           {isToday(m.date) && <Badge variant="primary" size="small">Today</Badge>}
           {(() => {
             const cat = CAT_BADGE[m.category ?? 'general'];
+            const CatIcon = cat.icon;
             return (
               <Badge variant={cat.variant as 'info' | 'success' | 'warning' | 'error'} size="small">
-                {cat.icon} {cat.label}
+                <CatIcon className="w-3 h-3 mr-1 inline-block" />{cat.label}
               </Badge>
             );
           })()}
@@ -63,7 +65,7 @@ export const MeetingCard: React.FC<Props> = ({
             <Badge variant="gray" size="small">Open to join</Badge>
           )}
         </div>
-        <h3 className="text-base font-bold text-gray-900">{m.title}</h3>
+        <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">{m.title}</h3>
       </div>
       {canManage && (
         <div className="flex gap-1 shrink-0">
@@ -86,14 +88,20 @@ export const MeetingCard: React.FC<Props> = ({
     </div>
 
     {/* Date & time */}
-    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
+    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 dark:text-slate-300">
       <span className="flex items-center gap-1.5">
-        📅 <span className="font-medium">{dayLabel(m.date)}</span>
+        <Calendar className="w-3.5 h-3.5 shrink-0 text-gray-400 dark:text-slate-500" />
+        <span className="font-medium">{dayLabel(m.date)}</span>
       </span>
       <span className="flex items-center gap-1.5">
-        🕐 {formatTime(m.time)}{m.end_time ? ` – ${formatTime(m.end_time)}` : ''}
+        <Clock className="w-3.5 h-3.5 shrink-0 text-gray-400 dark:text-slate-500" />
+        {formatTime(m.time)}{m.end_time ? ` – ${formatTime(m.end_time)}` : ''}
       </span>
-      {m.location && <span className="flex items-center gap-1.5">📍 {m.location}</span>}
+      {m.location && (
+        <span className="flex items-center gap-1.5">
+          <MapPin className="w-3.5 h-3.5 shrink-0 text-gray-400 dark:text-slate-500" />{m.location}
+        </span>
+      )}
     </div>
 
     {m.zoom_link && (
@@ -103,7 +111,7 @@ export const MeetingCard: React.FC<Props> = ({
         rel="noopener noreferrer"
         className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline"
       >
-        🎥 Join Online
+        <Video className="w-3.5 h-3.5" /> Join Online
       </a>
     )}
 
@@ -112,9 +120,9 @@ export const MeetingCard: React.FC<Props> = ({
     )}
 
     {/* Footer */}
-    <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+    <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-slate-700">
       <p className="text-xs text-gray-400">
-        {m.attendance_count ?? 0} confirmed
+        {typeof m.attendance_count === 'number' ? `${m.attendance_count} confirmed` : 'Attendance'}
       </p>
       <Button
         size="small"

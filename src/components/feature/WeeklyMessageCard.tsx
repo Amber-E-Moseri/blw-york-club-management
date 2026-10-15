@@ -26,7 +26,7 @@ export const WeeklyMessageCard: React.FC<Props> = ({
 }) => (
   <div
     className={cn(
-      'bg-white border rounded-lg transition-shadow hover:shadow-sm',
+      'bg-white border rounded-lg transition-shadow hover:shadow-sm dark:bg-slate-800 dark:border-slate-700',
       m.scope === 'org' ? 'border-york-200' : 'border-gray-200',
       compact ? 'p-4' : 'p-5',
     )}

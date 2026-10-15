@@ -85,7 +85,7 @@ export async function replaceRolePermissions(roleId: string, permissions: AdminP
 export async function fetchRoleAssignments(): Promise<AdminRoleAssignment[]> {
   const { data, error } = await supabase
     .from('admin_role_assignments')
-    .select('*, role:admin_roles(*), user:profiles(id,email,full_name,role)')
+    .select('*, role:admin_roles(*), user:profiles!user_id(id,email,full_name,role)')
     .order('assigned_at', { ascending: false });
 
   if (error) throw new Error(error.message ?? 'Unknown error');

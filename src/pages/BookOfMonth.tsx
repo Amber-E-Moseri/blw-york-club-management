@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { BookOpen, ExternalLink } from 'lucide-react';
 import { Button } from '../components/foundation/Button';
 import { Input } from '../components/foundation/Input';
 import { Modal } from '../components/foundation/Modal';
@@ -71,7 +72,10 @@ export const BookOfMonthPage: React.FC<Props> = ({ user }) => {
     <div className="max-w-3xl mx-auto space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">📚 Book of the Month</h1>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <BookOpen className="w-6 h-6 text-york-600" aria-hidden="true" />
+            Book of the Month
+          </h1>
           <p className="text-sm text-gray-500 mt-0.5">Reading together as a fellowship</p>
         </div>
         {canManage(user) && (
@@ -92,7 +96,9 @@ export const BookOfMonthPage: React.FC<Props> = ({ user }) => {
               <img src={currentBook.cover_image_url} alt={currentBook.title}
                 className="w-24 h-32 object-cover rounded-lg shadow-lg shrink-0" />
             ) : (
-              <div className="w-24 h-32 bg-york-800 rounded-lg shadow-lg flex items-center justify-center text-4xl shrink-0">📖</div>
+              <div className="w-24 h-32 bg-york-800 rounded-lg shadow-lg flex items-center justify-center shrink-0">
+                <BookOpen className="w-10 h-10 text-york-200" aria-hidden="true" />
+              </div>
             )}
             <div className="flex-1">
               <h2 className="text-xl font-bold leading-tight">{currentBook.title}</h2>
@@ -107,9 +113,7 @@ export const BookOfMonthPage: React.FC<Props> = ({ user }) => {
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 px-4 py-2 bg-white text-york-700 text-sm font-bold rounded-lg hover:bg-york-50 transition-colors"
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
+                  <ExternalLink className="w-4 h-4" aria-hidden="true" />
                   Open in Google Drive
                 </a>
                 {canManage(user) && (
@@ -138,7 +142,9 @@ export const BookOfMonthPage: React.FC<Props> = ({ user }) => {
                   <img src={b.cover_image_url} alt={b.title}
                     className="w-14 h-20 object-cover rounded-lg shrink-0" />
                 ) : (
-                  <div className="w-14 h-20 bg-gray-100 rounded-lg flex items-center justify-center text-2xl shrink-0">📖</div>
+                  <div className="w-14 h-20 bg-gray-100 dark:bg-slate-700 rounded-lg flex items-center justify-center shrink-0">
+                    <BookOpen className="w-6 h-6 text-gray-400 dark:text-slate-500" aria-hidden="true" />
+                  </div>
                 )}
                 <div className="flex-1 min-w-0">
                   <h3 className="font-bold text-gray-900 text-sm">{b.title}</h3>
@@ -181,9 +187,9 @@ export const BookOfMonthPage: React.FC<Props> = ({ user }) => {
       )}
 
       {!loading && books.length === 0 && (
-        <div className="text-center py-16 bg-white border border-gray-200 rounded-xl">
-          <p className="text-3xl mb-3">📚</p>
-          <p className="text-base font-semibold text-gray-700">No books added yet</p>
+        <div className="text-center py-16 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl">
+          <BookOpen className="w-10 h-10 mx-auto mb-3 text-gray-300 dark:text-slate-600" aria-hidden="true" />
+          <p className="text-base font-semibold text-gray-700 dark:text-slate-300">No books added yet</p>
           {canManage(user) && (
             <div className="mt-4"><Button variant="primary" size="small" onClick={openAdd}>Add First Book</Button></div>
           )}

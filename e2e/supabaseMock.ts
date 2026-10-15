@@ -33,6 +33,26 @@ const session = {
 
 const fixtures: Record<string, unknown[]> = {
   profiles: [profile],
+  member_directory: [
+    {
+      ...profile,
+      avatar_url: null,
+      student_number: '900000001',
+    },
+  ],
+  user_profiles: [
+    {
+      user_id: user.id,
+      first_name: 'Jordan',
+      last_name: 'Leader',
+      phone: null,
+      avatar_url: null,
+      bio: null,
+      student_number: '900000001',
+      created_at: user.created_at,
+      updated_at: user.created_at,
+    },
+  ],
   contacts: [],
   habit_entries: [],
   habit_templates: [],
@@ -70,7 +90,6 @@ const fixtures: Record<string, unknown[]> = {
       location: 'Room 101',
       visibility: 'leaders',
       created_at: '2026-09-01T00:00:00.000Z',
-      meeting_attendances: [],
     },
   ],
   prayer_requests: [],
@@ -113,7 +132,8 @@ export async function mockSupabase(page: Page) {
       const table = url.pathname.split('/').pop() ?? '';
       const rows = fixtures[table] ?? [];
       const wantsSingleProfile = table === 'profiles' && url.searchParams.get('id') === `eq.${user.id}`;
-      const body = wantsSingleProfile ? profile : rows;
+      const wantsSingleUserProfile = table === 'user_profiles' && url.searchParams.get('user_id') === `eq.${user.id}`;
+      const body = wantsSingleProfile ? profile : wantsSingleUserProfile ? (rows[0] ?? null) : rows;
       const headers = {
         ...corsHeaders,
         'content-range': `0-${Math.max(rows.length - 1, 0)}/${rows.length}`,

@@ -1,23 +1,24 @@
 import { supabase } from '../supabase';
 import type { EmailPreferences, EmailPreferencesInput, EmailLog, EmailStatus, EmailTemplateType, ScheduledEmail } from '../../types';
 
-export async function fetchEmailPreferences(memberId: string): Promise<EmailPreferences | null> {
+/** Preferences belong to an authenticated account: `userId` is profiles.id (= auth.users.id). */
+export async function fetchEmailPreferences(userId: string): Promise<EmailPreferences | null> {
   const { data, error } = await supabase
     .from('email_preferences')
     .select('*')
-    .eq('member_id', memberId)
+    .eq('user_id', userId)
     .maybeSingle();
   if (error) throw new Error(error.message ?? 'Unknown error');
   return data;
 }
 
 export async function upsertEmailPreferences(
-  memberId: string,
+  userId: string,
   prefs: EmailPreferencesInput
 ): Promise<EmailPreferences> {
   const { data, error } = await supabase
     .from('email_preferences')
-    .upsert({ member_id: memberId, ...prefs }, { onConflict: 'member_id' })
+    .upsert({ user_id: userId, ...prefs }, { onConflict: 'user_id' })
     .select()
     .single();
   if (error) throw new Error(error.message ?? 'Unknown error');

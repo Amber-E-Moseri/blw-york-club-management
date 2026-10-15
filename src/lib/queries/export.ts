@@ -20,17 +20,8 @@ export function downloadCSV(filename: string, csv: string): void {
 }
 
 export async function exportMembersCSV(status: MemberExportStatus = 'all'): Promise<string> {
-  let query = supabase
-    .from('profiles')
-    .select('id,full_name,email,student_number,role,status,cell_id,avatar_url,joined_at');
-
-  if (status === 'active') {
-    query = query.eq('status', 'active');
-  } else if (status === 'archived') {
-    query = query.neq('status', 'active');
-  }
-
-  const { data, error } = await query.order('full_name', { ascending: true });
+  const { data, error } = await supabase
+    .rpc('export_members_authorized', { export_status: status });
   if (error) throw new Error(error.message ?? 'Unknown error');
 
   return [

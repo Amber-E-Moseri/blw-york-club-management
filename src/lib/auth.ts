@@ -7,7 +7,7 @@ export interface AuthUser {
   email: string;
   name: string;
   role: 'coordinator' | 'admin' | 'cell_leader' | 'member';
-  status: 'pending' | 'active' | 'rejected';
+  status: 'pending' | 'active' | 'inactive' | 'rejected';
   cellId?: string;
   adminRole?: string;
   createdAt: Date;
@@ -113,15 +113,18 @@ export function hasPermission(role: AuthUser['role'], permission: string): boole
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/**
+ * Builds a display-only user from the Auth session. It deliberately NEVER derives role, status, cell or admin role
+ * from `user_metadata`: signed-in users can edit that object themselves. Authorization comes only from the
+ * `profiles` table (see useAuth.loadProfile / buildProfile), and the database enforces it with RLS.
+ */
 function buildAuthUser(supabaseUser: { id: string; email?: string; user_metadata?: Record<string, unknown>; created_at?: string }): AuthUser {
   return {
     id: supabaseUser.id,
     email: supabaseUser.email ?? '',
     name: (supabaseUser.user_metadata?.['full_name'] as string) ?? '',
-    role: (supabaseUser.user_metadata?.['role'] as AuthUser['role']) ?? 'member',
-    status: (supabaseUser.user_metadata?.['status'] as AuthUser['status']) ?? 'active',
-    cellId: supabaseUser.user_metadata?.['cell_id'] as string | undefined,
-    adminRole: supabaseUser.user_metadata?.['admin_role'] as string | undefined,
+    role: 'member',
+    status: 'pending',
     createdAt: new Date(supabaseUser.created_at ?? Date.now()),
   };
 }
