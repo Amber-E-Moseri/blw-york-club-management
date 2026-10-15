@@ -6,7 +6,8 @@ import { harness, randomPassword } from './lib.mjs';
 
 const h = harness('auth-workflow');
 const { admin, expect } = h;
-const email = `cert.auth.${h.run}@example.test`;
+// Signup uses the approved MailSlurp inbox address, so GoTrue accepts it and the confirmation code is readable.
+const email = '84d516c7-1093-4e5c-8f1c-2ca7141d5824@sandbox.zazamail.link';
 const password = randomPassword();
 let userId;
 
@@ -47,7 +48,7 @@ try {
   expect('pending user can read its own profile (approval screen)', !own.error && own.data?.status === 'pending', own.error?.message);
 
   const known = await h.newAnon().auth.resetPasswordForEmail(email, { redirectTo: 'http://127.0.0.1:3000/reset' });
-  const unknown = await h.newAnon().auth.resetPasswordForEmail(`cert.nobody.${h.run}@example.test`, { redirectTo: 'http://127.0.0.1:3000/reset' });
+  const unknown = await h.newAnon().auth.resetPasswordForEmail(`cert.nobody.${h.run}@sandbox.zazamail.link`, { redirectTo: 'http://127.0.0.1:3000/reset' });
   expect('password reset request accepted', !known.error, known.error?.message);
   expect('password reset answers the same for an unknown email (no account enumeration)', !unknown.error === !known.error, `${unknown.error?.message ?? 'ok'} vs ${known.error?.message ?? 'ok'}`);
 
