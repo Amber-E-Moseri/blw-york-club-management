@@ -34,7 +34,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: auth-certification-${{ inputs.candidate_sha }}
+  group: hub-certification-hosted
   cancel-in-progress: false
 
 env:
