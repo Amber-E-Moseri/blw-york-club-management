@@ -2,12 +2,15 @@ import { Link } from 'react-router-dom';
 import { PageHero } from '../components/PageHero';
 import { ExternalButton, Section, SectionHeading } from '../components/ui';
 import { useSiteContent } from '../content/SiteContentContext';
+import { PagePending } from '../components/PagePending';
 import { safeHttpsUrl } from '../lib/links';
 
 export function FoundationSchoolPage() {
+  const { publishedPages } = useSiteContent();
   const { foundationSchool: fs, settings } = useSiteContent();
   const enrolUrl = safeHttpsUrl(settings.foundationEnrollUrl);
 
+  if (!publishedPages.foundationSchool) return <PagePending title="Foundation School" />;
   return (
     <>
       <PageHero eyebrow="FOUNDATION SCHOOL" title={fs.headline} lead={fs.intro} />

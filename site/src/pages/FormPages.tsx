@@ -6,6 +6,7 @@ import { useSiteContent } from '../content/SiteContentContext';
 import type { FieldSpec } from '../lib/forms';
 import { useInquirySubmitter, useTurnstile } from '../content/InquirySubmitContext';
 import { TurnstileField } from '../components/TurnstileField';
+import { PagePending } from '../components/PagePending';
 
 const RECEIVED = 'Thank you. Your message has been received and will be read by the fellowship team.';
 
@@ -48,9 +49,10 @@ const CONTACT_FIELDS: FieldSpec[] = [
 ];
 
 export function NewHerePage() {
-  const { newHere, settings } = useSiteContent();
+  const { newHere, settings, publishedPages } = useSiteContent();
   const submit = useInquirySubmitter();
   const turnstileOn = useTurnstile() !== null;
+  if (!publishedPages.newHere) return <PagePending title="New Here?" />;
   return (
     <>
       <PageHero

@@ -56,31 +56,35 @@ function ConnectedSite({ config }: { config: PublicApiConfig }) {
     return handle;
   }, [config.turnstileSiteKey]);
 
-  // Public submissions use the anon key only. The database and, when configured, the Edge Function enforce the rules.
+  // Public messages are accepted only through the protected Edge Function (Turnstile plus per-client limits). Without a
+  // Turnstile key the site refuses to send: no message is ever reported as sent when nothing was delivered. The direct
+  // database path is not used by the public site.
   const submitter: InquirySubmitter = useMemo(() => {
-    const api = createWebsiteApi({ url: config.url, anonKey: config.anonKey, getAccessToken: () => null });
+    if (!turnstile) {
+      return async () => {
+        throw new Error('Messages cannot be sent right now. Please try again later.');
+      };
+    }
     return async (input) => {
-      if (turnstile) {
-        const token = turnstile.token;
-        turnstile.token = null; // single use
-        try {
-          if (!token) throw new Error('Please complete the security check, then send your message again.');
-          await postProtectedInquiry(config.url, config.anonKey, {
-            kind: input.kind, name: input.name, email: input.email, phone: input.phone, message: input.message,
-            topic: input.topic, consentVersion: 'v1', consentTextHash: await sha256Hex(input.consentText),
-            honeypot: input.honeypot, turnstileToken: token,
-          });
-        } finally {
-          turnstile.reset?.();
-        }
-        return;
+      const token = turnstile.token;
+      turnstile.token = null; // single use
+      try {
+        if (!token) throw new Error('Please complete the security check, then send your message again.');
+        await postProtectedInquiry(config.url, config.anonKey, {
+          kind: input.kind, name: input.name, email: input.email, phone: input.phone, message: input.message,
+          topic: input.topic, consentVersion: 'v1', consentTextHash: await sha256Hex(input.consentText),
+          honeypot: input.honeypot, turnstileToken: token,
+        });
+      } finally {
+        turnstile.reset?.();
       }
-      await api.submitInquiry({
-        kind: input.kind, name: input.name, email: input.email, phone: input.phone, message: input.message,
-        topic: input.topic, consentVersion: 'v1', consentTextHash: await sha256Hex(input.consentText), honeypot: input.honeypot,
-      });
     };
   }, [config, turnstile]);
+
+  useEffect(() => {
+    // Explicit configuration error for whoever builds the site. Visitors see the refusal above, not a success.
+    if (!config.turnstileSiteKey) console.error('Configuration error: VITE_TURNSTILE_SITE_KEY is not set, so public messages cannot be sent.');
+  }, [config.turnstileSiteKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,6 +110,18 @@ function ConnectedSite({ config }: { config: PublicApiConfig }) {
     // Only a non-default accent is written; the approved defaults live in index.css.
     if (brand !== DEFAULT_BRAND) applyBrandVariables(document.documentElement, brand);
   }, [brand]);
+
+  const favicon = state.status === 'ready' ? state.content.settings.faviconUrl : '';
+  useEffect(() => {
+    if (!favicon) return;
+    let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.head.appendChild(link);
+    }
+    link.href = favicon;
+  }, [favicon]);
 
   if (state.status === 'loading') {
     return <ServiceStatus title="Loading" message="Loading the latest published information." live="status" />;

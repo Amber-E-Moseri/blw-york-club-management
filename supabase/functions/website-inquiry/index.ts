@@ -9,7 +9,7 @@
 // Required secrets: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, TURNSTILE_SECRET_KEY,
 // CLIENT_HASH_SECRET (at least 32 random characters), WEBSITE_ALLOWED_ORIGINS (comma-separated https origins).
 
-import { clientAddress, corsHeaders, keyedHash, turnstilePassed, validateInquiry } from '../_shared/website-guards.ts';
+import { clientAddress, corsHeaders, keyedHash, missingSecrets, turnstilePassed, validateInquiry } from '../_shared/website-guards.ts';
 
 const CLIENT_LIMIT = 5;
 const CLIENT_WINDOW_MINUTES = 10;
@@ -26,8 +26,14 @@ Deno.serve(async (req: Request) => {
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
   const turnstileSecret = Deno.env.get('TURNSTILE_SECRET_KEY') ?? '';
   const pepper = Deno.env.get('CLIENT_HASH_SECRET') ?? '';
-  if (!supabaseUrl || !anonKey || !serviceKey || !turnstileSecret || pepper.length < 32) {
-    console.error(JSON.stringify({ event: 'inquiry_misconfigured' }));
+  // Missing secrets are an explicit configuration error in the function log (by name, never by value). The visitor
+  // gets an honest unavailable message, never a success.
+  const missing = missingSecrets(
+    { SUPABASE_URL: supabaseUrl, SUPABASE_ANON_KEY: anonKey, SUPABASE_SERVICE_ROLE_KEY: serviceKey, TURNSTILE_SECRET_KEY: turnstileSecret, CLIENT_HASH_SECRET: pepper },
+    { CLIENT_HASH_SECRET: 32 },
+  );
+  if (missing.length) {
+    console.error(JSON.stringify({ event: 'configuration_error', function: 'website-inquiry', missing }));
     return reply(503, { error: 'The form is temporarily unavailable. Please try again later.' }, cors);
   }
 

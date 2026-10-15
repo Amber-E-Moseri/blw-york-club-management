@@ -18,6 +18,18 @@ export function isSafeHttpsUrl(url: string): boolean {
   return /^https:\/\/[^\s@/:]+(\/[^\s]*)?$/.test(url);
 }
 
+/**
+ * Image addresses for logo, favicon and hero. Only https addresses without credentials, or paths inside this site, are
+ * accepted. Anything else is dropped, so the default image is used.
+ */
+export function isSafeImageAddress(url: string): boolean {
+  if (url.length > 500 || url.includes('..')) return false;
+  if (/^\/[A-Za-z0-9/_.-]*$/.test(url)) return true;
+  return /^https:\/\/[^\s@/]+(\/[^\s]*)?$/.test(url);
+}
+
+const safeImage = (v: unknown): string => (typeof v === 'string' && isSafeImageAddress(v.trim()) ? v.trim() : '');
+
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() !== '' ? v.trim() : undefined);
 
 function firstSection(body: Record<string, unknown>, type: string): Record<string, unknown> | undefined {
@@ -43,6 +55,9 @@ export function applyPublishedContent(base: SiteContent, rows: PublicContentRow[
           name: name ?? next.settings.name,
           tagline: str(b.tagline) ?? next.settings.tagline,
           primaryColor: resolveBrand(b.primary_color),
+          logoUrl: safeImage(b.logo_url),
+          faviconUrl: safeImage(b.favicon_url),
+          heroImageUrl: safeImage(b.hero_image_url),
           email: str(b.contact_email) ?? next.settings.email,
           address: str(b.address_text) ?? next.settings.address,
           serviceDay: str(b.service_day) ?? next.settings.serviceDay,
@@ -81,6 +96,17 @@ export function applyPublishedContent(base: SiteContent, rows: PublicContentRow[
       };
     }
   }
+  // A page counts as published only when its published version exists and is mapped above. Everything else stays false.
+  const published = (kind: string, key: string) => rows.some((r) => r.kind === kind && r.key === key);
+  next = {
+    ...next,
+    publishedPages: {
+      home: published('page', 'home'),
+      about: false, // About and New Here are not mapped from published rows yet, so they stay in the "being prepared" state.
+      foundationSchool: published('page', 'foundation_school'),
+      newHere: false,
+    },
+  };
   return next;
 }
 
@@ -171,7 +197,11 @@ export function unpublishedBase(sample: SiteContent): SiteContent {
       foundationEnrollUrl: '',
       isSample: false,
     },
-    about: { ...sample.about, leaders: [] },
+    // Placeholder copy is removed, not hidden: a connected site never renders it.
+    about: { mission: '', vision: '', beliefs: [], ministries: [], leaders: [], opportunities: [] },
+    newHere: { welcomePoints: [], expectations: [], faqs: [] },
+    home: { ...sample.home, eyebrow: '', headingLead: '', headingAccent: '', headingTail: '', body: '' },
+    publishedPages: { home: false, about: false, foundationSchool: false, newHere: false },
     events: [],
     posts: [],
     rhapsody: [],

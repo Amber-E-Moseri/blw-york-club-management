@@ -8,7 +8,7 @@
 //
 // Required secrets: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, WEBSITE_ALLOWED_ORIGINS.
 
-import { buildStorageUrl, corsHeaders, uploadObjectPath, validateUploadRequest } from '../_shared/website-guards.ts';
+import { buildStorageUrl, corsHeaders, missingSecrets, uploadObjectPath, validateUploadRequest } from '../_shared/website-guards.ts';
 
 Deno.serve(async (req: Request) => {
   const allowed = (Deno.env.get('WEBSITE_ALLOWED_ORIGINS') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
@@ -21,7 +21,11 @@ Deno.serve(async (req: Request) => {
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
   const auth = req.headers.get('authorization') ?? '';
   const userToken = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-  if (!supabaseUrl || !anonKey || !serviceKey) return reply(503, { error: 'Uploads are temporarily unavailable.' }, cors);
+  const missing = missingSecrets({ SUPABASE_URL: supabaseUrl, SUPABASE_ANON_KEY: anonKey, SUPABASE_SERVICE_ROLE_KEY: serviceKey });
+  if (missing.length) {
+    console.error(JSON.stringify({ event: 'configuration_error', function: 'website-media-upload', missing }));
+    return reply(503, { error: 'Uploads are temporarily unavailable.' }, cors);
+  }
   // A request without a user token, or with the public key, is not a signed-in user. Refuse it.
   if (!userToken || userToken === anonKey || userToken === serviceKey) return reply(401, { error: 'Please sign in to upload.' }, cors);
 

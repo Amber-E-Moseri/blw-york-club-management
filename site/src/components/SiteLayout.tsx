@@ -52,12 +52,16 @@ export function SiteLayout() {
             aria-label={`${settings.name} home`}
             className="flex min-w-0 items-center gap-2.5 text-ink no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
           >
-            <span
-              aria-hidden="true"
-              className="grid h-9 w-9 flex-none place-items-center rounded-[10px] bg-brand font-display text-[15px] font-bold text-white"
-            >
-              BLW
-            </span>
+            {settings.logoUrl ? (
+              <img src={settings.logoUrl} alt="" width={36} height={36} loading="eager" decoding="async" className="h-9 w-9 flex-none rounded-[10px] object-contain" />
+            ) : (
+              <span
+                aria-hidden="true"
+                className="grid h-9 w-9 flex-none place-items-center rounded-[10px] bg-brand font-display text-[15px] font-bold text-white"
+              >
+                BLW
+              </span>
+            )}
             <span className="grid min-w-0 leading-tight">
               <b className="truncate font-display text-[20px] font-bold">
                 <span className="text-brand">BLW</span> York Hub
@@ -167,11 +171,13 @@ function SiteFooter() {
             {settings.serviceDay} · {settings.serviceTime}
           </p>
           <p>{settings.address}</p>
-          <p className="mt-2">
-            <a href={`mailto:${settings.email}`} className="text-white underline-offset-4 hover:underline">
-              {settings.email}
-            </a>
-          </p>
+          {settings.email && (
+            <p className="mt-2">
+              <a href={`mailto:${settings.email}`} className="text-white underline-offset-4 hover:underline">
+                {settings.email}
+              </a>
+            </p>
+          )}
           <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-2" aria-label="Social media">
             {settings.socials.map((s) => (
               <li key={s.label}>
@@ -184,7 +190,7 @@ function SiteFooter() {
         </div>
       </div>
       <div className="border-t border-white/10 px-5 py-4 text-center text-xs text-gray-400">
-        © BLW York · Sample content preview · Privacy and terms pages to follow
+        {settings.isSample ? '© BLW York · Demo: sample content preview · Privacy and terms pages to follow' : `© ${new Date().getFullYear()} BLW York`}
       </div>
     </footer>
   );

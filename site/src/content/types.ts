@@ -17,6 +17,20 @@ export interface SiteSettings {
   foundationEnrollUrl: string;
   /** True while the content is sample data. Shown as a visible banner so nothing is mistaken for approved copy. */
   isSample: boolean;
+  /** Accent image shown in the home hero. Empty means no image. Must be https or a site path. */
+  heroImageUrl: string;
+  /** Logo shown in the header. Empty keeps the text mark. */
+  logoUrl: string;
+  /** Favicon for the browser tab. Empty keeps the default icon. */
+  faviconUrl: string;
+}
+
+/** Which pages have published content. A page that is not published shows a "being prepared" state in production. */
+export interface PublishedPages {
+  home: boolean;
+  about: boolean;
+  foundationSchool: boolean;
+  newHere: boolean;
 }
 
 export interface NavItem {
@@ -151,4 +165,5 @@ export interface SiteContent {
   rhapsody: RhapsodyEdition[];
   foundationSchool: FoundationSchoolContent;
   newHere: NewHereContent;
+  publishedPages: PublishedPages;
 }

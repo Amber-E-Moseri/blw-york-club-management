@@ -18,7 +18,17 @@ const check = (area, name, ok, detail = '') => {
   out.push({ area, name, ok: !!ok });
   console.log(`${ok ? 'PASS' : 'FAIL'}  [${area}] ${name}${detail ? ' :: ' + String(detail).slice(0, 220) : ''}`);
 };
-const as = (role, uid, sql, params = []) => attempt(db, role, uid, sql, params);
+// Uploads happen in storage before registration. In the replay, the object is staged automatically for each
+// registration, with the declared name, size and type, unless autoStage is switched off for a negative test.
+let autoStage = true;
+const as = async (role, uid, sql, params = []) => {
+  const m = /web_register_media\('([^']+)','([^']+)','([^']+)',(\d+),/.exec(sql);
+  if (m && autoStage) {
+    await db.query("insert into storage.objects (bucket_id, name, metadata) select $1, $2, $3::jsonb where not exists (select 1 from storage.objects where bucket_id = $1 and name = $2)",
+      [m[1], m[2], JSON.stringify({ size: m[4], mimetype: m[3] })]);
+  }
+  return attempt(db, role, uid, sql, params);
+};
 const owner = (sql, params = []) => db.query(sql, params);
 const refused = (r) => !r.ok;
 const HASH = createHash('sha256').update('consent text v1').digest('hex');
@@ -514,6 +524,41 @@ rr = await as('authenticated', U.editor, `select pdf_path from public.web_list_e
   resolved = await as('service_role', null, `select * from public.web_resolve_edition_pdf($1)`, [edId]);
   check(area, 'an archived PDF is no longer served', resolved.ok && resolved.rows.length === 0, resolved.error || JSON.stringify(resolved.rows));
   await owner(`update public.web_media set status = 'active' where id = $1`, [pdfId]);
+}
+
+// ---------- Migration 110: verified registration and orphaned-upload discovery
+{
+  const area = 'media110';
+  autoStage = false;
+  let rr = await as('authenticated', U.contributor, `select web_register_media('site-media','never/uploaded.jpg','image/jpeg',500,'Alt')`);
+  check(area, 'registration refuses a file that was never uploaded', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+  await owner(`insert into storage.objects (bucket_id, name, metadata) values ('site-media','verify/size.jpg','{"size":"100","mimetype":"image/jpeg"}')`);
+  rr = await as('authenticated', U.contributor, `select web_register_media('site-media','verify/size.jpg','image/jpeg',999,'Alt')`);
+  check(area, 'registration refuses a size that differs from the stored object', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+  rr = await as('authenticated', U.contributor, `select web_register_media('site-media','verify/size.jpg','image/png',100,'Alt')`);
+  check(area, 'registration refuses a type that differs from the stored object', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+  rr = await as('authenticated', U.contributor, `select web_register_media('site-media','verify/size.jpg','image/jpeg',100,'Alt')`);
+  check(area, 'a matching stored object registers', rr.ok, rr.error || '');
+  autoStage = true;
+
+  // Orphans: old, unreferenced objects only.
+  const old = `now() - interval '3 days'`;
+  await owner(`insert into storage.objects (bucket_id, name, metadata, created_at) values
+    ('site-media','orphan/old.jpg','{"size":"10","mimetype":"image/jpeg"}', ${old}),
+    ('site-media','orphan/recent.jpg','{"size":"10","mimetype":"image/jpeg"}', now()),
+    ('site-media','orphan/referenced-in-content.jpg','{"size":"10","mimetype":"image/jpeg"}', ${old}),
+    ('site-media','verify/size.jpg','{"size":"100","mimetype":"image/jpeg"}', ${old})`);
+  await owner(`update public.web_content set draft = draft || '{"hero_image_url":"/storage/orphan/referenced-in-content.jpg"}'::jsonb where kind='settings' and key='site'`);
+  rr = await as('service_role', null, `select bucket_id, object_name from public.web_orphaned_uploads(1440)`);
+  const names = rr.ok ? rr.rows.map((x) => x.object_name) : [];
+  check(area, 'an old unreferenced upload is listed for cleanup', names.includes('orphan/old.jpg'), rr.error || JSON.stringify(names));
+  check(area, 'a recent upload is not listed yet', !names.includes('orphan/recent.jpg'), JSON.stringify(names));
+  check(area, 'an upload mentioned in website content is never listed', !names.includes('orphan/referenced-in-content.jpg'), JSON.stringify(names));
+  check(area, 'a registered (referenced) asset is never listed', !names.includes('verify/size.jpg'), JSON.stringify(names));
+  rr = await as('authenticated', U.admin, `select * from public.web_orphaned_uploads(1440)`);
+  check(area, 'signed-in users cannot list orphaned uploads', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+  rr = await as('anon', null, `select * from public.web_orphaned_uploads(1440)`);
+  check(area, 'anon cannot list orphaned uploads', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
 }
 
 const failed = out.filter((x) => !x.ok);

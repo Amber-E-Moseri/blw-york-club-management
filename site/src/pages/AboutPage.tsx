@@ -1,9 +1,12 @@
 import { ButtonLink, ImagePlaceholder, Section, SectionHeading } from '../components/ui';
 import { PageHero } from '../components/PageHero';
 import { useSiteContent } from '../content/SiteContentContext';
+import { PagePending } from '../components/PagePending';
 
 export function AboutPage() {
+  const { publishedPages } = useSiteContent();
   const { about } = useSiteContent();
+  if (!publishedPages.about) return <PagePending title="About us" />;
   return (
     <>
       <PageHero

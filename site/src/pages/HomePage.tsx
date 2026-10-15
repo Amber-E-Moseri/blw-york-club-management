@@ -7,7 +7,9 @@ import { safeHttpsUrl } from '../lib/links';
 
 export function HomePage() {
   const content = useSiteContent();
-  const { home, settings, about, events, posts, rhapsody, newHere } = content;
+  const { home: publishedHome, settings, about, events, posts, rhapsody, newHere } = content;
+  // Unpublished home copy is never shown: the hero falls back to the site name only.
+  const home = content.publishedPages.home ? publishedHome : { ...publishedHome, eyebrow: '', headingLead: settings.name, headingAccent: '', headingTail: '', body: '' };
   const today = todayInSiteZone();
   const upcoming = partitionEvents(events, today).upcoming.slice(0, 3);
   const latestPosts = posts.slice(0, 3);
@@ -32,7 +34,11 @@ export function HomePage() {
               </ButtonLink>
             </div>
           </div>
-          <ImagePlaceholder label="students gathered on campus" className="aspect-[4/3] w-full lg:aspect-[5/4]" />
+          {settings.heroImageUrl ? (
+            <img src={settings.heroImageUrl} alt="" loading="lazy" decoding="async" className="aspect-[4/3] w-full rounded-2xl object-cover lg:aspect-[5/4]" />
+          ) : settings.isSample ? (
+            <ImagePlaceholder label="students gathered on campus" className="aspect-[4/3] w-full lg:aspect-[5/4]" />
+          ) : null}
         </div>
 
         <dl className="mx-5 mb-12 grid gap-px overflow-hidden rounded-2xl border border-paper-edge bg-paper-edge md:mx-auto md:max-w-content md:grid-cols-3">
@@ -69,6 +75,7 @@ export function HomePage() {
         </p>
       </Section>
 
+      {about.ministries.length > 0 && (
       <Section labelledBy="home-ministries">
         <SectionHeading id="home-ministries" eyebrow="What we do" title="Ministries for every season" />
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -81,6 +88,7 @@ export function HomePage() {
           ))}
         </ul>
       </Section>
+      )}
 
       <Section labelledBy="home-foundation" tone="ink">
         <div className="grid gap-8 md:grid-cols-[1.2fr_1fr] md:items-center">

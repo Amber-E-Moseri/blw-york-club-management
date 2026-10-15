@@ -1,8 +1,12 @@
-// Pure helpers for the website Edge Functions (inquiries, Rhapsody PDF delivery, media upload). No Deno APIs and no
-// network, so the same file is unit-tested under Node in site/src/__tests__/website-guards.test.ts.
+// Shared helpers for the website Edge Functions (inquiries, Rhapsody PDF delivery, media upload, media cleanup).
+// Validation uses Zod (AGENTS.md: Zod on every write path). The same file is unit-tested under Node in
+// site/src/__tests__/productionSafety.test.ts. Specifier "zod" resolves through supabase/functions/import_map.json in
+// Deno and through site/node_modules in the tests.
 //
 // Privacy rules: raw network addresses and user agents never leave these helpers. Only keyed hashes are stored or
 // sent to the database, and the secret that keys them is server-side only.
+
+import { z } from 'zod';
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -76,6 +80,30 @@ export function corsHeaders(origin: string | null, allowed: string[]): Record<st
   return headers;
 }
 
+/**
+ * Lists the secrets a function needs that are missing or too short. Used to fail with an explicit configuration error
+ * (logged by name, never by value) instead of a misleading success or a silent refusal.
+ */
+export function missingSecrets(required: Record<string, string | undefined>, minLength: Record<string, number> = {}): string[] {
+  return Object.keys(required).filter((k) => {
+    const v = required[k] ?? '';
+    return v.trim() === '' || v.length < (minLength[k] ?? 1);
+  });
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Result helper
+// ---------------------------------------------------------------------------------------------------------------------
+
+export type Parsed<T> = { ok: true; value: T } | { ok: false; message: string };
+
+/** Turns a Zod failure into the first visitor-facing message. Field-specific wording is kept for common mistakes. */
+function firstMessage(error: z.ZodError, friendly: Record<string, string>, fallback: string): string {
+  const issue = error.issues[0];
+  const field = String(issue?.path[0] ?? '');
+  return friendly[field] ?? fallback;
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Media upload rules. These mirror the storage bucket limits and the web_media constraints in migration 107.
 // ---------------------------------------------------------------------------------------------------------------------
@@ -95,16 +123,31 @@ export const MEDIA_RULES: Record<MediaBucket, { maxBytes: number; mimes: Record<
 
 export type UploadRequest = { bucket: MediaBucket; mime: string; bytes: number };
 
-export function validateUploadRequest(body: unknown): { ok: true; value: UploadRequest } | { ok: false; message: string } {
-  if (typeof body !== 'object' || body === null) return { ok: false, message: 'The upload request is not valid.' };
-  const { bucket, mime, bytes } = body as Record<string, unknown>;
-  if (bucket !== 'site-media' && bucket !== 'rhapsody-pdfs') return { ok: false, message: 'That storage area is not available.' };
-  const rules = MEDIA_RULES[bucket];
-  if (typeof mime !== 'string' || !(mime in rules.mimes)) return { ok: false, message: 'That file type is not allowed here.' };
-  if (typeof bytes !== 'number' || !Number.isInteger(bytes) || bytes < 1 || bytes > rules.maxBytes) {
-    return { ok: false, message: `Files must be between 1 byte and ${Math.round(rules.maxBytes / (1024 * 1024))} MB.` };
+const UploadSchema = z
+  .object({
+    bucket: z.enum(['site-media', 'rhapsody-pdfs']),
+    mime: z.string().max(100),
+    bytes: z.number().int().positive(),
+  })
+  .strict()
+  .superRefine((v, ctx) => {
+    const rules = MEDIA_RULES[v.bucket];
+    if (!(v.mime in rules.mimes)) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['mime'], message: 'type' });
+    if (v.bytes > rules.maxBytes) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['bytes'], message: 'size' });
+  });
+
+export function validateUploadRequest(body: unknown): Parsed<UploadRequest> {
+  const parsed = UploadSchema.safeParse(body);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    if (issue?.path[0] === 'bucket') return { ok: false, message: 'That storage area is not available.' };
+    if (issue?.path[0] === 'mime' || issue?.message === 'type') return { ok: false, message: 'That file type is not allowed here.' };
+    if (issue?.path[0] === 'bytes' && issue.message === 'size') {
+      return { ok: false, message: 'That file is too large for this area.' };
+    }
+    return { ok: false, message: 'Files must be between 1 byte and the size limit for their area.' };
   }
-  return { ok: true, value: { bucket, mime, bytes } };
+  return { ok: true, value: parsed.data };
 }
 
 /**
@@ -138,38 +181,33 @@ export type InquiryRequest = {
 
 const EMAIL = /^[^@\s]{1,64}@[^@\s]{1,190}\.[^@\s]{2,20}$/;
 
-export function validateInquiry(body: unknown): { ok: true; value: InquiryRequest } | { ok: false; message: string } {
-  if (typeof body !== 'object' || body === null) return { ok: false, message: 'The message could not be read. Please try again.' };
-  const b = body as Record<string, unknown>;
-  const str = (k: string, max: number): string | null => {
-    const v = b[k];
-    if (typeof v !== 'string') return null;
-    if (v.length > max) return null;
-    return v;
-  };
-  const kind = b.kind;
-  if (kind !== 'contact' && kind !== 'new_here' && kind !== 'prayer') return { ok: false, message: 'Please choose a valid form.' };
-  const name = str('name', 120);
-  const email = str('email', 254);
-  const phone = str('phone', 40);
-  const message = str('message', 4000);
-  const topic = str('topic', 120);
-  const consentVersion = str('consentVersion', 20);
-  const consentTextHash = str('consentTextHash', 64);
-  const honeypot = str('honeypot', 500);
-  const turnstileToken = str('turnstileToken', 2048);
-  if (name === null || email === null || phone === null || message === null || topic === null || consentVersion === null
-      || consentTextHash === null || honeypot === null || turnstileToken === null) {
-    return { ok: false, message: 'Some fields are missing or too long. Please check the form.' };
+const InquirySchema = z
+  .object({
+    kind: z.enum(['contact', 'new_here', 'prayer']),
+    name: z.string().trim().min(1).max(120),
+    email: z.string().trim().max(254).regex(EMAIL),
+    phone: z.string().trim().max(40),
+    message: z.string().max(4000),
+    topic: z.string().max(120),
+    consentVersion: z.string().max(20),
+    consentTextHash: z.string().regex(/^[0-9a-f]{64}$/),
+    honeypot: z.string().max(500),
+    turnstileToken: z.string().min(1).max(2048),
+  })
+  .strict();
+
+const INQUIRY_MESSAGES: Record<string, string> = {
+  kind: 'Please choose a valid form.',
+  name: 'Please enter your name.',
+  email: 'Please enter a valid email address.',
+  consentTextHash: 'Please confirm the consent statement and try again.',
+  turnstileToken: 'Please complete the security check and try again.',
+};
+
+export function validateInquiry(body: unknown): Parsed<InquiryRequest> {
+  const parsed = InquirySchema.safeParse(body);
+  if (!parsed.success) {
+    return { ok: false, message: firstMessage(parsed.error, INQUIRY_MESSAGES, 'Some fields are missing or too long. Please check the form.') };
   }
-  if (!name.trim() || !EMAIL.test(email.trim())) return { ok: false, message: 'Please enter your name and a valid email address.' };
-  if (!/^[0-9a-f]{64}$/.test(consentTextHash)) return { ok: false, message: 'Please confirm the consent statement and try again.' };
-  if (!turnstileToken) return { ok: false, message: 'Please complete the security check and try again.' };
-  return {
-    ok: true,
-    value: {
-      kind, name: name.trim(), email: email.trim(), phone: phone.trim(), message, topic, consentVersion,
-      consentTextHash, honeypot, turnstileToken,
-    },
-  };
+  return { ok: true, value: parsed.data };
 }

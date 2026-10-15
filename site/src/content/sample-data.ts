@@ -25,6 +25,9 @@ export const sampleContent: SiteContent = {
     // Override with VITE_FOUNDATION_ENROLL_URL at build time. Empty or invalid hides every enrol button.
     foundationEnrollUrl: import.meta.env.VITE_FOUNDATION_ENROLL_URL ?? SAMPLE_FOUNDATION_URL,
     isSample: true,
+    heroImageUrl: '',
+    logoUrl: '',
+    faviconUrl: '',
   },
 
   nav: [
@@ -348,6 +351,8 @@ export const sampleContent: SiteContent = {
       { question: 'Do I need to be a member?', answer: 'Sample answer. Foundation School is open to students who want to grow.' },
     ],
   },
+
+  publishedPages: { home: true, about: true, foundationSchool: true, newHere: true },
 
   newHere: {
     welcomePoints: [

@@ -10,7 +10,7 @@
 //
 // Required secrets: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, CLIENT_HASH_SECRET (32+ characters).
 
-import { buildStorageUrl, cleanLabel, clientAddress, isUuid, keyedHash } from '../_shared/website-guards.ts';
+import { buildStorageUrl, cleanLabel, clientAddress, isUuid, keyedHash, missingSecrets } from '../_shared/website-guards.ts';
 
 const SIGNED_URL_SECONDS = 120;
 
@@ -25,8 +25,12 @@ Deno.serve(async (req: Request) => {
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
   const pepper = Deno.env.get('CLIENT_HASH_SECRET') ?? '';
-  if (!supabaseUrl || !anonKey || !serviceKey || pepper.length < 32) {
-    console.error(JSON.stringify({ event: 'pdf_misconfigured' }));
+  const missing = missingSecrets(
+    { SUPABASE_URL: supabaseUrl, SUPABASE_ANON_KEY: anonKey, SUPABASE_SERVICE_ROLE_KEY: serviceKey, CLIENT_HASH_SECRET: pepper },
+    { CLIENT_HASH_SECRET: 32 },
+  );
+  if (missing.length) {
+    console.error(JSON.stringify({ event: 'configuration_error', function: 'website-rhapsody-pdf', missing }));
     return text(503, 'The document is temporarily unavailable.');
   }
 
