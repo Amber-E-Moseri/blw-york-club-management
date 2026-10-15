@@ -39,4 +39,14 @@ if [[ "$src_probe" != "$dst_probe" ]]; then
   echo "CLONE MISMATCH: $SRC=[$src_probe] $DST=[$dst_probe]" >&2
   exit 1
 fi
-echo "cloned $SRC -> $DST ($dst_probe functions|policies)"
+# Ownership, SECURITY DEFINER mode and owner, EXECUTE and table grants, and RLS: the clone's full security fingerprint must
+# equal the source's, byte for byte. A changed owner, a dropped grant or a flipped RLS flag refuses the clone.
+FP_SQL="$(dirname "$0")/../supabase/verification/schema_fingerprint.sql"
+[[ -f "$FP_SQL" ]] || { echo "refused: $FP_SQL is missing; the clone cannot be verified" >&2; exit 2; }
+src_fp="$(docker exec -i "$C" psql -U "$ROLE" -d "$SRC" -X -q -At < "$FP_SQL")"
+dst_fp="$(docker exec -i "$C" psql -U "$ROLE" -d "$DST" -X -q -At < "$FP_SQL")"
+if [[ -z "$src_fp" || "$src_fp" != "$dst_fp" ]]; then
+  echo "CLONE FINGERPRINT MISMATCH: $DST does not match $SRC in owners, SECURITY DEFINER, grants or RLS" >&2
+  exit 1
+fi
+echo "cloned $SRC -> $DST ($dst_probe functions|policies; security fingerprint matches)"
