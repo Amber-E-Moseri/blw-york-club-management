@@ -24,7 +24,7 @@ Keep `website-media-upload` on the default (verified).
 ## Browser configuration (Vite build variables)
 
 - `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`: public content and anon-key RPCs.
-- `VITE_TURNSTILE_SITE_KEY`: when set, public forms **must** go through `website-inquiry`. Without it, forms use the direct RPC path, which has no per-client protection. Production must set this.
+- `VITE_TURNSTILE_SITE_KEY`: when set, public forms **must** go through `website-inquiry`. Without it, the public forms refuse to send and log a configuration error. The direct RPC path is not used by the public site.
 
 ## Database
 
