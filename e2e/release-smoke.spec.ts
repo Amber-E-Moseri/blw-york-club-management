@@ -2,11 +2,11 @@ import { randomBytes } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { expect, test, type Page } from '@playwright/test';
 import { approveApplicant, coordinatorSession, setRole } from './support/authorizedFixtures';
-import { localSupabaseEnv } from './support/env';
+import { supabaseTestEnv } from './support/env';
 
 // Release smoke against the LOCAL Supabase stack with fake, throwaway accounts.
 // Requires SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (local only) in the environment.
-const { url, anonKey, serviceKey } = localSupabaseEnv();
+const { url, anonKey, serviceKey } = supabaseTestEnv();
 
 const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 const run = `${Date.now()}`;

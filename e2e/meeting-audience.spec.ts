@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { expect, test, type BrowserContext, type Page, type TestInfo } from '@playwright/test';
 import { approveApplicant, coordinatorSession, placeActiveMember, requireCoordinatorEnv } from './support/authorizedFixtures';
-import { localSupabaseEnv, requireEnv } from './support/env';
+import { supabaseTestEnv, requireEnv } from './support/env';
 
 // Restricted-meeting audience certification: a real browser, real Supabase Auth, and RLS checked through each user's own
 // session. Runs ONLY against a local Supabase stack, with synthetic accounts that the suite creates and deletes.
@@ -13,7 +13,7 @@ import { localSupabaseEnv, requireEnv } from './support/env';
 // Status of every scenario is recorded in the test title. A scenario that has not been executed against a live stack is
 // NOT TESTED, not PASS.
 
-const { url, anonKey, serviceKey } = localSupabaseEnv();
+const { url, anonKey, serviceKey } = supabaseTestEnv();
 const cellId = requireEnv('E2E_CELL_ID');
 requireCoordinatorEnv();
 

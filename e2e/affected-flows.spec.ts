@@ -4,12 +4,12 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   approveApplicant, assignBsc, coordinatorSession, placeActiveMember, placeApplicant, setRole,
 } from './support/authorizedFixtures';
-import { localSupabaseEnv } from './support/env';
+import { supabaseTestEnv } from './support/env';
 
 // Browser coverage for the flows changed by the authorisation remediation (confessions, BSC, habits), run against the
 // LOCAL Supabase stack with throwaway accounts. Requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (local only).
 // Prayer requests have no UI route yet (see the round-5 report), so prayers are not covered here.
-const { url, anonKey, serviceKey } = localSupabaseEnv();
+const { url, anonKey, serviceKey } = supabaseTestEnv();
 
 // The flows share one dev server and one database. Run them one at a time, with a longer assertion timeout, so a
 // first-load compile under parallel sign-ins cannot fail an otherwise correct assertion.
