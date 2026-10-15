@@ -168,7 +168,7 @@ update public.profiles set person_id = '00000000-0000-0000-0000-00000000d003' wh
 -- ── memberships (memberships_read: core admin or own person row)
 select rls_test.safe_count('M1 ordinary member M3 reads no rejected membership row', '00000000-0000-0000-0000-00000000d003', $q$select id from public.memberships where person_id = '00000000-0000-0000-0000-00000000d005'$q$, 0);
 select rls_test.safe_count('M2 cell leader CL reads no rejected membership row', '00000000-0000-0000-0000-00000000f001', $q$select id from public.memberships where person_id = '00000000-0000-0000-0000-00000000d005'$q$, 0);
-select rls_test.safe_count('M3 rejected member MR reads own membership row', '00000000-0000-0000-0000-00000000d005', $q$select id from public.memberships where person_id = '00000000-0000-0000-0000-00000000d005'$q$, 1);
+select rls_test.safe_count('M3 rejected member MR reads no membership row (denial; decision confirmed: no membership data)', '00000000-0000-0000-0000-00000000d005', $q$select id from public.memberships where person_id = '00000000-0000-0000-0000-00000000d005'$q$, 0);
 select rls_test.safe_count('M4 administrator AD reads the rejected membership row', '00000000-0000-0000-0000-00000000a001', $q$select id from public.memberships where person_id = '00000000-0000-0000-0000-00000000d005'$q$, 1);
 
 -- ── people (095: a person linked to a rejected profile is staff-only)

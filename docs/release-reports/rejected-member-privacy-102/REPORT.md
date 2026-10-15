@@ -66,3 +66,7 @@ Synthetic fixture: a rejected member with a linked person row, a rejected member
 Counts: baseline 18 PASS / 4 FAIL; after 102 21 PASS / 1 FAIL (the membership self-read, recorded as a decision, not weakened).
 Files: out/rp_baseline_out.txt, out/rp_r102_out.txt.
 Candidate fingerprint (NOT the golden): out/schema_fingerprint.candidate-102-NOT-GOLDEN.json.
+
+## Corrected read-path result (decision confirmed: rejected members get no membership data)
+
+The membership self-read expectation was corrected from 1 to 0 (a denial). The original run is preserved unchanged as out/rp_r102_out.txt (21 PASS / 1 FAIL). The corrected run is out/rp_r102_corrected_out.txt: 22 PASS / 0 FAIL on 000-102. The baseline run (out/rp_baseline_out.txt) is unchanged at 18 PASS / 4 FAIL.

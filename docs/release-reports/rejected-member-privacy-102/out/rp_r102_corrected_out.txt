@@ -1,0 +1,141 @@
+ safe_count 
+------------
+ 
+(1 row)
+
+ safe_count 
+------------
+ 
+(1 row)
+
+ safe_count 
+------------
+ 
+(1 row)
+
+ safe_count 
+------------
+ 
+(1 row)
+
+ safe_count 
+------------
+ 
+(1 row)
+
+ safe_count 
+------------
+ 
+(1 row)
+
+ safe_count 
+------------
+ 
+(1 row)
+
+ safe_count 
+------------
+ 
+(1 row)
+
+ safe_count 
+------------
+ 
+(1 row)
+
+ safe_count 
+------------
+ 
+(1 row)
+
+ safe_count 
+------------
+ 
+(1 row)
+
+ safe_count 
+------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ safe_count 
+------------
+ 
+(1 row)
+
+ safe_count 
+------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+ safe_count 
+------------
+ 
+(1 row)
+
+ safe_count 
+------------
+ 
+(1 row)
+
+ safe_count 
+------------
+ 
+(1 row)
+
+ safe_count 
+------------
+ 
+(1 row)
+
+ expect_error 
+--------------
+ 
+(1 row)
+
+                                              name                                              | ok |                           detail                           
+------------------------------------------------------------------------------------------------+----+------------------------------------------------------------
+ B1 cell leader CL (leads the BSC) sees no rejected member on the roster                        | t  | 0 visible (expected 0)
+ B2 ordinary member M3 sees no rejected member on any roster                                    | t  | 0 visible (expected 0)
+ B3 administrator AD BSC roster excludes the rejected member (existing rule, unchanged by 102)  | t  | 0 visible (expected 0)
+ C1 ordinary member M3 counts only own active profile                                           | t  | 1 visible (expected 1)
+ C2 cell leader CL counts no rejected profile in any active-count query                         | t  | 0 visible (expected 0)
+ C3 cell leader CL active C1 profiles = self, M1, M3, and the BSC-led nothing else              | t  | 3 visible (expected 3)
+ I1 cell leader CL cannot call get_person_identity for the rejected member                      | t  | 42501: You are not authorised for identity review.
+ M1 ordinary member M3 reads no rejected membership row                                         | t  | 0 visible (expected 0)
+ M2 cell leader CL reads no rejected membership row                                             | t  | 0 visible (expected 0)
+ M3 rejected member MR reads no membership row (denial; decision confirmed: no membership data) | t  | 0 visible (expected 0)
+ M4 administrator AD reads the rejected membership row                                          | t  | 1 visible (expected 1)
+ PE1 cell leader CL reads no rejected people row                                                | t  | 0 visible (expected 0)
+ PE2 ordinary member M3 reads no rejected people row                                            | t  | 0 visible (expected 0)
+ PE3 administrator AD reads the rejected people row                                             | t  | 1 visible (expected 1)
+ R1 cell leader CL pending roster does not list the rejected member                             | t  | 0 visible (expected 0)
+ R2 cell leader CL pending roster still lists the pending applicant (unchanged)                 | t  | 1 visible (expected 1)
+ S1 ordinary member M3 cannot call find_person_by_email (refused)                               | t  | 42501: permission denied for function find_person_by_email
+ S2 cell leader CL profile search by name finds no rejected member                              | t  | 0 visible (expected 0)
+ S3 cell leader CL member_directory search finds no rejected member                             | t  | 0 visible (expected 0)
+ S4 ordinary member M3 cannot export members (refused, 42501)                                   | t  | 42501: Not authorised to export member data.
+ S5 cell leader CL cannot export members (refused, 42501)                                       | t  | 42501: Not authorised to export member data.
+ S6 administrator AD export lists the rejected member                                           | t  | 1 visible (expected 1)
+(22 rows)
+
+ passed | failed 
+--------+--------
+     22 |      0
+(1 row)
+
