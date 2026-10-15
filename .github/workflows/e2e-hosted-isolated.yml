@@ -82,6 +82,8 @@ jobs:
           E2E_COORDINATOR_PASSWORD: ${{ secrets.E2E_COORDINATOR_PASSWORD }}
           E2E_HOSTED_ISOLATED: '1'
           E2E_ISOLATED_HOST: ${{ secrets.E2E_ISOLATED_HOST }}
+          E2E_PREVIEW_TESTING_AUTHORIZED: 'true'
+          E2E_APPROVED_PREVIEW_HOST: 'yziuhtxtznginhdpqurb.supabase.co'
           E2E_DENIED_HOSTS: ${{ secrets.E2E_DENIED_HOSTS }}
         run: node tooling/scripts/e2e/check-target.mjs
 
