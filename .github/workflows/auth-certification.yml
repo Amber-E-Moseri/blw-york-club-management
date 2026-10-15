@@ -24,6 +24,11 @@ on:
         required: true
         type: boolean
         default: false
+      delivery_only:
+        description: Run only the OTP delivery check (skips the full hosted certification). Uses the same gates.
+        required: false
+        type: boolean
+        default: false
       replay_hosted_migrations:
         description: Apply migrations 000-103 to the certification project before testing (requires separate approval).
         required: true
@@ -48,7 +53,7 @@ jobs:
   # ---------------------------------------------------------------------------------------------------------------
   hosted:
     name: hosted (real GoTrue, PostgREST and OTP; certification project only)
-    if: ${{ inputs.run_hosted }}
+    if: ${{ inputs.run_hosted || inputs.delivery_only }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     environment: Preview
@@ -178,6 +183,7 @@ jobs:
       - name: Mail-adapter unit tests (fixed MailSlurp inbox; mocked, no network, no key)
         run: node --test supabase/verification/auth/mailslurp_otp.test.mjs
       - name: Real GoTrue and PostgREST tests (real JWTs; hosted only)
+        if: ${{ !inputs.delivery_only }}
         env:
           SUPABASE_URL: ${{ secrets.CERT_SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.CERT_SUPABASE_ANON_KEY }}
