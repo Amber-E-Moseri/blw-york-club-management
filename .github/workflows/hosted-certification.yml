@@ -40,17 +40,50 @@ jobs:
           [ "$URL_REF" = "$EXPECTED_CERT_PROJECT_ID" ] || fail "CERT_SUPABASE_URL does not name the certification project"
           echo "PASS: project id and URL both name the certification project (values not printed)"
 
-      - name: Read-only migration history and data presence
+      # The direct connection (db.<ref>.supabase.co) is IPv6-only and fails on IPv4-only runners. This job uses the Session
+      # Pooler from the certification project's Connect panel instead. Every value comes from the Preview environment and
+      # is validated before any connection. Nothing is printed except PASS or FAIL.
+      - name: Validate Session Pooler configuration (fail closed; no value printed)
         env:
           CERT_SUPABASE_PROJECT_ID: ${{ secrets.CERT_SUPABASE_PROJECT_ID }}
+          CERT_SUPABASE_POOLER_HOST: ${{ secrets.CERT_SUPABASE_POOLER_HOST }}
+          CERT_SUPABASE_POOLER_PORT: ${{ secrets.CERT_SUPABASE_POOLER_PORT }}
+          CERT_SUPABASE_POOLER_USER: ${{ secrets.CERT_SUPABASE_POOLER_USER }}
+          CERT_SUPABASE_POOLER_DATABASE: ${{ secrets.CERT_SUPABASE_POOLER_DATABASE }}
+          CERT_SUPABASE_DB_PASSWORD: ${{ secrets.CERT_SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          fail() { echo "FAIL: $1"; exit 1; }
+          for v in CERT_SUPABASE_POOLER_HOST CERT_SUPABASE_POOLER_PORT CERT_SUPABASE_POOLER_USER CERT_SUPABASE_POOLER_DATABASE CERT_SUPABASE_DB_PASSWORD; do
+            [ -n "${!v:-}" ] || fail "$v is not set in the Preview environment"
+          done
+          # The pooler user is postgres.<project ref> on Supabase. It must name the certification project exactly.
+          [ "$CERT_SUPABASE_POOLER_USER" = "postgres.$EXPECTED_CERT_PROJECT_ID" ] || fail "CERT_SUPABASE_POOLER_USER does not name the certification project"
+          # Session Pooler host: aws-<n>-<region>.pooler.supabase.com (IPv4-compatible).
+          printf '%s' "$CERT_SUPABASE_POOLER_HOST" | grep -qE '^aws-[0-9]+-[a-z0-9-]+\.pooler\.supabase\.com$' || fail "CERT_SUPABASE_POOLER_HOST is not a Supabase Session Pooler host"
+          # Session mode is port 5432. Transaction mode (6543) is refused: it does not support the session settings used here.
+          [ "$CERT_SUPABASE_POOLER_PORT" = "5432" ] || fail "CERT_SUPABASE_POOLER_PORT must be the Session Pooler port 5432"
+          [ "$CERT_SUPABASE_POOLER_DATABASE" = "postgres" ] || fail "CERT_SUPABASE_POOLER_DATABASE must be postgres"
+          # Refuse any pooler setting that names the protected production project, and any direct database host.
+          for v in CERT_SUPABASE_POOLER_HOST CERT_SUPABASE_POOLER_USER; do
+            case "${!v}" in *"$PROTECTED_PRODUCTION_PROJECT_ID"*) fail "$v names the protected production project" ;; esac
+          done
+          case "$CERT_SUPABASE_POOLER_HOST" in db.*) fail "CERT_SUPABASE_POOLER_HOST is a direct database host, not the pooler" ;; esac
+          echo "PASS: Session Pooler configuration is valid (values not printed)"
+
+      - name: Read-only migration history and data presence
+        env:
+          CERT_SUPABASE_POOLER_HOST: ${{ secrets.CERT_SUPABASE_POOLER_HOST }}
+          CERT_SUPABASE_POOLER_PORT: ${{ secrets.CERT_SUPABASE_POOLER_PORT }}
+          CERT_SUPABASE_POOLER_USER: ${{ secrets.CERT_SUPABASE_POOLER_USER }}
+          CERT_SUPABASE_POOLER_DATABASE: ${{ secrets.CERT_SUPABASE_POOLER_DATABASE }}
           CERT_SUPABASE_DB_PASSWORD: ${{ secrets.CERT_SUPABASE_DB_PASSWORD }}
         run: |
           set -euo pipefail
           [ -n "${CERT_SUPABASE_DB_PASSWORD:-}" ] || { echo "FAIL: CERT_SUPABASE_DB_PASSWORD is not set"; exit 1; }
           export PGPASSWORD="$CERT_SUPABASE_DB_PASSWORD"
-          HOST="db.${CERT_SUPABASE_PROJECT_ID}.supabase.co"
           # Every statement runs inside one read-only transaction. Nothing here can write.
-          psql "host=$HOST port=5432 dbname=postgres user=postgres sslmode=require" -X -q -v ON_ERROR_STOP=1 <<'SQL'
+          psql "host=$CERT_SUPABASE_POOLER_HOST port=$CERT_SUPABASE_POOLER_PORT dbname=$CERT_SUPABASE_POOLER_DATABASE user=$CERT_SUPABASE_POOLER_USER sslmode=require" -X -q -v ON_ERROR_STOP=1 <<'SQL'
           begin read only;
           select 'migrations recorded' as item, count(*)::text as value,
                  coalesce(max(version), 'none') as last_version
