@@ -8,6 +8,7 @@ import { AdminLayout } from './AdminLayout';
 import { Button, Card, errorMessage, Notice } from './common';
 import { PagesScreen, SettingsScreen, NavigationScreen } from './ContentScreens';
 import { BlogScreen, DashboardScreen, EventsScreen, InquiriesScreen, MediaScreen, PeopleScreen } from './OperationsScreens';
+import { RhapsodyScreen } from './RhapsodyScreen';
 
 /** Website Management entry point. Loaded lazily, so the public site does not download it. */
 export default function AdminApp({ config }: { config: PublicApiConfig | null }) {
@@ -90,6 +91,7 @@ export default function AdminApp({ config }: { config: PublicApiConfig | null })
         <Route path="/admin/navigation" element={<NavigationScreen {...ctx} />} />
         <Route path="/admin/blog" element={<BlogScreen {...ctx} />} />
         <Route path="/admin/events" element={<EventsScreen {...ctx} />} />
+        <Route path="/admin/rhapsody" element={<RhapsodyScreen {...ctx} />} />
         <Route path="/admin/submissions" element={<InquiriesScreen {...ctx} />} />
         <Route path="/admin/media" element={<MediaScreen {...ctx} />} />
         <Route path="/admin/people" element={<PeopleScreen {...ctx} isCore={isCore} />} />

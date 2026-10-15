@@ -104,6 +104,7 @@ export function RhapsodyReaderPage() {
             <h1 className="mt-2 font-display text-4xl font-bold text-ink">{edition.title}</h1>
             <p className="mt-2 text-sm text-ink-muted">Authorised by {edition.authorizedBy}</p>
           </div>
+          {edition.pdfPath ? (
           <a
             href={edition.pdfPath}
             download
@@ -111,10 +112,14 @@ export function RhapsodyReaderPage() {
           >
             Download PDF
           </a>
+          ) : (
+            <p className="max-w-xs text-sm text-ink-soft">This edition’s PDF is not available to read online yet.</p>
+          )}
         </div>
       </header>
 
       <Section>
+        {edition.pdfPath ? (
         <div className="overflow-hidden rounded-2xl border border-paper-edge bg-white">
           <object data={`${edition.pdfPath}#view=FitH`} type="application/pdf" title={`${edition.title} reader`} className="h-[70vh] min-h-[420px] w-full">
             <p className="p-6 text-ink-soft">
@@ -126,6 +131,7 @@ export function RhapsodyReaderPage() {
             </p>
           </object>
         </div>
+        ) : null}
 
         <nav aria-label="Other editions" className="mt-8 flex flex-wrap justify-between gap-4">
           {newer ? (

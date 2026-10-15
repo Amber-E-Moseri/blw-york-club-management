@@ -148,6 +148,40 @@ export interface PublicEventRow {
   registrationUrl: string | null;
 }
 
+
+export interface EditionRow {
+  id: string;
+  kind: 'monthly' | 'daily';
+  periodStart: string;
+  title: string;
+  description: string;
+  pdfMediaId: string | null;
+  pdfPath: string | null;
+  authorizedBy: string | null;
+  authorizedAt: string | null;
+  status: 'draft' | 'published' | 'archived';
+  version: number;
+}
+
+export interface DownloadStatRow {
+  editionId: string;
+  title: string;
+  clicks: number;
+  /** A number as text, or "fewer than 5". Visitor counts under five are never shown as numbers. */
+  approxVisitors: string;
+  firstDay: string | null;
+  lastDay: string | null;
+}
+
+export interface PublicEditionRow {
+  editionId: string;
+  kind: 'monthly' | 'daily';
+  periodStart: string;
+  title: string;
+  description: string;
+  authorizedBy: string;
+}
+
 type Json = Record<string, unknown> | unknown[] | string | number | boolean | null;
 
 export function createWebsiteApi(config: ApiConfig) {
@@ -285,6 +319,51 @@ export function createWebsiteApi(config: ApiConfig) {
     },
     revokeAssignment(assignmentId: string, reason: string): Promise<void> {
       return rpc<void>('web_revoke_assignment', { p_assignment_id: assignmentId, p_reason: reason });
+    },
+
+    // ---- Rhapsody (staff)
+    async listEditions(): Promise<EditionRow[]> {
+      const rows = await rpc<Array<Record<string, unknown>>>('web_list_editions', {});
+      return rows.map((r) => ({
+        id: r.id as string, kind: r.kind as EditionRow['kind'], periodStart: r.period_start as string, title: r.title as string,
+        description: r.description as string, pdfMediaId: (r.pdf_media_id as string) ?? null, pdfPath: (r.pdf_path as string) ?? null,
+        authorizedBy: (r.authorized_by as string) ?? null, authorizedAt: (r.authorized_at as string) ?? null,
+        status: r.status as EditionRow['status'], version: r.version as number,
+      }));
+    },
+    saveEdition(input: { id: string | null; kind: EditionRow['kind']; periodStart: string; title: string; description: string; pdfMediaId: string | null; expectedVersion: number }): Promise<string> {
+      return rpc<string>('web_save_edition', { p_id: input.id, p_kind: input.kind, p_period_start: input.periodStart, p_title: input.title, p_description: input.description, p_pdf_media_id: input.pdfMediaId, p_expected_version: input.expectedVersion });
+    },
+    authorizeEdition(id: string, authorizedBy: string, expectedVersion: number): Promise<void> {
+      return rpc<void>('web_authorize_edition', { p_id: id, p_authorized_by: authorizedBy, p_expected_version: expectedVersion });
+    },
+    setEditionStatus(id: string, status: EditionRow['status'], expectedVersion: number): Promise<void> {
+      return rpc<void>('web_set_edition_status', { p_id: id, p_status: status, p_expected_version: expectedVersion });
+    },
+    async downloadStats(days: number): Promise<DownloadStatRow[]> {
+      const rows = await rpc<Array<Record<string, unknown>>>('web_download_stats', { p_days: days });
+      return rows.map((r) => ({
+        editionId: r.edition_id as string, title: r.title as string, clicks: Number(r.clicks), approxVisitors: String(r.approx_visitors),
+        firstDay: (r.first_day as string) ?? null, lastDay: (r.last_day as string) ?? null,
+      }));
+    },
+
+    // ---- public submissions and click tracking (anon key only; the database checks every field)
+    submitInquiry(input: { kind: InquiryRow['kind']; name: string; email: string; phone: string; message: string; topic: string; consentVersion: string; consentTextHash: string; honeypot: string }): Promise<void> {
+      return call<void>('/rest/v1/rpc/web_submit_inquiry', {
+        method: 'POST', token: false,
+        body: { p_kind: input.kind, p_name: input.name, p_email: input.email, p_phone: input.phone, p_message: input.message, p_topic: input.topic, p_consent_version: input.consentVersion, p_consent_text_hash: input.consentTextHash, p_honeypot: input.honeypot },
+      });
+    },
+    recordDownload(editionId: string, source: string, utmSource: string, utmCampaign: string, visitorHash: string): Promise<void> {
+      return call<void>('/rest/v1/rpc/web_record_download', {
+        method: 'POST', token: false,
+        body: { p_edition_id: editionId, p_source: source, p_utm_source: utmSource, p_utm_campaign: utmCampaign, p_visitor_hash: visitorHash },
+      });
+    },
+    publicEditions(): Promise<PublicEditionRow[]> {
+      return publicRead<Array<Record<string, unknown>>>('/rest/v1/v_public_editions?select=edition_id,kind,period_start,title,description,authorized_by&order=period_start.desc').then((rows) =>
+        rows.map((r) => ({ editionId: r.edition_id as string, kind: r.kind as PublicEditionRow['kind'], periodStart: r.period_start as string, title: r.title as string, description: r.description as string, authorizedBy: r.authorized_by as string })));
     },
 
     // ---- public reads (anon key only; published rows only, enforced by the database views)

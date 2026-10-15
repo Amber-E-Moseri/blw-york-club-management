@@ -11,6 +11,8 @@ interface Props {
   fields: FieldSpec[];
   /** Shown after a valid submission. This preview never transmits or stores what was typed. */
   successMessage: string;
+  /** When provided, a valid submission is sent through it. Without it, the form stays client-side only. */
+  onSubmitValid?: (values: Record<string, string>, honeypot: string, consentText: string) => Promise<void>;
 }
 
 const inputBase =
@@ -20,19 +22,35 @@ const inputBase =
  * Accessible form with client-side validation only. Errors are linked to their fields with aria-describedby, the
  * first invalid field receives focus, and a status region announces success. There is no network request.
  */
-export function PublicForm({ idPrefix, title, intro, submitLabel, consentText, fields, successMessage }: Props) {
+export function PublicForm({ idPrefix, title, intro, submitLabel, consentText, fields, successMessage, onSubmitValid }: Props) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [consent, setConsent] = useState(false);
   const [consentError, setConsentError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const [honey, setHoney] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const onSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const result = validateForm(fields, values, consent);
     setErrors(result.errors);
     setConsentError(result.consentError);
     const ok = Object.keys(result.errors).length === 0 && !result.consentError;
+    if (ok && onSubmitValid) {
+      setSubmitting(true);
+      setSubmitError(null);
+      try {
+        await onSubmitValid(values, honey, consentText);
+        setSent(true);
+      } catch (err) {
+        setSubmitError(err instanceof Error ? err.message : 'Your message could not be sent. Please try again.');
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
     setSent(ok);
     if (!ok) {
       const firstId = fields.find((f) => result.errors[f.id])?.id ?? 'consent';
@@ -130,8 +148,22 @@ export function PublicForm({ idPrefix, title, intro, submitLabel, consentText, f
         )}
       </div>
 
-      <button type="submit" className={`${buttonClass('primary')} mt-8 w-full md:w-auto`}>
-        {submitLabel}
+      {/* Hidden from people and assistive technology. Bots fill every field, so a value here is a bot signal. */}
+      <div hidden aria-hidden="true">
+        <label>
+          Website (leave empty)
+          <input type="text" name="website" tabIndex={-1} autoComplete="off" value={honey} onChange={(e) => setHoney(e.target.value)} />
+        </label>
+      </div>
+
+      {submitError && (
+        <p role="alert" className="mt-6 text-sm font-medium text-brand">
+          {submitError}
+        </p>
+      )}
+
+      <button type="submit" disabled={submitting} className={`${buttonClass('primary')} mt-8 w-full md:w-auto`}>
+        {submitting ? 'Sending…' : submitLabel}
       </button>
     </form>
   );

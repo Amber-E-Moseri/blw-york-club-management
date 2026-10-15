@@ -1,7 +1,7 @@
 // Maps published website rows (from the public views) onto the SiteContent shape the public components already render.
 // Anything not published keeps its sample value, so the site never shows an empty section. Unsafe links are dropped.
-import type { PublicEventRow, PublicPostRow, PublicContentRow } from '../api/websiteApi';
-import type { BlogPost, NavItem, PublicEvent, SiteContent } from './types';
+import type { PublicEditionRow, PublicEventRow, PublicPostRow, PublicContentRow } from '../api/websiteApi';
+import type { BlogPost, NavItem, PublicEvent, RhapsodyEdition, SiteContent } from './types';
 
 const ROUTES = ['/', '/about', '/events', '/rhapsody', '/foundation-school', '/blog', '/new-here', '/contact'];
 
@@ -129,13 +129,29 @@ export function eventsToSiteContent(events: PublicEventRow[]): PublicEvent[] {
   });
 }
 
+/**
+ * Rhapsody editions from the published view. Their PDFs are private, so pdfPath stays empty until the signed-link
+ * service exists. The reader then hides its PDF controls rather than showing a broken link.
+ */
+export function editionsToSiteContent(rows: PublicEditionRow[]): RhapsodyEdition[] {
+  return rows.map((r) => ({
+    slug: r.editionId,
+    title: r.title,
+    kind: r.kind === 'daily' ? 'Daily' : 'Monthly',
+    period: r.periodStart,
+    blurb: r.description,
+    pdfPath: '',
+    authorizedBy: r.authorizedBy,
+  }));
+}
+
 /** Combines the published rows with the sample content. The sample banner stays on until every section is published. */
-export function mergePublished(base: SiteContent, published: { content: PublicContentRow[]; posts: PublicPostRow[]; events: PublicEventRow[] }): SiteContent {
+export function mergePublished(base: SiteContent, published: { content: PublicContentRow[]; posts: PublicPostRow[]; events: PublicEventRow[]; editions?: PublicEditionRow[] }): SiteContent {
   const withContent = applyPublishedContent(base, published.content);
   return {
     ...withContent,
     posts: published.posts.length ? postsToSiteContent(published.posts) : base.posts,
     events: published.events.length ? eventsToSiteContent(published.events) : base.events,
+    rhapsody: published.editions && published.editions.length ? editionsToSiteContent(published.editions) : base.rhapsody,
   };
 }
-
