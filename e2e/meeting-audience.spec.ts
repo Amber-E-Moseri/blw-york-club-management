@@ -46,10 +46,10 @@ function check<T>(label: string, result: { data: T | null; error: { message: str
   return result.data as NonNullable<T>;
 }
 
-async function signInUi(page: Page, email: string) {
+async function signInUi(page: Page, email: string, pass: string = password) {
   await page.goto('/');
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(password);
+  await page.getByLabel('Password').fill(pass);
   await page.getByRole('button', { name: 'Sign In' }).click();
   await expect(page.getByRole('heading', { name: 'Sign In' })).toHaveCount(0, { timeout: 30_000 });
 }
@@ -106,7 +106,8 @@ test.describe('restricted meeting audience', () => {
   });
 
   test('NOT TESTED until executed: coordinator creates an invite-only meeting as a draft', async ({}, testInfo) => {
-    await signInUi(coordinatorPage, requireCoordinatorEnv().email);
+    const coordinator = requireCoordinatorEnv();
+    await signInUi(coordinatorPage, coordinator.email, coordinator.password);
     await coordinatorPage.goto('/meetings');
     await coordinatorPage.getByRole('button', { name: '+ New Meeting' }).click();
     await coordinatorPage.getByLabel('Meeting Title').fill(meetingTitle);
