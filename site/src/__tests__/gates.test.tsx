@@ -126,3 +126,33 @@ describe('connected site without the protected inquiry path', () => {
     expect(screen.queryByText(/Name Surname/)).toBeNull();
   });
 });
+
+describe('About and New Here are connected to published pages', () => {
+  const page = (key: string, sections: Record<string, unknown>[]) => ({ kind: 'page' as const, key, body: { title: 'T', sections }, versionNo: 1, publishedAt: '2026-10-01T00:00:00Z' });
+
+  it('publishes About when its mission is published, and maps mission and vision', () => {
+    const out = applyPublishedContent(unpublishedBase(sampleContent), [page('about', [
+      { type: 'text', heading: 'Mission', body: 'Grow in God\'s Word.', visible: true },
+      { type: 'text', heading: 'Vision', body: 'A generation fulfilling God\'s dream.', visible: true },
+    ])]);
+    expect(out.about.mission).toBe("Grow in God's Word.");
+    expect(out.about.vision).toBe("A generation fulfilling God's dream.");
+    expect(out.publishedPages.about).toBe(true);
+  });
+
+  it('keeps About unpublished when it has no visible text', () => {
+    const out = applyPublishedContent(unpublishedBase(sampleContent), [page('about', [{ type: 'text', heading: 'x', body: '', visible: false }])]);
+    expect(out.publishedPages.about).toBe(false);
+  });
+
+  it('maps New Here welcome points and questions, and skips hidden sections', () => {
+    const out = applyPublishedContent(unpublishedBase(sampleContent), [page('new_here', [
+      { type: 'text', heading: 'Friendly people', body: 'We remember names.', visible: true },
+      { type: 'text', heading: 'Hidden', body: 'Not shown.', visible: false },
+      { type: 'faq', heading: 'Do I need to know the Bible?', body: 'No.', visible: true },
+    ])]);
+    expect(out.newHere.welcomePoints).toEqual([{ title: 'Friendly people', text: 'We remember names.' }]);
+    expect(out.newHere.faqs).toEqual([{ question: 'Do I need to know the Bible?', answer: 'No.' }]);
+    expect(out.publishedPages.newHere).toBe(true);
+  });
+});

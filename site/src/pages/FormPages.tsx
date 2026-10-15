@@ -61,6 +61,7 @@ export function NewHerePage() {
         lead="Whether you're a student, a visitor, or just curious, here is what to expect and how to get connected."
       />
 
+      {newHere.expectations.length > 0 && (
       <Section labelledBy="nh-expect">
         <div className="grid gap-8 lg:grid-cols-[1.1fr_1fr]">
           <div>
@@ -93,7 +94,9 @@ export function NewHerePage() {
           </div>
         </div>
       </Section>
+      )}
 
+      {newHere.faqs.length > 0 && (
       <Section labelledBy="nh-faq" tone="card">
         <SectionHeading id="nh-faq" eyebrow="Questions" title="Frequently asked" />
         <div className="grid max-w-3xl gap-3">
@@ -107,6 +110,7 @@ export function NewHerePage() {
           ))}
         </div>
       </Section>
+      )}
 
       <Section labelledBy="nh-form">
         <div className="grid gap-10 lg:grid-cols-[1fr_1.2fr]">

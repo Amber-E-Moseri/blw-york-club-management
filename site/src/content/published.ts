@@ -28,6 +28,19 @@ export function isSafeImageAddress(url: string): boolean {
   return /^https:\/\/[^\s@/]+(\/[^\s]*)?$/.test(url);
 }
 
+/** Visible sections of one type, with non-empty heading or body. */
+function visibleSections(body: Record<string, unknown>, type: string): { heading: string; body: string }[] {
+  const sections = Array.isArray(body.sections) ? (body.sections as Record<string, unknown>[]) : [];
+  return sections
+    .filter((s) => s.type === type && s.visible !== false)
+    .map((s) => ({ heading: str(s.heading) ?? '', body: str(s.body) ?? '' }))
+    .filter((s) => s.heading !== '' || s.body !== '');
+}
+
+function visibleTexts(body: Record<string, unknown>): { heading: string; body: string }[] {
+  return visibleSections(body, 'text');
+}
+
 const safeImage = (v: unknown): string => (typeof v === 'string' && isSafeImageAddress(v.trim()) ? v.trim() : '');
 
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() !== '' ? v.trim() : undefined);
@@ -84,6 +97,15 @@ export function applyPublishedContent(base: SiteContent, rows: PublicContentRow[
           body: str(hero?.body) ?? next.home.body,
         },
       };
+    } else if (row.kind === 'page' && row.key === 'about') {
+      // Mission and vision are the first two visible text sections. Other About lists stay empty and are hidden.
+      const texts = visibleTexts(b);
+      next = { ...next, about: { ...next.about, mission: texts[0]?.body ?? '', vision: texts[1]?.body ?? '' } };
+    } else if (row.kind === 'page' && row.key === 'new_here') {
+      // Welcome points are visible text sections; frequently asked questions are visible faq sections.
+      const welcome = visibleTexts(b).slice(0, 6).map((t) => ({ title: t.heading, text: t.body }));
+      const faqs = visibleSections(b, 'faq').slice(0, 12).map((f) => ({ question: f.heading, answer: f.body }));
+      next = { ...next, newHere: { ...next.newHere, welcomePoints: welcome, faqs: faqs.length ? faqs : next.newHere.faqs.slice(0, 0) } };
     } else if (row.kind === 'page' && row.key === 'foundation_school') {
       const text = firstSection(b, 'text');
       next = {
@@ -102,9 +124,9 @@ export function applyPublishedContent(base: SiteContent, rows: PublicContentRow[
     ...next,
     publishedPages: {
       home: published('page', 'home'),
-      about: false, // About and New Here are not mapped from published rows yet, so they stay in the "being prepared" state.
+      about: published('page', 'about') && next.about.mission !== '',
       foundationSchool: published('page', 'foundation_school'),
-      newHere: false,
+      newHere: published('page', 'new_here') && (next.newHere.welcomePoints.length > 0 || next.newHere.faqs.length > 0),
     },
   };
   return next;

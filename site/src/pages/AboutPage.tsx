@@ -26,6 +26,7 @@ export function AboutPage() {
         </div>
       </Section>
 
+      {about.beliefs.length > 0 && (
       <Section labelledBy="about-beliefs" tone="card">
         <SectionHeading id="about-beliefs" eyebrow="Statement of faith" title="What we believe" />
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -37,7 +38,9 @@ export function AboutPage() {
           ))}
         </ul>
       </Section>
+      )}
 
+      {about.ministries.length > 0 && (
       <Section labelledBy="about-ministries">
         <SectionHeading id="about-ministries" eyebrow="Fellowship life" title="Our ministries" />
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -49,7 +52,9 @@ export function AboutPage() {
           ))}
         </ul>
       </Section>
+      )}
 
+      {about.leaders.length > 0 && (
       <Section labelledBy="about-leadership" tone="card">
         <SectionHeading id="about-leadership" eyebrow="Leadership" title="Meet the team" />
         <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -64,7 +69,9 @@ export function AboutPage() {
           ))}
         </ul>
       </Section>
+      )}
 
+      {about.opportunities.length > 0 && (
       <Section labelledBy="about-opportunities">
         <SectionHeading id="about-opportunities" eyebrow="Students" title="Opportunities for students" />
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -79,6 +86,7 @@ export function AboutPage() {
           <ButtonLink to="/new-here">Plan your visit</ButtonLink>
         </div>
       </Section>
+      )}
     </>
   );
 }
