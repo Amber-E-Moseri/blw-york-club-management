@@ -46,3 +46,23 @@ Baseline: 60825c0. Evidence base: 4fff731. Migration: supabase/migrations/102_re
 
 ## Proposed test-only patch
 proposed-test-only/bsc-test-expectations-after-102.patch changes A1 to 7 (pending MP and rejected MR hidden), and converts the six privilege refusals to the stricter 42501 expectation. Authorization assertions are unchanged.
+
+## Phase 2: read paths (supabase/verification/rejected_profile_readpaths_test.sql)
+
+Synthetic fixture: a rejected member with a linked person row, a rejected membership row, and a BSC placement injected by the owner (the workflow never creates one).
+
+| Path | 000-101 baseline | 000-102 |
+|---|---|---|
+| Cell leader active-count and name search | FAIL (C2, S2, S3: leader sees the rejected member) | PASS |
+| member_directory search by name (cell leader) | FAIL (S3) | PASS |
+| Ordinary member and cell leader membership reads of the rejected row | PASS | PASS |
+| Rejected member reads own membership row | FAIL (existing migration 100 rule: self-read only while active) | FAIL (unchanged by 102; decision needed) |
+| people row for rejected member (cell leader, ordinary member) | PASS (095) | PASS |
+| bsc_members_visible, cell_leader_pending_roster | PASS | PASS |
+| Export (member, cell leader refused with 42501) | PASS | PASS |
+| find_person_by_email, get_person_identity refusals | PASS | PASS |
+| Administrator, coordinator and staff reads | PASS | PASS |
+
+Counts: baseline 18 PASS / 4 FAIL; after 102 21 PASS / 1 FAIL (the membership self-read, recorded as a decision, not weakened).
+Files: out/rp_baseline_out.txt, out/rp_r102_out.txt.
+Candidate fingerprint (NOT the golden): out/schema_fingerprint.candidate-102-NOT-GOLDEN.json.
