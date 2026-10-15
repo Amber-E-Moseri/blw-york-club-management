@@ -1,0 +1,161 @@
+# EXECUTION-READY, NOT YET AUTHORIZED. Manual trigger, pinned candidate SHA, named isolated project, fail-closed guard.
+# Not enabled for pushes or pull requests. Requires the protected GitHub environment `Preview` (owner-approved reviewers).
+#
+# Two separate, immutable checkouts:
+#   app/      the frozen application at candidate_sha (the code under test; its dependencies are installed here)
+#   tooling/  the certification tooling at TOOLING_SHA (guard scripts, release specs, release config)
+# Only the explicit tooling paths listed in "Overlay reviewed tooling" are copied into app/. Nothing else from tooling/ runs.
+name: E2E hosted isolated (Preview)
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: 'Exact 40-character lowercase commit SHA of the candidate to certify'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hub-certification-hosted
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    name: Release suite against the isolated project
+    runs-on: ubuntu-latest
+    environment: Preview
+    timeout-minutes: 60
+    env:
+      CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      TOOLING_SHA: c1e34ab1dd2af0a649ae20cc0a41bb1aec08c2c2
+    steps:
+      - name: Reject an unpinned candidate
+        run: |
+          if [[ "$CANDIDATE_SHA" != "fada4a3af3416d9c8943ffa6fb68e377157f9c99" ]]; then echo "candidate_sha must be the frozen candidate fada4a3af3416d9c8943ffa6fb68e377157f9c99" >&2; exit 1; fi
+          if [[ ! "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "candidate_sha must be a full 40-character lowercase SHA" >&2
+            exit 1
+          fi
+
+      - name: Check out the frozen application
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.candidate_sha }}
+          path: app
+          persist-credentials: false
+
+      - name: Verify the application checkout is the candidate pin
+        run: test "$(git -C app rev-parse HEAD)" = "$CANDIDATE_SHA"
+
+      - name: Check out the certification tooling
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.TOOLING_SHA }}
+          path: tooling
+          persist-credentials: false
+
+      - name: Verify the tooling checkout is the tooling pin
+        run: test "$(git -C tooling rev-parse HEAD)" = "$TOOLING_SHA"
+
+      - name: Verify every referenced tooling file is present
+        run: |
+          for f in \
+            scripts/e2e/check-target.mjs \
+            scripts/e2e/check-target.test.mjs \
+            scripts/e2e/check-leftover-accounts.mjs \
+            playwright.release.config.ts \
+            e2e/support/env.ts \
+            e2e/support/authorizedFixtures.ts \
+            e2e/release-smoke.spec.ts \
+            e2e/meeting-audience.spec.ts; do
+            test -f "tooling/$f" || { echo "missing tooling file: $f" >&2; exit 1; }
+          done
+
+      - name: Fail-closed target guard (project, host, denylist, credentials, pin)
+        env:
+          SUPABASE_URL: ${{ secrets.CERT_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.CERT_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.CERT_SUPABASE_SERVICE_ROLE_KEY }}
+          E2E_COORDINATOR_EMAIL: ${{ secrets.E2E_COORDINATOR_EMAIL }}
+          E2E_COORDINATOR_PASSWORD: ${{ secrets.E2E_COORDINATOR_PASSWORD }}
+          E2E_HOSTED_ISOLATED: '1'
+          E2E_ISOLATED_HOST: ${{ secrets.E2E_ISOLATED_HOST }}
+          E2E_PREVIEW_TESTING_AUTHORIZED: 'true'
+          E2E_APPROVED_PREVIEW_HOST: 'yziuhtxtznginhdpqurb.supabase.co'
+          E2E_DENIED_HOSTS: ${{ secrets.E2E_DENIED_HOSTS }}
+        run: node tooling/scripts/e2e/check-target.mjs
+
+      - name: Guard unit checks (no network)
+        working-directory: tooling
+        run: node --test scripts/e2e/check-target.test.mjs
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      # Dependencies come from the frozen application only. No secrets are exposed to this step.
+      - name: Install application dependencies
+        working-directory: app
+        run: npm ci
+
+      - name: Overlay reviewed tooling (explicit paths only)
+        run: |
+          cp -R tooling/e2e/. app/e2e/
+          cp tooling/playwright.release.config.ts app/playwright.release.config.ts
+          mkdir -p app/scripts/e2e
+          cp -R tooling/scripts/e2e/. app/scripts/e2e/
+
+      - name: Install Chromium
+        working-directory: app
+        run: npx playwright install --with-deps chromium
+
+      - name: Discover the release suite
+        working-directory: app
+        env:
+          SUPABASE_URL: ${{ secrets.CERT_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.CERT_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.CERT_SUPABASE_SERVICE_ROLE_KEY }}
+          E2E_COORDINATOR_EMAIL: ${{ secrets.E2E_COORDINATOR_EMAIL }}
+          E2E_COORDINATOR_PASSWORD: ${{ secrets.E2E_COORDINATOR_PASSWORD }}
+          E2E_CELL_ID: ${{ secrets.E2E_CELL_ID }}
+        run: npx playwright test -c playwright.release.config.ts --list
+
+      - name: Record run start for the cleanup check
+        run: echo "E2E_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
+      - name: Run the release suite
+        working-directory: app
+        env:
+          SUPABASE_URL: ${{ secrets.CERT_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.CERT_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.CERT_SUPABASE_SERVICE_ROLE_KEY }}
+          E2E_COORDINATOR_EMAIL: ${{ secrets.E2E_COORDINATOR_EMAIL }}
+          E2E_COORDINATOR_PASSWORD: ${{ secrets.E2E_COORDINATOR_PASSWORD }}
+          E2E_CELL_ID: ${{ secrets.E2E_CELL_ID }}
+          E2E_HOSTED_ISOLATED: '1'
+          E2E_ISOLATED_HOST: ${{ secrets.E2E_ISOLATED_HOST }}
+          E2E_DENIED_HOSTS: ${{ secrets.E2E_DENIED_HOSTS }}
+        run: npx playwright test -c playwright.release.config.ts
+
+      - name: Verify no synthetic accounts remain
+        if: always()
+        env:
+          SUPABASE_URL: ${{ secrets.CERT_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.CERT_SUPABASE_SERVICE_ROLE_KEY }}
+        run: node tooling/scripts/e2e/check-leftover-accounts.mjs
+
+      - name: Upload report and traces
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: e2e-hosted-isolated-${{ inputs.candidate_sha }}
+          path: |
+            app/playwright-report/
+            app/test-results/
+          retention-days: 14
+          if-no-files-found: warn
