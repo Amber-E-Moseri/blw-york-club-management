@@ -47,6 +47,29 @@ src_fp="$(docker exec -i "$C" psql -U "$ROLE" -d "$SRC" -X -q -At < "$FP_SQL")"
 dst_fp="$(docker exec -i "$C" psql -U "$ROLE" -d "$DST" -X -q -At < "$FP_SQL")"
 if [[ -z "$src_fp" || "$src_fp" != "$dst_fp" ]]; then
   echo "CLONE FINGERPRINT MISMATCH: $DST does not match $SRC in owners, SECURITY DEFINER, grants or RLS" >&2
+  # Diagnostics only (names and counts; no row data): which top-level sections and which entries differ.
+  DIAG_DIR="$(mktemp -d)"
+  printf '%s\n' "$src_fp" > "$DIAG_DIR/src.json"
+  printf '%s\n' "$dst_fp" > "$DIAG_DIR/dst.json"
+  node -e '
+    const fs = require("fs");
+    const a = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+    const b = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+    const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])];
+    for (const k of keys) {
+      const x = a[k], y = b[k];
+      if (JSON.stringify(x) === JSON.stringify(y)) continue;
+      console.error("differing section: " + k);
+      if (x && y && typeof x === "object" && !Array.isArray(x)) {
+        const names = [...new Set([...Object.keys(x), ...Object.keys(y)])].filter((n) => JSON.stringify(x[n]) !== JSON.stringify(y[n]));
+        console.error("  entries differing (" + names.length + "): " + names.slice(0, 40).join(", "));
+      } else if (Array.isArray(x) && Array.isArray(y)) {
+        const onlySrc = x.filter((v) => !y.includes(v)), onlyDst = y.filter((v) => !x.includes(v));
+        console.error("  only in source (" + onlySrc.length + "): " + onlySrc.slice(0, 20).map((v) => String(v).slice(0, 160)).join(" | "));
+        console.error("  only in clone (" + onlyDst.length + "): " + onlyDst.slice(0, 20).map((v) => String(v).slice(0, 160)).join(" | "));
+      }
+    }' "$DIAG_DIR/src.json" "$DIAG_DIR/dst.json" || echo "diagnostic could not parse the fingerprints" >&2
+  rm -rf "$DIAG_DIR"
   exit 1
 fi
 echo "cloned $SRC -> $DST ($dst_probe functions|policies; security fingerprint matches)"
