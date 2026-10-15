@@ -22,7 +22,14 @@ check() { # name, expected, actual
 check "count at 096" 97 "$(expected_count 096)"
 check "count at 097" 98 "$(expected_count 097)"
 check "count at 098" 99 "$(expected_count 098)"
+check "count at 100" 101 "$(expected_count 100)"
 check "count at 101 (whole chain)" "$(ls "$MIG_DIR" | wc -l | tr -d ' ')" "$(expected_count 101)"
+
+hold_above 100
+check "held at 100 (only 101)" 1 "${#MOVED[@]}"
+check "last remaining at 100" 100 "$(ls "$MIG_DIR" | tail -1 | cut -c1-3)"
+restore_moved
+check "restore after 100 hold" 102 "$(ls "$MIG_DIR" | wc -l | tr -d ' ')"
 
 hold_above 096
 check "held at 096 (count of files above 096)" 5 "${#MOVED[@]}"

@@ -81,9 +81,12 @@ build_frontier 097 f2_policy
 step "3. Replay to 098 (099 and later held aside), clone f2_grants and f2_conc"
 build_frontier 098 f2_grants f2_conc
 
+step "3b. Replay to 100 (101 held aside), clone f2_membership (the membership suite calls establish_membership, created by 100)"
+build_frontier 100 f2_membership
+
 step "4. F2 suites, concurrency gate and baseline reproduction"
 export F2_PSQL_CMD="docker exec -i $C psql -U $ADMIN"
-export F2_ALLOWED_DBS="f2_baseline f2_policy f2_grants f2_conc"
-export F2_BASELINE_DB=f2_baseline F2_POLICY_DB=f2_policy F2_GRANTS_DB=f2_grants F2_CONC_DB=f2_conc
+export F2_ALLOWED_DBS="f2_baseline f2_policy f2_grants f2_conc f2_membership"
+export F2_BASELINE_DB=f2_baseline F2_POLICY_DB=f2_policy F2_GRANTS_DB=f2_grants F2_CONC_DB=f2_conc F2_MEMBERSHIP_DB=f2_membership
 export F2_CONC_TRIALS="${F2_CONC_TRIALS:-20}"
 bash supabase/verification/run_f2_ci.sh
