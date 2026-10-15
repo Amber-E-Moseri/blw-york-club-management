@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: e2e-hosted-isolated
+  group: hub-certification-hosted
   cancel-in-progress: false
 
 jobs:
@@ -43,7 +43,7 @@ jobs:
           fi
 
       - name: Check out the pinned candidate
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ inputs.candidate_sha }}
           persist-credentials: false
@@ -51,7 +51,7 @@ jobs:
       - name: Verify the checked-out commit is the pin
         run: test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 20
           cache: npm
@@ -83,7 +83,7 @@ jobs:
 
       - name: Upload report and traces
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: e2e-hosted-isolated-${{ inputs.candidate_sha }}
           path: |

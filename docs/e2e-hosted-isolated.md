@@ -54,6 +54,8 @@ Secrets (names only; values come from the owner, never from a file in the reposi
 | `E2E_COORDINATOR_EMAIL` / `E2E_COORDINATOR_PASSWORD` | the provisioned synthetic coordinator |
 | `E2E_CELL_ID` | an existing synthetic cell id |
 
+Concurrency: the workflow uses the shared group `hub-certification-hosted`. The authentication certification workflow must use the same group string, so the two never run at once on the certification project.
+
 Workflow permissions: `contents: read` only. No other token scopes are granted. Secrets are not echoed; the guard prints
 only the reason for a refusal.
 
@@ -72,5 +74,5 @@ full SHA. Its unit checks (`scripts/e2e/check-target.test.mjs`) need no network:
 
 ## Before the first run (owner)
 1. Pin the candidate SHA in the dispatch input. Do not use a branch name.
-2. Replace the action tags in the workflow with full commit SHAs, after review.
+2. Action pins: the three actions are pinned to full commit SHAs (checkout, setup-node, upload-artifact at v4). Re-resolve them if the owner updates the actions.
 3. Confirm the isolated project is separate from production and Preview, and that its hostname is in `E2E_ISOLATED_HOST`.
