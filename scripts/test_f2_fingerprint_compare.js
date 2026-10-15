@@ -136,6 +136,21 @@ function run(name, srcDoc, dstText, expectCode) {
   c5d.functions["is_admin()"].security = "invoker";
   run("negative 5d: SECURITY DEFINER changes to invoker", src, c5d, 1);
 
+  // 5e. An otherwise identical cast-only difference in an UNAPPROVED CHECK constraint is refused. The same pattern as the
+  // approved pairs, on a constraint that is not in the approved set, must compare exactly.
+  const unapprovedSrc = clone(src);
+  unapprovedSrc.tables.contacts.constraints = ["contacts_status_check CHECK (((status)::text = ANY ((ARRAY['open'::character varying, 'closed'::character varying])::text[])))"];
+  const unapprovedDst = clone(unapprovedSrc);
+  unapprovedDst.tables.contacts.constraints = ["contacts_status_check CHECK (((status)::text = ANY (ARRAY[('open'::character varying)::text, ('closed'::character varying)::text])))"];
+  run("negative 5e: a cast-only difference in an unapproved CHECK constraint is refused", unapprovedSrc, unapprovedDst, 1);
+
+  // 5f. An approved constraint name on a table that is not approved for it: the cast-only difference is refused.
+  const wrongTableSrc = clone(src);
+  wrongTableSrc.tables.contacts.constraints = [PAIRS.email_log.src];
+  const wrongTableDst = clone(wrongTableSrc);
+  wrongTableDst.tables.contacts.constraints = [PAIRS.email_log.dst];
+  run("negative 5f: an approved constraint name on an unapproved table is refused", wrongTableSrc, wrongTableDst, 1);
+
   // 6. Malformed or incomplete fingerprint output.
   run("negative 6a: the clone fingerprint is not valid JSON", src, '{"tables":', 2);
   run("negative 6b: the clone fingerprint is empty", src, "", 2);

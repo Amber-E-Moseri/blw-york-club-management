@@ -18,6 +18,14 @@ const fs = require("fs");
 
 const REQUIRED = ["tables", "views", "functions", "extensions", "default_privileges", "storage_buckets", "storage_policies"];
 const CAST = /^::(?:text|character varying|varchar)(?:\[\])?$/;
+// The only CHECK constraints whose cast placement is normalized: the four confirmed table/constraint pairs from the
+// PG17 clone diagnosis. Keyed by table and constraint name together, so the same name on another table does not match.
+const APPROVED_CHECKS = new Set([
+  "email_log/email_log_template_type_check",
+  "habit_entries/habit_entries_status_check",
+  "weekly_messages/weekly_messages_recurrence_type_check",
+  "weekly_messages/weekly_messages_scope_check",
+]);
 
 function fail(code, msg) {
   console.error(msg);
@@ -149,9 +157,12 @@ function matchClose(tokens, open) {
 }
 
 // Canonical form of one constraint entry, "<name> <definition>". Only CHECK definitions are normalized.
-function canonicalConstraint(entry) {
+function canonicalConstraint(table, entry) {
   const m = /^(\S+) CHECK (.*)$/s.exec(entry);
   if (!m) return entry;
+  // Only the approved (table, constraint) pairs are normalized. Any other CHECK is compared exactly, even if it has the
+  // same cast pattern: a cast-only difference there is a mismatch.
+  if (!APPROVED_CHECKS.has(`${table}/${m[1]}`)) return entry;
   const canon = canonicalCheck(m[2]);
   // Unrecognized CHECK text is kept exactly as written, so any difference in it fails closed.
   return canon === null ? entry : `${m[1]} CHECK ${canon}`;
@@ -161,7 +172,7 @@ function normalize(doc) {
   const copy = JSON.parse(JSON.stringify(doc));
   for (const t of Object.keys(copy.tables || {})) {
     const cons = copy.tables[t] && copy.tables[t].constraints;
-    if (Array.isArray(cons)) copy.tables[t].constraints = cons.map(canonicalConstraint);
+    if (Array.isArray(cons)) copy.tables[t].constraints = cons.map((e) => canonicalConstraint(t, e));
   }
   return copy;
 }
