@@ -2,7 +2,7 @@
 //
 // Safety rules baked in:
 //   * runs only against a LOCAL Supabase stack (127.0.0.1 / localhost) unless ALLOW_NON_LOCAL_CERTIFICATION=1;
-//   * every account is fake (@example.test) and gets a random password generated for this run only;
+//   * every account is fake (@sandbox.zazamail.link) and gets a random password generated for this run only;
 //   * every account created is deleted again at the end, even if a check throws.
 //
 // Fixture state (role, status, cell) is never written through the service_role API key: migration 094 removes those
@@ -129,7 +129,7 @@ export function harness(name) {
 
   /** Creates a confirmed account through the Auth admin API (so the real signup trigger runs), optionally elevates it. */
   async function createUser(label, { role = 'member', status = 'active', metadata = {}, cellId = null } = {}) {
-    const email = `cert.${name}.${label}.${run}@example.test`;
+    const email = `cert.${name}.${label}.${run}@sandbox.zazamail.link`;
     const password = randomPassword();
     const { data, error } = await admin.auth.admin.createUser({
       email,
