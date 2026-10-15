@@ -83,14 +83,15 @@ jobs:
           set -euo pipefail
           printf 'CLIENT_HASH_SECRET=%s\nTURNSTILE_SECRET_KEY=%s\nWEBSITE_ALLOWED_ORIGINS=http://127.0.0.1:4173\n' \
             "$(openssl rand -hex 32)" "1x0000000000000000000000000000000AA" > "$RUNNER_TEMP/functions.env"
+          ANON="$(supabase status -o env | sed -n 's/^ANON_KEY="\(.*\)"$/\1/p')"
           nohup supabase functions serve --import-map supabase/functions/import_map.json --env-file "$RUNNER_TEMP/functions.env" \
             > "$RUNNER_TEMP/functions.log" 2>&1 &
           for i in $(seq 1 60); do
-            code="$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS http://127.0.0.1:54321/functions/v1/website-inquiry || true)"
-            if [ "$code" = "204" ]; then echo "PASS: inquiry function is serving"; break; fi
+            code="$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" -H 'content-type: application/json' -d '{}' http://127.0.0.1:54321/functions/v1/website-inquiry || true)"
+            if [ "$code" = "400" ]; then echo "PASS: inquiry function is serving (validation answered)"; break; fi
             sleep 3
           done
-          [ "$code" = "204" ] || { echo "FAIL: functions did not start"; tail -40 "$RUNNER_TEMP/functions.log"; exit 1; }
+          [ "$code" = "400" ] || { echo "FAIL: functions did not start"; tail -40 "$RUNNER_TEMP/functions.log"; exit 1; }
 
       - name: Run the live certification
         env:
