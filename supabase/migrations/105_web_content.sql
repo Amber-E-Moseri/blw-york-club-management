@@ -152,6 +152,21 @@ begin
     if char_length(coalesce(p_body->>'seo_title', '')) > 60 or char_length(coalesce(p_body->>'seo_description', '')) > 160 then
       raise exception 'SEO title is limited to 60 characters and the description to 160.' using errcode = '22023';
     end if;
+    -- Image locations: an https URL or a site path only. Nothing that could act as a script or a redirect.
+    for v_key in select unnest(array['logo_url', 'favicon_url', 'hero_image_url']) loop
+      if p_body ? v_key then
+        v_url := coalesce(p_body->>v_key, '');
+        if v_url <> '' and v_url !~ '^(https://[^\s@/]+(/[^\s]*)?|/[^\s]*)$' then
+          raise exception 'Image addresses must be https or a site path.' using errcode = '22023';
+        end if;
+      end if;
+    end loop;
+    if char_length(coalesce(p_body->>'footer_text', '')) > 500 then
+      raise exception 'Footer text is limited to 500 characters.' using errcode = '22023';
+    end if;
+    if char_length(coalesce(p_body->>'tagline', '')) > 140 then
+      raise exception 'Tagline is limited to 140 characters.' using errcode = '22023';
+    end if;
   elsif p_kind = 'navigation' then
     for v_key in select jsonb_object_keys(p_body) loop
       if v_key <> 'items' then raise exception 'Unknown navigation field: %', v_key using errcode = '22023'; end if;

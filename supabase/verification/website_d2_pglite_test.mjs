@@ -184,6 +184,11 @@ r = await as('authenticated', U.editor, `select web_publish_content('settings','
 check('settings', 'editor cannot publish settings', refused(r), r.error || 'UNEXPECTED SUCCESS');
 r = await as('authenticated', U.publisher, `select web_publish_content('settings','site',2,'Launch settings')`);
 check('settings', 'publisher publishes settings (settings.publish)', r.ok, r.error || '');
+r = await as('authenticated', U.admin, `select web_save_draft('settings','site',$1::jsonb,2)`, [JSON.stringify({ site_name: 'BLW York Hub', logo_url: 'javascript:alert(1)' })]);
+check('settings', 'a javascript: logo address is refused', refused(r), r.error || 'UNEXPECTED SUCCESS');
+r = await as('authenticated', U.admin, `select web_save_draft('settings','site',$1::jsonb,2)`, [JSON.stringify({ site_name: 'BLW York Hub', hero_image_url: '/media/hero.jpg', logo_url: 'https://cdn.example/logo.png' })]);
+check('settings', 'https and site-path image addresses are accepted', r.ok, r.error || '');
+
 anon = await as('anon', null, `select body->>'foundation_enroll_url' u from public.v_public_content where kind='settings' and key='site'`);
 check('settings', 'published Foundation School link reaches the public view', anon.ok && anon.rows[0]?.u === 'https://rocksolidops.example/enroll', JSON.stringify(anon.rows));
 
