@@ -68,6 +68,6 @@ describe('published editions on the public site', () => {
     const withEditions = mergePublished(sampleContent, { content: [], posts: [], events: [], editions: [{ editionId: 'e9', kind: 'monthly', periodStart: '2026-11-01', title: 'November', description: '', authorizedBy: 'Pastor' }] });
     expect(withEditions.rhapsody.map((e) => e.slug)).toEqual(['e9']);
     const without = mergePublished(sampleContent, { content: [], posts: [], events: [], editions: [] });
-    expect(without.rhapsody).toEqual(sampleContent.rhapsody);
+    expect(without.rhapsody).toEqual([]);
   });
 });

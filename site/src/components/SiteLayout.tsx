@@ -4,7 +4,7 @@ import { useSiteContent } from '../content/SiteContentContext';
 import { buttonClass } from './ui';
 
 const SAMPLE_BANNER =
-  'Design preview. Names, dates, venues, times and documents are sample content until replaced with approved material.';
+  'Demo preview. Names, dates, venues, times and documents are sample content. Nothing shown here is published information.';
 
 export function SiteLayout() {
   const content = useSiteContent();

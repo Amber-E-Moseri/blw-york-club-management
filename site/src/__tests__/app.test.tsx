@@ -17,7 +17,7 @@ function renderAt(path: string, content?: SiteContent) {
 describe('navigation and layout', () => {
   it('shows the sample-content banner and a single page h1 on the home page', () => {
     renderAt('/');
-    expect(screen.getByText(/Design preview/)).toBeInTheDocument();
+    expect(screen.getByText(/Demo preview/)).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
 
@@ -148,6 +148,8 @@ describe('forms', () => {
 
     await user.click(screen.getByRole('checkbox'));
     await user.click(screen.getByRole('button', { name: 'Send message' }));
-    expect(screen.getByRole('status')).toHaveTextContent('nothing was sent or stored');
+    // Demo mode never claims a submission: it says plainly that nothing was sent.
+    expect(screen.getByRole('status')).toHaveTextContent('Demo only');
+    expect(screen.getByRole('status')).not.toHaveTextContent('Thank you');
   });
 });

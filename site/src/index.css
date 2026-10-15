@@ -3,6 +3,12 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --color-brand: #C8102E;
+    --color-brand-hover: #A60D26;
+    --color-brand-deep: #8B0D1F;
+    --color-brand-soft: #FFF1F2;
+  }
   html {
     scroll-behavior: smooth;
   }
@@ -18,7 +24,7 @@
     @apply text-brand-deep;
   }
   :focus-visible {
-    outline: 2px solid #C8102E;
+    outline: 2px solid var(--color-brand);
     outline-offset: 2px;
   }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { sampleContent } from '../content/sample-data';
-import { applyPublishedContent, eventsToSiteContent, isSafeHref, mergePublished, postsToSiteContent } from '../content/published';
+import { applyPublishedContent, eventsToSiteContent, isSafeHref, mergePublished, postsToSiteContent, unpublishedBase } from '../content/published';
 
 const settings = (body: Record<string, unknown>) => ({ kind: 'settings' as const, key: 'site', body, versionNo: 1, publishedAt: '2026-10-01T00:00:00Z' });
 
@@ -82,8 +82,12 @@ describe('posts and events', () => {
     expect(e2.venue).toBe('Venue to be confirmed');
   });
 
-  it('keeps the sample blog and events when nothing is published', () => {
-    const merged = mergePublished(sampleContent, { content: [], posts: [], events: [] });
-    expect(merged).toEqual(sampleContent);
+  it('shows no sample records when nothing is published', () => {
+    const merged = mergePublished(unpublishedBase(sampleContent), { content: [], posts: [], events: [] });
+    expect(merged.posts).toEqual([]);
+    expect(merged.events).toEqual([]);
+    expect(merged.rhapsody).toEqual([]);
+    expect(merged.about.leaders).toEqual([]);
+    expect(merged.settings.isSample).toBe(false);
   });
 });

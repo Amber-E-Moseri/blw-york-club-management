@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type FormEvent } from 'react';
+import { useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { validateForm, type FieldSpec } from '../lib/forms';
 import { buttonClass } from './ui';
 
@@ -13,6 +13,10 @@ interface Props {
   successMessage: string;
   /** When provided, a valid submission is sent through it. Without it, the form stays client-side only. */
   onSubmitValid?: (values: Record<string, string>, honeypot: string, consentText: string) => Promise<void>;
+  /** Heading shown after a successful send. Demo forms use a heading that says nothing was sent. */
+  successTitle?: string;
+  /** Extra controls shown above the submit button, such as the Turnstile check. */
+  extra?: ReactNode;
 }
 
 const inputBase =
@@ -22,7 +26,7 @@ const inputBase =
  * Accessible form with client-side validation only. Errors are linked to their fields with aria-describedby, the
  * first invalid field receives focus, and a status region announces success. There is no network request.
  */
-export function PublicForm({ idPrefix, title, intro, submitLabel, consentText, fields, successMessage, onSubmitValid }: Props) {
+export function PublicForm({ idPrefix, title, intro, submitLabel, consentText, fields, successMessage, onSubmitValid, extra, successTitle = 'Thank you.' }: Props) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [consent, setConsent] = useState(false);
@@ -61,7 +65,7 @@ export function PublicForm({ idPrefix, title, intro, submitLabel, consentText, f
   if (sent) {
     return (
       <div role="status" className="rounded-2xl border border-paper-edge bg-white p-8">
-        <p className="font-display text-2xl font-bold text-ink">Thank you.</p>
+        <p className="font-display text-2xl font-bold text-ink">{successTitle}</p>
         <p className="mt-2 text-ink-soft">{successMessage}</p>
       </div>
     );
@@ -147,6 +151,8 @@ export function PublicForm({ idPrefix, title, intro, submitLabel, consentText, f
           </p>
         )}
       </div>
+
+      {extra}
 
       {/* Hidden from people and assistive technology. Bots fill every field, so a value here is a bot signal. */}
       <div hidden aria-hidden="true">

@@ -4,12 +4,14 @@ import { PublicForm } from '../components/PublicForm';
 import { ImagePlaceholder, Section, SectionHeading, SampleNotice } from '../components/ui';
 import { useSiteContent } from '../content/SiteContentContext';
 import type { FieldSpec } from '../lib/forms';
-import { useInquirySubmitter } from '../content/InquirySubmitContext';
+import { useInquirySubmitter, useTurnstile } from '../content/InquirySubmitContext';
+import { TurnstileField } from '../components/TurnstileField';
 
 const RECEIVED = 'Thank you. Your message has been received and will be read by the fellowship team.';
 
-const NOT_SENT =
-  'Thanks. This is a design preview, so nothing was sent or stored. The live form will go through a reviewed backend.';
+// Demo mode: the site is not connected to a backend, so nothing is sent. The wording must never claim otherwise.
+const DEMO_NOTICE = 'This form is not connected to a backend, so nothing was sent or stored.';
+const DEMO_TITLE = 'Demo only';
 
 const NEW_HERE_FIELDS: FieldSpec[] = [
   { id: 'name', label: 'Full name', kind: 'text', required: true, autoComplete: 'name' },
@@ -48,6 +50,7 @@ const CONTACT_FIELDS: FieldSpec[] = [
 export function NewHerePage() {
   const { newHere, settings } = useSiteContent();
   const submit = useInquirySubmitter();
+  const turnstileOn = useTurnstile() !== null;
   return (
     <>
       <PageHero
@@ -125,7 +128,9 @@ export function NewHerePage() {
             submitLabel="Send"
             consentText="I agree that BLW York may use these details to contact me about the fellowship. I can ask for them to be removed at any time."
             fields={NEW_HERE_FIELDS}
-            successMessage={submit ? RECEIVED : NOT_SENT}
+            successMessage={submit ? RECEIVED : DEMO_NOTICE}
+            successTitle={submit ? undefined : DEMO_TITLE}
+            extra={submit && turnstileOn ? <TurnstileField /> : undefined}
             onSubmitValid={submit ? async (v, honeypot, consentText) => submit({
               kind: v.prayer ? 'prayer' : 'new_here', name: v.name, email: v.email, phone: v.phone ?? '',
               message: v.prayer || `Status: ${v.status}. Interest: ${v.interest || 'not stated'}.`,
@@ -141,6 +146,7 @@ export function NewHerePage() {
 export function ContactPage() {
   const { settings } = useSiteContent();
   const submit = useInquirySubmitter();
+  const turnstileOn = useTurnstile() !== null;
   return (
     <>
       <PageHero eyebrow="CONTACT US" title="Let's connect." lead="Send us a message and we'll get back to you." />
@@ -181,7 +187,9 @@ export function ContactPage() {
             submitLabel="Send message"
             consentText="I agree that BLW York may use these details to reply to my message."
             fields={CONTACT_FIELDS}
-            successMessage={submit ? RECEIVED : NOT_SENT}
+            successMessage={submit ? RECEIVED : DEMO_NOTICE}
+            successTitle={submit ? undefined : DEMO_TITLE}
+            extra={submit && turnstileOn ? <TurnstileField /> : undefined}
             onSubmitValid={submit ? async (v, honeypot, consentText) => submit({
               kind: 'contact', name: v.name, email: v.email, phone: '', message: v.message,
               topic: v.topic, consentText, honeypot,

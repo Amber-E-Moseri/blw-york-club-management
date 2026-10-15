@@ -1,4 +1,4 @@
-// Website Management (Phase D2) database tests. Replays every migration in supabase/migrations (000-107) on a disposable
+// Website Management (Phase D2) database tests. Replays every migration in supabase/migrations (000-109) on a disposable
 // in-process PGlite database, then exercises the website permission model, publishing, versions, blog, events, inquiries,
 // rate limits, media and privacy. Roles are switched with attempt(), which uses the shim's auth.uid() and role settings.
 // No Docker, no network, no production. Fake accounts only. Exit 1 on any failed expectation.
@@ -451,6 +451,70 @@ rr = await as('authenticated', U.editor, `select pdf_path from public.web_list_e
   check(area, 'authorization and publication are audited', aud.ok && aud.rows.some((x) => x.action === 'rhapsody.authorized') && aud.rows.some((x) => x.action === 'rhapsody.status_changed'), aud.error || '');
 }
 
+
+// ---------- Edge support (migration 109): client limits, upload permission, PDF resolver
+{
+  const area = 'edge';
+  const CLIENT_A = createHash('sha256').update('client-a').digest('hex');
+  const CLIENT_B = createHash('sha256').update('client-b').digest('hex');
+
+  // Per-client limits: service role only, bounded inputs, fixed windows.
+  let rr = await as('anon', null, `select web_consume_client_limit($1,'inquiry',2,10)`, [CLIENT_A]);
+  check(area, 'anon cannot call the per-client limiter', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+  rr = await as('authenticated', U.admin, `select web_consume_client_limit($1,'inquiry',2,10)`, [CLIENT_A]);
+  check(area, 'signed-in admin cannot call the per-client limiter', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+  const first = await as('service_role', null, `select web_consume_client_limit($1,'inquiry',2,10) as ok`, [CLIENT_A]);
+  const second = await as('service_role', null, `select web_consume_client_limit($1,'inquiry',2,10) as ok`, [CLIENT_A]);
+  const third = await as('service_role', null, `select web_consume_client_limit($1,'inquiry',2,10) as ok`, [CLIENT_A]);
+  check(area, 'within the limit the call is allowed', first.ok && first.rows[0].ok === true && second.rows[0].ok === true, first.error || '');
+  check(area, 'over the limit the call is refused', third.ok && third.rows[0].ok === false, JSON.stringify(third.rows));
+  const other = await as('service_role', null, `select web_consume_client_limit($1,'inquiry',2,10) as ok`, [CLIENT_B]);
+  check(area, 'another client has its own allowance', other.ok && other.rows[0].ok === true, other.error || '');
+  const otherScope = await as('service_role', null, `select web_consume_client_limit($1,'other',1,10) as ok`, [CLIENT_A]);
+  check(area, 'limits are separate per scope', otherScope.ok && otherScope.rows[0].ok === true, otherScope.error || '');
+  rr = await as('service_role', null, `select web_consume_client_limit('not-a-hash','inquiry',2,10)`);
+  check(area, 'a malformed client identifier is refused', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+  rr = await as('service_role', null, `select web_consume_client_limit($1,'inquiry',0,10)`, [CLIENT_A]);
+  check(area, 'a zero limit is refused', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+  rr = await as('service_role', null, `select web_consume_client_limit($1,'inquiry',2,0)`, [CLIENT_A]);
+  check(area, 'a zero window is refused', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+  rr = await as('authenticated', U.admin, `select count(*) from public.web_client_rate_limits`);
+  check(area, 'the limit table itself is not readable by signed-in users', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+
+  // Media upload permission, asked as the user.
+  rr = await as('authenticated', U.contributor, `select web_media_upload_allowed('site-media') as ok`);
+  check(area, 'contributor may upload site images', rr.ok && rr.rows[0].ok === true, rr.error || JSON.stringify(rr.rows));
+  rr = await as('authenticated', U.contributor, `select web_media_upload_allowed('rhapsody-pdfs') as ok`);
+  check(area, 'contributor may not upload Rhapsody PDFs (no rhapsody.manage)', rr.ok && rr.rows[0].ok === false, rr.error || JSON.stringify(rr.rows));
+  rr = await as('authenticated', U.pending, `select web_media_upload_allowed('site-media') as ok`);
+  check(area, 'a pending applicant may not upload anything', rr.ok && rr.rows[0].ok === false, rr.error || JSON.stringify(rr.rows));
+  rr = await as('authenticated', U.member, `select web_media_upload_allowed('site-media') as ok`);
+  check(area, 'a member without a website role may not upload', rr.ok && rr.rows[0].ok === false, rr.error || JSON.stringify(rr.rows));
+  rr = await as('authenticated', U.admin, `select web_media_upload_allowed('../etc') as ok`);
+  check(area, 'an unknown bucket is refused even for the admin', rr.ok && rr.rows[0].ok === false, rr.error || JSON.stringify(rr.rows));
+  rr = await as('anon', null, `select web_media_upload_allowed('site-media')`);
+  check(area, 'anon cannot ask about uploads', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+
+  // Rhapsody PDF resolver: only a published, authorized edition with an active PDF.
+  const pdfId = (await as('authenticated', U.contributor, `select web_register_media('rhapsody-pdfs','rhapsody/edge-test.pdf','application/pdf',2000,'')`)).rows[0].web_register_media;
+  const edId = (await as('authenticated', U.admin, `select web_save_edition(null,'daily','2026-11-01','Edge test edition','',$1,0)`, [pdfId])).rows[0].web_save_edition;
+  let resolved = await as('service_role', null, `select * from public.web_resolve_edition_pdf($1)`, [edId]);
+  check(area, 'an unpublished edition resolves to no PDF', resolved.ok && resolved.rows.length === 0, resolved.error || JSON.stringify(resolved.rows));
+  let v = (await owner(`select version from public.web_rhapsody_editions where id = $1`, [edId])).rows[0].version;
+  await as('authenticated', U.publisher, `select web_authorize_edition($1,'Pastor Edge',$2)`, [edId, v]);
+  v = (await owner(`select version from public.web_rhapsody_editions where id = $1`, [edId])).rows[0].version;
+  await as('authenticated', U.publisher, `select web_set_edition_status($1,'published',$2)`, [edId, v]);
+  resolved = await as('service_role', null, `select * from public.web_resolve_edition_pdf($1)`, [edId]);
+  check(area, 'a published, authorized edition resolves to its private path', resolved.ok && resolved.rows.length === 1 && resolved.rows[0].storage_path === 'rhapsody/edge-test.pdf' && resolved.rows[0].storage_bucket === 'rhapsody-pdfs', resolved.error || JSON.stringify(resolved.rows));
+  rr = await as('authenticated', U.admin, `select * from public.web_resolve_edition_pdf($1)`, [edId]);
+  check(area, 'signed-in users cannot resolve the private path directly', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+  rr = await as('anon', null, `select * from public.web_resolve_edition_pdf($1)`, [edId]);
+  check(area, 'anon cannot resolve the private path directly', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+  await owner(`update public.web_media set status = 'archived' where id = $1`, [pdfId]);
+  resolved = await as('service_role', null, `select * from public.web_resolve_edition_pdf($1)`, [edId]);
+  check(area, 'an archived PDF is no longer served', resolved.ok && resolved.rows.length === 0, resolved.error || JSON.stringify(resolved.rows));
+  await owner(`update public.web_media set status = 'active' where id = $1`, [pdfId]);
+}
 
 const failed = out.filter((x) => !x.ok);
 console.log(`\nD2 DATABASE TESTS: ${out.length - failed.length}/${out.length} passed`);

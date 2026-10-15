@@ -1,6 +1,7 @@
 // SAMPLE CONTENT. Every name, date, venue, time, quote and document here is placeholder copy taken from the approved
 // Phase C preview. It is not approved fellowship material and must be replaced through the CMS before launch.
 import type { SiteContent } from './types';
+import { DEFAULT_BRAND } from '../lib/brand';
 
 const SAMPLE_FOUNDATION_URL = 'https://example.org/rock-solid-ops/enroll';
 
@@ -13,6 +14,7 @@ export const sampleContent: SiteContent = {
     serviceDay: 'Sundays',
     serviceTime: '10:00 AM',
     venue: 'Venue to be confirmed',
+    primaryColor: DEFAULT_BRAND,
     socials: [
       { label: 'Instagram', href: '#' },
       { label: 'YouTube', href: '#' },

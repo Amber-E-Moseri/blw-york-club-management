@@ -2,6 +2,9 @@
 // Anything not published keeps its sample value, so the site never shows an empty section. Unsafe links are dropped.
 import type { PublicEditionRow, PublicEventRow, PublicPostRow, PublicContentRow } from '../api/websiteApi';
 import type { BlogPost, NavItem, PublicEvent, RhapsodyEdition, SiteContent } from './types';
+import { resolveBrand } from '../lib/brand';
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const ROUTES = ['/', '/about', '/events', '/rhapsody', '/foundation-school', '/blog', '/new-here', '/contact'];
 
@@ -39,6 +42,7 @@ export function applyPublishedContent(base: SiteContent, rows: PublicContentRow[
           ...next.settings,
           name: name ?? next.settings.name,
           tagline: str(b.tagline) ?? next.settings.tagline,
+          primaryColor: resolveBrand(b.primary_color),
           email: str(b.contact_email) ?? next.settings.email,
           address: str(b.address_text) ?? next.settings.address,
           serviceDay: str(b.service_day) ?? next.settings.serviceDay,
@@ -133,25 +137,62 @@ export function eventsToSiteContent(events: PublicEventRow[]): PublicEvent[] {
  * Rhapsody editions from the published view. Their PDFs are private, so pdfPath stays empty until the signed-link
  * service exists. The reader then hides its PDF controls rather than showing a broken link.
  */
-export function editionsToSiteContent(rows: PublicEditionRow[]): RhapsodyEdition[] {
+export function editionsToSiteContent(rows: PublicEditionRow[], pdfBase = ''): RhapsodyEdition[] {
+  // The link goes through the delivery function, which issues a short-lived signed URL for each request.
   return rows.map((r) => ({
     slug: r.editionId,
     title: r.title,
     kind: r.kind === 'daily' ? 'Daily' : 'Monthly',
     period: r.periodStart,
     blurb: r.description,
-    pdfPath: '',
+    pdfPath: pdfBase && UUID.test(r.editionId) ? `${pdfBase}?edition=${r.editionId}` : '',
     authorizedBy: r.authorizedBy,
   }));
 }
 
-/** Combines the published rows with the sample content. The sample banner stays on until every section is published. */
-export function mergePublished(base: SiteContent, published: { content: PublicContentRow[]; posts: PublicPostRow[]; events: PublicEventRow[]; editions?: PublicEditionRow[] }): SiteContent {
+/**
+ * The production base: the sample copy with every record removed. Nothing fictional (people, events, posts, dates,
+ * contact details, links, the sample banner) survives into a connected site. Unpublished text sections keep their
+ * approved copy until they are published, and that copy must be approved before launch.
+ */
+export function unpublishedBase(sample: SiteContent): SiteContent {
+  return {
+    ...sample,
+    settings: {
+      ...sample.settings,
+      name: 'BLW York Hub',
+      tagline: '',
+      email: '',
+      address: '',
+      serviceDay: '',
+      serviceTime: '',
+      venue: '',
+      socials: [],
+      foundationEnrollUrl: '',
+      isSample: false,
+    },
+    about: { ...sample.about, leaders: [] },
+    events: [],
+    posts: [],
+    rhapsody: [],
+  };
+}
+
+export interface PublishedBundle {
+  content: PublicContentRow[];
+  posts: PublicPostRow[];
+  events: PublicEventRow[];
+  editions?: PublicEditionRow[];
+}
+
+/** Combines the published rows with the production base. Lists come only from published rows, never from samples. */
+export function mergePublished(base: SiteContent, published: PublishedBundle, options: { pdfBase?: string } = {}): SiteContent {
   const withContent = applyPublishedContent(base, published.content);
   return {
     ...withContent,
-    posts: published.posts.length ? postsToSiteContent(published.posts) : base.posts,
-    events: published.events.length ? eventsToSiteContent(published.events) : base.events,
-    rhapsody: published.editions && published.editions.length ? editionsToSiteContent(published.editions) : base.rhapsody,
+    settings: { ...withContent.settings, isSample: false },
+    posts: postsToSiteContent(published.posts),
+    events: eventsToSiteContent(published.events),
+    rhapsody: editionsToSiteContent(published.editions ?? [], options.pdfBase ?? ''),
   };
 }

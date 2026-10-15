@@ -7,7 +7,8 @@ import { isWebsitePermission, type WebsitePermission } from './permissions';
 import { AdminLayout } from './AdminLayout';
 import { Button, Card, errorMessage, Notice } from './common';
 import { PagesScreen, SettingsScreen, NavigationScreen } from './ContentScreens';
-import { BlogScreen, DashboardScreen, EventsScreen, InquiriesScreen, MediaScreen, PeopleScreen } from './OperationsScreens';
+import { BlogScreen, DashboardScreen, EventsScreen, InquiriesScreen, PeopleScreen } from './OperationsScreens';
+import { MediaScreen } from './MediaScreen';
 import { RhapsodyScreen } from './RhapsodyScreen';
 
 /** Website Management entry point. Loaded lazily, so the public site does not download it. */

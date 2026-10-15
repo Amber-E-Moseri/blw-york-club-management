@@ -11,6 +11,8 @@ export interface SiteSettings {
   serviceTime: string;
   venue: string;
   socials: { label: string; href: string }[];
+  /** Accent colour as a six-digit hex value, already checked for safety and contrast (see lib/brand.ts). */
+  primaryColor: string;
   /** Destination for every Foundation School enrolment button. Empty or invalid hides the button. */
   foundationEnrollUrl: string;
   /** True while the content is sample data. Shown as a visible banner so nothing is mistaken for approved copy. */

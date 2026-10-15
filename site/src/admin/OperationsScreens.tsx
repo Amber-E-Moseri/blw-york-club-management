@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { EventPublicationRow, InquiryRow, MediaRow, PostRow, RoleRow, AssignmentRow, WebsiteApi } from '../api/websiteApi';
+import type { EventPublicationRow, InquiryRow, PostRow, RoleRow, AssignmentRow, WebsiteApi } from '../api/websiteApi';
 import { BUILT_IN_ROLES, PERMISSION_GROUPS, PERMISSION_LABELS, WEBSITE_PERMISSIONS, type WebsitePermission } from './permissions';
 import { isFutureSchedule, PREVIEW_WIDTHS, type PreviewDevice } from './logic';
 import { Button, Card, errorMessage, Field, inputClass, Notice, PreviewFrame } from './common';
@@ -255,62 +255,6 @@ export function InquiriesScreen({ api, perms }: Ctx) {
       </ul>
       {rows.length === 0 && <p className="text-sm text-ink-soft">Nothing to show.</p>}
     </Card>
-  );
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
-export function MediaScreen({ api, perms }: Ctx) {
-  const canUpload = perms.has('website.media.upload');
-  const [rows, setRows] = useState<MediaRow[]>([]);
-  const [form, setForm] = useState({ bucket: 'site-media' as MediaRow['bucket'], path: '', mime: 'image/jpeg', bytes: '', alt: '' });
-  const [msg, setMsg] = useState<Msg>(null);
-  const refresh = async () => { try { setRows(await api.listMedia()); } catch (e) { setMsg({ tone: 'error', text: errorMessage(e) }); } };
-  useEffect(() => { void refresh(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const register = async () => {
-    try {
-      await api.registerMedia({ bucket: form.bucket, storagePath: form.path.trim(), mime: form.mime, bytes: Number(form.bytes), altText: form.alt.trim() });
-      setMsg({ tone: 'ok', text: 'Media registered.' });
-      setForm({ ...form, path: '', bytes: '', alt: '' });
-      await refresh();
-    } catch (e) { setMsg({ tone: 'error', text: errorMessage(e) }); }
-  };
-  return (
-    <div className="grid gap-6">
-      {msg && <Notice tone={msg.tone}>{msg.text}</Notice>}
-      <Card title="Media library">
-        <p className="mb-4 text-sm text-ink-soft">Images are public. PDFs are private and reached only through tracked links. Uploading a file to storage from this screen is not connected yet: upload through the storage service first, then register the file here.</p>
-        {canUpload && (
-          <div className="grid gap-4 rounded-xl border border-paper-edge p-4 md:grid-cols-2">
-            <Field label="Storage bucket">{(p) => (
-              <select {...p} className={inputClass} value={form.bucket} onChange={(e) => setForm({ ...form, bucket: e.target.value as MediaRow['bucket'], mime: e.target.value === 'site-media' ? 'image/jpeg' : 'application/pdf' })}>
-                <option value="site-media">Images (public)</option><option value="rhapsody-pdfs">Rhapsody PDFs (private)</option>
-              </select>
-            )}</Field>
-            <Field label="Stored file path" hint="For example hero/2026/welcome.jpg">{(p) => <input {...p} className={inputClass} value={form.path} onChange={(e) => setForm({ ...form, path: e.target.value })} />}</Field>
-            <Field label="File type">{(p) => (
-              <select {...p} className={inputClass} value={form.mime} onChange={(e) => setForm({ ...form, mime: e.target.value })}>
-                {form.bucket === 'site-media'
-                  ? <><option value="image/jpeg">JPEG</option><option value="image/png">PNG</option><option value="image/webp">WebP</option></>
-                  : <option value="application/pdf">PDF</option>}
-              </select>
-            )}</Field>
-            <Field label="File size (bytes)">{(p) => <input {...p} inputMode="numeric" className={inputClass} value={form.bytes} onChange={(e) => setForm({ ...form, bytes: e.target.value })} />}</Field>
-            <div className="md:col-span-2"><Field label="Description for screen readers" hint="Required for images.">{(p) => <input {...p} className={inputClass} value={form.alt} onChange={(e) => setForm({ ...form, alt: e.target.value })} />}</Field></div>
-            <div className="md:col-span-2"><Button onClick={register}>Register file</Button></div>
-          </div>
-        )}
-        <ul className="mt-5 grid gap-2">
-          {rows.map((m) => (
-            <li key={m.id} className="flex flex-wrap justify-between gap-2 border-b border-paper-edge pb-2 text-sm">
-              <span className="font-bold">{m.storagePath}</span>
-              <span className="text-ink-soft">{m.bucket} · {m.mime} · {m.altText || 'no description'}</span>
-            </li>
-          ))}
-        </ul>
-        {rows.length === 0 && <p className="mt-4 text-sm text-ink-soft">No files registered yet.</p>}
-      </Card>
-    </div>
   );
 }
 

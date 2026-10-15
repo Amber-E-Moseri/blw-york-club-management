@@ -296,6 +296,42 @@ export function createWebsiteApi(config: ApiConfig) {
       return rpc<string>('web_register_media', { p_bucket: input.bucket, p_storage_path: input.storagePath, p_mime: input.mime, p_bytes: input.bytes, p_alt_text: input.altText });
     },
 
+    /**
+     * Uploads a file: the signed-upload function checks the user's permission and issues a short-lived URL, the bytes go
+     * straight to storage, and then the object is registered. The stored name is generated, never the original file name.
+     * Returns the stored path.
+     */
+    async uploadMedia(input: { bucket: MediaRow['bucket']; mime: string; file: Blob; altText: string }): Promise<string> {
+      const token = config.getAccessToken();
+      if (!token) throw new ApiError('unauthenticated', 'Please sign in to upload.');
+      const bytes = input.file.size;
+      let issuedRes: Response;
+      try {
+        issuedRes = await doFetch(`${base}/functions/v1/website-media-upload`, {
+          method: 'POST',
+          headers: { apikey: config.anonKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bucket: input.bucket, mime: input.mime, bytes }),
+        });
+      } catch {
+        throw new ApiError('network', 'Could not reach the website service. Check your connection.');
+      }
+      const issued = (await parse(issuedRes)) as { path?: string; uploadUrl?: string; error?: string } | null;
+      if (!issuedRes.ok || !issued?.path || !issued.uploadUrl) {
+        if (issuedRes.status === 401) throw new ApiError('unauthenticated', 'Please sign in again.');
+        if (issuedRes.status === 403) throw new ApiError('forbidden', 'You do not have permission to upload here.');
+        throw new ApiError(issuedRes.status === 400 ? 'invalid' : 'server', typeof issued?.error === 'string' ? issued.error : 'The file could not be uploaded.');
+      }
+      let put: Response;
+      try {
+        put = await doFetch(issued.uploadUrl, { method: 'PUT', headers: { 'Content-Type': input.mime, 'x-upsert': 'false' }, body: input.file });
+      } catch {
+        throw new ApiError('network', 'The file could not be uploaded. Check your connection and try again.');
+      }
+      if (!put.ok) throw new ApiError('server', 'The file could not be uploaded. Please try again.');
+      await rpc<string>('web_register_media', { p_bucket: input.bucket, p_storage_path: issued.path, p_mime: input.mime, p_bytes: bytes, p_alt_text: input.altText });
+      return issued.path;
+    },
+
     // ---- roles (core administrators)
     async listRoles(): Promise<RoleRow[]> {
       const rows = await call<Array<Record<string, unknown>>>('/rest/v1/web_roles?select=id,name,description,is_builtin,status,version&order=name', {});

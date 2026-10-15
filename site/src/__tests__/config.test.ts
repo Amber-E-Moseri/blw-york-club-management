@@ -12,7 +12,7 @@ describe('readApiConfig', () => {
   });
 
   it('accepts an https project URL with the anon key', () => {
-    expect(readApiConfig({ VITE_SUPABASE_URL: 'https://p.example.co', VITE_SUPABASE_ANON_KEY: jwt('anon') })).toEqual({ url: 'https://p.example.co', anonKey: jwt('anon') });
+    expect(readApiConfig({ VITE_SUPABASE_URL: 'https://p.example.co', VITE_SUPABASE_ANON_KEY: jwt('anon') })).toEqual({ url: 'https://p.example.co', anonKey: jwt('anon'), turnstileSiteKey: null });
   });
 
   it('refuses a plain http URL unless it is a local development address', () => {
