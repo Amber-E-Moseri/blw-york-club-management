@@ -110,6 +110,18 @@ rec("10c owner update of approval audit is refused by trigger", up !== "updated"
 let del; try { await owner(`delete from public.profile_approval_audit where profile_id=$1`, [ids.NEW]); del = "deleted"; } catch (e) { del = e.message; }
 rec("10d owner delete of approval audit is refused by trigger", del !== "deleted", del);
 
+// 10f-10j. Client and owner DML on the approval audit: UPDATE, DELETE, TRUNCATE refused; audit rows survive.
+r = await A(ids.ADMIN, `update public.profile_approval_audit set action = 'approve'`);
+rec("10f client UPDATE of approval audit refused", !r.ok, r.error);
+r = await A(ids.ADMIN, `delete from public.profile_approval_audit`);
+rec("10g client DELETE of approval audit refused", !r.ok, r.error);
+r = await A(ids.ADMIN, `truncate public.profile_approval_audit`);
+rec("10h client TRUNCATE of approval audit refused", !r.ok, r.error);
+let tr; try { await owner(`truncate public.profile_approval_audit`); tr = "truncated"; } catch (e) { tr = e.message; }
+rec("10i owner TRUNCATE of approval audit refused by trigger", tr !== "truncated", tr);
+c = await owner(`select count(*)::int n from public.profile_approval_audit`);
+rec("10j approval audit rows survive all refused operations", c.rows[0].n >= 1, `n=${c.rows[0].n}`);
+
 r = await A(ids.ADMIN, `select * from public.get_person_identity($1,$2)`, [P.LINK, reason]);
 rec("11a staff reveal with a reason returns the person", r.ok && r.rows[0].email === "link@x.org", r.error);
 r = await A(ids.LINK, `select * from public.get_person_identity($1,$2)`, [P.LINK, reason]);

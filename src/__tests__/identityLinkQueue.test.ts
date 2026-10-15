@@ -97,6 +97,7 @@ describe('migration 103 contract (text gate; the SQL is NOT executed here)', () 
   test('the new audit table is append-only and has no client grants', () => {
     expect(body).toMatch(/revoke all on table public\.profile_approval_audit from public, anon, authenticated, service_role/i);
     expect(body).toMatch(/before update or delete on public\.profile_approval_audit/i);
+    expect(body).toMatch(/before truncate on public\.profile_approval_audit\s+for each statement/i);
   });
 
   test('no existing migration file is modified by 103 (it is additive, numbered after 102)', () => {

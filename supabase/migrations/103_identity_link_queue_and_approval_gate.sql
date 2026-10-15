@@ -72,6 +72,13 @@ create trigger profile_approval_audit_append_only
   before update or delete on public.profile_approval_audit
   for each row execute function public._f2_refuse_audit_mutation();
 
+-- TRUNCATE bypasses row-level triggers, so it needs its own statement-level guard. Applies to every role, including
+-- the table owner. (Row triggers do not fire on TRUNCATE; this is the only guard against it.)
+drop trigger if exists profile_approval_audit_no_truncate on public.profile_approval_audit;
+create trigger profile_approval_audit_no_truncate
+  before truncate on public.profile_approval_audit
+  for each statement execute function public._f2_refuse_audit_mutation();
+
 -- ─── 3. Approval gate: an account that needs linking cannot be approved (replaces 016 approve_pending_member) ─────────
 
 create or replace function public.approve_pending_member(target_member_id uuid)
