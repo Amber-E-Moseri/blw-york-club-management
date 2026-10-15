@@ -1,0 +1,57 @@
+name: PostgreSQL 17 candidate fingerprint (review only)
+
+# Manual only. Produces a CANDIDATE schema fingerprint on the Supabase PostgreSQL 17 image (supabase/config.toml pins
+# major_version = 17) by replaying the full migration chain 000-101 on a fresh disposable local stack. It never reads or
+# writes the authoritative golden fingerprint, never touches a hosted project, and never asserts equivalence to the golden.
+# A reviewer compares the uploaded candidate to the golden and approves any golden change separately.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pg17-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Point the local stack at a per-run disposable project
+        run: |
+          ID="pg17cand-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          sed -i -E "s/^project_id = \".*\"/project_id = \"$ID\"/" supabase/config.toml
+          grep -E '^(project_id|major_version)' supabase/config.toml
+          echo "F2_DISPOSABLE_PROJECT_ID=$ID" >> "$GITHUB_ENV"
+
+      - name: Target guard self-test
+        run: bash scripts/test_f2_target_guard.sh
+
+      - name: Start the disposable local stack (PostgreSQL 17)
+        run: npx supabase start
+
+      - name: Replay 000-101 and write the candidate fingerprint (no golden read or written)
+        env:
+          F2_DB_ADMIN: postgres
+          F2_OUT_DIR: ${{ runner.temp }}
+        run: scripts/certify-integrated-101.sh
+
+      - name: Upload the candidate fingerprint for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pg17-candidate-fingerprint
+          path: ${{ runner.temp }}/*.json
+          if-no-files-found: warn
+
+      - name: Stop the local stack
+        if: always()
+        run: npx supabase stop --no-backup
