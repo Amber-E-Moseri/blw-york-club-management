@@ -2,6 +2,9 @@
   "name": "blw-york-public-site",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "type": "module",
   "description": "BLW York public website (Phase C preview). Sample content only; no backend connection.",
   "scripts": {
