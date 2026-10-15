@@ -105,7 +105,7 @@ jobs:
       - name: Point the local stack at a per-run disposable project on PostgreSQL 17
         run: |
           set -euo pipefail
-          ID="pg17cand-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          ID="f2pg17cand-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           sed -i -E "s/^project_id = \".*\"/project_id = \"$ID\"/" supabase/config.toml
           grep -qE '^major_version = 17$' supabase/config.toml || { echo "FAIL: major_version is not 17" >&2; exit 1; }
           grep -E '^(project_id|major_version)' supabase/config.toml
