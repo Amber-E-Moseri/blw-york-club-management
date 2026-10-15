@@ -17,7 +17,7 @@ permissions:
 
 env:
   # The reviewed release commit on fix/non-docker-closure. Change only by a reviewed edit to this file.
-  RELEASE_SHA: ca7c30c824e95e0c90fe8d00cc9191457664f7cd
+  RELEASE_SHA: f4a250fc5b29431f2d193dc2783d68d045fd23ad
   EXPECTED_MIGRATIONS: "102"
   LAST_MIGRATION: "101"
 
