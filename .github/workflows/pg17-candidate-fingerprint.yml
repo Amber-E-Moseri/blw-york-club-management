@@ -49,8 +49,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pg17-candidate-fingerprint
-          path: ${{ runner.temp }}/*.json
-          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/schema_fingerprint.candidate-101.json
+            ${{ runner.temp }}/contract-check-101.txt
+            ${{ runner.temp }}/membership-101.log
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Stop the local stack
         if: always()
