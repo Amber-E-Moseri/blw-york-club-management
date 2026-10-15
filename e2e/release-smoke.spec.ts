@@ -25,7 +25,7 @@ async function waitForAuthReadiness() {
   let lastError = '';
   while (Date.now() < deadline) {
     try {
-      const health = await fetch(`${authUrl}/health`);
+      const health = await fetch(`${authUrl}/health`, { headers: { apikey: anonKey } });
       if (!health.ok) throw new Error(`health ${health.status}`);
 
       const adminUsers = await fetch(`${authUrl}/admin/users?page=1&per_page=1`, {
