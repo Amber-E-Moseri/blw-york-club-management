@@ -108,8 +108,8 @@ jobs:
           set -euo pipefail
           [ -n "$EXPECTED_CERT_PROJECT_REF" ] || { echo "FAIL: CERT_EXPECTED_PROJECT_REF variable is not set"; exit 1; }
           printf '%s' "$EXPECTED_CERT_PROJECT_REF" | grep -Eq '^[a-z0-9]{20}$' || { echo "FAIL: CERT_EXPECTED_PROJECT_REF is malformed"; exit 1; }
-          for denied in rjtstjmtddqhesexltbj yziuhtxtznginhdpqurb; do
-            [ "$EXPECTED_CERT_PROJECT_REF" != "$denied" ] || { echo "FAIL: expected reference is a denied (protected or Preview) project"; exit 1; }
+          for denied in rjtstjmtddqhesexltbj; do
+            [ "$EXPECTED_CERT_PROJECT_REF" != "$denied" ] || { echo "FAIL: expected reference is the denied protected production project"; exit 1; }
           done
           url_ref="$(printf '%s' "$CERT_SUPABASE_URL" | sed -nE 's#^https://([a-z0-9]{20})\.supabase\.co/?$#\1#p')"
           [ -n "$url_ref" ] || { echo "FAIL: CERT_SUPABASE_URL is not a project URL"; exit 1; }

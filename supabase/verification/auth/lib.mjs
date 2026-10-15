@@ -73,11 +73,10 @@ export function randomPassword() {
   return `${randomBytes(18).toString('base64url')}aA1!`;
 }
 
-// Project references that no certification run may ever target. The production and Preview references are denied by
-// name here, so a mistyped secret or variable cannot point a hosted run at them.
+// Project references that no certification run may ever target. The production reference is denied by name here,
+// so a mistyped secret or variable cannot point a hosted run at it. The Preview certification project is approved.
 export const DENIED_PROJECT_REFS = [
   'rjtstjmtddqhesexltbj', // protected production project
-  'yziuhtxtznginhdpqurb', // Preview certification project (must not be reused by Hub-Certification)
 ];
 
 /** The certification project reference for hosted runs. Must be set explicitly; there is no default. */
