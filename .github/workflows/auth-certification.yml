@@ -1,0 +1,216 @@
+name: Authentication certification (exact candidate SHA)
+
+# Manual only. Never runs on push or pull request.
+#
+# Two tiers, deliberately split:
+#   offline  : no secrets, no environment, no Supabase project. PGlite replay of 000-102, migration 103 checks, the
+#              certification-target guard test, and client auth and identity-queue unit tests.
+#              Simulated JWT claims and in-process PGlite only. These results do NOT certify real GoTrue or PostgREST.
+#   hosted   : real GoTrue, real PostgREST with real JWTs, and real OTP delivery against ONE allowlisted certification
+#              project. Bound to the GitHub Preview environment and the disposable Preview project only. Runs only when run_hosted is true.
+#
+# Fail closed: every gate stops the job with FAIL before any test runs. A BLOCKED mail path is reported as BLOCKED
+# (not PASS). No secret value is printed; the owner connection string is masked before it is written to the job env.
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact 40-character commit SHA to certify. Must match the checked-out commit.
+        required: true
+        type: string
+      run_hosted:
+        description: Also run the hosted tier against the Preview certification project (requires authorisation).
+        required: true
+        type: boolean
+        default: false
+      replay_hosted_migrations:
+        description: Apply migrations 000-103 to the certification project before testing (requires separate approval).
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hub-certification-hosted
+  cancel-in-progress: false
+
+
+env:
+  # The frozen application under test. Pinned here and verified by Gate 1b; never taken from inputs.
+  APP_UNDER_TEST_SHA: fada4a3af3416d9c8943ffa6fb68e377157f9c99
+
+jobs:
+  # ---------------------------------------------------------------------------------------------------------------
+  # Tier 2: hosted. Real GoTrue, real PostgREST with real JWTs, real OTP delivery. Certification project only.
+  # ---------------------------------------------------------------------------------------------------------------
+  hosted:
+    name: hosted (real GoTrue, PostgREST and OTP; certification project only)
+    if: ${{ inputs.run_hosted }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: Preview
+    env:
+      # Repository VARIABLES, not secrets. The owner sets these after provisioning. Empty = fail.
+      EXPECTED_CERT_PROJECT_REF: ${{ vars.CERT_EXPECTED_PROJECT_REF }}
+      PROTECTED_PROJECT_REFS: ${{ vars.PROTECTED_PROJECT_REFS }}
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.candidate_sha }}
+          persist-credentials: false
+
+      - name: Check out the frozen application under test
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.APP_UNDER_TEST_SHA }}
+          path: app-under-test
+          persist-credentials: false
+
+      - name: "Gate 1b: application checkout equals the frozen SHA (fail closed)"
+        run: |
+          set -euo pipefail
+          [ "$(git -C app-under-test rev-parse HEAD)" = "$APP_UNDER_TEST_SHA" ] || { echo "FAIL: application checkout is not the frozen SHA"; exit 1; }
+          echo "PASS: application under test is the frozen SHA"
+      - name: "Gate 1: SHA matches the checkout (fail closed)"
+        run: |
+          set -euo pipefail
+          want="${{ inputs.candidate_sha }}"
+          [ "$(git rev-parse HEAD)" = "$want" ] || { echo "FAIL: checkout does not equal requested SHA"; exit 1; }
+          echo "PASS: candidate SHA verified"
+
+      - name: "Gate 2: required secrets present (names only; values never printed)"
+        env:
+          CERT_SUPABASE_URL: ${{ secrets.CERT_SUPABASE_URL }}
+          CERT_SUPABASE_ANON_KEY: ${{ secrets.CERT_SUPABASE_ANON_KEY }}
+          CERT_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.CERT_SUPABASE_SERVICE_ROLE_KEY }}
+          CERT_SUPABASE_POOLER_HOST: ${{ secrets.CERT_SUPABASE_POOLER_HOST }}
+          CERT_SUPABASE_POOLER_PORT: ${{ secrets.CERT_SUPABASE_POOLER_PORT }}
+          CERT_SUPABASE_POOLER_USER: ${{ secrets.CERT_SUPABASE_POOLER_USER }}
+          CERT_SUPABASE_POOLER_DATABASE: ${{ secrets.CERT_SUPABASE_POOLER_DATABASE }}
+          CERT_SUPABASE_DB_PASSWORD: ${{ secrets.CERT_SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for v in CERT_SUPABASE_URL CERT_SUPABASE_ANON_KEY CERT_SUPABASE_SERVICE_ROLE_KEY CERT_SUPABASE_POOLER_HOST \
+                   CERT_SUPABASE_POOLER_PORT CERT_SUPABASE_POOLER_USER CERT_SUPABASE_POOLER_DATABASE CERT_SUPABASE_DB_PASSWORD; do
+            [ -n "${!v:-}" ] || { echo "FAIL: $v is not set in the Preview environment"; exit 1; }
+          done
+          echo "PASS: all required secrets present"
+
+      - name: "Gate 3: project reference is the certification project and is not protected (fail closed)"
+        env:
+          CERT_SUPABASE_URL: ${{ secrets.CERT_SUPABASE_URL }}
+          CERT_SUPABASE_POOLER_USER: ${{ secrets.CERT_SUPABASE_POOLER_USER }}
+        run: |
+          set -euo pipefail
+          [ -n "$EXPECTED_CERT_PROJECT_REF" ] || { echo "FAIL: CERT_EXPECTED_PROJECT_REF variable is not set"; exit 1; }
+          printf '%s' "$EXPECTED_CERT_PROJECT_REF" | grep -Eq '^[a-z0-9]{20}$' || { echo "FAIL: CERT_EXPECTED_PROJECT_REF is malformed"; exit 1; }
+          for denied in rjtstjmtddqhesexltbj; do
+            [ "$EXPECTED_CERT_PROJECT_REF" != "$denied" ] || { echo "FAIL: expected reference is the denied protected production project"; exit 1; }
+          done
+          url_ref="$(printf '%s' "$CERT_SUPABASE_URL" | sed -nE 's#^https://([a-z0-9]{20})\.supabase\.co/?$#\1#p')"
+          [ -n "$url_ref" ] || { echo "FAIL: CERT_SUPABASE_URL is not a project URL"; exit 1; }
+          [ "$url_ref" = "$EXPECTED_CERT_PROJECT_REF" ] || { echo "FAIL: URL reference does not match the expected certification reference"; exit 1; }
+          pooler_ref="${CERT_SUPABASE_POOLER_USER##*.}"
+          [ "$pooler_ref" = "$EXPECTED_CERT_PROJECT_REF" ] || { echo "FAIL: pooler user does not name the certification project"; exit 1; }
+          IFS=',' read -ra protected <<< "${PROTECTED_PROJECT_REFS:-}"
+          for p in "${protected[@]}"; do
+            p="$(echo "$p" | tr -d ' ')"
+            [ -n "$p" ] || continue
+            [ "$url_ref" != "$p" ] || { echo "FAIL: target is a protected project"; exit 1; }
+          done
+          echo "PASS: certification project reference verified; not a protected project"
+
+      - name: "Gate 4: OTP test mail path configured (fail closed)"
+        env:
+          CERT_MAIL_INBOX_API_URL: ${{ vars.CERT_MAIL_INBOX_API_URL }}
+          CERT_MAIL_INBOX_TOKEN: ${{ secrets.CERT_MAIL_INBOX_TOKEN }}
+          CERT_MAIL_TEST_DOMAIN: ${{ vars.CERT_MAIL_TEST_DOMAIN }}
+          CERT_MAIL_INBOX_ID: ${{ vars.CERT_MAIL_INBOX_ID }}
+        run: |
+          set -euo pipefail
+          [ -n "${CERT_MAIL_INBOX_API_URL:-}" ] || { echo "BLOCKED: OTP test mail inbox API is not configured"; exit 1; }
+          [ -n "${CERT_MAIL_INBOX_TOKEN:-}" ] || { echo "BLOCKED: OTP test mail inbox token is not configured"; exit 1; }
+          [ -n "${CERT_MAIL_TEST_DOMAIN:-}" ] || { echo "BLOCKED: CERT_MAIL_TEST_DOMAIN variable is not set"; exit 1; }
+          [ -n "${CERT_MAIL_INBOX_ID:-}" ] || { echo "BLOCKED: CERT_MAIL_INBOX_ID variable is not set"; exit 1; }
+          echo "PASS: OTP test mail path configured (values not printed)"
+
+      - name: Build the masked owner connection (certification project only)
+        env:
+          CERT_SUPABASE_POOLER_HOST: ${{ secrets.CERT_SUPABASE_POOLER_HOST }}
+          CERT_SUPABASE_POOLER_PORT: ${{ secrets.CERT_SUPABASE_POOLER_PORT }}
+          CERT_SUPABASE_POOLER_USER: ${{ secrets.CERT_SUPABASE_POOLER_USER }}
+          CERT_SUPABASE_POOLER_DATABASE: ${{ secrets.CERT_SUPABASE_POOLER_DATABASE }}
+          CERT_SUPABASE_DB_PASSWORD: ${{ secrets.CERT_SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "::add-mask::$CERT_SUPABASE_DB_PASSWORD"
+          enc="$(node -e 'process.stdout.write(encodeURIComponent(process.env.CERT_SUPABASE_DB_PASSWORD))')"
+          dsn="postgresql://${CERT_SUPABASE_POOLER_USER}:${enc}@${CERT_SUPABASE_POOLER_HOST}:${CERT_SUPABASE_POOLER_PORT}/${CERT_SUPABASE_POOLER_DATABASE}?sslmode=require"
+          echo "::add-mask::$dsn"
+          echo "CERT_OWNER_DATABASE_URL=$dsn" >> "$GITHUB_ENV"
+          echo "PASS: owner connection built (not printed)"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Replay migrations 000-103 into the certification project (only when authorised)
+        if: ${{ inputs.replay_hosted_migrations }}
+        run: |
+          set -euo pipefail
+          command -v psql >/dev/null || { echo "FAIL: psql is not available on the runner"; exit 1; }
+          # Fail closed: replay only the full 000-103 set. A partial migration tree must never report success.
+          n=$(ls app-under-test/supabase/migrations/*.sql | wc -l)
+          [ "$n" -eq 104 ] || { echo "FAIL: expected 104 migrations (000-103), found $n"; exit 1; }
+          for f in $(ls app-under-test/supabase/migrations/*.sql | sort); do
+            psql "$CERT_OWNER_DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null \
+              || { echo "FAIL: migration $(basename "$f") failed"; exit 1; }
+          done
+          echo "PASS: migrations 000-103 applied in order to the certification project"
+
+      - name: Mail-adapter unit tests (fixed MailSlurp inbox; mocked, no network, no key)
+        run: node --test supabase/verification/auth/mailslurp_otp.test.mjs
+      - name: Real GoTrue and PostgREST tests (real JWTs; hosted only)
+        env:
+          SUPABASE_URL: ${{ secrets.CERT_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.CERT_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.CERT_SUPABASE_SERVICE_ROLE_KEY }}
+          CERT_HOSTED: "1"
+          CERT_EXPECTED_PROJECT_REF: ${{ vars.CERT_EXPECTED_PROJECT_REF }}
+        run: |
+          set -euo pipefail
+          for h in auth_workflow_certification.mjs authorization_certification.mjs authz_final_real_session_test.mjs; do
+            log="$RUNNER_TEMP/$h.log"
+            rc=0; node "supabase/verification/auth/$h" > "$log" 2>&1 || rc=$?
+            if grep -q '^FAIL' "$log" || [ "$rc" -ne 0 ]; then
+              echo "FAIL: $h (exit $rc)"; grep -E '^(PASS|FAIL)' "$log" | head -50; exit 1
+            fi
+            echo "PASS: $h ($(grep -c '^PASS' "$log") checks)"
+          done
+
+      - name: OTP delivery verification (approved test mail path; BLOCKED is not a PASS)
+        env:
+          SUPABASE_URL: ${{ secrets.CERT_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.CERT_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.CERT_SUPABASE_SERVICE_ROLE_KEY }}
+          CERT_HOSTED: "1"
+          CERT_EXPECTED_PROJECT_REF: ${{ vars.CERT_EXPECTED_PROJECT_REF }}
+          CERT_MAIL_INBOX_API_URL: ${{ vars.CERT_MAIL_INBOX_API_URL }}
+          CERT_MAIL_INBOX_TOKEN: ${{ secrets.CERT_MAIL_INBOX_TOKEN }}
+          CERT_MAIL_TEST_DOMAIN: ${{ vars.CERT_MAIL_TEST_DOMAIN }}
+          CERT_MAIL_INBOX_ID: ${{ vars.CERT_MAIL_INBOX_ID }}
+        run: |
+          set -euo pipefail
+          rc=0; node supabase/verification/auth/otp_delivery_check.mjs || rc=$?
+          case "$rc" in
+            0) echo "PASS: OTP delivery verified through the approved test mail path" ;;
+            2) echo "BLOCKED: OTP delivery not verified (mail path not usable). Not a PASS."; exit 1 ;;
+            *) echo "FAIL: OTP delivery check failed (exit $rc)"; exit 1 ;;
+          esac
