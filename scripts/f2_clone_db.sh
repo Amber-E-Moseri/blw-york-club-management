@@ -45,6 +45,26 @@ FP_SQL="$(dirname "$0")/../supabase/verification/schema_fingerprint.sql"
 [[ -f "$FP_SQL" ]] || { echo "refused: $FP_SQL is missing; the clone cannot be verified" >&2; exit 2; }
 src_fp="$(docker exec -i "$C" psql -U "$ROLE" -d "$SRC" -X -q -At < "$FP_SQL")"
 dst_fp="$(docker exec -i "$C" psql -U "$ROLE" -d "$DST" -X -q -At < "$FP_SQL")"
+# Fail closed on invalid or incomplete output: both documents must parse as JSON and carry every required section,
+# each non-null. Two identical truncated documents must not pass as parity.
+FP_CHECK='
+  const fs = require("fs");
+  const required = ["tables", "views", "functions", "extensions", "default_privileges", "storage_buckets", "storage_policies"];
+  for (const f of process.argv.slice(1)) {
+    let d;
+    try { d = JSON.parse(fs.readFileSync(f, "utf8")); } catch (e) { console.error("invalid JSON in " + f); process.exit(1); }
+    const missing = required.filter((k) => !(k in d));
+    if (missing.length) { console.error("incomplete fingerprint, missing: " + missing.join(", ")); process.exit(1); }
+  }'
+FP_TMP="$(mktemp -d)"
+printf '%s\n' "$src_fp" > "$FP_TMP/src.json"
+printf '%s\n' "$dst_fp" > "$FP_TMP/dst.json"
+if ! node -e "$FP_CHECK" "$FP_TMP/src.json" "$FP_TMP/dst.json"; then
+  rm -rf "$FP_TMP"
+  echo "CLONE FINGERPRINT INVALID: refused. The fingerprint of $SRC or $DST is not complete JSON." >&2
+  exit 1
+fi
+rm -rf "$FP_TMP"
 if [[ -z "$src_fp" || "$src_fp" != "$dst_fp" ]]; then
   echo "CLONE FINGERPRINT MISMATCH: $DST does not match $SRC in owners, SECURITY DEFINER, grants or RLS" >&2
   # Diagnostics only (names and counts; no row data): which top-level sections and which entries differ.
