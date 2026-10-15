@@ -7,7 +7,7 @@ name: Authentication certification (exact candidate SHA)
 #              certification-target guard test, and client auth and identity-queue unit tests.
 #              Simulated JWT claims and in-process PGlite only. These results do NOT certify real GoTrue or PostgREST.
 #   hosted   : real GoTrue, real PostgREST with real JWTs, and real OTP delivery against ONE allowlisted certification
-#              project. Bound to the Hub-Certification environment, never Preview. Runs only when run_hosted is true.
+#              project. Bound to the GitHub Preview environment and the disposable Preview project only. Runs only when run_hosted is true.
 #
 # Fail closed: every gate stops the job with FAIL before any test runs. A BLOCKED mail path is reported as BLOCKED
 # (not PASS). No secret value is printed; the owner connection string is masked before it is written to the job env.
@@ -20,7 +20,7 @@ on:
         required: true
         type: string
       run_hosted:
-        description: Also run the hosted tier against the Hub-Certification project (requires authorisation).
+        description: Also run the hosted tier against the Preview certification project (requires authorisation).
         required: true
         type: boolean
         default: false
@@ -38,6 +38,10 @@ concurrency:
   cancel-in-progress: false
 
 
+env:
+  # The frozen application under test. Pinned here and verified by Gate 1b; never taken from inputs.
+  APP_UNDER_TEST_SHA: fada4a3af3416d9c8943ffa6fb68e377157f9c99
+
 jobs:
   # ---------------------------------------------------------------------------------------------------------------
   # Tier 2: hosted. Real GoTrue, real PostgREST with real JWTs, real OTP delivery. Certification project only.
@@ -47,7 +51,7 @@ jobs:
     if: ${{ inputs.run_hosted }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    environment: Hub-Certification
+    environment: Preview
     env:
       # Repository VARIABLES, not secrets. The owner sets these after provisioning. Empty = fail.
       EXPECTED_CERT_PROJECT_REF: ${{ vars.CERT_EXPECTED_PROJECT_REF }}
@@ -59,6 +63,18 @@ jobs:
           ref: ${{ inputs.candidate_sha }}
           persist-credentials: false
 
+      - name: Check out the frozen application under test
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.APP_UNDER_TEST_SHA }}
+          path: app-under-test
+          persist-credentials: false
+
+      - name: "Gate 1b: application checkout equals the frozen SHA (fail closed)"
+        run: |
+          set -euo pipefail
+          [ "$(git -C app-under-test rev-parse HEAD)" = "$APP_UNDER_TEST_SHA" ] || { echo "FAIL: application checkout is not the frozen SHA"; exit 1; }
+          echo "PASS: application under test is the frozen SHA"
       - name: "Gate 1: SHA matches the checkout (fail closed)"
         run: |
           set -euo pipefail
@@ -80,7 +96,7 @@ jobs:
           set -euo pipefail
           for v in CERT_SUPABASE_URL CERT_SUPABASE_ANON_KEY CERT_SUPABASE_SERVICE_ROLE_KEY CERT_SUPABASE_POOLER_HOST \
                    CERT_SUPABASE_POOLER_PORT CERT_SUPABASE_POOLER_USER CERT_SUPABASE_POOLER_DATABASE CERT_SUPABASE_DB_PASSWORD; do
-            [ -n "${!v:-}" ] || { echo "FAIL: $v is not set in the Hub-Certification environment"; exit 1; }
+            [ -n "${!v:-}" ] || { echo "FAIL: $v is not set in the Preview environment"; exit 1; }
           done
           echo "PASS: all required secrets present"
 
@@ -110,7 +126,7 @@ jobs:
 
       - name: "Gate 4: OTP test mail path configured (fail closed)"
         env:
-          CERT_MAIL_INBOX_API_URL: ${{ secrets.CERT_MAIL_INBOX_API_URL }}
+          CERT_MAIL_INBOX_API_URL: ${{ vars.CERT_MAIL_INBOX_API_URL }}
           CERT_MAIL_INBOX_TOKEN: ${{ secrets.CERT_MAIL_INBOX_TOKEN }}
           CERT_MAIL_TEST_DOMAIN: ${{ vars.CERT_MAIL_TEST_DOMAIN }}
           CERT_MAIL_INBOX_ID: ${{ vars.CERT_MAIL_INBOX_ID }}
@@ -151,16 +167,16 @@ jobs:
           set -euo pipefail
           command -v psql >/dev/null || { echo "FAIL: psql is not available on the runner"; exit 1; }
           # Fail closed: replay only the full 000-103 set. A partial migration tree must never report success.
-          n=$(ls supabase/migrations/*.sql | wc -l)
+          n=$(ls app-under-test/supabase/migrations/*.sql | wc -l)
           [ "$n" -eq 104 ] || { echo "FAIL: expected 104 migrations (000-103), found $n"; exit 1; }
-          for f in $(ls supabase/migrations/*.sql | sort); do
+          for f in $(ls app-under-test/supabase/migrations/*.sql | sort); do
             psql "$CERT_OWNER_DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null \
               || { echo "FAIL: migration $(basename "$f") failed"; exit 1; }
           done
           echo "PASS: migrations 000-103 applied in order to the certification project"
 
       - name: Mail-adapter unit tests (fixed MailSlurp inbox; mocked, no network, no key)
-        run: node --test supabase/verification/mailslurp_otp.test.mjs
+        run: node --test supabase/verification/auth/mailslurp_otp.test.mjs
       - name: Real GoTrue and PostgREST tests (real JWTs; hosted only)
         env:
           SUPABASE_URL: ${{ secrets.CERT_SUPABASE_URL }}
@@ -172,7 +188,7 @@ jobs:
           set -euo pipefail
           for h in auth_workflow_certification.mjs authorization_certification.mjs authz_final_real_session_test.mjs; do
             log="$RUNNER_TEMP/$h.log"
-            rc=0; node "supabase/verification/$h" > "$log" 2>&1 || rc=$?
+            rc=0; node "supabase/verification/auth/$h" > "$log" 2>&1 || rc=$?
             if grep -q '^FAIL' "$log" || [ "$rc" -ne 0 ]; then
               echo "FAIL: $h (exit $rc)"; grep -E '^(PASS|FAIL)' "$log" | head -50; exit 1
             fi
@@ -186,13 +202,13 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.CERT_SUPABASE_SERVICE_ROLE_KEY }}
           CERT_HOSTED: "1"
           CERT_EXPECTED_PROJECT_REF: ${{ vars.CERT_EXPECTED_PROJECT_REF }}
-          CERT_MAIL_INBOX_API_URL: ${{ secrets.CERT_MAIL_INBOX_API_URL }}
+          CERT_MAIL_INBOX_API_URL: ${{ vars.CERT_MAIL_INBOX_API_URL }}
           CERT_MAIL_INBOX_TOKEN: ${{ secrets.CERT_MAIL_INBOX_TOKEN }}
           CERT_MAIL_TEST_DOMAIN: ${{ vars.CERT_MAIL_TEST_DOMAIN }}
           CERT_MAIL_INBOX_ID: ${{ vars.CERT_MAIL_INBOX_ID }}
         run: |
           set -euo pipefail
-          rc=0; node supabase/verification/otp_delivery_check.mjs || rc=$?
+          rc=0; node supabase/verification/auth/otp_delivery_check.mjs || rc=$?
           case "$rc" in
             0) echo "PASS: OTP delivery verified through the approved test mail path" ;;
             2) echo "BLOCKED: OTP delivery not verified (mail path not usable). Not a PASS."; exit 1 ;;
