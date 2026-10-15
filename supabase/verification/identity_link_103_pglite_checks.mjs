@@ -158,4 +158,6 @@ for (const t of ["identity_read_audit", "profile_link_audit"]) {
 }
 
 console.log(`\nSUMMARY ${results.filter((x) => x.pass).length} PASS, ${results.filter((x) => !x.pass).length} FAIL`);
-process.exit(0);
+const failed = results.filter((x) => !x.pass).length;
+// Fails closed: any failed expectation exits nonzero, so a CI step that runs this file cannot pass on a regression.
+process.exit(failed === 0 ? 0 : 1);
