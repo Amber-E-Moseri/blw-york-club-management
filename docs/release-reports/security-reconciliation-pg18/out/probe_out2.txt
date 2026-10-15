@@ -1,0 +1,227 @@
+psql:probe_run2.sql:21: WARNING:  there is already a transaction in progress
+===== 1. AUDIENCE TABLE VISIBILITY =====
+psql:probe_run2.sql:215: NOTICE:  PROBE | audience_specs: ordinary non-manager M3 | SQLSTATE=OK | rows=0
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run2.sql:216: NOTICE:  PROBE | audience_specs: meeting invitee M1 (explicit invitee of spec 0002) | SQLSTATE=OK | rows=0
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run2.sql:217: NOTICE:  PROBE | audience_specs: cell leader CL1 (leader of C1) | SQLSTATE=OK | rows=0
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run2.sql:218: NOTICE:  PROBE | audience_specs: administrator AD | SQLSTATE=OK | rows=2
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run2.sql:219: NOTICE:  PROBE | audience_specs: coordinator CO | SQLSTATE=OK | rows=2
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run2.sql:220: NOTICE:  PROBE | audience_snapshots: ordinary non-manager M3 | SQLSTATE=OK | rows=0
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run2.sql:221: NOTICE:  PROBE | audience_snapshots: invitee M1 (his own snapshot row) | SQLSTATE=OK | rows=1
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run2.sql:222: NOTICE:  PROBE | audience_snapshots: cell leader CL1 | SQLSTATE=OK | rows=0
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run2.sql:223: NOTICE:  PROBE | audience_snapshots: administrator AD | SQLSTATE=OK | rows=1
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run2.sql:224: NOTICE:  PROBE | audience_snapshots: coordinator CO | SQLSTATE=OK | rows=1
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run2.sql:225: NOTICE:  PROBE | audience_snapshots: anonymous (no JWT sub, role anon) | SQLSTATE=OK | rows=0
+ probe_rows 
+------------
+ 
+(1 row)
+
+===== 2. A1 PROFILE VISIBILITY (cell leader CL1, cell C1) =====
+psql:probe_run2.sql:228: NOTICE:  LIST | A1: C1 profiles visible to CL1 (excluding self) | ("BSC leader B1|active"), ("Inactive leader|inactive"), ("Inactive member|inactive"), ("Leader of C2|active"), ("Member 1|active"), ("Member 3|active"), ("Rejected member|rejected"), ("Role-only leader|active")
+ probe_list 
+------------
+ 
+(1 row)
+
+psql:probe_run2.sql:229: NOTICE:  LIST | A1: C1 profiles that exist (owner view, excluding CL1) | <none>
+ probe_list 
+------------
+ 
+(1 row)
+
+===== 3. SIX PRIVILEGE REFUSALS: refusal and side effects =====
+psql:probe_run2.sql:232: NOTICE:  WRITE | B10 BL1 move own profile cell | SQLSTATE=42501 rows=-1 | permission denied for table profiles | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run2.sql:233: NOTICE:  WRITE | D11 M1 write BSC field | SQLSTATE=42501 rows=-1 | permission denied for table profiles | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run2.sql:234: NOTICE:  WRITE | D12 AD set BSC on M2 (expect zero rows) | SQLSTATE=42501 rows=-1 | permission denied for table profiles | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run2.sql:235: NOTICE:  WRITE | D14 AD clear cell of M3 (expect zero rows) | SQLSTATE=42501 rows=-1 | permission denied for table profiles | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run2.sql:236: NOTICE:  WRITE | F1 M1 change own cell | SQLSTATE=42501 rows=-1 | permission denied for table profiles | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run2.sql:237: NOTICE:  WRITE | F2 M1 activate MP (expect zero rows) | SQLSTATE=42501 rows=-1 | permission denied for table profiles | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+===== 1b. ANON ROLE =====
+psql:probe_run2.sql:239: NOTICE:  PROBE | audience_specs: anon role | SQLSTATE=42501 | permission denied for table audience_specs
+ probe_anon 
+------------
+ 
+(1 row)
+
+psql:probe_run2.sql:240: NOTICE:  PROBE | audience_snapshots: anon role | SQLSTATE=42501 | permission denied for table audience_snapshots
+ probe_anon 
+------------
+ 
+(1 row)
+
+===== 2. A1 =====
+psql:probe_run2.sql:242: NOTICE:  LIST | A1: C1 profiles visible to CL1 (excluding self) | (00000000-0000-0000-0000-00000000b001,active), (00000000-0000-0000-0000-00000000b004,inactive), (00000000-0000-0000-0000-00000000d001,active), (00000000-0000-0000-0000-00000000d003,active), (00000000-0000-0000-0000-00000000d005,rejected), (00000000-0000-0000-0000-00000000d006,inactive), (00000000-0000-0000-0000-00000000f002,active), (00000000-0000-0000-0000-00000000f003,active)
+ probe_list 
+------------
+ 
+(1 row)
+
+psql:probe_run2.sql:243: NOTICE:  LIST | A1: C1 profiles that exist (owner view, excluding CL1) | <none>
+ probe_list 
+------------
+ 
+(1 row)
+
+===== 4. PENDING BSC ASSIGNMENT (MP = d004 pending, cell C1) =====
+-- initial state
+psql:probe_run2.sql:246: NOTICE:  LIST | MP initial: status/bsc/cell | <none>
+ probe_list 
+------------
+ 
+(1 row)
+
+-- a. ordinary member and cell leader assignment RPC
+psql:probe_run2.sql:248: NOTICE:  WRITE | a1 M3 (ordinary member) assign_member_to_bsc(MP,B1) | SQLSTATE=42501 rows=-1 | Not authorised to change BSC assignments. | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run2.sql:249: NOTICE:  WRITE | a2 CL1 (cell leader) assign_member_to_bsc(MP,B1) | SQLSTATE=42501 rows=-1 | Not authorised to change BSC assignments. | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+-- b. direct database writes
+psql:probe_run2.sql:251: NOTICE:  WRITE | b1 M3 direct UPDATE bsc_id of MP | SQLSTATE=42501 rows=-1 | permission denied for table profiles | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run2.sql:252: NOTICE:  WRITE | b2 CL1 direct UPDATE bsc_id of MP | SQLSTATE=42501 rows=-1 | permission denied for table profiles | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run2.sql:253: NOTICE:  WRITE | b3 CO (coordinator) direct UPDATE bsc_id of MP | SQLSTATE=42501 rows=-1 | permission denied for table profiles | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run2.sql:254: NOTICE:  WRITE | b4 CO assign_member_to_bsc(MP,B1) (authorised staff RPC) | SQLSTATE=P0001 rows=-1 | Only active members can be assigned to a BSC. | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+-- c. existing assignment, then status transition to pending
+psql:probe_run2.sql:257: NOTICE:  WRITE | c1 CO assign active M1 (d001) to B1 | SQLSTATE=OK rows=1 | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run2.sql:258: NOTICE:  LIST | c1 state after assignment: M1 | <none>
+ probe_list 
+------------
+ 
+(1 row)
+
+psql:probe_run2.sql:259: NOTICE:  WRITE | c2 CL1 sets M1 status to pending | SQLSTATE=42501 rows=-1 | permission denied for table profiles | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run2.sql:260: NOTICE:  WRITE | c3 CO sets M1 status to pending (authorised staff workflow) | SQLSTATE=42501 rows=-1 | permission denied for table profiles | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run2.sql:261: NOTICE:  LIST | c4 state after pending transition: M1 profile | <none>
+ probe_list 
+------------
+ 
+(1 row)
+
+psql:probe_run2.sql:262: NOTICE:  LIST | c5 BSC B1 leader and roster after transition | <none>
+ probe_list 
+------------
+ 
+(1 row)
+

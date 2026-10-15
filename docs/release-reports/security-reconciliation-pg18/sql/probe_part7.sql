@@ -1,0 +1,8 @@
+\echo ===== 9. INACTIVE BSC LEADER PRIVILEGES (BLI = b004, inactive leader of B6; BSC B6) =====
+select rls_test.probe_rows('bscs: inactive leader BLI sees B6', '00000000-0000-0000-0000-00000000b004', $q$select id from public.bscs where id = 'b1000000-0000-0000-0000-0000000000b6'$q$);
+select rls_test.probe_rows('B6 roster: BLI reads active B6 members via profiles', '00000000-0000-0000-0000-00000000b004', $q$select id from public.profiles where bsc_id = 'b1000000-0000-0000-0000-0000000000b6'$q$);
+select rls_test.probe_rows('bsc_members_visible: BLI', '00000000-0000-0000-0000-00000000b004', $q$select * from public.bsc_members_visible('b1000000-0000-0000-0000-0000000000b6')$q$);
+select rls_test.probe_write('BLI rename B6 (expect zero rows)', '00000000-0000-0000-0000-00000000b004', $q$update public.bscs set name = 'hijack' where id = 'b1000000-0000-0000-0000-0000000000b6'$q$, 'bscs', 'b1000000-0000-0000-0000-0000000000b6');
+select rls_test.probe_write('BLI assign active M3 to B6 via assign_member_to_bsc', '00000000-0000-0000-0000-00000000b004', $q$select public.assign_member_to_bsc('00000000-0000-0000-0000-00000000d003','b1000000-0000-0000-0000-0000000000b6')$q$, 'profiles', '00000000-0000-0000-0000-00000000d003');
+select rls_test.probe_write('BLI direct set bsc_id of M3 to B6', '00000000-0000-0000-0000-00000000b004', $q$update public.profiles set bsc_id = 'b1000000-0000-0000-0000-0000000000b6' where id = '00000000-0000-0000-0000-00000000d003'$q$, 'profiles', '00000000-0000-0000-0000-00000000d003');
+select 'owner B6 leader: ' || coalesce(leader_id::text,'null') from public.bscs where id = 'b1000000-0000-0000-0000-0000000000b6';

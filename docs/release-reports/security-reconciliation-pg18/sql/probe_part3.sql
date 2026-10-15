@@ -1,0 +1,11 @@
+\echo ===== 5. STAFF STATUS WORKFLOW (set_member_status / reject_pending_member) =====
+savepoint t1;
+select rls_test.probe_write('t1 CO assigns M1 to B1 (active)', '00000000-0000-0000-0000-00000000c001', $q$select public.assign_member_to_bsc('00000000-0000-0000-0000-00000000d001','b1000000-0000-0000-0000-0000000000b1')$q$, 'profiles', '00000000-0000-0000-0000-00000000d001');
+select rls_test.probe_write('t2 CO set_member_status(M1 active -> pending)', '00000000-0000-0000-0000-00000000c001', $q$select public.set_member_status('00000000-0000-0000-0000-00000000d001','pending','probe')$q$, 'profiles', '00000000-0000-0000-0000-00000000d001');
+select rls_test.probe_write('t3 CL1 set_member_status(M1 -> inactive)', '00000000-0000-0000-0000-00000000f001', $q$select public.set_member_status('00000000-0000-0000-0000-00000000d001','inactive','probe')$q$, 'profiles', '00000000-0000-0000-0000-00000000d001');
+select rls_test.probe_write('t4 CO set_member_status(M1 active -> inactive)', '00000000-0000-0000-0000-00000000c001', $q$select public.set_member_status('00000000-0000-0000-0000-00000000d001','inactive','probe')$q$, 'profiles', '00000000-0000-0000-0000-00000000d001');
+select rls_test.probe_write('t5 CO set_member_status(M1 inactive -> rejected)', '00000000-0000-0000-0000-00000000c001', $q$select public.set_member_status('00000000-0000-0000-0000-00000000d001','rejected','probe')$q$, 'profiles', '00000000-0000-0000-0000-00000000d001');
+select rls_test.probe_write('t6 CO reject_pending_member(MP) (pending -> rejected)', '00000000-0000-0000-0000-00000000c001', $q$select public.reject_pending_member('00000000-0000-0000-0000-00000000d004', 'probe')$q$, 'profiles', '00000000-0000-0000-0000-00000000d004');
+select rls_test.probe_write('t7 CO set_member_status(MP rejected -> pending reopen)', '00000000-0000-0000-0000-00000000c001', $q$select public.set_member_status('00000000-0000-0000-0000-00000000d004','pending','probe')$q$, 'profiles', '00000000-0000-0000-0000-00000000d004');
+select rls_test.probe_list('t8 final state: M1 and MP (owner)', null, 'select p.id || ''|'' || p.status || ''|bsc=''|| coalesce(p.bsc_id::text,''null'') from public.profiles p where p.id in (''00000000-0000-0000-0000-00000000d001'',''00000000-0000-0000-0000-00000000d004'')');
+rollback to savepoint t1;

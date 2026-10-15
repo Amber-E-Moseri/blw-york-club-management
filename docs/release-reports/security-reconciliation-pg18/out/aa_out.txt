@@ -1,0 +1,17 @@
+PASS  S1a non-manager is refused meeting_audience_spec (F2 082: raises 42501) :: Not authorised to read this meeting audience.
+PASS  S1b no is_in_audience_spec oracle helper exists in this chain (PR #6 076 is not carried)
+PASS  S3a owner cannot UPDATE cell_admin_audit (trigger refuses every role)
+PASS  S3b owner cannot DELETE cell_admin_audit (trigger refuses every role)
+PASS  S3c service_role cannot UPDATE cell_admin_audit
+PASS  S3d service_role cannot DELETE cell_admin_audit
+PASS  S3e authenticated cannot DELETE cell_admin_audit
+PASS  S3f cell_admin_audit_append_only trigger is present and enabled :: found 1
+PASS  S3a owner cannot UPDATE member_cell_audit (trigger refuses every role)
+PASS  S3b owner cannot DELETE member_cell_audit (trigger refuses every role)
+PASS  S3c service_role cannot UPDATE member_cell_audit
+PASS  S3d service_role cannot DELETE member_cell_audit
+PASS  S3e authenticated cannot DELETE member_cell_audit
+PASS  S3f member_cell_audit_append_only trigger is present and enabled :: found 1
+PASS  S4a PUBLIC and authenticated cannot EXECUTE audience_specs_block_change :: {"p":false,"a":false}
+
+15/15 audience and audit checks passed on disposable PGlite (not Supabase)

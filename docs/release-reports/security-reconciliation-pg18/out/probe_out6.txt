@@ -1,0 +1,209 @@
+psql:probe_run6.sql:21: WARNING:  there is already a transaction in progress
+===== 1. AUDIENCE TABLE VISIBILITY =====
+psql:probe_run6.sql:215: NOTICE:  PROBE | audience_specs: ordinary non-manager M3 | SQLSTATE=OK | rows=0
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run6.sql:216: NOTICE:  PROBE | audience_specs: meeting invitee M1 (explicit invitee of spec 0002) | SQLSTATE=OK | rows=0
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run6.sql:217: NOTICE:  PROBE | audience_specs: cell leader CL1 (leader of C1) | SQLSTATE=OK | rows=0
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run6.sql:218: NOTICE:  PROBE | audience_specs: administrator AD | SQLSTATE=OK | rows=2
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run6.sql:219: NOTICE:  PROBE | audience_specs: coordinator CO | SQLSTATE=OK | rows=2
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run6.sql:220: NOTICE:  PROBE | audience_snapshots: ordinary non-manager M3 | SQLSTATE=OK | rows=0
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run6.sql:221: NOTICE:  PROBE | audience_snapshots: invitee M1 (his own snapshot row) | SQLSTATE=OK | rows=1
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run6.sql:222: NOTICE:  PROBE | audience_snapshots: cell leader CL1 | SQLSTATE=OK | rows=0
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run6.sql:223: NOTICE:  PROBE | audience_snapshots: administrator AD | SQLSTATE=OK | rows=1
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run6.sql:224: NOTICE:  PROBE | audience_snapshots: coordinator CO | SQLSTATE=OK | rows=1
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run6.sql:225: NOTICE:  PROBE | audience_snapshots: anonymous (no JWT sub, role anon) | SQLSTATE=OK | rows=0
+ probe_rows 
+------------
+ 
+(1 row)
+
+===== 2. A1 PROFILE VISIBILITY (cell leader CL1, cell C1) =====
+psql:probe_run6.sql:228: NOTICE:  LIST | A1: C1 profiles visible to CL1 (excluding self) | ("BSC leader B1|active"), ("Inactive leader|inactive"), ("Inactive member|inactive"), ("Leader of C2|active"), ("Member 1|active"), ("Member 3|active"), ("Rejected member|rejected"), ("Role-only leader|active")
+ probe_list 
+------------
+ 
+(1 row)
+
+psql:probe_run6.sql:229: NOTICE:  LIST | A1: C1 profiles that exist (owner view, excluding CL1) | <none>
+ probe_list 
+------------
+ 
+(1 row)
+
+===== 3. SIX PRIVILEGE REFUSALS: refusal and side effects =====
+psql:probe_run6.sql:232: NOTICE:  WRITE | B10 BL1 move own profile cell | SQLSTATE=42501 rows=-1 | permission denied for table profiles | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run6.sql:233: NOTICE:  WRITE | D11 M1 write BSC field | SQLSTATE=42501 rows=-1 | permission denied for table profiles | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run6.sql:234: NOTICE:  WRITE | D12 AD set BSC on M2 (expect zero rows) | SQLSTATE=42501 rows=-1 | permission denied for table profiles | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run6.sql:235: NOTICE:  WRITE | D14 AD clear cell of M3 (expect zero rows) | SQLSTATE=42501 rows=-1 | permission denied for table profiles | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run6.sql:236: NOTICE:  WRITE | F1 M1 change own cell | SQLSTATE=42501 rows=-1 | permission denied for table profiles | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run6.sql:237: NOTICE:  WRITE | F2 M1 activate MP (expect zero rows) | SQLSTATE=42501 rows=-1 | permission denied for table profiles | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+===== 8. REJECTED PROFILE VISIBILITY (MR = d005 rejected, cell C1) =====
+psql:probe_run6.sql:239: NOTICE:  PROBE | profiles: ordinary member M3, rejected rows | SQLSTATE=OK | rows=0
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run6.sql:240: NOTICE:  PROBE | profiles: ordinary member M3, all rows | SQLSTATE=OK | rows=1
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run6.sql:241: NOTICE:  PROBE | profiles: invitee M1, rejected rows | SQLSTATE=OK | rows=0
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run6.sql:242: NOTICE:  PROBE | profiles: cell leader CL1, rejected rows | SQLSTATE=OK | rows=1
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run6.sql:243: NOTICE:  PROBE | profiles: rejected MR, own row only | SQLSTATE=OK | rows=1
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run6.sql:244: NOTICE:  PROBE | profiles: administrator AD, rejected rows | SQLSTATE=OK | rows=1
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run6.sql:245: NOTICE:  PROBE | profiles: coordinator CO, rejected rows | SQLSTATE=OK | rows=1
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run6.sql:246: NOTICE:  PROBE | member_directory: ordinary member M3, rejected rows | SQLSTATE=OK | rows=0
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run6.sql:247: NOTICE:  PROBE | member_directory: cell leader CL1, rejected rows | SQLSTATE=OK | rows=1
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run6.sql:248: NOTICE:  PROBE | member_directory: administrator AD, rejected rows | SQLSTATE=OK | rows=1
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run6.sql:249: NOTICE:  PROBE | user_profiles: cell leader CL1, rejected rows | SQLSTATE=OK | rows=0
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run6.sql:250: NOTICE:  PROBE | user_profiles: coordinator CO, rejected MR row | SQLSTATE=OK | rows=0
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run6.sql:251: NOTICE:  PROBE | memberships: cell leader CL1, rejected MR row | SQLSTATE=OK | rows=0
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run6.sql:252: NOTICE:  PROBE | memberships: coordinator CO, rejected MR row | SQLSTATE=OK | rows=0
+ probe_rows 
+------------
+ 
+(1 row)
+
+-- owner: does a rejected MR membership/profile row exist for the probes?
+                              ?column?                              
+--------------------------------------------------------------------
+ owner check MR: rejected cell=c1000000-0000-0000-0000-000000000001
+(1 row)
+

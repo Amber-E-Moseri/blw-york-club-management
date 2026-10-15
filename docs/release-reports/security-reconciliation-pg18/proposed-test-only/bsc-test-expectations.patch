@@ -1,0 +1,54 @@
+--- bsc_test.sql	2026-10-15 09:46:00.898340100 -0400
++++ bsc_test.corrected.sql	2026-10-15 09:53:56.008590200 -0400
+@@ -141,8 +141,8 @@
+ -- MI d006  MN d007  CO c001  COI c002  AD a001  AI a002  B1 b1…b1  B2 b1…b2  B4 b1…b4  B6 b1…b6  BE b1…be
+ 
+ -- ═════════ A. Cell leadership follows cells.leader_id (D1, D5) ═══════════════════════════════════════════════════════
+-select rls_test.expect_count('A1 cell leader CL1 sees the other profiles of C1 (9)', '00000000-0000-0000-0000-00000000f001',
+-  $q$select id from public.profiles where cell_id = 'c1000000-0000-0000-0000-000000000001' and id <> '00000000-0000-0000-0000-00000000f001'$q$, 9);
++select rls_test.expect_count('A1 cell leader CL1 sees the other non-pending profiles of C1 (8; pending MP d004 hidden by profiles_select_scoped)', '00000000-0000-0000-0000-00000000f001',
++  $q$select id from public.profiles where cell_id = 'c1000000-0000-0000-0000-000000000001' and id <> '00000000-0000-0000-0000-00000000f001'$q$, 8);
+ select rls_test.expect_count('A2 ROLE-ONLY leader CLR sees no other C1 profiles (not cells.leader_id)', '00000000-0000-0000-0000-00000000f002',
+   $q$select id from public.profiles where cell_id = 'c1000000-0000-0000-0000-000000000001' and id <> '00000000-0000-0000-0000-00000000f002'$q$, 0);
+ select rls_test.expect_count('A3 CLX (leads C2, profile in C1) sees C2 profiles (3)', '00000000-0000-0000-0000-00000000f003',
+@@ -178,7 +178,7 @@
+ select rls_test.expect_count('B9 member MN sees no roster', '00000000-0000-0000-0000-00000000d007',
+   'select id from public.bsc_members_visible()', 0);
+ select rls_test.expect_error('B10 BSC leader BL1 cannot move own profile to another cell', '00000000-0000-0000-0000-00000000b001',
+-  $q$update public.profiles set cell_id = 'c1000000-0000-0000-0000-000000000002' where id = '00000000-0000-0000-0000-00000000b001'$q$, '42501', '%protected profile fields%');
++  $q$update public.profiles set cell_id = 'c1000000-0000-0000-0000-000000000002' where id = '00000000-0000-0000-0000-00000000b001'$q$, '42501', '%permission denied for table profiles%');
+ select rls_test.expect_rows('B11 BSC leader BL1 cannot rename a BSC (zero rows)', '00000000-0000-0000-0000-00000000b001',
+   $q$update public.bscs set name = 'x' where id = 'b1000000-0000-0000-0000-0000000000b1'$q$, 0);
+ 
+@@ -234,13 +234,13 @@
+ select rls_test.expect_error('D10 inactive admin AI cannot use the RPC', '00000000-0000-0000-0000-00000000a002',
+   $q$select * from public.assign_member_to_bsc('00000000-0000-0000-0000-00000000d003', 'b1000000-0000-0000-0000-0000000000b1')$q$, '42501', '%Not authorised%');
+ select rls_test.expect_error('D11 member M1 cannot write the BSC field directly', '00000000-0000-0000-0000-00000000d001',
+-  $q$update public.profiles set bsc_id = 'b1000000-0000-0000-0000-0000000000b2' where id = '00000000-0000-0000-0000-00000000d001'$q$, '42501', '%Not authorised to change BSC%');
+-select rls_test.expect_rows('D12 admin AD direct UPDATE of a profile BSC matches zero rows (no admin profile policy)', '00000000-0000-0000-0000-00000000a001',
+-  $q$update public.profiles set bsc_id = 'b1000000-0000-0000-0000-0000000000b1' where id = '00000000-0000-0000-0000-00000000d002'$q$, 0);
++  $q$update public.profiles set bsc_id = 'b1000000-0000-0000-0000-0000000000b2' where id = '00000000-0000-0000-0000-00000000d001'$q$, '42501', '%permission denied for table profiles%');
++select rls_test.expect_error('D12 admin AD direct UPDATE of a profile BSC is refused (42501, no admin profile policy)', '00000000-0000-0000-0000-00000000a001',
++  $q$update public.profiles set bsc_id = 'b1000000-0000-0000-0000-0000000000b1' where id = '00000000-0000-0000-0000-00000000d002'$q$, '42501', '%permission denied for table profiles%');
+ select rls_test.expect_rows('D13 admin AD direct UPDATE of a profile role matches zero rows', '00000000-0000-0000-0000-00000000a001',
+   $q$update public.profiles set role = 'coordinator' where id = '00000000-0000-0000-0000-00000000d003'$q$, 0);
+-select rls_test.expect_rows('D14 admin AD direct UPDATE of a profile cell matches zero rows', '00000000-0000-0000-0000-00000000a001',
+-  $q$update public.profiles set cell_id = null where id = '00000000-0000-0000-0000-00000000d003'$q$, 0);
++select rls_test.expect_error('D14 admin AD direct UPDATE of a profile cell is refused (42501)', '00000000-0000-0000-0000-00000000a001',
++  $q$update public.profiles set cell_id = null where id = '00000000-0000-0000-0000-00000000d003'$q$, '42501', '%permission denied for table profiles%');
+ select rls_test.expect_count('D15 audit: admin sees the two RPC assignments', '00000000-0000-0000-0000-00000000a001',
+   'select id from public.bsc_assignment_audit', 2);
+ select rls_test.expect_count('D16 audit: an ordinary member sees no audit rows', '00000000-0000-0000-0000-00000000d001',
+@@ -259,9 +259,9 @@
+ 
+ -- ═════════ F. Self-service escalation attempts (privilege escalation) ═══════════════════════════════════════════════════
+ select rls_test.expect_error('F1 member M1 cannot change own cell', '00000000-0000-0000-0000-00000000d001',
+-  $q$update public.profiles set cell_id = 'c1000000-0000-0000-0000-000000000002' where id = '00000000-0000-0000-0000-00000000d001'$q$, '42501', '%protected profile fields%');
+-select rls_test.expect_rows('F2 member M1 cannot change another profile (pending MP) status (zero rows)', '00000000-0000-0000-0000-00000000d001',
+-  $q$update public.profiles set status = 'active' where id = '00000000-0000-0000-0000-00000000d004'$q$, 0);
++  $q$update public.profiles set cell_id = 'c1000000-0000-0000-0000-000000000002' where id = '00000000-0000-0000-0000-00000000d001'$q$, '42501', '%permission denied for table profiles%');
++select rls_test.expect_error('F2 member M1 cannot change another profile (pending MP) status (refused, 42501)', '00000000-0000-0000-0000-00000000d001',
++  $q$update public.profiles set status = 'active' where id = '00000000-0000-0000-0000-00000000d004'$q$, '42501', '%permission denied for table profiles%');
+ select rls_test.expect_rows('F3 cell leader CL1 cannot re-point cells.leader_id (zero rows)', '00000000-0000-0000-0000-00000000f001',
+   $q$update public.cells set leader_id = '00000000-0000-0000-0000-00000000f001' where id = 'c1000000-0000-0000-0000-000000000002'$q$, 0);
+ 

@@ -1,0 +1,167 @@
+psql:probe_run3.sql:21: WARNING:  there is already a transaction in progress
+===== 1. AUDIENCE TABLE VISIBILITY =====
+psql:probe_run3.sql:215: NOTICE:  PROBE | audience_specs: ordinary non-manager M3 | SQLSTATE=OK | rows=0
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run3.sql:216: NOTICE:  PROBE | audience_specs: meeting invitee M1 (explicit invitee of spec 0002) | SQLSTATE=OK | rows=0
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run3.sql:217: NOTICE:  PROBE | audience_specs: cell leader CL1 (leader of C1) | SQLSTATE=OK | rows=0
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run3.sql:218: NOTICE:  PROBE | audience_specs: administrator AD | SQLSTATE=OK | rows=2
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run3.sql:219: NOTICE:  PROBE | audience_specs: coordinator CO | SQLSTATE=OK | rows=2
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run3.sql:220: NOTICE:  PROBE | audience_snapshots: ordinary non-manager M3 | SQLSTATE=OK | rows=0
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run3.sql:221: NOTICE:  PROBE | audience_snapshots: invitee M1 (his own snapshot row) | SQLSTATE=OK | rows=1
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run3.sql:222: NOTICE:  PROBE | audience_snapshots: cell leader CL1 | SQLSTATE=OK | rows=0
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run3.sql:223: NOTICE:  PROBE | audience_snapshots: administrator AD | SQLSTATE=OK | rows=1
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run3.sql:224: NOTICE:  PROBE | audience_snapshots: coordinator CO | SQLSTATE=OK | rows=1
+ probe_rows 
+------------
+ 
+(1 row)
+
+psql:probe_run3.sql:225: NOTICE:  PROBE | audience_snapshots: anonymous (no JWT sub, role anon) | SQLSTATE=OK | rows=0
+ probe_rows 
+------------
+ 
+(1 row)
+
+===== 2. A1 PROFILE VISIBILITY (cell leader CL1, cell C1) =====
+psql:probe_run3.sql:228: NOTICE:  LIST | A1: C1 profiles visible to CL1 (excluding self) | ("BSC leader B1|active"), ("Inactive leader|inactive"), ("Inactive member|inactive"), ("Leader of C2|active"), ("Member 1|active"), ("Member 3|active"), ("Rejected member|rejected"), ("Role-only leader|active")
+ probe_list 
+------------
+ 
+(1 row)
+
+psql:probe_run3.sql:229: NOTICE:  LIST | A1: C1 profiles that exist (owner view, excluding CL1) | <none>
+ probe_list 
+------------
+ 
+(1 row)
+
+===== 3. SIX PRIVILEGE REFUSALS: refusal and side effects =====
+psql:probe_run3.sql:232: NOTICE:  WRITE | B10 BL1 move own profile cell | SQLSTATE=42501 rows=-1 | permission denied for table profiles | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run3.sql:233: NOTICE:  WRITE | D11 M1 write BSC field | SQLSTATE=42501 rows=-1 | permission denied for table profiles | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run3.sql:234: NOTICE:  WRITE | D12 AD set BSC on M2 (expect zero rows) | SQLSTATE=42501 rows=-1 | permission denied for table profiles | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run3.sql:235: NOTICE:  WRITE | D14 AD clear cell of M3 (expect zero rows) | SQLSTATE=42501 rows=-1 | permission denied for table profiles | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run3.sql:236: NOTICE:  WRITE | F1 M1 change own cell | SQLSTATE=42501 rows=-1 | permission denied for table profiles | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run3.sql:237: NOTICE:  WRITE | F2 M1 activate MP (expect zero rows) | SQLSTATE=42501 rows=-1 | permission denied for table profiles | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+===== 5. STAFF STATUS WORKFLOW (set_member_status / reject_pending_member) =====
+psql:probe_run3.sql:240: NOTICE:  WRITE | t1 CO assigns M1 to B1 (active) | SQLSTATE=OK rows=1 | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run3.sql:241: NOTICE:  WRITE | t2 CO set_member_status(M1 active -> pending) | SQLSTATE=P0001 rows=-1 | That change is not allowed from active to pending. | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run3.sql:242: NOTICE:  WRITE | t3 CL1 set_member_status(M1 -> inactive) | SQLSTATE=42501 rows=-1 | Not authorised to change member status. | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run3.sql:243: NOTICE:  WRITE | t4 CO set_member_status(M1 active -> inactive) | SQLSTATE=OK rows=1 | target unchanged=f
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run3.sql:244: NOTICE:  WRITE | t5 CO set_member_status(M1 inactive -> rejected) | SQLSTATE=P0001 rows=-1 | That change is not allowed from inactive to rejected. | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run3.sql:245: NOTICE:  WRITE | t6 CO reject_pending_member(MP) (pending -> rejected) | SQLSTATE=42883 rows=-1 | function public.reject_pending_member(unknown, unknown) does not exist | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run3.sql:246: NOTICE:  WRITE | t7 CO set_member_status(MP rejected -> pending reopen) | SQLSTATE=P0001 rows=-1 | The member already has that status. | target unchanged=t
+ probe_write 
+-------------
+ 
+(1 row)
+
+psql:probe_run3.sql:247: NOTICE:  LIST | t8 final state: M1 and MP (owner) | <none>
+ probe_list 
+------------
+ 
+(1 row)
+
