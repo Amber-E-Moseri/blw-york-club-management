@@ -32,7 +32,9 @@ test('submits an access request', async ({ page }) => {
   await page.getByLabel('Confirm Password').fill('secret1');
   await page.getByRole('button', { name: 'Submit Request' }).click();
 
-  await expect(page.getByRole('heading', { name: 'Application submitted!' })).toBeVisible();
+  // Migration 103: sign-up sends a six-digit code and asks the applicant to confirm it before a leader reviews the request.
+  await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Enter verification code' })).toBeVisible();
 });
 
 test('signs in and reaches the dashboard', async ({ page }) => {
