@@ -6,6 +6,12 @@ import { pathToFileURL } from 'node:url';
 const PROJECT_REF = /^[a-z0-9]{20}$/;
 const LOOPBACK = new Set(['127.0.0.1', 'localhost']);
 
+// The protected production project is refused unconditionally, whatever the environment says.
+const PROTECTED_PRODUCTION_REF = 'rjtstjmtddqhesexltbj';
+// The one disposable Preview project that may be used for hosted E2E, and only with explicit authorization.
+const APPROVED_PREVIEW_REF = 'yziuhtxtznginhdpqurb';
+const APPROVED_PREVIEW_HOST = `${APPROVED_PREVIEW_REF}.supabase.co`;
+
 /** Returns a list of violations. An empty list means the target is allowed. */
 export function validateTarget(env, { candidateSha } = {}) {
   const errors = [];
@@ -48,13 +54,31 @@ export function validateTarget(env, { candidateSha } = {}) {
     const match = /^([a-z0-9]{20})\.supabase\.co$/.exec(host);
     if (!match) errors.push('hosted host must be <20-char-ref>.supabase.co');
 
+    // Production is refused unconditionally: by the URL, by the named isolated host, and by the Preview exception path.
+    const namedHost = String(env.E2E_ISOLATED_HOST ?? '').trim().toLowerCase();
+    if (match && match[1] === PROTECTED_PRODUCTION_REF) errors.push('target is the protected production project (unconditionally refused)');
+    if (namedHost.includes(PROTECTED_PRODUCTION_REF)) errors.push('E2E_ISOLATED_HOST names the protected production project (unconditionally refused)');
+
+    // Preview is refused unless this exact project is explicitly authorized for this run.
+    const isPreviewHost = host === APPROVED_PREVIEW_HOST;
+    const previewAuthorized =
+      isPreviewHost &&
+      env.E2E_PREVIEW_TESTING_AUTHORIZED === 'true' &&
+      String(env.E2E_APPROVED_PREVIEW_HOST ?? '').trim().toLowerCase() === APPROVED_PREVIEW_HOST;
+    if (isPreviewHost && !previewAuthorized) {
+      errors.push(`Preview host requires E2E_PREVIEW_TESTING_AUTHORIZED=true and E2E_APPROVED_PREVIEW_HOST=${APPROVED_PREVIEW_HOST}`);
+    }
+
     const denied = String(env.E2E_DENIED_HOSTS ?? '')
       .split(',')
       .map((h) => h.trim().toLowerCase())
       .filter(Boolean);
     if (denied.length === 0) errors.push('E2E_DENIED_HOSTS must list production and Preview hosts (may not be empty)');
-    if (denied.includes(host)) errors.push('SUPABASE_URL host is on the production/Preview denylist');
-    if (match && denied.some((d) => d.startsWith(match[1]))) errors.push('project ref matches a denylisted production/Preview entry');
+    // The authorized Preview host is the only exception to the denylist; production is never excepted.
+    if (!previewAuthorized) {
+      if (denied.includes(host)) errors.push('SUPABASE_URL host is on the production/Preview denylist');
+      if (match && denied.some((d) => d.startsWith(match[1]))) errors.push('project ref matches a denylisted production/Preview entry');
+    }
   }
   return errors;
 }

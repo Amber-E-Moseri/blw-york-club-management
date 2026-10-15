@@ -43,6 +43,39 @@ test('refuses URL with credentials or path', () => {
 });
 test('refuses a malformed URL', () => refused({ ...base, SUPABASE_URL: 'not a url' }, /not a valid URL/));
 test('refuses a missing service-role key', () => refused({ ...base, SUPABASE_SERVICE_ROLE_KEY: '' }, /SUPABASE_SERVICE_ROLE_KEY is required/));
+// Approved Preview exception: exact host yziuhtxtznginhdpqurb.supabase.co, only with explicit authorization.
+const PREVIEW_HOST = 'yziuhtxtznginhdpqurb.supabase.co';
+const PREVIEW_ENV = {
+  ...base,
+  SUPABASE_URL: `https://${PREVIEW_HOST}`,
+  E2E_ISOLATED_HOST: PREVIEW_HOST,
+  E2E_DENIED_HOSTS: `rjtstjmtddqhesexltbj.supabase.co,${PREVIEW_HOST}`,
+  E2E_PREVIEW_TESTING_AUTHORIZED: 'true',
+  E2E_APPROVED_PREVIEW_HOST: PREVIEW_HOST,
+};
+test('accepts the approved Preview host with explicit authorization, even though it is on the denylist', () => accepted(PREVIEW_ENV));
+test('refuses the approved Preview host without the authorization flag', () =>
+  refused({ ...PREVIEW_ENV, E2E_PREVIEW_TESTING_AUTHORIZED: undefined }, /requires E2E_PREVIEW_TESTING_AUTHORIZED=true/));
+test('refuses the Preview host when the flag is not exactly "true"', () => {
+  refused({ ...PREVIEW_ENV, E2E_PREVIEW_TESTING_AUTHORIZED: '1' }, /requires E2E_PREVIEW_TESTING_AUTHORIZED=true/);
+  refused({ ...PREVIEW_ENV, E2E_PREVIEW_TESTING_AUTHORIZED: 'TRUE' }, /requires E2E_PREVIEW_TESTING_AUTHORIZED=true/);
+});
+test('refuses the Preview host when the approved-host value does not match exactly', () => {
+  refused({ ...PREVIEW_ENV, E2E_APPROVED_PREVIEW_HOST: undefined }, /E2E_APPROVED_PREVIEW_HOST=yziuhtxtznginhdpqurb/);
+  refused({ ...PREVIEW_ENV, E2E_APPROVED_PREVIEW_HOST: 'yziuhtxtznginhdpqurb.supabase.co.evil' }, /E2E_APPROVED_PREVIEW_HOST=yziuhtxtznginhdpqurb/);
+});
+test('refuses a look-alike Preview ref when the approved Preview host is the named host', () =>
+  refused({ ...PREVIEW_ENV, SUPABASE_URL: 'https://yziuhtxtznginhdpqurc.supabase.co' }, /does not match E2E_ISOLATED_HOST/));
+test('refuses production unconditionally, even with Preview authorization present', () => {
+  const prod = { SUPABASE_URL: 'https://rjtstjmtddqhesexltbj.supabase.co', E2E_ISOLATED_HOST: 'rjtstjmtddqhesexltbj.supabase.co' };
+  refused({ ...PREVIEW_ENV, ...prod }, /unconditionally refused/);
+  refused({ ...PREVIEW_ENV, ...prod, E2E_DENIED_HOSTS: 'previewref0000000000.supabase.co' }, /unconditionally refused/);
+  refused({ ...PREVIEW_ENV, ...prod, E2E_APPROVED_PREVIEW_HOST: 'rjtstjmtddqhesexltbj.supabase.co' }, /unconditionally refused/);
+});
+test('refuses production named as the isolated host even when the URL is another project', () =>
+  refused({ ...base, E2E_ISOLATED_HOST: 'rjtstjmtddqhesexltbj.supabase.co' }, /unconditionally refused|does not match/));
+test('refuses an unknown project even when Preview authorization is set', () =>
+  refused({ ...PREVIEW_ENV, SUPABASE_URL: 'https://zyxwvutsrqponmlkjihg.supabase.co', E2E_ISOLATED_HOST: PREVIEW_HOST }, /does not match E2E_ISOLATED_HOST/));
 test('refuses an unpinned or short candidate SHA', () => {
   refused(base, /40-character/, { candidateSha: 'main' });
   refused(base, /40-character/, { candidateSha: 'A'.repeat(40) });
