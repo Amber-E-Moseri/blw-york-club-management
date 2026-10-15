@@ -367,6 +367,91 @@ check('hub', 'Hub admin_role_permissions table still exists and is unchanged by 
 const hubCheck = await owner(`select pg_get_constraintdef(oid) d from pg_constraint where conrelid='public.admin_role_permissions'::regclass and conname = 'admin_role_permissions_permission_key_check'`);
 check('hub', 'Hub permission key constraint still lists only the ten Hub keys', hubCheck.rows.length === 1 && !/website\./.test(hubCheck.rows[0].d) && (hubCheck.rows[0].d.match(/'[a-z]+\.[a-z_]+'/g) || []).length === 10, hubCheck.rows[0]?.d.slice(0, 120));
 
+// ---- Rhapsody (migration 108)
+// Rhapsody and analytics checks for migration 108. Spliced into website_d2_pglite_test.mjs before its summary.
+// Uses the same accounts, helpers and role seeds as the main suite.
+
+{
+  const area = 'rhapsody';
+  let rr;
+  // A PDF in the private bucket (contributor has media.upload).
+  rr = await as('authenticated', U.contributor, `select web_register_media('rhapsody-pdfs','rhapsody/2026-10.pdf','application/pdf',482211,'')`);
+  check(area, 'contributor registers a Rhapsody PDF in the private bucket', rr.ok, rr.error || '');
+  const pdfId = rr.rows?.[0]?.web_register_media;
+  rr = await as('authenticated', U.editor, `select web_save_edition(null,'monthly','2026-10-01','October 2026','Daily readings for October',null,0)`);
+  check(area, 'editor creates an edition (manage permission)', rr.ok && !!rr.rows[0].web_save_edition, rr.error || '');
+  const edId = rr.rows?.[0]?.web_save_edition;
+  rr = await as('authenticated', U.editor, `select web_save_edition($1,'monthly','2026-10-01','October 2026','x',$2,1)`, [edId, pdfId]);
+  check(area, 'editor attaches the PDF to the edition', rr.ok, rr.error || '');
+  rr = await as('authenticated', U.editor, `select web_set_edition_status($1,'published',2)`, [edId]);
+  check(area, 'editor cannot publish an edition (needs rhapsody.publish)', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+  rr = await as('authenticated', U.publisher, `select web_set_edition_status($1,'published',2)`, [edId]);
+  check(area, 'publisher cannot publish an edition without a named authorizer', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+  rr = await as('authenticated', U.publisher, `select web_authorize_edition($1,'',2)`, [edId]);
+  check(area, 'authorization needs the authorizer name', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+  rr = await as('authenticated', U.editor, `select web_authorize_edition($1,'Pastor Test',2)`, [edId]);
+  check(area, 'editor cannot authorize an edition (needs rhapsody.publish)', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+  rr = await as('authenticated', U.publisher, `select web_authorize_edition($1,'Pastor Test',2)`, [edId]);
+  check(area, 'publisher records the authorizer', rr.ok, rr.error || '');
+  rr = await as('authenticated', U.publisher, `select web_set_edition_status($1,'published',3)`, [edId]);
+  check(area, 'publisher publishes an authorized edition with a PDF', rr.ok, rr.error || '');
+
+  // Public view: published editions only, no storage path.
+  let pub = await as('anon', null, `select edition_id, title, authorized_by from public.v_public_editions`);
+  check(area, 'anonymous visitors see the published edition', pub.ok && pub.rows.some((x) => x.title === 'October 2026' && x.authorized_by === 'Pastor Test'), pub.error || JSON.stringify(pub.rows));
+  const cols = (await owner(`select column_name from information_schema.columns where table_schema='public' and table_name='v_public_editions'`)).rows.map((x) => x.column_name);
+  check(area, 'public editions view exposes no storage path or PDF identifier', !cols.some((c) => /path|pdf|storage/.test(c)), cols.join(','));
+  rr = await as('anon', null, `select pdf_media_id from public.web_rhapsody_editions`);
+  check(area, 'anonymous cannot read the edition table', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+  rr = await as('authenticated', U.analyst, `select * from public.web_list_editions()`);
+  check(area, 'analyst cannot list the Rhapsody library', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+rr = await as('authenticated', U.editor, `select pdf_path from public.web_list_editions()`);
+  check(area, 'rhapsody staff see the stored PDF path in the staff listing', rr.ok && rr.rows.some((x) => x.pdf_path === 'rhapsody/2026-10.pdf'), rr.error || JSON.stringify(rr.rows));
+
+  // Click tracking.
+  const H = (n) => createHash('sha256').update('visitor-' + n).digest('hex');
+  rr = await as('anon', null, `select web_record_download($1,'home','newsletter','oct','${'z'.repeat(10)}')`, [edId]);
+  check(area, 'a click with a malformed visitor token is refused', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+  rr = await as('anon', null, `select web_record_download($1,'home','newsletter','oct',$2)`, [edId, H(1)]);
+  check(area, 'anonymous download click is recorded', rr.ok, rr.error || '');
+  for (let i = 2; i <= 5; i++) await as('anon', null, `select web_record_download($1,'home','newsletter','oct',$2)`, [edId, H(i)]);
+  const clicks = (await owner(`select count(*)::int n from public.web_download_events where edition_id = $1`, [edId])).rows[0].n;
+  check(area, 'five clicks from five visitors are stored', clicks === 5, `${clicks}`);
+  rr = await as('anon', null, `select web_record_download($1,'home','x','x',$2)`, ['00000000-0000-4000-8000-00000000dead', H(9)]);
+  check(area, 'a click on an unknown edition is refused', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+  rr = await as('authenticated', U.editor, `insert into public.web_download_events (edition_id, visitor_hash) values ($1,$2)`, [edId, H(7)]);
+  check(area, 'staff cannot insert click rows directly', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+  const tamper = await owner(`update public.web_download_events set source = 'x'`).then(() => ({ ok: true })).catch((e) => ({ ok: false, error: e.message }));
+  check(area, 'click rows cannot be altered, even by the owner', refused(tamper), tamper.error || 'UPDATED');
+
+  // Analytics: aggregated, thresholded, staff-only.
+  rr = await as('authenticated', U.analyst, `select edition_id, title, clicks, approx_visitors from public.web_download_stats(30)`);
+  check(area, 'analyst reads aggregated click statistics', rr.ok && rr.rows.some((x) => x.title === 'October 2026' && Number(x.clicks) === 5), rr.error || JSON.stringify(rr.rows));
+  check(area, 'five visitors are reported as a number', rr.ok && rr.rows.some((x) => x.approx_visitors === '5'), JSON.stringify(rr.rows));
+  rr = await as('authenticated', U.editor, `select * from public.web_download_stats(30)`);
+  check(area, 'editor cannot read analytics (no analytics.view)', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+  rr = await as('authenticated', U.analyst, `select * from public.web_download_stats(0)`);
+  check(area, 'analytics window must be between 1 and 365 days', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+  rr = await as('authenticated', U.analyst, `select visitor_hash from public.web_download_events limit 1`);
+  check(area, 'analyst cannot read raw visitor hashes', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+
+  // Few visitors are withheld (a second edition with two visitors).
+  const edTwo = (await as('authenticated', U.editor, `select web_save_edition(null,'daily','2026-10-15','15 October 2026','',null,0)`)).rows[0].web_save_edition;
+  const pdf2 = (await as('authenticated', U.contributor, `select web_register_media('rhapsody-pdfs','rhapsody/2026-10-15.pdf','application/pdf',1000,'')`)).rows[0].web_register_media;
+  await as('authenticated', U.editor, `select web_save_edition($1,'daily','2026-10-15','15 October 2026','',$2,1)`, [edTwo, pdf2]);
+  await as('authenticated', U.publisher, `select web_authorize_edition($1,'Pastor Test',2)`, [edTwo]);
+  await as('authenticated', U.publisher, `select web_set_edition_status($1,'published',3)`, [edTwo]);
+  await as('anon', null, `select web_record_download($1,'home','x','x',$2)`, [edTwo, H(31)]);
+  await as('anon', null, `select web_record_download($1,'home','x','x',$2)`, [edTwo, H(32)]);
+  rr = await as('authenticated', U.analyst, `select title, approx_visitors from public.web_download_stats(30)`);
+  check(area, 'fewer than five visitors are withheld as "fewer than 5"', rr.ok && rr.rows.some((x) => x.title === '15 October 2026' && x.approx_visitors === 'fewer than 5'), JSON.stringify(rr.rows));
+
+  // Audit trail for the Rhapsody decisions.
+  const aud = await as('authenticated', U.admin, `select action from public.web_audit_log`);
+  check(area, 'authorization and publication are audited', aud.ok && aud.rows.some((x) => x.action === 'rhapsody.authorized') && aud.rows.some((x) => x.action === 'rhapsody.status_changed'), aud.error || '');
+}
+
+
 const failed = out.filter((x) => !x.ok);
 console.log(`\nD2 DATABASE TESTS: ${out.length - failed.length}/${out.length} passed`);
 if (failed.length) console.log('FAILED:\n' + failed.map((f) => `  [${f.area}] ${f.name}`).join('\n'));
