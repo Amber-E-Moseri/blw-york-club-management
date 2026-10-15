@@ -157,5 +157,7 @@ for (const t of ["identity_read_audit", "profile_link_audit"]) {
   rec(`13b owner TRUNCATE of ${t} refused`, tt !== "truncated", tt);
 }
 
-console.log(`\nSUMMARY ${results.filter((x) => x.pass).length} PASS, ${results.filter((x) => !x.pass).length} FAIL`);
-process.exit(0);
+const failed = results.filter((x) => !x.pass).length;
+console.log(`\nSUMMARY ${results.length - failed} PASS, ${failed} FAIL`);
+// A failed expectation must fail the run: exit 1 whenever any check did not pass.
+process.exit(failed === 0 ? 0 : 1);
