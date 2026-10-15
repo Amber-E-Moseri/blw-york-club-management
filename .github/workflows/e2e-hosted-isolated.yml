@@ -1,0 +1,93 @@
+# EXECUTION-READY, NOT YET AUTHORIZED. Manual trigger, pinned candidate SHA, named isolated project, fail-closed guard.
+# Not enabled for pushes or pull requests. Requires the protected GitHub environment `Hub-Certification` (owner-approved reviewers).
+name: E2E hosted isolated (Hub-Certification)
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: 'Exact 40-character lowercase commit SHA of the candidate to certify'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hub-certification-hosted
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    name: Release suite against the isolated project
+    runs-on: ubuntu-latest
+    environment: Hub-Certification
+    timeout-minutes: 60
+    env:
+      CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      E2E_HOSTED_ISOLATED: '1'
+      E2E_ISOLATED_HOST: ${{ secrets.E2E_ISOLATED_HOST }}
+      E2E_DENIED_HOSTS: ${{ secrets.E2E_DENIED_HOSTS }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      E2E_COORDINATOR_EMAIL: ${{ secrets.E2E_COORDINATOR_EMAIL }}
+      E2E_COORDINATOR_PASSWORD: ${{ secrets.E2E_COORDINATOR_PASSWORD }}
+      E2E_CELL_ID: ${{ secrets.E2E_CELL_ID }}
+    steps:
+      - name: Reject an unpinned candidate
+        run: |
+          if [[ ! "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "candidate_sha must be a full 40-character lowercase SHA" >&2
+            exit 1
+          fi
+
+      - name: Check out the pinned candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.candidate_sha }}
+          persist-credentials: false
+
+      - name: Verify the checked-out commit is the pin
+        run: test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fail-closed target guard (project, host, denylist, credentials, pin)
+        run: node scripts/e2e/check-target.mjs
+
+      - name: Guard unit checks (no network)
+        run: node --test scripts/e2e/check-target.test.mjs
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Discover the release suite
+        run: npx playwright test -c playwright.release.config.ts --list
+
+      - name: Record run start for the cleanup check
+        run: echo "E2E_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
+      - name: Run the release suite
+        run: npx playwright test -c playwright.release.config.ts
+
+      - name: Verify no synthetic accounts remain
+        if: always()
+        run: node scripts/e2e/check-leftover-accounts.mjs
+
+      - name: Upload report and traces
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: e2e-hosted-isolated-${{ inputs.candidate_sha }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+          if-no-files-found: warn
