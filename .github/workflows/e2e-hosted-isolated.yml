@@ -114,6 +114,9 @@ jobs:
         working-directory: app
         run: npx playwright install --with-deps chromium
 
+      - name: Record run start for the cleanup check
+        run: echo "E2E_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
       - name: Discover the release suite
         working-directory: app
         env:
@@ -123,10 +126,10 @@ jobs:
           E2E_COORDINATOR_EMAIL: ${{ secrets.E2E_COORDINATOR_EMAIL }}
           E2E_COORDINATOR_PASSWORD: ${{ secrets.E2E_COORDINATOR_PASSWORD }}
           E2E_CELL_ID: ${{ secrets.E2E_CELL_ID }}
+          E2E_HOSTED_ISOLATED: '1'
+          E2E_ISOLATED_HOST: ${{ secrets.E2E_ISOLATED_HOST }}
+          E2E_DENIED_HOSTS: ${{ secrets.E2E_DENIED_HOSTS }}
         run: npx playwright test -c playwright.release.config.ts --list
-
-      - name: Record run start for the cleanup check
-        run: echo "E2E_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
 
       - name: Run the release suite
         working-directory: app
