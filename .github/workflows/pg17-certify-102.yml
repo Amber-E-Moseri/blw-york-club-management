@@ -1,0 +1,221 @@
+name: PostgreSQL 17 certification through migration 102 (review only)
+
+# Manual only (workflow_dispatch). Review-only certification of the 000-102 frontier at a pinned candidate commit.
+#
+# - Leaves the existing 60825c0 workflow (pg17-candidate-fingerprint.yml) and its scripts untouched, so that run stays
+#   reproducible.
+# - Checks out one exact commit by full SHA, and fails if HEAD differs.
+# - Requires exactly 103 migrations, contiguous 000-102, and the ledger to end at 102 with 103 rows.
+# - Runs the existing mandatory gates: target-guard and frontier self-tests, the clone security-equivalence check
+#   (scripts/f2_clone_db.sh and scripts/f2_fingerprint_compare.js), the 68-check membership suite on the clone, and the
+#   schema contract (structure only; no golden is read or written).
+# - Runs the rejected-member privacy suite (28 checks) and the read-path suite (22 checks) against the clone, and the
+#   corrected BSC expectations (62 checks) from the reviewed proposed-test-only file.
+# - Uses no secrets: no hosted Supabase credentials, no Preview environment, no production project, no Docker Desktop.
+# - Does not alter any guard. The target guard, the disposable-project prefix rule, the protected-word denylist and the
+#   container check are run exactly as in scripts/f2_target_guard.sh.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # The reviewed candidate commit (PR #15 head). Change only by a reviewed edit to this file.
+  RELEASE_SHA: 97bee06fdecdf4115dd7a7080bab349594dc790f
+  # The golden fingerprint blob at the candidate commit. The workflow fails if the golden differs.
+  GOLDEN_BLOB: 6bb7075efc276c2fd99a09361ec5cd76ac12ab73
+  EXPECTED_MIGRATIONS: "103"
+  LAST_MIGRATION: "102"
+  EXPECTED_MEMBERSHIP_CHECKS: "68"
+  EXPECTED_REJECTED_CHECKS: "28"
+  EXPECTED_READPATH_CHECKS: "22"
+  EXPECTED_BSC_CHECKS: "62"
+
+jobs:
+  pg17-certify-102:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Check out the pinned candidate commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify HEAD and the golden blob
+        run: |
+          set -euo pipefail
+          [ "$(git rev-parse HEAD)" = "$RELEASE_SHA" ] || { echo "FAIL: HEAD is not the pinned candidate" >&2; exit 1; }
+          [ "$(git rev-parse HEAD:supabase/verification/schema_fingerprint.golden.json)" = "$GOLDEN_BLOB" ] \
+            || { echo "FAIL: the golden fingerprint differs from the pinned blob" >&2; exit 1; }
+          echo "PASS: HEAD is $RELEASE_SHA and the golden blob is unchanged"
+
+      - name: Confirm exactly 103 migrations (000-102) and the required files
+        run: |
+          set -euo pipefail
+          fail() { echo "FAIL: $1" >&2; exit 1; }
+          mapfile -t MIG < <(ls supabase/migrations | grep -E '^[0-9]{3}_.*\.sql$' | sort)
+          [ "${#MIG[@]}" -eq "$EXPECTED_MIGRATIONS" ] || fail "expected $EXPECTED_MIGRATIONS migrations, found ${#MIG[@]}"
+          i=0
+          for f in "${MIG[@]}"; do
+            [ $((10#${f%%_*})) -eq "$i" ] || fail "migration numbering has a gap or duplicate at $(printf '%03d' "$i")"
+            i=$((i + 1))
+          done
+          [ "${MIG[-1]%%_*}" = "$LAST_MIGRATION" ] || fail "last migration is ${MIG[-1]}, expected $LAST_MIGRATION"
+          echo "PASS: 103 migrations, contiguous 000-$LAST_MIGRATION"
+          for f in \
+            scripts/certify-integrated-101.sh scripts/f2_target_guard.sh scripts/f2_frontier_lib.sh \
+            scripts/f2_clone_db.sh scripts/f2_fingerprint_compare.js scripts/test_f2_target_guard.sh \
+            scripts/test_f2_frontier.sh scripts/test_f2_fingerprint_compare.js \
+            supabase/verification/run_f2_sql.sh supabase/verification/f2_suite_membership.sql \
+            supabase/verification/check_schema_contract.mjs supabase/verification/schema_fingerprint.sql \
+            supabase/verification/schema_contract.json supabase/config.toml \
+            supabase/verification/rejected_profile_privacy_test.sql \
+            supabase/verification/rejected_profile_readpaths_test.sql \
+            docs/release-reports/rejected-member-privacy-102/proposed-test-only/bsc_test.corrected.sql; do
+            [ -f "$f" ] || fail "required file is missing: $f"
+          done
+          echo "PASS: required files present"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies from the lockfile
+        run: npm ci
+
+      - name: Record and verify the exact Supabase CLI version
+        run: |
+          set -euo pipefail
+          LOCKED="$(node -p "require('./package-lock.json').packages['node_modules/supabase'].version")"
+          INSTALLED="$(npx supabase --version | tr -d '[:space:]')"
+          [ "$INSTALLED" = "$LOCKED" ] || { echo "FAIL: installed CLI $INSTALLED differs from locked $LOCKED" >&2; exit 1; }
+          mkdir -p "$RUNNER_TEMP/pg17-102-out"
+          { echo "supabase_cli_version=$INSTALLED"; echo "release_sha=$RELEASE_SHA"; echo "postgres_major=17"; echo "last_migration=$LAST_MIGRATION"; } \
+            > "$RUNNER_TEMP/pg17-102-out/cli-and-release.txt"
+          cat "$RUNNER_TEMP/pg17-102-out/cli-and-release.txt"
+
+      - name: Target guard and frontier self-tests (no Docker, no database)
+        run: |
+          set -euo pipefail
+          bash scripts/test_f2_target_guard.sh
+          bash scripts/test_f2_frontier.sh
+          node scripts/test_f2_fingerprint_compare.js
+
+      - name: Point the local stack at a per-run disposable project on PostgreSQL 17
+        run: |
+          set -euo pipefail
+          ID="f2pg102-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          sed -i -E "s/^project_id = \".*\"/project_id = \"$ID\"/" supabase/config.toml
+          grep -qE '^major_version = 17$' supabase/config.toml || { echo "FAIL: major_version is not 17" >&2; exit 1; }
+          grep -E '^(project_id|major_version)' supabase/config.toml
+          echo "F2_DISPOSABLE_PROJECT_ID=$ID" >> "$GITHUB_ENV"
+
+      - name: Start the disposable local stack
+        run: npx supabase start
+
+      - name: Replay 000-102 and verify the ledger (103 rows, last 102)
+        env:
+          F2_DB_ADMIN: supabase_admin
+        run: |
+          set -euo pipefail
+          C="supabase_db_${F2_DISPOSABLE_PROJECT_ID}"
+          npx supabase db reset --local
+          row="$(docker exec -i "$C" psql -U supabase_admin -d postgres -X -At -c \
+            "select count(*), max(version) from supabase_migrations.schema_migrations")"
+          [ "$row" = "$EXPECTED_MIGRATIONS|$LAST_MIGRATION" ] || { echo "FAIL: ledger is $row, expected $EXPECTED_MIGRATIONS|$LAST_MIGRATION" >&2; exit 1; }
+          echo "PASS: ledger $row"
+
+      - name: Clone the replay with the security-equivalence check
+        env:
+          F2_DB_ADMIN: supabase_admin
+        run: |
+          set -euo pipefail
+          C="supabase_db_${F2_DISPOSABLE_PROJECT_ID}"
+          bash scripts/f2_clone_db.sh "$C" postgres f2_integrated102
+          echo "PASS: clone f2_integrated102 matches the source (security fingerprint)"
+
+      - name: Membership SQL suite on the clone (68 checks)
+        run: |
+          set -euo pipefail
+          C="supabase_db_${F2_DISPOSABLE_PROJECT_ID}"
+          out="$RUNNER_TEMP/pg17-102-out/membership-102.log"
+          set +e
+          F2_PSQL_CMD="docker exec -i $C psql -U supabase_admin" F2_ALLOWED_DBS="f2_integrated102" \
+            bash supabase/verification/run_f2_sql.sh f2_integrated102 grants supabase/verification/f2_suite_membership.sql > "$out" 2>&1
+          rc=$?
+          set -e
+          cat "$out"
+          [ "$rc" -eq 0 ] || { echo "FAIL: membership suite exited $rc" >&2; exit 1; }
+          grep -q "F2 SQL VERDICT: $EXPECTED_MEMBERSHIP_CHECKS checks recorded (declared $EXPECTED_MEMBERSHIP_CHECKS), 0 failed" "$out" \
+            || { echo "FAIL: membership verdict is not $EXPECTED_MEMBERSHIP_CHECKS of $EXPECTED_MEMBERSHIP_CHECKS" >&2; exit 1; }
+          echo "PASS: membership suite $EXPECTED_MEMBERSHIP_CHECKS of $EXPECTED_MEMBERSHIP_CHECKS"
+
+      - name: Rejected-member privacy suite on the clone (28 checks)
+        run: |
+          set -euo pipefail
+          C="supabase_db_${F2_DISPOSABLE_PROJECT_ID}"
+          out="$RUNNER_TEMP/pg17-102-out/rejected-privacy-102.log"
+          docker exec -i "$C" psql -U supabase_admin -d f2_integrated102 -X -q -At -v ON_ERROR_STOP=0 \
+            < supabase/verification/rejected_profile_privacy_test.sql > "$out" 2>&1 || true
+          cat "$out"
+          tail_line="$(grep -E '^[0-9]+\|[0-9]+$' "$out" | tail -1 || true)"
+          [ "$tail_line" = "$EXPECTED_REJECTED_CHECKS|0" ] || { echo "FAIL: rejected-privacy result is '$tail_line', expected $EXPECTED_REJECTED_CHECKS|0" >&2; exit 1; }
+          echo "PASS: rejected-privacy $EXPECTED_REJECTED_CHECKS of $EXPECTED_REJECTED_CHECKS"
+
+      - name: Read-path suite on the clone (22 checks)
+        run: |
+          set -euo pipefail
+          C="supabase_db_${F2_DISPOSABLE_PROJECT_ID}"
+          out="$RUNNER_TEMP/pg17-102-out/readpaths-102.log"
+          docker exec -i "$C" psql -U supabase_admin -d f2_integrated102 -X -q -At -v ON_ERROR_STOP=0 \
+            < supabase/verification/rejected_profile_readpaths_test.sql > "$out" 2>&1 || true
+          cat "$out"
+          tail_line="$(grep -E '^[0-9]+\|[0-9]+$' "$out" | tail -1 || true)"
+          [ "$tail_line" = "$EXPECTED_READPATH_CHECKS|0" ] || { echo "FAIL: read-path result is '$tail_line', expected $EXPECTED_READPATH_CHECKS|0" >&2; exit 1; }
+          echo "PASS: read-path $EXPECTED_READPATH_CHECKS of $EXPECTED_READPATH_CHECKS"
+
+      - name: Corrected BSC expectations on the clone (62 checks, reviewed test-only file)
+        run: |
+          set -euo pipefail
+          C="supabase_db_${F2_DISPOSABLE_PROJECT_ID}"
+          out="$RUNNER_TEMP/pg17-102-out/bsc-corrected-102.log"
+          docker exec -i "$C" psql -U supabase_admin -d f2_integrated102 -X -q -At -v ON_ERROR_STOP=0 \
+            < docs/release-reports/rejected-member-privacy-102/proposed-test-only/bsc_test.corrected.sql > "$out" 2>&1 || true
+          fails="$(grep -cE '\|f\|' "$out" || true)"
+          passes="$(grep -cE '\|t\|' "$out" || true)"
+          cat "$out" | tail -5
+          [ "$passes" = "$EXPECTED_BSC_CHECKS" ] && [ "$fails" = "0" ] \
+            || { echo "FAIL: BSC corrected suite $passes pass, $fails fail" >&2; exit 1; }
+          echo "PASS: BSC corrected suite $passes of $EXPECTED_BSC_CHECKS"
+
+      - name: Candidate fingerprint and schema contract (structure only; no golden)
+        run: |
+          set -euo pipefail
+          C="supabase_db_${F2_DISPOSABLE_PROJECT_ID}"
+          OUT="$RUNNER_TEMP/pg17-102-out"
+          docker exec -i "$C" psql -U supabase_admin -d postgres -X -q -At < supabase/verification/schema_fingerprint.sql \
+            > "$OUT/schema_fingerprint.candidate-102.json"
+          node supabase/verification/check_schema_contract.mjs "$OUT/schema_fingerprint.candidate-102.json" > "$OUT/contract-check-102.txt" 2>&1 \
+            || { cat "$OUT/contract-check-102.txt"; echo "FAIL: schema contract structure checks failed" >&2; exit 1; }
+          tail -1 "$OUT/contract-check-102.txt"
+          node -e "JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))" "$OUT/schema_fingerprint.candidate-102.json"
+          echo "PASS: candidate fingerprint written (not the golden)"
+
+      - name: Upload the candidate outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pg17-certify-102-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/pg17-102-out/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Stop the local stack
+        if: always()
+        run: npx supabase stop --no-backup
