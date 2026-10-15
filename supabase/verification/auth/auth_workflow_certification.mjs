@@ -10,6 +10,7 @@ const { admin, expect } = h;
 const email = '84d516c7-1093-4e5c-8f1c-2ca7141d5824@sandbox.zazamail.link';
 const password = randomPassword();
 let userId;
+let personId;
 
 try {
   const signUp = await h.newAnon().auth.signUp({
@@ -58,7 +59,15 @@ try {
   expect('password reset answers the same for an unknown email (no account enumeration)', !unknown.error === !known.error, `${unknown.error?.message ?? 'ok'} vs ${known.error?.message ?? 'ok'}`);
 
   // Approval by an authorised coordinator, then login still works and the account is active.
+  // Approval requires the pending account to be linked to an existing person whose email is the account email.
+  // The synthetic person is created here and removed in the finally block.
   const coordinator = await h.createUser('coordinator', { role: 'coordinator', status: 'active' });
+  const person = await admin.from('people').insert({ full_name: 'Cert Linked Person', email }).select('id').single();
+  expect('synthetic person created for the account link', !person.error && !!person.data?.id, person.error?.message);
+  personId = person.data?.id;
+  const linked = await coordinator.client.rpc('link_pending_profile_to_person', { p_profile_id: userId, p_person_id: personId, p_reason: 'Matched by staff review' });
+  expect('staff link of the account to its verified person', !linked.error, linked.error?.message);
+
   const approve = await coordinator.client.rpc('approve_pending_member', { target_member_id: userId });
   expect('approval by an authorised coordinator activates the account', !approve.error && (await h.profileOf(userId)).status === 'active', approve.error?.message);
   const relogin = await h.newAnon().auth.signInWithPassword({ email, password });
@@ -72,6 +81,7 @@ try {
   h.fail('harness completed without error', error.message);
 } finally {
   if (userId) await admin.auth.admin.deleteUser(userId);
+  if (personId) await admin.from('people').delete().eq('id', personId);
   await h.cleanup();
   h.report();
 }
