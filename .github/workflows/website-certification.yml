@@ -9,6 +9,10 @@ name: Website live certification (test-only, isolated local stack)
 # is covered by the unit tests, not by this job.
 
 on:
+  # Push to the test branch runs the same job with the candidate pinned below. GitHub does not dispatch a workflow
+  # by name unless its file is on the default branch, and the default branch must not be changed for certification.
+  push:
+    branches: [cert/website-d2-50f8aaa]
   workflow_dispatch:
     inputs:
       candidate_sha:
@@ -18,6 +22,9 @@ on:
 
 permissions:
   contents: read
+
+env:
+  CANDIDATE_SHA: ${{ inputs.candidate_sha || '50f8aaa27b18dbc8380edeba0ef2365586ffbbe1' }}
 
 concurrency:
   group: website-certification-local
@@ -34,13 +41,13 @@ jobs:
       - name: Check out the candidate
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.candidate_sha }}
+          ref: ${{ env.CANDIDATE_SHA }}
           persist-credentials: false
 
       - name: "Gate: checkout equals the requested SHA (fail closed)"
         run: |
           set -euo pipefail
-          [ "$(git rev-parse HEAD)" = "${{ inputs.candidate_sha }}" ] || { echo "FAIL: checkout is not the requested SHA"; exit 1; }
+          [ "$(git rev-parse HEAD)" = "${{ env.CANDIDATE_SHA }}" ] || { echo "FAIL: checkout is not the requested SHA"; exit 1; }
           echo "PASS: candidate verified"
 
       - name: "Gate: migration frontier is 110 and no historical migration is missing"
