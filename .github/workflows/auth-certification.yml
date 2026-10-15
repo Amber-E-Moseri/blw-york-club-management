@@ -150,6 +150,9 @@ jobs:
         run: |
           set -euo pipefail
           command -v psql >/dev/null || { echo "FAIL: psql is not available on the runner"; exit 1; }
+          # Fail closed: replay only the full 000-103 set. A partial migration tree must never report success.
+          n=$(ls supabase/migrations/*.sql | wc -l)
+          [ "$n" -eq 104 ] || { echo "FAIL: expected 104 migrations (000-103), found $n"; exit 1; }
           for f in $(ls supabase/migrations/*.sql | sort); do
             psql "$CERT_OWNER_DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null \
               || { echo "FAIL: migration $(basename "$f") failed"; exit 1; }
