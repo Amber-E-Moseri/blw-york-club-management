@@ -10,7 +10,8 @@
 --   * Staff review a candidate through get_person_identity (097), which is reason-gated and audited in
 --     identity_read_audit. This migration does not add a second reveal path.
 --   * link_pending_profile_to_person (099) additionally refuses an account with a PENDING EMAIL CHANGE
---     (auth.users.new_email set by GoTrue). Such an account cannot be linked until that change resolves.
+--     (auth.users.email_change, the GoTrue column that holds the pending new address; the old email stays in
+--     auth.users.email until the change is confirmed). Such an account cannot be linked until that change resolves.
 --   * approve_pending_member writes an append-only approval audit row for every activation.
 --   * Only administrators and coordinators reach the queue, the link and the approval (_f2_staff_actor, 097).
 --
@@ -33,6 +34,25 @@ as $$
 $$;
 
 revoke all on function public._mask_email(text) from public, anon, authenticated;
+
+-- ─── 1b. Pending email change: GoTrue keeps the NEW address in auth.users.email_change until it is confirmed ────────────
+-- (email_change is the column; "new_email" is a field of GoTrue's API JSON, not a database column.)
+
+create or replace function public._auth_has_pending_email_change(p_user_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = pg_catalog, public
+as $$
+  select exists (
+    select 1 from auth.users u
+     where u.id = p_user_id
+       and nullif(btrim(u.email_change), '') is not null
+  )
+$$;
+
+revoke all on function public._auth_has_pending_email_change(uuid) from public, anon, authenticated;
 
 -- ─── 2. Approval audit (append-only, no client access) ───────────────────────────────────────────────────────────────
 
@@ -66,6 +86,10 @@ begin
   if not public.is_admin_or_coordinator() then
     raise exception 'Not authorised to approve members.' using errcode = '42501';
   end if;
+
+  -- Serialise with link_pending_profile_to_person (which locks the same profile row): the gate below and the
+  -- activation then see one consistent state, so an account cannot be approved in the gap before its link commits.
+  perform 1 from public.profiles p where p.id = target_member_id for update;
 
   if exists (
     select 1
@@ -119,7 +143,6 @@ declare
   v_person         public.people%ROWTYPE;
   v_auth_email     text;
   v_auth_confirmed boolean;
-  v_pending_change text;
 begin
   perform public._f2_valid_reason(p_reason);
 
@@ -144,9 +167,9 @@ begin
     RAISE EXCEPTION 'That person already has an account.' USING ERRCODE = 'P0001';
   END IF;
 
-  -- Verified ownership. new_email is read through to_jsonb so the function also runs where the auth stub lacks the column.
-  SELECT u.email, (u.email_confirmed_at IS NOT NULL), to_jsonb(u) ->> 'new_email'
-    INTO v_auth_email, v_auth_confirmed, v_pending_change
+  -- Verified ownership: the confirmed auth email must equal the person's email.
+  SELECT u.email, (u.email_confirmed_at IS NOT NULL)
+    INTO v_auth_email, v_auth_confirmed
     FROM auth.users u
    WHERE u.id = p_profile_id;
 
@@ -155,7 +178,7 @@ begin
     RAISE EXCEPTION 'The account email is not a confirmed match for this person.' USING ERRCODE = '42501';
   END IF;
 
-  IF v_pending_change IS NOT NULL THEN
+  IF public._auth_has_pending_email_change(p_profile_id) THEN
     RAISE EXCEPTION 'This account has a pending email change. Resolve it before linking.' USING ERRCODE = '42501';
   END IF;
 
@@ -203,7 +226,7 @@ begin
            public._mask_email(p.email),
            p.joined_at,
            (u.email_confirmed_at is not null),
-           ((to_jsonb(u) ->> 'new_email') is not null),
+           public._auth_has_pending_email_change(p.id),
            pe.id,
            pe.full_name,
            public._mask_email(pe.email)

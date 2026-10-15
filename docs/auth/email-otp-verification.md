@@ -108,7 +108,7 @@ replaced by a dummy value before pasting it into Supabase. Do not send a preview
 | Code input helpers, masking, cooldown, error classification | Unit tested (Jest) | `src/__tests__/emailOtp.test.ts` |
 | `/verify-email` behaviour with mocked Auth functions | Component tested (Jest, mocked auth, no real GoTrue) | `src/__tests__/verifyEmailPage.test.tsx` |
 | Identity queue client calls and reason gating | Unit tested (Jest, mocked RPC client) | `src/__tests__/identityLinkQueue.test.ts` |
-| Migration 103 SQL behaviour (approval gate, link refusal, queue visibility) | **NOT TESTED.** Checks are written in `supabase/verification/identity_link_103_checks.sql` but have not been executed on a database | — |
+| Migration 103 SQL behaviour (approval gate, link refusal incl. pending email change, queue masking, audit append-only) | PASS 24/24 on in-process PGlite with a GoTrue-shaped auth shim (`supabase/verification/identity_link_103_pglite_checks.mjs`). **NOT TESTED** on real GoTrue, PostgREST or a hosted/Docker stack | — |
 | Real GoTrue: signup → code email → `verifyOtp` → pending → approval | **NOT TESTED.** Requires an authorised isolated Supabase stack | — |
 | Resend delivery, SPF/DKIM/DMARC, inbox placement | **NOT TESTED.** Requires domain verification and a synthetic mailbox | — |
 | Existing password login, Google OAuth, password reset | **NOT TESTED** against a live project in this change | — |

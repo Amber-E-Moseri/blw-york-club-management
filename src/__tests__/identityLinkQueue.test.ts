@@ -75,9 +75,14 @@ describe('migration 103 contract (text gate; the SQL is NOT executed here)', () 
     expect(body).toMatch(/insert into public\.profile_approval_audit/i);
   });
 
-  test('linking refuses a pending email change through to_jsonb (safe on stubs without the column)', () => {
-    expect(body).toMatch(/to_jsonb\(u\) ->> 'new_email'/);
-    expect(body).toMatch(/pending email change/);
+  test('pending email change is read from GoTrue email_change, never from the non-existent new_email column', () => {
+    expect(body).toMatch(/nullif\(btrim\(u\.email_change\), ''\) is not null/);
+    expect(body).toMatch(/_auth_has_pending_email_change\(p_profile_id\)/);
+    expect(body).not.toMatch(/new_email/);
+  });
+
+  test('approval locks the profile row so it serialises with a concurrent link', () => {
+    expect(body).toMatch(/from public\.profiles p where p\.id = target_member_id for update/);
   });
 
   test('the queue is staff-only and returns masked addresses, never raw emails', () => {

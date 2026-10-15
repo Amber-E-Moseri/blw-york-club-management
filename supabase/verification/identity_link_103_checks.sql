@@ -3,7 +3,8 @@
 -- Verification script for migration 103. NOT an executable migration. Run it only on a disposable database that has
 -- migrations 000-103 applied and a GoTrue-shaped auth.users table. Never run it on production.
 --
--- Status: WRITTEN, NOT EXECUTED. Every check below is NOT TESTED until a run records its output.
+-- Status: the same checks are executed by identity_link_103_pglite_checks.mjs (in-process PGlite, 24/24 PASS).
+This SQL file is the reference wording for a hosted or Docker run, which is still NOT TESTED.
 -- Each block is meant to run inside a transaction that is rolled back.
 --
 -- Fixtures (set up by the operator, not by this script): one administrator profile (ADMIN_ID), one member profile
@@ -30,7 +31,7 @@
 --     select * from public.approve_pending_member('<LINK_ID>');
 --     select count(*) from public.profile_approval_audit where profile_id = '<LINK_ID>';   -- expect 1
 
--- C7. Link refuses a pending email change. Expect 42501 "pending email change". Requires new_email set on the fixture.
+-- C7. Link refuses a pending email change. Expect 42501 "pending email change". Requires email_change set on the fixture (GoTrue column).
 --     select public.link_pending_profile_to_person('<CHANGE_ID>', '<PERSON_ID_2>', 'Matched by staff review');
 
 -- C8. Link refuses an unconfirmed email. Expect 42501 "not a confirmed match".
