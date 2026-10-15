@@ -21,6 +21,7 @@ import {
   fetchCells,
   fetchSavedGroups,
   fetchSavedGroupMemberIds,
+  fetchSavedMeetingAudience,
   previewMeetingAudience,
   publishMeeting,
   setMeetingAudience,
@@ -81,6 +82,7 @@ export const MeetingAudiencePanel: React.FC<Props> = ({ isOpen, onClose, meeting
 
   useEffect(() => {
     if (!isOpen || !meeting) return;
+    let cancelled = false;
     setSelection(emptyAudienceSelection(isStaff ? 'all' : 'cells'));
     setPreview(null);
     setMessage(null);
@@ -93,6 +95,17 @@ export const MeetingAudiencePanel: React.FC<Props> = ({ isOpen, onClose, meeting
         setPeople(p);
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Could not load invitations.'));
+    // Restore the saved audience. A meeting with no saved spec keeps the defaults above.
+    fetchSavedMeetingAudience(meeting.id)
+      .then((saved) => {
+        if (!cancelled && saved) setSelection(saved);
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Could not load the saved invitations.');
+      });
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, meeting]);
 

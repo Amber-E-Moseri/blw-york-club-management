@@ -1,6 +1,7 @@
 import { supabase } from '../supabase';
 import {
   type AudienceChangeResult,
+  type AudienceMode,
   type AudienceSelection,
   toSetAudienceParams,
 } from '../audience/audienceContract';
@@ -30,6 +31,43 @@ export async function setMeetingAudience(
   const { data, error } = await supabase.rpc('set_meeting_audience', toSetAudienceParams(meetingId, selection, false));
   if (error) throw new Error(error.message);
   return data as AudienceChangeResult;
+}
+
+/**
+ * Reads the audience a meeting was last saved with, so reopening the panel shows it again. Returns null when the meeting
+ * has no saved spec. audience_specs is readable by admins and coordinators only (RLS), so for anyone else the row is
+ * hidden and the panel keeps its defaults.
+ */
+export async function fetchSavedMeetingAudience(meetingId: string): Promise<AudienceSelection | null> {
+  const { data: meeting, error: meetingError } = await supabase
+    .from('meetings')
+    .select('audience_spec_id')
+    .eq('id', meetingId)
+    .maybeSingle();
+  if (meetingError) throw new Error(meetingError.message);
+  const specId = (meeting as { audience_spec_id: string | null } | null)?.audience_spec_id ?? null;
+  if (!specId) return null;
+
+  const { data: spec, error: specError } = await supabase
+    .from('audience_specs')
+    .select('mode, cell_ids, group_ids, profile_ids')
+    .eq('id', specId)
+    .maybeSingle();
+  if (specError) throw new Error(specError.message);
+  if (!spec) return null;
+
+  const row = spec as {
+    mode: AudienceMode;
+    cell_ids: string[] | null;
+    group_ids: string[] | null;
+    profile_ids: string[] | null;
+  };
+  return {
+    mode: row.mode,
+    cellIds: row.cell_ids ?? [],
+    groupIds: row.group_ids ?? [],
+    profileIds: row.profile_ids ?? [],
+  };
 }
 
 /** Publishes a draft. The database refuses an invite-only meeting that has no invitees yet. */
