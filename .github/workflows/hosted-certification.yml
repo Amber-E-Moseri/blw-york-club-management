@@ -1,0 +1,65 @@
+name: Hosted certification (Preview, read-only verification)
+
+# Manual only. This workflow never runs on push or pull request. It verifies the identity of the Preview certification
+# project and reads its migration history and data presence, using read-only transactions. It performs no writes, no
+# resets and no migrations. Writes against any hosted project need a separate, reviewed workflow and explicit approval.
+#
+# Secret values are passed through env so GitHub masks them. The job never prints a secret value: identity is checked by
+# comparison, and only PASS or FAIL lines are printed.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-hosted-project:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Explicit so the Preview secrets are the only ones in scope. Production is never declared by this workflow.
+    environment: Preview
+    env:
+      EXPECTED_CERT_PROJECT_ID: yziuhtxtznginhdpqurb
+      PROTECTED_PRODUCTION_PROJECT_ID: rjtstjmtddqhesexltbj
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify project identity (comparison only; no value is printed)
+        env:
+          CERT_SUPABASE_PROJECT_ID: ${{ secrets.CERT_SUPABASE_PROJECT_ID }}
+          CERT_SUPABASE_URL: ${{ secrets.CERT_SUPABASE_URL }}
+        run: |
+          set -euo pipefail
+          fail() { echo "FAIL: $1"; exit 1; }
+          [ -n "${CERT_SUPABASE_PROJECT_ID:-}" ] || fail "CERT_SUPABASE_PROJECT_ID is not set in the Preview environment"
+          [ -n "${CERT_SUPABASE_URL:-}" ] || fail "CERT_SUPABASE_URL is not set in the Preview environment"
+          [ "$CERT_SUPABASE_PROJECT_ID" != "$PROTECTED_PRODUCTION_PROJECT_ID" ] || fail "Preview points at the protected production project"
+          [ "$CERT_SUPABASE_PROJECT_ID" = "$EXPECTED_CERT_PROJECT_ID" ] || fail "project id is not the certification project"
+          URL_REF="$(printf '%s' "$CERT_SUPABASE_URL" | sed -E 's#^https://([^.]+)\.supabase\.co.*#\1#')"
+          [ "$URL_REF" = "$EXPECTED_CERT_PROJECT_ID" ] || fail "CERT_SUPABASE_URL does not name the certification project"
+          echo "PASS: project id and URL both name the certification project (values not printed)"
+
+      - name: Read-only migration history and data presence
+        env:
+          CERT_SUPABASE_PROJECT_ID: ${{ secrets.CERT_SUPABASE_PROJECT_ID }}
+          CERT_SUPABASE_DB_PASSWORD: ${{ secrets.CERT_SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          [ -n "${CERT_SUPABASE_DB_PASSWORD:-}" ] || { echo "FAIL: CERT_SUPABASE_DB_PASSWORD is not set"; exit 1; }
+          export PGPASSWORD="$CERT_SUPABASE_DB_PASSWORD"
+          HOST="db.${CERT_SUPABASE_PROJECT_ID}.supabase.co"
+          # Every statement runs inside one read-only transaction. Nothing here can write.
+          psql "host=$HOST port=5432 dbname=postgres user=postgres sslmode=require" -X -q -v ON_ERROR_STOP=1 <<'SQL'
+          begin read only;
+          select 'migrations recorded' as item, count(*)::text as value,
+                 coalesce(max(version), 'none') as last_version
+            from supabase_migrations.schema_migrations;
+          select 'public tables' as item, count(*)::text as value, '' as last_version
+            from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE';
+          select 'auth users' as item, count(*)::text as value, '' as last_version from auth.users;
+          select 'profiles' as item, count(*)::text as value, '' as last_version from public.profiles;
+          select 'people' as item, count(*)::text as value, '' as last_version from public.people;
+          commit;
+          SQL
+          echo "PASS: read-only queries completed (aggregate counts only; nothing was written)"
