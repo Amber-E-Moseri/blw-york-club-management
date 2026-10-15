@@ -82,17 +82,37 @@ jobs:
           set -euo pipefail
           [ -n "${CERT_SUPABASE_DB_PASSWORD:-}" ] || { echo "FAIL: CERT_SUPABASE_DB_PASSWORD is not set"; exit 1; }
           export PGPASSWORD="$CERT_SUPABASE_DB_PASSWORD"
-          # Every statement runs inside one read-only transaction. Nothing here can write.
-          psql "host=$CERT_SUPABASE_POOLER_HOST port=$CERT_SUPABASE_POOLER_PORT dbname=$CERT_SUPABASE_POOLER_DATABASE user=$CERT_SUPABASE_POOLER_USER sslmode=require" -X -q -v ON_ERROR_STOP=1 <<'SQL'
+          conn="host=$CERT_SUPABASE_POOLER_HOST port=$CERT_SUPABASE_POOLER_PORT dbname=$CERT_SUPABASE_POOLER_DATABASE user=$CERT_SUPABASE_POOLER_USER sslmode=require"
+          # Each query runs in its own read-only transaction and returns exactly one aggregate value. No row data is selected.
+          ro() {
+            psql "$conn" -X -q -t -A -v ON_ERROR_STOP=1 <<SQL
           begin read only;
-          select 'migrations recorded' as item, count(*)::text as value,
-                 coalesce(max(version), 'none') as last_version
-            from supabase_migrations.schema_migrations;
-          select 'public tables' as item, count(*)::text as value, '' as last_version
-            from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE';
-          select 'auth users' as item, count(*)::text as value, '' as last_version from auth.users;
-          select 'profiles' as item, count(*)::text as value, '' as last_version from public.profiles;
-          select 'people' as item, count(*)::text as value, '' as last_version from public.people;
+          $1
           commit;
           SQL
-          echo "PASS: read-only queries completed (aggregate counts only; nothing was written)"
+          }
+          table_exists() { ro "select to_regclass('$1') is not null;"; }
+          rowcount() { ro "select count(*) from $1;"; }
+          # Each result is assigned to a variable before it is used, so a failed query stops the step (set -e). Inside an
+          # echo or a test, a failed command substitution would otherwise pass silently.
+          # Check the ledger before querying it. Its absence is reported, never inferred into a migration state.
+          ledger=$(table_exists supabase_migrations.schema_migrations)
+          if [ "$ledger" = "t" ]; then
+            echo "Ledger: PRESENT"
+            migrations=$(rowcount supabase_migrations.schema_migrations)
+            echo "Migrations recorded: $migrations"
+          else
+            echo "Ledger: ABSENT"
+          fi
+          public_tables=$(ro "select count(*) from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE';")
+          echo "Public tables: $public_tables"
+          for t in auth.users public.profiles public.people; do
+            present=$(table_exists "$t")
+            if [ "$present" = "t" ]; then
+              n=$(rowcount "$t")
+              echo "$t rows: $n"
+            else
+              echo "$t: TABLE ABSENT"
+            fi
+          done
+          echo "PASS: read-only aggregate queries completed (counts only; nothing was written)"
