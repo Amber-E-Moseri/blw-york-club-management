@@ -1,6 +1,6 @@
-# REVIEW-ONLY. Manual trigger, pinned candidate SHA, named isolated project, fail-closed guard.
-# Not enabled for pushes or pull requests. Requires the protected GitHub environment `e2e-isolated` (owner-approved reviewers).
-name: E2E hosted isolated (review-only)
+# EXECUTION-READY, NOT YET AUTHORIZED. Manual trigger, pinned candidate SHA, named isolated project, fail-closed guard.
+# Not enabled for pushes or pull requests. Requires the protected GitHub environment `Hub-Certification` (owner-approved reviewers).
+name: E2E hosted isolated (Hub-Certification)
 
 on:
   workflow_dispatch:
@@ -21,7 +21,7 @@ jobs:
   e2e:
     name: Release suite against the isolated project
     runs-on: ubuntu-latest
-    environment: e2e-isolated
+    environment: Hub-Certification
     timeout-minutes: 60
     env:
       CANDIDATE_SHA: ${{ inputs.candidate_sha }}

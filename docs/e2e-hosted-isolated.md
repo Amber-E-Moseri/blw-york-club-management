@@ -38,7 +38,7 @@ list afterwards for any leftover `@example.test` accounts from this run.
 Required inputs: `candidate_sha` (full 40-character SHA). The job rejects anything else, checks out exactly that commit,
 and fails if `HEAD` differs from the pin.
 
-Required GitHub environment `e2e-isolated`:
+Required GitHub environment `Hub-Certification`:
 - Protection rules: required reviewers from the owner, and "prevent self-review" enabled.
 - Deployment branches: none. The environment is never used by a deploy job.
 
