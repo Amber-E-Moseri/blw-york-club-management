@@ -6,7 +6,8 @@ import { Button } from '../components/foundation/Button';
 import { getInitials } from '../lib/utils';
 import { approvePendingMember } from '../lib/queries/members';
 import { fetchCells } from '../lib/queries/contacts';
-import { approvalRefusalMessage, listIdentityLinkQueue } from '../lib/queries/identityLinkQueue';
+import { approvalRefusalMessage } from '../lib/queries/identityLinkQueue';
+import { IdentityLinkQueue } from '../components/feature/IdentityLinkQueue';
 import { assignPendingApplicantToCell } from '../lib/queries/cellAdmin';
 import { CELL_CHANGE_REASON_MAX, validateCellChangeReason } from '../lib/cells/cellAdmin';
 import type { AuthUser } from '../lib/auth';
@@ -118,16 +119,11 @@ export const AdminPendingApprovals: React.FC<Props> = ({ user }) => {
   const [working, setWorking] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  // Pending accounts that must be linked to an existing person before approval (migration 103 refuses them).
-  const [needsLinking, setNeedsLinking] = useState<Set<string>>(new Set());
 
   const canApprove = CAN_APPROVE.includes(user?.role ?? '');
 
   useEffect(() => {
     if (!canApprove) { setLoading(false); return; }
-    listIdentityLinkQueue()
-      .then((items) => setNeedsLinking(new Set(items.map((i) => i.profileId))))
-      .catch(() => setNeedsLinking(new Set()));
     supabase
       .from('member_directory')
       .select('id, email, full_name, student_number, joined_at, status, cell_id')
@@ -225,7 +221,6 @@ export const AdminPendingApprovals: React.FC<Props> = ({ user }) => {
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="font-semibold text-gray-900 dark:text-slate-100">{p.full_name || '(no name)'}</p>
                   {p.status === 'rejected' && <Badge variant="error" size="small">Previously rejected</Badge>}
-                  {needsLinking.has(p.id) && <Badge variant="warning" size="small">Needs identity linking</Badge>}
                 </div>
                 <p className="text-sm text-gray-500 dark:text-slate-400">{p.email}</p>
                 {p.student_number && (
@@ -240,7 +235,6 @@ export const AdminPendingApprovals: React.FC<Props> = ({ user }) => {
                   variant="primary"
                   size="small"
                   loading={working === p.id}
-                  disabled={needsLinking.has(p.id)}
                   onClick={() => handleApprove(p.id)}
                 >
                   Approve
@@ -272,6 +266,8 @@ export const AdminPendingApprovals: React.FC<Props> = ({ user }) => {
           ))}
         </div>
       )}
+
+      <IdentityLinkQueue />
     </div>
   );
 };

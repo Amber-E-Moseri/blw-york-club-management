@@ -1,5 +1,6 @@
 // Executes the migration 103 checks on an in-process PGlite database (no Docker, no hosted project).
 // Usage: PGLITE_MODULE=file:///<path>/@electric-sql/pglite/dist/index.js node supabase/verification/identity_link_103_pglite_checks.mjs supabase/migrations/103_identity_link_queue_and_approval_gate.sql
+// Adapted to the single queue RPC list_account_link_queue(p_reason) and the broadened approval gate (any pending profile with person_id NULL).
 // Fixtures use the real signup trigger (099). GoTrue columns are added to the auth.users shim to match GoTrue (email_change, email_confirmed_at).
 import fs from "fs";
 import { openReplay, asRole, attempt } from "./pglite_replay.mjs";
@@ -9,6 +10,7 @@ import { fileURLToPath } from "url";
 import path from "path";
 const W = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const { db } = await openReplay(`${W}/supabase/migrations`, { lastFile: "102_rejected_profile_privacy.sql" });
+const reasonQueue = "Desk check of applicant identity";
 
 // GoTrue-shaped columns on auth.users. email_change holds the PENDING new address in GoTrue's own schema.
 await db.exec(`
@@ -27,7 +29,7 @@ await db.exec(fs.readFileSync(MIG, "utf8").split("\n").filter((l) => !/^\s*creat
 const ids = {
   ADMIN: "00000000-0000-0000-0000-00000000a001", LINK: "00000000-0000-0000-0000-00000000b001",
   CHANGE: "00000000-0000-0000-0000-00000000b002", UNC: "00000000-0000-0000-0000-00000000b003",
-  NEW: "00000000-0000-0000-0000-00000000b004",
+  NEW: "00000000-0000-0000-0000-00000000b004", ORPH: "00000000-0000-0000-0000-00000000b005",
 };
 const P = {
   LINK: "00000000-0000-0000-0000-00000000c001", CHANGE: "00000000-0000-0000-0000-00000000c002",
@@ -68,21 +70,34 @@ rec("2 link refuses an unconfirmed email", !r.ok && r.code === "42501", r.ok ? "
 r = await A(ids.ADMIN, `select public.link_pending_profile_to_person($1,$2,$3)`, [ids.LINK, P.LINK, "x"]);
 rec("3 link refuses a short reason (22023)", !r.ok && r.code === "22023", r.error);
 
-r = await A(ids.ADMIN, `select * from public.list_identity_link_queue(50)`);
+const auditQueue = async () => (await owner(`select count(*)::int n from public.identity_read_audit where target_kind='account_link'`)).rows[0].n;
+const auditBefore = await auditQueue();
+r = await A(ids.ADMIN, `select * from public.list_account_link_queue($1)`, [reasonQueue]);
 const rows = r.rows ?? [];
 const byId = Object.fromEntries(rows.map((x) => [x.profile_id, x]));
-rec("4a queue lists the three pending matches and not the new member", r.ok && rows.length === 3 && !byId[ids.NEW], `rows=${rows.length} ${r.error ?? ""}`);
-rec("4b queue reports the pending email change", byId[ids.CHANGE]?.pending_email_change === true, `pending_email_change=${byId[ids.CHANGE]?.pending_email_change}`);
+rec("4a queue lists confirmed, pending, unlinked matches only (LINK and CHANGE; not UNC unverified, not NEW linked)", r.ok && rows.length === 2 && byId[ids.LINK] && byId[ids.CHANGE] && !byId[ids.UNC] && !byId[ids.NEW], `rows=${rows.length} ${r.error ?? ""}`);
+rec("4b the pending-email-change account stays listed (link refuses it, staff see why)", !!byId[ids.CHANGE], "");
+rec("4c candidate id and name are the exact match", byId[ids.LINK]?.person_id === P.LINK && byId[ids.LINK]?.person_name === "Link Person", JSON.stringify(byId[ids.LINK] ?? null));
+rec("4d queue returns exactly the five approved columns", rows.length > 0 && Object.keys(rows[0]).sort().join(",") === "created_at,display_name,person_id,person_name,profile_id", Object.keys(rows[0] ?? {}).join(","));
 const dump = JSON.stringify(rows);
-rec("4c queue output contains no full address", !/(link|change|unc)@x\.org|@other\.org/.test(dump), "");
+rec("4e queue output contains no email address", !dump.includes("@"), "");
+rec("4f a queue read writes one account_link audit row", (await auditQueue()) === auditBefore + 1, "");
+r = await A(ids.ADMIN, `select * from public.list_account_link_queue($1)`, ["x"]);
+rec("4g queue refuses a short reason (22023) and writes no audit row", !r.ok && r.code === "22023" && (await auditQueue()) === auditBefore + 1, r.error);
 
-r = await A(ids.LINK, `select * from public.list_identity_link_queue(50)`);
+r = await A(ids.LINK, `select * from public.list_account_link_queue($1)`, [reasonQueue]);
 rec("5a member cannot read the queue (42501)", !r.ok && r.code === "42501", r.error);
-r = await attempt(db, "anon", null, `select * from public.list_identity_link_queue(50)`);
+r = await attempt(db, "anon", null, `select * from public.list_account_link_queue($1)`, [reasonQueue]);
 rec("5b anon has no execute on the queue", !r.ok, r.error);
 
 r = await A(ids.ADMIN, `select * from public.approve_pending_member($1)`, [ids.LINK]);
-rec("6 approve refuses an unlinked account whose email matches a person", !r.ok && r.code === "42501" && /before approving/.test(r.error), r.ok ? "APPROVED" : r.error);
+rec("6a approve refuses an unlinked pending account whose email matches a person", !r.ok && r.code === "42501" && /before approving/.test(r.error), r.ok ? "APPROVED" : r.error);
+// 6b. Broadened gate: a pending, unlinked account with NO matching person is also refused.
+await owner(`insert into auth.users (id, email, email_confirmed_at) values ('${ids.ORPH}', 'orphan@z.org', now())`);
+await owner(`update public.people set email = 'renamed-orphan@z.org' where id = (select person_id from public.profiles where id = '${ids.ORPH}')`);
+await owner(`update public.profiles set person_id = null where id = '${ids.ORPH}'`);
+r = await A(ids.ADMIN, `select * from public.approve_pending_member($1)`, [ids.ORPH]);
+rec("6b approve refuses an unlinked pending account even with no matching person (person_id NULL rule)", !r.ok && r.code === "42501", r.ok ? "APPROVED" : r.error);
 
 r = await A(ids.ADMIN, `select * from public.approve_pending_member($1)`, [ids.NEW]);
 rec("7a new-member approval succeeds", r.ok && r.rows.length === 1 && r.rows[0].status === "active", r.error);
@@ -133,6 +148,14 @@ rec("11c reveal is audited", c.rows[0].n >= 1, `n=${c.rows[0].n}`);
 await owner(`update auth.users set email_change = null, email_change_token_new = null where id = '${ids.CHANGE}'`);
 r = await A(ids.ADMIN, `select public.link_pending_profile_to_person($1,$2,$3)`, [ids.CHANGE, P.CHANGE, reason]);
 rec("12 link succeeds after the pending email change is cleared", r.ok, r.error);
+
+// 13. Pinned search_path on the SECURITY DEFINER functions, and TRUNCATE refused on every audit table (owner too).
+const cfg = (await owner(`select proname, proconfig from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and proname in ('approve_pending_member','link_pending_profile_to_person','list_account_link_queue') order by proname`)).rows;
+rec("13a every SECURITY DEFINER function here pins search_path=pg_catalog, public", cfg.length === 3 && cfg.every((x) => (x.proconfig ?? []).includes("search_path=pg_catalog, public")), JSON.stringify(cfg.map((x) => x.proname)));
+for (const t of ["identity_read_audit", "profile_link_audit"]) {
+  let tt; try { await owner(`truncate public.${t}`); tt = "truncated"; } catch (e) { tt = e.message; }
+  rec(`13b owner TRUNCATE of ${t} refused`, tt !== "truncated", tt);
+}
 
 console.log(`\nSUMMARY ${results.filter((x) => x.pass).length} PASS, ${results.filter((x) => !x.pass).length} FAIL`);
 process.exit(0);

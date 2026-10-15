@@ -1,6 +1,6 @@
 # Email verification with a six-digit code (Supabase Auth + Resend SMTP)
 
-Status: **implementation branch `feat/branded-email-otp-103`. Not deployed. Production remains NO-GO.**
+Status: **release candidate `rc/blwyork-000-103-reconcile` (single migration 103). Not deployed. Production remains NO-GO.**
 
 This document is the owner runbook for the sign-up verification change. It contains no secrets. Never paste a Resend API
 key, SMTP password, Supabase service key or any OTP into this file, a commit, an issue or a chat.
@@ -13,8 +13,8 @@ key, SMTP password, Supabase service key or any OTP into this file, a commit, an
 | Enter code | Member, on `/verify-email` | `supabase.auth.verifyOtp({ email, token, type: 'signup' })`. Supabase checks the code. |
 | Resend code | Member | `supabase.auth.resend({ type: 'signup', email })`. Supabase applies its own throttle. |
 | Verified | Supabase Auth | `auth.users.email_confirmed_at` is set. The app never sets it. |
-| Identity linking (if needed) | Administrator or coordinator | `/admin/identity-review`, section "Accounts waiting for identity linking". |
-| Approval | Administrator or coordinator | `/admin/pending`. Refused until the account is linked when a link is required (migration 103). |
+| Identity linking (if needed) | Administrator or coordinator | `/admin/pending`, section "Accounts awaiting link" (one queue, reason required). |
+| Approval | Administrator or coordinator | `/admin/pending`. Refused (42501) for any pending account with no linked person (migration 103). |
 
 No custom OTP generation, storage or comparison exists in the repository. Supabase Auth is the only security authority.
 
@@ -93,6 +93,8 @@ Resend is used only as Supabase Auth's SMTP provider. The application never call
 - Identity linking requires a confirmed email equal to the person's email, a non-empty reason, an explicit confirmation,
   and refuses an account with a pending email change (migration 103). Automatic linking from name or email similarity is not
   permitted and is not implemented.
+- The queue (`list_account_link_queue`) takes a reason, writes an `identity_read_audit` row (target kind `account_link`) for
+  every call, and returns only names, ids and dates. It returns no email address or phone number.
 - Approval writes an append-only audit row (`profile_approval_audit`). Linking writes `profile_link_audit`. Candidate
   detail reveals write `identity_read_audit` through `get_person_identity`.
 
@@ -107,8 +109,8 @@ replaced by a dummy value before pasting it into Supabase. Do not send a preview
 |---|---|---|
 | Code input helpers, masking, cooldown, error classification | Unit tested (Jest) | `src/__tests__/emailOtp.test.ts` |
 | `/verify-email` behaviour with mocked Auth functions | Component tested (Jest, mocked auth, no real GoTrue) | `src/__tests__/verifyEmailPage.test.tsx` |
-| Identity queue client calls and reason gating | Unit tested (Jest, mocked RPC client) | `src/__tests__/identityLinkQueue.test.ts` |
-| Migration 103 SQL behaviour (approval gate, link refusal incl. pending email change, queue masking, audit append-only) | PASS 29/29 on in-process PGlite with a GoTrue-shaped auth shim (includes client and owner UPDATE, DELETE and TRUNCATE refusals) (`supabase/verification/identity_link_103_pglite_checks.mjs`). **NOT TESTED** on real GoTrue, PostgREST or a hosted/Docker stack | — |
+| Identity queue client calls, reason gating, explicit confirmation, no-email rendering | Unit and component tested (Jest, mocked RPC client) | `src/__tests__/identityLinkQueue.test.ts`, `src/__tests__/accountLinkQueue.test.tsx` |
+| Migration 103 SQL behaviour (single queue RPC, reason and audit, no email fields, approval gate for any unlinked pending account, link refusal incl. pending email change, approval audit append-only incl. TRUNCATE, pinned search_path) | PASS 37/37 (`supabase/verification/identity_link_103_pglite_checks.mjs`) and PASS 49/49 (`supabase/verification/staff_account_linking_pglite_test.mjs`) on in-process PGlite replay 000-103 with a GoTrue-shaped auth shim. **NOT TESTED** on real GoTrue, PostgREST or a hosted/Docker stack | — |
 | Real GoTrue: signup → code email → `verifyOtp` → pending → approval | **NOT TESTED.** Requires an authorised isolated Supabase stack | — |
 | Resend delivery, SPF/DKIM/DMARC, inbox placement | **NOT TESTED.** Requires domain verification and a synthetic mailbox | — |
 | Existing password login, Google OAuth, password reset | **NOT TESTED** against a live project in this change | — |
@@ -118,9 +120,24 @@ Do not record any NOT TESTED item as PASS. Run the real-authentication checks be
 
 ## 7. Release blockers
 
-1. Migration 103 has not been applied or certified on a database. The schema fingerprint and the golden file are unchanged by this branch, so the schema contract gate must be re-run and its result reviewed before any release decision.
+1. Migration 103 has not been applied or certified on a hosted or Docker database. The schema contract structure checks pass on a PGlite replay 000-103. The golden fingerprint (`schema_fingerprint.golden.json`) is stale from migration 097 and fails parity at 000-102 as well; it was not regenerated and needs a separate, reviewed regeneration.
 2. Real GoTrue certification of the full journey is not done.
 3. Resend domain verification and SPF/DKIM/DMARC are owner actions and are not done.
 4. Production `enable_confirmations` is owner-controlled and must be changed only after the unverified-account review in section 2.
 5. The repository is a Create React App with Vercel Functions in `api/`, not Next.js. The App Router guidance in `AGENTS.md`
    does not apply to this code; the implementation follows the existing React Router setup.
+
+## 8. Duplicate-data check (required before any unique person/account index)
+
+Migration 103 does **not** add a unique index on `profiles(person_id)`. Adding one is a separate decision. Run this
+read-only query on the target database first. It must return **no rows** before an index is considered:
+
+```sql
+select person_id, count(*) as linked_accounts
+  from public.profiles
+ where person_id is not null
+ group by person_id
+having count(*) > 1;
+```
+
+If it returns rows, the index would fail and the duplicates need a reviewed repair plan. Do not repair them automatically.

@@ -1,47 +1,44 @@
 import { supabase } from '../supabase';
 import { validateIdentityReason } from './identityReview';
 
-// Staff queue for existing members whose verified email matches a person record but whose account is not linked yet
-// (migration 103). The database decides who is listed and who is staff; these functions only shape the calls.
+// Accounts awaiting link (migration 103). One operational queue, one RPC: list_account_link_queue. The database decides
+// who is listed and who is staff, and it writes the audit row for every read. These functions only shape the calls.
+// The rows carry names and identifiers only. No email address or phone number comes back from the queue.
 
-export interface IdentityLinkItem {
+export interface AccountLinkItem {
   profileId: string;
-  profileName: string;
-  profileMaskedEmail: string | null;
-  joinedAt: string;
-  emailVerified: boolean;
-  pendingEmailChange: boolean;
-  candidatePersonId: string;
-  candidateName: string;
-  candidateMaskedEmail: string | null;
+  displayName: string;
+  createdAt: string;
+  /** The exact normalized-email match computed by the database, or null when no person holds this account's email. */
+  personId: string | null;
+  personName: string | null;
 }
 
 type Row = Record<string, unknown>;
 
-function mapItem(row: Row): IdentityLinkItem {
+function mapItem(row: Row): AccountLinkItem {
   return {
     profileId: row.profile_id as string,
-    profileName: (row.profile_name as string) ?? '',
-    profileMaskedEmail: (row.profile_masked_email as string | null) ?? null,
-    joinedAt: row.joined_at as string,
-    emailVerified: row.email_verified === true,
-    pendingEmailChange: row.pending_email_change === true,
-    candidatePersonId: row.candidate_person_id as string,
-    candidateName: (row.candidate_name as string) ?? '',
-    candidateMaskedEmail: (row.candidate_masked_email as string | null) ?? null,
+    displayName: (row.display_name as string) ?? '',
+    createdAt: row.created_at as string,
+    personId: (row.person_id as string | null) ?? null,
+    personName: (row.person_name as string | null) ?? null,
   };
 }
 
-export async function listIdentityLinkQueue(limit = 100): Promise<IdentityLinkItem[]> {
-  const { data, error } = await supabase.rpc('list_identity_link_queue', { p_limit: limit });
+/** Staff only. The reason is required and recorded by the database for every call. */
+export async function listAccountLinkQueue(reason: string): Promise<AccountLinkItem[]> {
+  const invalid = validateIdentityReason(reason);
+  if (invalid) throw new Error(invalid);
+  const { data, error } = await supabase.rpc('list_account_link_queue', { p_reason: reason.trim() });
   if (error) throw new Error(error.message ?? 'The linking queue could not be loaded.');
   return ((data ?? []) as Row[]).map(mapItem);
 }
 
 /**
- * Links a pending account to the person it matches. The database requires a confirmed email equal to the person's
- * email, no pending email change, and a reason; it writes the audit row. The reason is validated here only to save a
- * round trip.
+ * Links a pending account to the person it matches, after staff confirmed the match. The database re-checks every rule
+ * (pending only, verified email equal to the person's email, no pending email change, one account per person) and
+ * writes the audit row. Failures surface the database message.
  */
 export async function linkPendingProfileToPerson(profileId: string, personId: string, reason: string): Promise<void> {
   const invalid = validateIdentityReason(reason);
@@ -54,9 +51,9 @@ export async function linkPendingProfileToPerson(profileId: string, personId: st
   if (error) throw new Error(error.message ?? 'The account could not be linked.');
 }
 
-/** Maps the approval gate's refusal (migration 103) to the wording staff see on the approvals page. */
+/** Maps the approval gate's refusal (migration 103) to the next step staff should take on the approvals page. */
 export function approvalRefusalMessage(message: string): string {
   return /before approving/i.test(message)
-    ? 'This account needs identity linking first. Link it in Identity review, then approve it.'
+    ? 'This account is not linked to a person yet, so it cannot be approved. Link it under Accounts awaiting link below, then approve it here.'
     : message;
 }

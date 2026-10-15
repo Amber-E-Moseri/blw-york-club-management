@@ -29,7 +29,10 @@ do $$ begin
   if not exists (select 1 from pg_roles where rolname='supabase_admin') then create role supabase_admin nologin; end if;
 end $$;
 create schema if not exists auth;
-create table if not exists auth.users(id uuid primary key, email text, encrypted_password text, aud text, role text, created_at timestamptz, updated_at timestamptz, raw_user_meta_data jsonb default '{}'::jsonb);
+create table if not exists auth.users(id uuid primary key, email text, encrypted_password text, aud text, role text, created_at timestamptz, updated_at timestamptz, raw_user_meta_data jsonb default '{}'::jsonb, email_confirmed_at timestamptz, email_change text);
+-- GoTrue columns read by migrations 099 and 103: email_confirmed_at (verified ownership) and email_change (pending email change, GoTrue's own column name).
+alter table auth.users add column if not exists email_confirmed_at timestamptz;
+alter table auth.users add column if not exists email_change text;
 create or replace function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
 create or replace function auth.role() returns text language sql stable as $$ select coalesce(nullif(current_setting('request.jwt.claim.role', true), ''), 'anon') $$;
 create or replace function auth.jwt() returns jsonb language sql stable as $$ select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;

@@ -3,7 +3,7 @@
 -- Verification script for migration 103. NOT an executable migration. Run it only on a disposable database that has
 -- migrations 000-103 applied and a GoTrue-shaped auth.users table. Never run it on production.
 --
--- Status: the same checks are executed by identity_link_103_pglite_checks.mjs (in-process PGlite, 24/24 PASS).
+-- Status: the same checks are executed by identity_link_103_pglite_checks.mjs (in-process PGlite, 37/37 PASS).
 This SQL file is the reference wording for a hosted or Docker run, which is still NOT TESTED.
 -- Each block is meant to run inside a transaction that is rolled back.
 --
@@ -11,17 +11,17 @@ This SQL file is the reference wording for a hosted or Docker run, which is stil
 -- that is pending and unlinked with a confirmed auth email equal to an existing person's email (LINK_ID, PERSON_ID),
 -- and one pending account with a pending email change (CHANGE_ID). Replace the placeholders before running.
 
--- C1. Queue lists only pending, unlinked accounts whose email matches a person. Expect LINK_ID, not CHANGE_ID when that
---     account is already linked.
---     select * from public.list_identity_link_queue(50);
+-- C1. Queue lists only confirmed, pending, unlinked accounts, with the exact-match candidate id and name. Expect LINK_ID.
+--     Requires a valid reason; every call writes an identity_read_audit row (target kind 'account_link').
+--     select * from public.list_account_link_queue('Desk check of applicant identity');
 
--- C2. Queue masks addresses. Expect no full email in any column.
---     select profile_masked_email, candidate_masked_email from public.list_identity_link_queue(50);
+-- C2. Queue returns no email field. Expect only profile_id, display_name, created_at, person_id, person_name.
+--     select * from public.list_account_link_queue('Desk check of applicant identity') limit 0;
 
 -- C3. Queue refuses a non-staff caller (member session). Expect SQLSTATE 42501.
---     set local role authenticated; set local request.jwt.claim.sub = '<MEMBER_ID>'; select * from public.list_identity_link_queue(50);
+--     set local role authenticated; set local request.jwt.claim.sub = '<MEMBER_ID>'; select * from public.list_account_link_queue('Desk check of applicant identity');
 
--- C4. Approval gate: approving an account that needs linking is refused. Expect 42501 with the linking message.
+-- C4. Approval gate: approving any pending account with no linked person is refused. Expect 42501 with the linking message.
 --     set local request.jwt.claim.sub = '<ADMIN_ID>'; select * from public.approve_pending_member('<LINK_ID>');
 
 -- C5. Link succeeds for a confirmed, matching, non-changing account. Expect one row in profile_link_audit (action 'attach').
@@ -45,4 +45,4 @@ This SQL file is the reference wording for a hosted or Docker run, which is stil
 --     delete from public.profile_link_audit where profile_id = '<LINK_ID>';                          -- expect exception
 
 -- C11. Anonymous callers have no execute right on the queue, the link or the approval. Expect permission denied.
---     set local role anon; select * from public.list_identity_link_queue(1);
+--     set local role anon; select * from public.list_account_link_queue('Desk check of applicant identity');

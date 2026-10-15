@@ -4,39 +4,45 @@ import { supabase } from '../lib/supabase';
 import {
   approvalRefusalMessage,
   linkPendingProfileToPerson,
-  listIdentityLinkQueue,
+  listAccountLinkQueue,
 } from '../lib/queries/identityLinkQueue';
 
+// Client calls and text gates. The SQL itself is executed by the PGlite suites in supabase/verification (not here).
 jest.mock('../lib/supabase', () => ({ supabase: { rpc: jest.fn() } }));
 
 const rpc = supabase.rpc as unknown as jest.Mock;
 const root = path.resolve(__dirname, '..', '..');
 const migration = fs.readFileSync(path.join(root, 'supabase', 'migrations', '103_identity_link_queue_and_approval_gate.sql'), 'utf8');
+const body = migration.replace(/--[^\n]*/g, '');
 
 beforeEach(() => rpc.mockReset());
 
-describe('identity-link queue (client)', () => {
-  test('lists through the staff RPC and maps masked fields and flags', async () => {
+describe('accounts-awaiting-link queue (client)', () => {
+  test('lists through the single staff RPC with the reason, and maps only names, ids and dates', async () => {
     rpc.mockResolvedValue({
       data: [{
-        profile_id: 'p1', profile_name: 'Marcus Lee', profile_masked_email: 'm***@example.org',
-        joined_at: '2026-02-01T00:00:00Z', email_verified: true, pending_email_change: false,
-        candidate_person_id: 'person-1', candidate_name: 'Marcus Lee', candidate_masked_email: 'm***@example.org',
+        profile_id: 'p1', display_name: 'Marcus Lee', created_at: '2026-02-01T00:00:00Z',
+        person_id: 'person-1', person_name: 'Marcus Lee',
       }],
       error: null,
     });
-    const items = await listIdentityLinkQueue(100);
-    expect(rpc).toHaveBeenCalledWith('list_identity_link_queue', { p_limit: 100 });
+    const items = await listAccountLinkQueue('  Desk check  ');
+    expect(rpc).toHaveBeenCalledWith('list_account_link_queue', { p_reason: 'Desk check' });
     expect(items).toEqual([{
-      profileId: 'p1', profileName: 'Marcus Lee', profileMaskedEmail: 'm***@example.org',
-      joinedAt: '2026-02-01T00:00:00Z', emailVerified: true, pendingEmailChange: false,
-      candidatePersonId: 'person-1', candidateName: 'Marcus Lee', candidateMaskedEmail: 'm***@example.org',
+      profileId: 'p1', displayName: 'Marcus Lee', createdAt: '2026-02-01T00:00:00Z',
+      personId: 'person-1', personName: 'Marcus Lee',
     }]);
+    expect(Object.keys(items[0]).some((k) => /email/i.test(k))).toBe(false);
   });
 
-  test('surfaces a refusal from the database (for example a non-staff caller)', async () => {
+  test('a queue read is refused locally when the reason is missing, and no RPC is sent', async () => {
+    await expect(listAccountLinkQueue('')).rejects.toThrow(/reason/i);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  test('a database refusal (for example a non-staff caller) is surfaced', async () => {
     rpc.mockResolvedValue({ data: null, error: { message: 'You are not authorised for identity review.' } });
-    await expect(listIdentityLinkQueue()).rejects.toThrow(/not authorised/);
+    await expect(listAccountLinkQueue('Desk check')).rejects.toThrow(/not authorised/);
   });
 
   test('a link is refused locally when the reason is too short, and no RPC is sent', async () => {
@@ -54,54 +60,70 @@ describe('identity-link queue (client)', () => {
     });
   });
 
-  test('a database refusal on link (pending email change, unconfirmed email) is shown to staff', async () => {
+  test('a database refusal on link (pending email change) is shown to staff', async () => {
     rpc.mockResolvedValue({ data: null, error: { message: 'This account has a pending email change. Resolve it before linking.' } });
     await expect(linkPendingProfileToPerson('p1', 'person-1', 'Confirmed by phone')).rejects.toThrow(/pending email change/);
   });
 
-  test('the approval refusal is rewritten into a next step for staff', () => {
+  test('the approval refusal is rewritten into a next step on the approvals page', () => {
     expect(approvalRefusalMessage('Link this account to its existing person before approving it.'))
-      .toMatch(/identity linking first/);
+      .toMatch(/Accounts awaiting link below/);
     expect(approvalRefusalMessage('Not authorised to approve members.')).toBe('Not authorised to approve members.');
   });
 });
 
-describe('migration 103 contract (text gate; the SQL is NOT executed here)', () => {
-  const body = migration.replace(/--[^\n]*/g, '');
+describe('migration 103 text gates (the SQL is NOT executed here)', () => {
+  test('exactly one queue RPC exists, staff-only, reason-gated and audited', () => {
+    expect(body).not.toMatch(/list_identity_link_queue/);
+    expect(body).toMatch(/FUNCTION public\.list_account_link_queue\(p_reason text\)/i);
+    const q = body.slice(body.search(/FUNCTION public\.list_account_link_queue/i));
+    expect(q).toMatch(/_f2_staff_actor\(\)/);
+    expect(q).toMatch(/_f2_valid_reason\(p_reason\)/);
+    expect(q).toMatch(/insert into public\.identity_read_audit[\s\S]*'account_link'/i);
+    expect(q).toMatch(/au\.email_confirmed_at is not null/i);
+    expect(q).toMatch(/pr\.person_id is null/i);
+  });
 
-  test('approval refuses an account that still needs linking, and is audited', () => {
-    expect(body).toMatch(/p\.person_id is null/i);
-    expect(body).toMatch(/normalize_identity_email\(pe\.email\) = public\.normalize_identity_email\(p\.email\)/);
+  test('the queue returns no email field and no masked address', () => {
+    const from = body.search(/FUNCTION public\.list_account_link_queue/i);
+    const returns = body.slice(body.indexOf('RETURNS TABLE (', from), body.indexOf(')', body.indexOf('RETURNS TABLE (', from)) + 1);
+    expect(returns).not.toMatch(/email/i);
+    expect(body).not.toMatch(/_mask_email/);
+  });
+
+  test('approval refuses any pending account with no linked person, and locks the profile row', () => {
+    expect(body).toMatch(/if v_profile\.person_id is null then/i);
+    expect(body).toMatch(/from public\.profiles p\s+where p\.id = target_member_id\s+for update/i);
     expect(body).toMatch(/insert into public\.profile_approval_audit/i);
   });
 
-  test('pending email change is read from GoTrue email_change, never from the non-existent new_email column', () => {
-    expect(body).toMatch(/nullif\(btrim\(u\.email_change\), ''\) is not null/);
+  test('every SECURITY DEFINER function pins its search_path to pg_catalog, public', () => {
+    const definers = body.split(/CREATE OR REPLACE FUNCTION/i).slice(1).filter((f) => /SECURITY DEFINER/i.test(f));
+    expect(definers.length).toBeGreaterThanOrEqual(4);
+    for (const f of definers) expect(f).toMatch(/SET search_path = pg_catalog, public/);
+  });
+
+  test('pending email change is read from GoTrue email_change, never from a new_email column', () => {
+    expect(body).toMatch(/nullif\(btrim\(u\.email_change\), ''\) IS NOT NULL/i);
     expect(body).toMatch(/_auth_has_pending_email_change\(p_profile_id\)/);
     expect(body).not.toMatch(/new_email/);
   });
 
-  test('approval locks the profile row so it serialises with a concurrent link', () => {
-    expect(body).toMatch(/from public\.profiles p where p\.id = target_member_id for update/);
-  });
-
-  test('the queue is staff-only and returns masked addresses, never raw emails', () => {
-    expect(body).toMatch(/perform public\._f2_staff_actor\(\)/);
-    const listBody = body.slice(body.indexOf('function public.list_identity_link_queue'));
-    expect(listBody).toMatch(/public\._mask_email\(p\.email\)/);
-    expect(listBody).toMatch(/public\._mask_email\(pe\.email\)/);
-    expect(listBody).not.toMatch(/\bp\.email\b(?!\))/);
-    expect(listBody).not.toMatch(/\bpe\.email\b(?!\))/);
-  });
-
-  test('the new audit table is append-only and has no client grants', () => {
+  test('audit tables are append-only and refuse TRUNCATE for every role', () => {
     expect(body).toMatch(/revoke all on table public\.profile_approval_audit from public, anon, authenticated, service_role/i);
     expect(body).toMatch(/before update or delete on public\.profile_approval_audit/i);
     expect(body).toMatch(/before truncate on public\.profile_approval_audit\s+for each statement/i);
+    expect(body).toMatch(/before truncate on public\.identity_read_audit\s+for each statement/i);
+    expect(body).toMatch(/before truncate on public\.profile_link_audit\s+for each statement/i);
   });
 
-  test('no existing migration file is modified by 103 (it is additive, numbered after 102)', () => {
+  test('the unique person/account index is not part of 103', () => {
+    expect(body).not.toMatch(/unique index/i);
+  });
+
+  test('103 is the last migration and the only 103', () => {
     const files = fs.readdirSync(path.join(root, 'supabase', 'migrations')).filter((f) => f.endsWith('.sql')).sort();
     expect(files[files.length - 1]).toBe('103_identity_link_queue_and_approval_gate.sql');
+    expect(files.filter((f) => f.startsWith('103_'))).toHaveLength(1);
   });
 });

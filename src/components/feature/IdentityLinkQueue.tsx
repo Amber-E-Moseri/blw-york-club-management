@@ -1,170 +1,158 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Button } from '../foundation/Button';
-import { Badge } from '../foundation/Badge';
 import { getPersonIdentity, validateIdentityReason } from '../../lib/queries/identityReview';
-import { linkPendingProfileToPerson, listIdentityLinkQueue, type IdentityLinkItem } from '../../lib/queries/identityLinkQueue';
+import { linkPendingProfileToPerson, listAccountLinkQueue, type AccountLinkItem } from '../../lib/queries/identityLinkQueue';
 import type { PersonIdentity } from '../../types/identityReview';
 
 interface RowState {
-  reason: string;
-  confirmed: boolean;
   reviewed: PersonIdentity | null;
+  confirmed: boolean;
   busy: boolean;
   error: string | null;
   message: string | null;
 }
 
-const emptyRow = (): RowState => ({ reason: '', confirmed: false, reviewed: null, busy: false, error: null, message: null });
+const emptyRow = (): RowState => ({ reviewed: null, confirmed: false, busy: false, error: null, message: null });
 
 const inputClass =
   'w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100';
 
 /**
- * Staff queue for existing members who need identity linking before approval. Staff see masked addresses in the list.
- * Revealing the matching person's full details is a reason-gated, audited call (get_person_identity). Linking is a
- * separate, explicitly confirmed, reason-gated call (link_pending_profile_to_person). Nothing links automatically.
+ * The single operational queue for accounts awaiting link (migration 103). It lives on the approvals page, which only
+ * administrators and coordinators reach. Opening the queue needs a reason, and the database records every read. A row is
+ * linked only after the reviewer ticks the confirmation. Nothing links automatically.
  */
-export const IdentityLinkQueue: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
-  const [items, setItems] = useState<IdentityLinkItem[]>([]);
-  const [loading, setLoading] = useState(true);
+export const IdentityLinkQueue: React.FC = () => {
+  const [reason, setReason] = useState('');
+  const [items, setItems] = useState<AccountLinkItem[] | null>(null);
+  const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [rows, setRows] = useState<Record<string, RowState>>({});
+  const reasonInvalid = validateIdentityReason(reason);
 
   const patch = (profileId: string, change: Partial<RowState>) =>
     setRows((prev) => ({ ...prev, [profileId]: { ...(prev[profileId] ?? emptyRow()), ...change } }));
 
-  const load = useCallback(async () => {
+  const load = async () => {
+    if (reasonInvalid) return;
     setLoading(true);
     setLoadError(null);
     try {
-      setItems(await listIdentityLinkQueue(100));
+      setItems(await listAccountLinkQueue(reason));
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : 'The linking queue could not be loaded.');
-    } finally {
-      setLoading(false);
     }
-  }, []);
+    setLoading(false);
+  };
 
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  const review = async (item: IdentityLinkItem) => {
-    const row = rows[item.profileId] ?? emptyRow();
-    const invalid = validateIdentityReason(row.reason);
-    if (invalid) return patch(item.profileId, { error: invalid });
+  const reveal = async (item: AccountLinkItem) => {
+    if (!item.personId || reasonInvalid) return;
     patch(item.profileId, { busy: true, error: null });
     try {
-      const reviewed = await getPersonIdentity(item.candidatePersonId, row.reason);
+      const reviewed = await getPersonIdentity(item.personId, reason);
       patch(item.profileId, { busy: false, reviewed });
     } catch (e) {
       patch(item.profileId, { busy: false, error: e instanceof Error ? e.message : 'Could not show this person.' });
     }
   };
 
-  const link = async (item: IdentityLinkItem) => {
+  const link = async (item: AccountLinkItem) => {
     const row = rows[item.profileId] ?? emptyRow();
-    const invalid = validateIdentityReason(row.reason);
-    if (invalid) return patch(item.profileId, { error: invalid });
-    if (!row.confirmed) return patch(item.profileId, { error: 'Confirm that this is the same person first.' });
+    if (!item.personId || reasonInvalid) return;
+    if (!row.confirmed) return patch(item.profileId, { error: 'Confirm that this account belongs to the matching person first.' });
     patch(item.profileId, { busy: true, error: null, message: null });
     try {
-      await linkPendingProfileToPerson(item.profileId, item.candidatePersonId, row.reason);
-      patch(item.profileId, { busy: false, message: 'Linked. The account can now be approved from Pending Approvals.' });
-      await load();
-      onChanged?.();
+      await linkPendingProfileToPerson(item.profileId, item.personId, reason);
+      setItems((prev) => (prev ?? []).filter((x) => x.profileId !== item.profileId));
     } catch (e) {
       patch(item.profileId, { busy: false, error: e instanceof Error ? e.message : 'The account could not be linked.' });
     }
   };
 
   return (
-    <section className="space-y-4" aria-labelledby="identity-link-heading">
-      <div>
-        <h2 id="identity-link-heading" className="text-base font-semibold text-gray-900 dark:text-slate-100">
-          Accounts waiting for identity linking
+    <section aria-labelledby="accounts-awaiting-link" className="space-y-4 border-t border-gray-200 dark:border-slate-800 pt-6">
+      <div className="space-y-1">
+        <h2 id="accounts-awaiting-link" className="text-lg font-semibold text-gray-900 dark:text-slate-100">
+          Accounts awaiting link
         </h2>
-        <p className="text-sm text-gray-500 dark:text-slate-400">
-          These members have a pending account whose email matches an existing person record. They cannot be approved until
-          a reviewer links the account to that person.
+        <p className="text-sm text-gray-600 dark:text-slate-300">
+          Verified sign-ups whose email matches an existing person record. They must be linked to that person before they can
+          be approved. Nothing is linked automatically.
         </p>
       </div>
 
-      {loadError && <p role="alert" className="text-sm text-red-600">{loadError}</p>}
-      {!loading && !loadError && items.length === 0 && (
-        <p className="text-sm text-gray-600 dark:text-slate-300">No accounts are waiting for identity linking.</p>
+      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+        <label className="block text-sm font-medium text-gray-700 dark:text-slate-200">
+          Reason for opening this queue and for any details (required)
+          <input
+            className={`${inputClass} mt-1`}
+            value={reason}
+            maxLength={500}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="e.g. Desk check of applicant identity"
+          />
+        </label>
+        <Button variant="secondary" size="small" loading={loading} disabled={!!reasonInvalid} onClick={() => void load()}>
+          {items === null ? 'Open queue' : 'Refresh queue'}
+        </Button>
+      </div>
+      {reasonInvalid && reason.length > 0 && (
+        <p className="text-xs text-gray-500 dark:text-slate-400">{reasonInvalid}</p>
       )}
 
-      {items.map((item) => {
+      {loadError && <p role="alert" className="text-sm text-red-600">{loadError}</p>}
+
+      {items !== null && items.length === 0 && (
+        <p className="text-sm text-gray-600 dark:text-slate-300">No verified accounts are waiting for a link.</p>
+      )}
+
+      {items?.map((item) => {
         const row = rows[item.profileId] ?? emptyRow();
-        const blocked = item.pendingEmailChange || !item.emailVerified;
-        const canLink = !blocked && !row.busy && row.confirmed && validateIdentityReason(row.reason) === null;
+        const canLink = !!item.personId && row.confirmed && !row.busy && !reasonInvalid;
         return (
-          <article key={item.profileId} className="rounded-lg border border-gray-200 dark:border-slate-700 p-4 space-y-4">
-            <header className="flex flex-wrap items-center gap-2">
-              <h3 className="text-base font-semibold text-gray-900 dark:text-slate-100">{item.profileName || '(no name)'}</h3>
-              <span className="text-sm text-gray-500 dark:text-slate-400">{item.profileMaskedEmail ?? 'no email'}</span>
-              {item.emailVerified
-                ? <Badge variant="success" size="small">Email verified</Badge>
-                : <Badge variant="warning" size="small">Waiting for email verification</Badge>}
-              {item.pendingEmailChange && <Badge variant="error" size="small">Pending email change</Badge>}
+          <article key={item.profileId} className="rounded-lg border border-gray-200 dark:border-slate-700 p-4 space-y-3">
+            <header>
+              <h3 className="text-base font-semibold text-gray-900 dark:text-slate-100">{item.displayName || '(no name)'}</h3>
+              <p className="text-xs text-gray-500 dark:text-slate-400">
+                Signed up {new Date(item.createdAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </p>
             </header>
 
-            <p className="text-sm text-gray-700 dark:text-slate-200">
-              Matching person: <span className="font-medium">{item.candidateName || 'Person'}</span>{' '}
-              <span className="text-gray-500 dark:text-slate-400">({item.candidateMaskedEmail ?? 'no email'})</span>
-            </p>
-
-            {item.pendingEmailChange && (
-              <p role="alert" className="text-sm text-red-600">
-                This account has a pending email change. It cannot be linked until that change is resolved.
-              </p>
-            )}
-            {!item.emailVerified && !item.pendingEmailChange && (
+            {!item.personId ? (
               <p className="text-sm text-gray-600 dark:text-slate-300">
-                The member has not verified this email yet. Linking becomes possible after they enter their code.
+                No existing person holds this account&apos;s email, so it cannot be linked here. Check the people records, then
+                refresh the queue.
               </p>
-            )}
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-200" htmlFor={`link-reason-${item.profileId}`}>
-                Reason (required, recorded in the audit log)
-              </label>
-              <input
-                id={`link-reason-${item.profileId}`}
-                className={inputClass}
-                value={row.reason}
-                maxLength={500}
-                disabled={blocked || row.busy}
-                onChange={(e) => patch(item.profileId, { reason: e.target.value, error: null })}
-              />
-              <Button variant="secondary" size="small" onClick={() => void review(item)} disabled={blocked || row.busy}>
-                Show matching person details
-              </Button>
-              {row.reviewed && (
+            ) : (
+              <>
                 <p className="text-sm text-gray-700 dark:text-slate-200">
-                  {row.reviewed.fullName || 'Person'} · {row.reviewed.email ?? 'no email'} · {row.reviewed.phone ?? 'no phone'}
+                  Matching person: <span className="font-medium">{item.personName ?? 'Person'}</span>
                 </p>
-              )}
-            </div>
-
-            <div className="space-y-2 border-t border-gray-100 dark:border-slate-800 pt-4">
-              <label className="flex items-start gap-2 text-sm text-gray-700 dark:text-slate-200">
-                <input
-                  type="checkbox"
-                  className="mt-1"
-                  checked={row.confirmed}
-                  disabled={blocked || row.busy}
-                  onChange={(e) => patch(item.profileId, { confirmed: e.target.checked, error: null })}
-                />
-                <span>I have checked that this member is the same person as the matching record.</span>
-              </label>
-              <Button variant="primary" size="small" onClick={() => void link(item)} disabled={!canLink}>
-                Link account to this person
-              </Button>
-              {row.error && <p role="alert" className="text-sm text-red-600">{row.error}</p>}
-              {row.message && <p role="status" className="text-sm text-green-700">{row.message}</p>}
-            </div>
+                {row.reviewed ? (
+                  <p className="text-sm text-gray-700 dark:text-slate-200">
+                    {row.reviewed.fullName || 'Person'} · {row.reviewed.email ?? 'no email'} · {row.reviewed.phone ?? 'no phone'}
+                  </p>
+                ) : (
+                  <Button variant="secondary" size="small" onClick={() => void reveal(item)} disabled={row.busy || !!reasonInvalid}>
+                    Show matching person&apos;s details
+                  </Button>
+                )}
+                <label className="flex items-start gap-2 text-sm text-gray-700 dark:text-slate-200">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={row.confirmed}
+                    disabled={row.busy}
+                    onChange={(e) => patch(item.profileId, { confirmed: e.target.checked, error: null })}
+                  />
+                  <span>I confirm this account belongs to {item.personName ?? 'the matching person'}.</span>
+                </label>
+                <Button variant="primary" size="small" loading={row.busy} disabled={!canLink} onClick={() => void link(item)}>
+                  Link account to {item.personName ?? 'this person'}
+                </Button>
+              </>
+            )}
+            {row.error && <p role="alert" className="text-sm text-red-600">{row.error}</p>}
           </article>
         );
       })}

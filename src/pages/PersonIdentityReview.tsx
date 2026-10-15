@@ -3,7 +3,6 @@ import { ClipboardCheck } from 'lucide-react';
 import { Button } from '../components/foundation/Button';
 import { PageHeader } from '../components/foundation/PageHeader';
 import { Badge } from '../components/foundation/Badge';
-import { IdentityLinkQueue } from '../components/feature/IdentityLinkQueue';
 import { effectiveRole, type AuthUser } from '../lib/auth';
 import {
   getClaimIdentity,
@@ -146,8 +145,6 @@ export const PersonIdentityReview: React.FC<Props> = ({ user }) => {
         description="Contacts logged with an email or phone that already belongs to another person wait here. Nothing is merged until a reviewer decides."
         actions={<Button variant="secondary" onClick={() => void load()} disabled={loading}>Refresh</Button>}
       />
-
-      <IdentityLinkQueue />
 
       {loadError && <p role="alert" className="text-sm text-red-600">{loadError}</p>}
       {!loading && !loadError && claims.length === 0 && (

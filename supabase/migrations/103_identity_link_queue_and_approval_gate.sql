@@ -1,157 +1,167 @@
 -- 103_identity_link_queue_and_approval_gate.sql
 --
--- Staff identity-linking queue for existing members, and an approval gate for accounts that still need linking.
--- Forward-only. Migrations 000-102 are not modified. No existing profile, person or link row is rewritten.
+-- Staff identity linking for pending accounts, and an approval gate. Forward-only. Migrations 000-102 are not modified.
+-- No existing profile, person or link row is rewritten. This is the single authoritative migration 103.
 --
--- Builds on 099 (signup never links; link_pending_profile_to_person is the only client link path) and on 016
--- (approve_pending_member). Contract added here:
---   * A pending account with no linked person whose normalised email matches an existing person "needs linking".
---     It is listed in the staff queue (list_identity_link_queue) and CANNOT be approved until it is linked.
---   * Staff review a candidate through get_person_identity (097), which is reason-gated and audited in
---     identity_read_audit. This migration does not add a second reveal path.
---   * link_pending_profile_to_person (099) additionally refuses an account with a PENDING EMAIL CHANGE
---     (auth.users.email_change, the GoTrue column that holds the pending new address; the old email stays in
---     auth.users.email until the change is confirmed). Such an account cannot be linked until that change resolves.
---   * approve_pending_member writes an append-only approval audit row for every activation.
---   * Only administrators and coordinators reach the queue, the link and the approval (_f2_staff_actor, 097).
+-- Builds on 097 (_f2_staff_actor, _f2_valid_reason, identity_read_audit, get_person_identity), 099 (signup never links;
+-- link_pending_profile_to_person is the only client link path) and 016 (approve_pending_member).
 --
--- Not decided here: the retention period for queue rows (the queue is derived, not stored, so nothing is retained).
+-- Contract enforced here:
+--   * list_account_link_queue(p_reason): staff only (administrator or coordinator), requires a valid reason, and writes
+--     an append-only identity_read_audit row (target_kind 'account_link', nil uuid target) on every call. It returns only
+--     CONFIRMED, PENDING, UNLINKED profiles and the exact normalized-email person candidate's id and name. It returns no
+--     email address and no other identity field. A profile with no matching person is still listed, with null candidate
+--     fields, so staff can see it.
+--   * approve_pending_member: any pending profile with person_id NULL is refused (42501) until it is linked. The profile
+--     row is locked FOR UPDATE, so approval and linking serialise. Administrator and coordinator authorization is
+--     unchanged. Every activation writes an append-only profile_approval_audit row (UPDATE, DELETE and TRUNCATE refused).
+--     SECURITY DEFINER search_path is pinned to pg_catalog, public.
+--   * link_pending_profile_to_person (099 checks kept): refuses an account with a pending email change
+--     (auth.users.email_change, GoTrue's pending-new-address column). Locks the profile and person rows.
+--   * identity_read_audit, profile_link_audit: TRUNCATE is refused by a statement-level guard, as for profile_approval_audit.
+--
+-- Not included: a unique index on profiles(person_id). It is not applied until the duplicate-data check in
+-- docs/auth/email-otp-verification.md has been reviewed for the target database.
 
--- ─── 1. Masking helper for queue output (no full email leaves the database in the list) ──────────────────────────────
+-- ─── 1. Audit target kind for account-link reads ──────────────────────────────────────────────────────────────────────
+-- Widens the CHECK created unnamed in 097 (default name). The append-only trigger and no-client-access grants are untouched.
 
-create or replace function public._mask_email(p_email text)
-returns text
-language sql
-immutable
-set search_path = pg_catalog, public
-as $$
-  select case
-    when p_email is null or position('@' in p_email) < 2 then null
-    else left(split_part(p_email, '@', 1), 1)
-         || repeat('*', 3)
-         || substring(p_email from position('@' in p_email))
-  end
-$$;
+ALTER TABLE public.identity_read_audit
+  DROP CONSTRAINT IF EXISTS identity_read_audit_target_kind_check;
+ALTER TABLE public.identity_read_audit
+  ADD CONSTRAINT identity_read_audit_target_kind_check
+  CHECK (target_kind IN ('claim', 'person', 'account_link'));
 
-revoke all on function public._mask_email(text) from public, anon, authenticated;
-
--- ─── 1b. Pending email change: GoTrue keeps the NEW address in auth.users.email_change until it is confirmed ────────────
+-- ─── 2. Pending email change: GoTrue keeps the NEW address in auth.users.email_change until it is confirmed ───────────
 -- (email_change is the column; "new_email" is a field of GoTrue's API JSON, not a database column.)
 
-create or replace function public._auth_has_pending_email_change(p_user_id uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = pg_catalog, public
-as $$
-  select exists (
-    select 1 from auth.users u
-     where u.id = p_user_id
-       and nullif(btrim(u.email_change), '') is not null
+CREATE OR REPLACE FUNCTION public._auth_has_pending_email_change(p_user_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM auth.users u
+     WHERE u.id = p_user_id
+       AND nullif(btrim(u.email_change), '') IS NOT NULL
   )
 $$;
 
-revoke all on function public._auth_has_pending_email_change(uuid) from public, anon, authenticated;
+REVOKE ALL ON FUNCTION public._auth_has_pending_email_change(uuid) FROM PUBLIC, anon, authenticated, service_role;
 
--- ─── 2. Approval audit (append-only, no client access) ───────────────────────────────────────────────────────────────
+-- ─── 3. Approval audit (append-only, no client access, TRUNCATE refused) ──────────────────────────────────────────────
 
-create table if not exists public.profile_approval_audit (
-  id          bigint      generated always as identity primary key,
-  profile_id  uuid        not null,
-  actor_id    uuid        not null,
-  action      text        not null check (action in ('approve')),
-  created_at  timestamptz not null default now()
+CREATE TABLE IF NOT EXISTS public.profile_approval_audit (
+  id          bigint      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  profile_id  uuid        NOT NULL,
+  actor_id    uuid        NOT NULL,
+  action      text        NOT NULL CHECK (action IN ('approve')),
+  created_at  timestamptz NOT NULL DEFAULT now()
 );
 
-alter table public.profile_approval_audit enable row level security;
-revoke all on table public.profile_approval_audit from public, anon, authenticated, service_role;
+ALTER TABLE public.profile_approval_audit ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.profile_approval_audit FROM PUBLIC, anon, authenticated, service_role;
 
-drop trigger if exists profile_approval_audit_append_only on public.profile_approval_audit;
-create trigger profile_approval_audit_append_only
-  before update or delete on public.profile_approval_audit
-  for each row execute function public._f2_refuse_audit_mutation();
+DROP TRIGGER IF EXISTS profile_approval_audit_append_only ON public.profile_approval_audit;
+CREATE TRIGGER profile_approval_audit_append_only
+  BEFORE UPDATE OR DELETE ON public.profile_approval_audit
+  FOR EACH ROW EXECUTE FUNCTION public._f2_refuse_audit_mutation();
 
--- TRUNCATE bypasses row-level triggers, so it needs its own statement-level guard. Applies to every role, including
--- the table owner. (Row triggers do not fire on TRUNCATE; this is the only guard against it.)
-drop trigger if exists profile_approval_audit_no_truncate on public.profile_approval_audit;
-create trigger profile_approval_audit_no_truncate
-  before truncate on public.profile_approval_audit
-  for each statement execute function public._f2_refuse_audit_mutation();
+-- TRUNCATE bypasses row-level triggers, so it needs its own statement-level guard. It applies to every role, including
+-- the table owner.
+DROP TRIGGER IF EXISTS profile_approval_audit_no_truncate ON public.profile_approval_audit;
+CREATE TRIGGER profile_approval_audit_no_truncate
+  BEFORE TRUNCATE ON public.profile_approval_audit
+  FOR EACH STATEMENT EXECUTE FUNCTION public._f2_refuse_audit_mutation();
 
--- ─── 3. Approval gate: an account that needs linking cannot be approved (replaces 016 approve_pending_member) ─────────
+-- The same statement-level guard for the two existing audit tables, which had row triggers only (097, 099).
+DROP TRIGGER IF EXISTS identity_read_audit_no_truncate ON public.identity_read_audit;
+CREATE TRIGGER identity_read_audit_no_truncate
+  BEFORE TRUNCATE ON public.identity_read_audit
+  FOR EACH STATEMENT EXECUTE FUNCTION public._f2_refuse_audit_mutation();
 
-create or replace function public.approve_pending_member(target_member_id uuid)
-returns table (id uuid, email text, full_name text, status text)
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_actor uuid := auth.uid();
-begin
-  if not public.is_admin_or_coordinator() then
-    raise exception 'Not authorised to approve members.' using errcode = '42501';
-  end if;
+DROP TRIGGER IF EXISTS profile_link_audit_no_truncate ON public.profile_link_audit;
+CREATE TRIGGER profile_link_audit_no_truncate
+  BEFORE TRUNCATE ON public.profile_link_audit
+  FOR EACH STATEMENT EXECUTE FUNCTION public._f2_refuse_audit_mutation();
 
-  -- Serialise with link_pending_profile_to_person (which locks the same profile row): the gate below and the
-  -- activation then see one consistent state, so an account cannot be approved in the gap before its link commits.
-  perform 1 from public.profiles p where p.id = target_member_id for update;
+-- ─── 4. Approval gate: an account with no linked person cannot be approved (replaces 016 approve_pending_member) ─────────
 
-  if exists (
-    select 1
-      from public.profiles p
-     where p.id = target_member_id
-       and p.status = 'pending'
-       and p.person_id is null
-       and exists (
-         select 1 from public.people pe
-          where public.normalize_identity_email(pe.email) = public.normalize_identity_email(p.email)
-       )
-  ) then
-    raise exception 'Link this account to its existing person before approving it.' using errcode = '42501';
-  end if;
+CREATE OR REPLACE FUNCTION public.approve_pending_member(target_member_id uuid)
+RETURNS TABLE (id uuid, email text, full_name text, status text)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+DECLARE
+  v_actor   uuid := auth.uid();
+  v_profile public.profiles%ROWTYPE;
+BEGIN
+  IF NOT public.is_admin_or_coordinator() THEN
+    RAISE EXCEPTION 'Not authorised to approve members.' USING ERRCODE = '42501';
+  END IF;
 
-  return query
-  with approved as (
-    update public.profiles p
-       set status = 'active',
+  -- Lock the profile row. link_pending_profile_to_person locks the same row, so the gate below and the activation see
+  -- one consistent state: an account cannot be approved in the gap before its link commits.
+  SELECT * INTO v_profile
+    FROM public.profiles p
+   WHERE p.id = target_member_id
+     FOR UPDATE;
+
+  -- Unknown or non-pending account: no row, as in 016.
+  IF NOT FOUND OR v_profile.status <> 'pending' THEN
+    RETURN;
+  END IF;
+
+  IF v_profile.person_id IS NULL THEN
+    RAISE EXCEPTION 'Link this account to its existing person before approving it.' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN QUERY
+  WITH approved AS (
+    UPDATE public.profiles p
+       SET status = 'active',
            updated_at = now()
-     where p.id = target_member_id
-       and p.status = 'pending'
-    returning p.id, p.email, p.full_name, p.status
-  ), audited as (
-    insert into public.profile_approval_audit (profile_id, actor_id, action)
-    select a.id, v_actor, 'approve' from approved a
-    returning profile_id
+     WHERE p.id = target_member_id
+       AND p.status = 'pending'
+    RETURNING p.id, p.email, p.full_name, p.status
+  ), audited AS (
+    INSERT INTO public.profile_approval_audit (profile_id, actor_id, action)
+    SELECT a.id, v_actor, 'approve' FROM approved a
+    RETURNING profile_id
   )
-  select a.id, a.email, a.full_name, a.status
-    from approved a
-   where a.id in (select profile_id from audited);
-end;
+  SELECT a.id, a.email, a.full_name, a.status
+    FROM approved a
+   WHERE a.id IN (SELECT profile_id FROM audited);
+END;
 $$;
 
--- ─── 4. Link RPC: refuse pending email changes (replaces 099 link_pending_profile_to_person, same signature) ───────────
+REVOKE ALL ON FUNCTION public.approve_pending_member(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.approve_pending_member(uuid) TO authenticated;
 
-create or replace function public.link_pending_profile_to_person(
+-- ─── 5. Link RPC: 099 checks kept, pending email change refused (same signature) ───────────────────────────────────────
+
+CREATE OR REPLACE FUNCTION public.link_pending_profile_to_person(
   p_profile_id uuid,
   p_person_id  uuid,
   p_reason     text
 )
-returns void
-language plpgsql
-volatile
-security definer
-set search_path = pg_catalog, public
-as $$
-declare
+RETURNS void
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+DECLARE
   v_actor          uuid := public._f2_staff_actor();
   v_profile        public.profiles%ROWTYPE;
   v_person         public.people%ROWTYPE;
   v_auth_email     text;
   v_auth_confirmed boolean;
-begin
-  perform public._f2_valid_reason(p_reason);
+BEGIN
+  PERFORM public._f2_valid_reason(p_reason);
 
   SELECT * INTO v_profile FROM public.profiles p WHERE p.id = p_profile_id FOR UPDATE;
   IF NOT FOUND THEN
@@ -180,7 +190,7 @@ begin
     FROM auth.users u
    WHERE u.id = p_profile_id;
 
-  IF NOT FOUND OR NOT COALESCE(v_auth_confirmed, false) OR v_auth_email IS NULL
+  IF NOT FOUND OR NOT coalesce(v_auth_confirmed, false) OR v_auth_email IS NULL
      OR public.normalize_identity_email(v_auth_email) IS DISTINCT FROM public.normalize_identity_email(v_person.email) THEN
     RAISE EXCEPTION 'The account email is not a confirmed match for this person.' USING ERRCODE = '42501';
   END IF;
@@ -199,54 +209,53 @@ begin
 END;
 $$;
 
-revoke all on function public.link_pending_profile_to_person(uuid, uuid, text) from public, anon;
-grant execute on function public.link_pending_profile_to_person(uuid, uuid, text) to authenticated;
+REVOKE ALL ON FUNCTION public.link_pending_profile_to_person(uuid, uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.link_pending_profile_to_person(uuid, uuid, text) TO authenticated;
 
--- ─── 5. The staff queue: pending, unlinked accounts whose email matches an existing person ──────────────────────────
+-- ─── 6. The single staff queue: confirmed, pending, unlinked profiles with their exact-match candidate ──────────────────
 
-create or replace function public.list_identity_link_queue(p_limit integer default 100)
-returns table (
-  profile_id            uuid,
-  profile_name          text,
-  profile_masked_email  text,
-  joined_at             timestamptz,
-  email_verified        boolean,
-  pending_email_change  boolean,
-  candidate_person_id   uuid,
-  candidate_name        text,
-  candidate_masked_email text
+CREATE OR REPLACE FUNCTION public.list_account_link_queue(p_reason text)
+RETURNS TABLE (
+  profile_id    uuid,
+  display_name  text,
+  created_at    timestamptz,
+  person_id     uuid,
+  person_name   text
 )
-language plpgsql
-stable
-security definer
-set search_path = pg_catalog, public
-as $$
-begin
-  perform public._f2_staff_actor();
-  if p_limit is null or p_limit not between 1 and 200 then
-    raise exception 'Choose between 1 and 200 rows.' using errcode = '22023';
-  end if;
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+DECLARE
+  v_actor uuid := public._f2_staff_actor();
+BEGIN
+  PERFORM public._f2_valid_reason(p_reason);
 
-  return query
-    select p.id,
-           p.full_name,
-           public._mask_email(p.email),
-           p.joined_at,
-           (u.email_confirmed_at is not null),
-           public._auth_has_pending_email_change(p.id),
-           pe.id,
-           pe.full_name,
-           public._mask_email(pe.email)
-      from public.profiles p
-      join public.people pe
-        on public.normalize_identity_email(pe.email) = public.normalize_identity_email(p.email)
-      left join auth.users u on u.id = p.id
-     where p.status = 'pending'
-       and p.person_id is null
-     order by p.joined_at asc
-     limit p_limit;
-end;
+  INSERT INTO public.identity_read_audit (actor_id, target_kind, target_id, reason)
+  VALUES (v_actor, 'account_link', '00000000-0000-0000-0000-000000000000'::uuid, btrim(p_reason));
+
+  RETURN QUERY
+    SELECT pr.id,
+           pr.full_name::text,
+           au.created_at,
+           m.id,
+           m.full_name::text
+      FROM public.profiles pr
+      JOIN auth.users au ON au.id = pr.id
+      LEFT JOIN LATERAL (
+        SELECT pe.id, pe.full_name
+          FROM public.people pe
+         WHERE public.normalize_identity_email(pe.email) = public.normalize_identity_email(au.email)
+         ORDER BY pe.id
+         LIMIT 1
+      ) m ON true
+     WHERE pr.status = 'pending'
+       AND pr.person_id IS NULL
+       AND au.email_confirmed_at IS NOT NULL
+     ORDER BY au.created_at, pr.id;
+END;
 $$;
 
-revoke all on function public.list_identity_link_queue(integer) from public, anon;
-grant execute on function public.list_identity_link_queue(integer) to authenticated;
+REVOKE ALL ON FUNCTION public.list_account_link_queue(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.list_account_link_queue(text) TO authenticated;

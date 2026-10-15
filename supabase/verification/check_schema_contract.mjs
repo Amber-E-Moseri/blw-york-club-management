@@ -109,6 +109,10 @@ for (const t of tableNames) {
 check('authorization: no policy accepts "any signed-in account" (every such policy requires an active, approved account)', anySignedIn.length === 0, anySignedIn.join(','));
 check('authorization: profiles carries the privileged-column guard trigger',
   contract.requiredTriggers.profiles.every((name) => fp.tables.profiles.triggers.some((t) => t.includes(` ${name} `))), JSON.stringify(fp.tables.profiles.triggers.map((t) => t.slice(0, 60))));
+// Every table the contract lists triggers for carries each of them (audit append-only and TRUNCATE guards from 097, 099, 103).
+const missingTriggers = Object.entries(contract.requiredTriggers).flatMap(([table, names]) =>
+  names.filter((name) => !(fp.tables[table]?.triggers ?? []).some((t) => t.includes(` ${name} `))).map((name) => `${table}.${name}`));
+check('authorization: every contract-listed trigger exists (audit append-only and TRUNCATE guards)', missingTriggers.length === 0, missingTriggers.join(','));
 
 // --- identity contract ------------------------------------------------------------------------------------------------
 for (const [table, rule] of Object.entries(contract.identityContract)) {

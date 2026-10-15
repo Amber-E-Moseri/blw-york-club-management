@@ -58,6 +58,7 @@
     "people",
     "person_identity_audit",
     "prayer_requests",
+    "profile_approval_audit",
     "profile_link_audit",
     "profiles",
     "push_notification_log",
@@ -162,6 +163,7 @@
       "identity_review_audit",
       "people",
       "person_identity_audit",
+      "profile_approval_audit",
       "profile_link_audit",
       "scheduled_emails"
     ],
@@ -181,6 +183,7 @@
     "member_cell_audit",
     "member_status_audit",
     "person_identity_audit",
+    "profile_approval_audit",
     "profile_link_audit"
   ],
   "serviceRoleExact": {
@@ -850,6 +853,16 @@
       "execute": [
         "authenticated"
       ]
+    },
+    "list_account_link_queue(text)": {
+      "security": "definer",
+      "execute": [
+        "authenticated"
+      ]
+    },
+    "_auth_has_pending_email_change(uuid)": {
+      "security": "definer",
+      "execute": []
     }
   },
   "definerSearchPath": "search_path=pg_catalog, public",
@@ -883,6 +896,18 @@
     "user_profiles": [
       "user_profiles_staff_edit_audit",
       "user_profiles_updated_at"
+    ],
+    "profile_approval_audit": [
+      "profile_approval_audit_append_only",
+      "profile_approval_audit_no_truncate"
+    ],
+    "identity_read_audit": [
+      "identity_read_audit_append_only",
+      "identity_read_audit_no_truncate"
+    ],
+    "profile_link_audit": [
+      "profile_link_audit_append_only",
+      "profile_link_audit_no_truncate"
     ]
   },
   "columnPrivileges": {
