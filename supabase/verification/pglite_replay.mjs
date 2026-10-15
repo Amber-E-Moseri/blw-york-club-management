@@ -14,10 +14,13 @@
 
 import fs from 'fs';
 import path from 'path';
+import { pathToFileURL } from 'url';
 
 export async function loadPglite() {
-  const spec = process.env.PGLITE_MODULE;
-  const mod = await import(spec ?? '@electric-sql/pglite');
+  // Accept a file:// URL or a bare filesystem path. A bare Windows path cannot be imported directly.
+  const raw = process.env.PGLITE_MODULE;
+  const spec = !raw ? '@electric-sql/pglite' : raw.startsWith('file:') ? raw : pathToFileURL(path.resolve(raw)).href;
+  const mod = await import(spec);
   return mod.PGlite;
 }
 

@@ -26,9 +26,16 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * UUID-validated before they reach the SQL text, so nothing caller-supplied is interpolated unchecked.
  */
 export function setProfileAsOwner(profileId, { role, status, cellId, bscId } = {}) {
-  const dsn = process.env.LOCAL_OWNER_DATABASE_URL;
-  if (!dsn) return Promise.reject(new Error('setProfileAsOwner: LOCAL_OWNER_DATABASE_URL is required for fixture state'));
-  if (!/^postgres(ql)?:\/\/[^@]*@(127\.0\.0\.1|localhost)[:/]/.test(dsn)) {
+  const hosted = process.env.CERT_HOSTED === '1';
+  const dsn = hosted ? process.env.CERT_OWNER_DATABASE_URL : process.env.LOCAL_OWNER_DATABASE_URL;
+  if (!dsn) return Promise.reject(new Error('setProfileAsOwner: an owner connection is required for fixture state'));
+  if (hosted) {
+    // Hosted: the pooler user must name the certification project, and the project must be the allowlisted one.
+    const m = /^postgres(ql)?:\/\/[^:]+\.([a-z0-9]{20}):[^@]*@[^/]+\//.exec(dsn);
+    if (!m || m[2] !== certificationProjectRef()) {
+      return Promise.reject(new Error('setProfileAsOwner: owner connection does not name the certification project'));
+    }
+  } else if (!/^postgres(ql)?:\/\/[^@]*@(127\.0\.0\.1|localhost)[:/]/.test(dsn)) {
     return Promise.reject(new Error('setProfileAsOwner: refusing a non-local owner connection'));
   }
   if (!UUID.test(profileId)) return Promise.reject(new Error('setProfileAsOwner: profile id is not a UUID'));
@@ -66,6 +73,39 @@ export function randomPassword() {
   return `${randomBytes(18).toString('base64url')}aA1!`;
 }
 
+// Project references that no certification run may ever target. The production and Preview references are denied by
+// name here, so a mistyped secret or variable cannot point a hosted run at them.
+export const DENIED_PROJECT_REFS = [
+  'rjtstjmtddqhesexltbj', // protected production project
+  'yziuhtxtznginhdpqurb', // Preview certification project (must not be reused by Hub-Certification)
+];
+
+/** The certification project reference for hosted runs. Must be set explicitly; there is no default. */
+export function certificationProjectRef() {
+  const ref = (process.env.CERT_EXPECTED_PROJECT_REF ?? '').trim();
+  if (!/^[a-z0-9]{20}$/.test(ref)) throw new Error('CERT_EXPECTED_PROJECT_REF is missing or malformed');
+  if (DENIED_PROJECT_REFS.includes(ref)) throw new Error('CERT_EXPECTED_PROJECT_REF names a denied (protected) project');
+  return ref;
+}
+
+/**
+ * Decides whether a Supabase URL may be used. Local stacks are allowed by default. A hosted URL is allowed only when
+ * CERT_HOSTED=1, the URL names exactly CERT_EXPECTED_PROJECT_REF, and that reference is not on the deny list.
+ */
+export function assertCertificationTarget(url) {
+  if (/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url)) {
+    if (process.env.CERT_HOSTED === '1') throw new Error('CERT_HOSTED=1 but SUPABASE_URL is local');
+    return { hosted: false, ref: null };
+  }
+  if (process.env.CERT_HOSTED !== '1') throw new Error('refusing a non-local Supabase URL (set CERT_HOSTED=1 for the certification project)');
+  const m = /^https:\/\/([a-z0-9]{20})\.supabase\.co\/?$/.exec(url);
+  if (!m) throw new Error('hosted SUPABASE_URL must be https://<project-ref>.supabase.co');
+  const expected = certificationProjectRef();
+  if (m[1] !== expected) throw new Error('SUPABASE_URL does not name CERT_EXPECTED_PROJECT_REF');
+  if (DENIED_PROJECT_REFS.includes(m[1])) throw new Error('SUPABASE_URL names a denied (protected) project');
+  return { hosted: true, ref: m[1] };
+}
+
 export function harness(name) {
   const url = process.env.SUPABASE_URL;
   const anonKey = process.env.SUPABASE_ANON_KEY;
@@ -73,9 +113,7 @@ export function harness(name) {
   if (!url || !anonKey || !serviceRoleKey) {
     throw new Error('SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY are required');
   }
-  if (!/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url) && process.env.ALLOW_NON_LOCAL_CERTIFICATION !== '1') {
-    throw new Error(`${name}: refusing to run against a non-local Supabase URL`);
-  }
+  assertCertificationTarget(url);
 
   const admin = createClient(url, serviceRoleKey, options);
   // A client that has never signed in. supabase-js keeps a session in memory after signUp/signIn, so denial checks

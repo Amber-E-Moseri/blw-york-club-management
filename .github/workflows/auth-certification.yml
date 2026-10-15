@@ -2,14 +2,15 @@ name: Authentication certification (exact candidate SHA)
 
 # Manual only. Never runs on push or pull request.
 #
-# Two separate tiers, deliberately split:
-#   offline  : no secrets, no environment, no network to any Supabase project. In-process PGlite replay of 000-102,
-#              migration 103 checks, and client unit tests. Runs whenever dispatched.
-#   hosted   : real GoTrue, PostgREST and OTP delivery against the isolated certification project. Runs only when
-#              run_hosted is true AND the job is bound to the Hub-Certification environment, which holds its own secrets.
-#              It never uses the Preview environment and never names the production project.
+# Two tiers, deliberately split:
+#   offline  : no secrets, no environment, no Supabase project. PGlite replay of 000-102, migration 103 checks, the
+#              certification-target guard test, and client auth and identity-queue unit tests.
+#              Simulated JWT claims and in-process PGlite only. These results do NOT certify real GoTrue or PostgREST.
+#   hosted   : real GoTrue, real PostgREST with real JWTs, and real OTP delivery against ONE allowlisted certification
+#              project. Bound to the Hub-Certification environment, never Preview. Runs only when run_hosted is true.
 #
-# Fail closed: every gate below stops the job with FAIL before any test runs. No secret value is printed.
+# Fail closed: every gate stops the job with FAIL before any test runs. A BLOCKED mail path is reported as BLOCKED
+# (not PASS). No secret value is printed; the owner connection string is masked before it is written to the job env.
 
 on:
   workflow_dispatch:
@@ -24,7 +25,7 @@ on:
         type: boolean
         default: false
       replay_hosted_migrations:
-        description: Apply migrations 000-103 to the certification project before testing. Requires separate approval.
+        description: Apply migrations 000-103 to the certification project before testing (requires separate approval).
         required: true
         type: boolean
         default: false
@@ -37,15 +38,15 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # Pinned. The offline tier uses PGlite in-process. Version compatibility with the replay helper is NOT YET TESTED.
+  # Pinned PGlite version for the offline tier. Compatibility with the replay helper is verified by the offline job.
   PGLITE_VERSION: 0.5.10
 
 jobs:
   # ---------------------------------------------------------------------------------------------------------------
-  # Tier 1: offline. No secrets, no environment, no hosted project. Runnable now.
+  # Tier 1: offline. No secrets, no environment, no hosted project.
   # ---------------------------------------------------------------------------------------------------------------
   offline:
-    name: offline (PGlite replay, migration 103, client tests)
+    name: offline (PGlite replay, 103 checks, guard test, client tests)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -68,7 +69,7 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install root dependencies (client tests)
+      - name: Install root dependencies
         run: npm ci
 
       - name: Install PGlite (offline replay engine)
@@ -76,22 +77,19 @@ jobs:
           set -euo pipefail
           mkdir -p .cert-tools
           npm --prefix .cert-tools install --no-audit --no-fund "@electric-sql/pglite@${PGLITE_VERSION}"
-          echo "PGLITE_MODULE=file://$PWD/.cert-tools/node_modules/@electric-sql/pglite/dist/index.js" >> "$GITHUB_ENV"
+          echo "PGLITE_MODULE=$PWD/.cert-tools/node_modules/@electric-sql/pglite/dist/index.js" >> "$GITHUB_ENV"
 
       - name: Migration 103 PGlite checks (replay 000-102, then apply 103)
         run: node supabase/verification/identity_link_103_pglite_checks.mjs supabase/migrations/103_identity_link_queue_and_approval_gate.sql
 
-      - name: Client auth and identity-queue unit tests
+      - name: Certification-target guard tests (no network)
+        run: node supabase/verification/cert_target_guard_test.mjs
+
+      - name: Client auth and identity-queue unit tests (mocked; not GoTrue)
         run: CI=true npx react-scripts test --watchAll=false src/__tests__/emailOtp.test.ts src/__tests__/verifyEmailPage.test.tsx src/__tests__/identityLinkQueue.test.ts src/__tests__/identityLinkQueueUi.test.tsx src/__tests__/memberStatusAuthorization.test.ts
 
-      - name: Summary (simulated JWT and PGlite only; NOT real GoTrue or PostgREST)
-        if: always()
-        run: |
-          echo "Tier: offline. Simulated JWT claims and in-process PGlite. These results do not certify real GoTrue,"
-          echo "PostgREST, OTP delivery or the hosted project. See the hosted tier for those."
-
   # ---------------------------------------------------------------------------------------------------------------
-  # Tier 2: hosted. Real GoTrue, real PostgREST with real JWTs, real OTP delivery. Requires authorisation.
+  # Tier 2: hosted. Real GoTrue, real PostgREST with real JWTs, real OTP delivery. Certification project only.
   # ---------------------------------------------------------------------------------------------------------------
   hosted:
     name: hosted (real GoTrue, PostgREST and OTP; certification project only)
@@ -99,12 +97,10 @@ jobs:
     needs: offline
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    # The Hub-Certification environment is separate from Preview. Its secrets are the only ones in scope here.
     environment: Hub-Certification
     env:
-      # Repository VARIABLES (not secrets). The expected reference is set by the owner after provisioning. Empty = fail.
+      # Repository VARIABLES, not secrets. The owner sets these after provisioning. Empty = fail.
       EXPECTED_CERT_PROJECT_REF: ${{ vars.CERT_EXPECTED_PROJECT_REF }}
-      # Comma-separated refs that must never be targeted (owner maintains this list; production is included).
       PROTECTED_PROJECT_REFS: ${{ vars.PROTECTED_PROJECT_REFS }}
     steps:
       - name: Check out the exact candidate
@@ -145,6 +141,10 @@ jobs:
         run: |
           set -euo pipefail
           [ -n "$EXPECTED_CERT_PROJECT_REF" ] || { echo "FAIL: CERT_EXPECTED_PROJECT_REF variable is not set"; exit 1; }
+          printf '%s' "$EXPECTED_CERT_PROJECT_REF" | grep -Eq '^[a-z0-9]{20}$' || { echo "FAIL: CERT_EXPECTED_PROJECT_REF is malformed"; exit 1; }
+          for denied in rjtstjmtddqhesexltbj yziuhtxtznginhdpqurb; do
+            [ "$EXPECTED_CERT_PROJECT_REF" != "$denied" ] || { echo "FAIL: expected reference is a denied (protected or Preview) project"; exit 1; }
+          done
           url_ref="$(printf '%s' "$CERT_SUPABASE_URL" | sed -nE 's#^https://([a-z0-9]{20})\.supabase\.co/?$#\1#p')"
           [ -n "$url_ref" ] || { echo "FAIL: CERT_SUPABASE_URL is not a project URL"; exit 1; }
           [ "$url_ref" = "$EXPECTED_CERT_PROJECT_REF" ] || { echo "FAIL: URL reference does not match the expected certification reference"; exit 1; }
@@ -158,17 +158,33 @@ jobs:
           done
           echo "PASS: certification project reference verified; not a protected project"
 
-      - name: "Gate 4: OTP test mail path configured (fail closed when OTP is in scope)"
+      - name: "Gate 4: OTP test mail path configured (fail closed)"
         env:
           CERT_MAIL_INBOX_API_URL: ${{ secrets.CERT_MAIL_INBOX_API_URL }}
           CERT_MAIL_INBOX_TOKEN: ${{ secrets.CERT_MAIL_INBOX_TOKEN }}
           CERT_MAIL_TEST_DOMAIN: ${{ vars.CERT_MAIL_TEST_DOMAIN }}
         run: |
           set -euo pipefail
-          [ -n "${CERT_MAIL_INBOX_API_URL:-}" ] || { echo "FAIL: OTP test mail inbox API is not configured"; exit 1; }
-          [ -n "${CERT_MAIL_INBOX_TOKEN:-}" ] || { echo "FAIL: OTP test mail inbox token is not configured"; exit 1; }
-          [ -n "${CERT_MAIL_TEST_DOMAIN:-}" ] || { echo "FAIL: CERT_MAIL_TEST_DOMAIN variable is not set"; exit 1; }
+          [ -n "${CERT_MAIL_INBOX_API_URL:-}" ] || { echo "BLOCKED: OTP test mail inbox API is not configured"; exit 1; }
+          [ -n "${CERT_MAIL_INBOX_TOKEN:-}" ] || { echo "BLOCKED: OTP test mail inbox token is not configured"; exit 1; }
+          [ -n "${CERT_MAIL_TEST_DOMAIN:-}" ] || { echo "BLOCKED: CERT_MAIL_TEST_DOMAIN variable is not set"; exit 1; }
           echo "PASS: OTP test mail path configured (values not printed)"
+
+      - name: Build the masked owner connection (certification project only)
+        env:
+          CERT_SUPABASE_POOLER_HOST: ${{ secrets.CERT_SUPABASE_POOLER_HOST }}
+          CERT_SUPABASE_POOLER_PORT: ${{ secrets.CERT_SUPABASE_POOLER_PORT }}
+          CERT_SUPABASE_POOLER_USER: ${{ secrets.CERT_SUPABASE_POOLER_USER }}
+          CERT_SUPABASE_POOLER_DATABASE: ${{ secrets.CERT_SUPABASE_POOLER_DATABASE }}
+          CERT_SUPABASE_DB_PASSWORD: ${{ secrets.CERT_SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "::add-mask::$CERT_SUPABASE_DB_PASSWORD"
+          enc="$(node -e 'process.stdout.write(encodeURIComponent(process.env.CERT_SUPABASE_DB_PASSWORD))')"
+          dsn="postgresql://${CERT_SUPABASE_POOLER_USER}:${enc}@${CERT_SUPABASE_POOLER_HOST}:${CERT_SUPABASE_POOLER_PORT}/${CERT_SUPABASE_POOLER_DATABASE}?sslmode=require"
+          echo "::add-mask::$dsn"
+          echo "CERT_OWNER_DATABASE_URL=$dsn" >> "$GITHUB_ENV"
+          echo "PASS: owner connection built (not printed)"
 
       - uses: actions/setup-node@v4
         with:
@@ -179,48 +195,48 @@ jobs:
 
       - name: Replay migrations 000-103 into the certification project (only when authorised)
         if: ${{ inputs.replay_hosted_migrations }}
-        env:
-          CERT_SUPABASE_POOLER_HOST: ${{ secrets.CERT_SUPABASE_POOLER_HOST }}
-          CERT_SUPABASE_POOLER_PORT: ${{ secrets.CERT_SUPABASE_POOLER_PORT }}
-          CERT_SUPABASE_POOLER_USER: ${{ secrets.CERT_SUPABASE_POOLER_USER }}
-          CERT_SUPABASE_POOLER_DATABASE: ${{ secrets.CERT_SUPABASE_POOLER_DATABASE }}
-          CERT_SUPABASE_DB_PASSWORD: ${{ secrets.CERT_SUPABASE_DB_PASSWORD }}
         run: |
           set -euo pipefail
-          # Requires the owner's separate approval (replay_hosted_migrations). Migrations run in order, stop on error.
           command -v psql >/dev/null || { echo "FAIL: psql is not available on the runner"; exit 1; }
-          export PGPASSWORD="$CERT_SUPABASE_DB_PASSWORD"
           for f in $(ls supabase/migrations/*.sql | sort); do
-            psql "host=$CERT_SUPABASE_POOLER_HOST port=$CERT_SUPABASE_POOLER_PORT user=$CERT_SUPABASE_POOLER_USER dbname=$CERT_SUPABASE_POOLER_DATABASE sslmode=require" \
-              -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null || { echo "FAIL: migration $(basename "$f") failed"; exit 1; }
+            psql "$CERT_OWNER_DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null \
+              || { echo "FAIL: migration $(basename "$f") failed"; exit 1; }
           done
           echo "PASS: migrations 000-103 applied in order to the certification project"
 
-      - name: Real GoTrue and PostgREST tests (real JWTs; no simulated claims)
+      - name: Real GoTrue and PostgREST tests (real JWTs; hosted only)
         env:
-          AUTH_CERT_SUPABASE_URL: ${{ secrets.CERT_SUPABASE_URL }}
-          AUTH_CERT_ANON_KEY: ${{ secrets.CERT_SUPABASE_ANON_KEY }}
-          AUTH_CERT_SERVICE_ROLE_KEY: ${{ secrets.CERT_SUPABASE_SERVICE_ROLE_KEY }}
-          AUTH_CERT_EXPECTED_REF: ${{ vars.CERT_EXPECTED_PROJECT_REF }}
-          AUTH_CERT_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
-          # The existing harness refuses non-local hosts unless this is set. Set only here, after the gates above.
-          ALLOW_NON_LOCAL_CERTIFICATION: "1"
+          SUPABASE_URL: ${{ secrets.CERT_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.CERT_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.CERT_SUPABASE_SERVICE_ROLE_KEY }}
+          CERT_HOSTED: "1"
+          CERT_EXPECTED_PROJECT_REF: ${{ vars.CERT_EXPECTED_PROJECT_REF }}
         run: |
           set -euo pipefail
-          # NOT YET IMPLEMENTED: the harness does not yet accept a hosted owner connection (setProfileAsOwner is local
-          # only). Until that is added and reviewed, this step must not be read as certification.
-          echo "NOT TESTED: real GoTrue/PostgREST harness not yet wired to the hosted project (see handoff)."
-          exit 1
+          for h in auth_workflow_certification.mjs authorization_certification.mjs authz_final_real_session_test.mjs; do
+            log="$RUNNER_TEMP/$h.log"
+            rc=0; node "supabase/verification/$h" > "$log" 2>&1 || rc=$?
+            if grep -q '^FAIL' "$log" || [ "$rc" -ne 0 ]; then
+              echo "FAIL: $h (exit $rc)"; grep -E '^(PASS|FAIL)' "$log" | head -50; exit 1
+            fi
+            echo "PASS: $h ($(grep -c '^PASS' "$log") checks)"
+          done
 
-      - name: OTP delivery verification (test mail path; fail closed until implemented)
+      - name: OTP delivery verification (approved test mail path; BLOCKED is not a PASS)
         env:
+          SUPABASE_URL: ${{ secrets.CERT_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.CERT_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.CERT_SUPABASE_SERVICE_ROLE_KEY }}
+          CERT_HOSTED: "1"
+          CERT_EXPECTED_PROJECT_REF: ${{ vars.CERT_EXPECTED_PROJECT_REF }}
           CERT_MAIL_INBOX_API_URL: ${{ secrets.CERT_MAIL_INBOX_API_URL }}
           CERT_MAIL_INBOX_TOKEN: ${{ secrets.CERT_MAIL_INBOX_TOKEN }}
           CERT_MAIL_TEST_DOMAIN: ${{ vars.CERT_MAIL_TEST_DOMAIN }}
         run: |
           set -euo pipefail
-          # NOT YET IMPLEMENTED: a provider-neutral script must (1) sign up a test address under CERT_MAIL_TEST_DOMAIN,
-          # (2) read the six-digit code from the test inbox API, (3) call verifyOtp, (4) assert email_confirmed_at, and
-          # (5) delete the test account. Until it exists this step fails closed.
-          echo "NOT TESTED: OTP delivery script not yet implemented."
-          exit 1
+          rc=0; node supabase/verification/otp_delivery_check.mjs || rc=$?
+          case "$rc" in
+            0) echo "PASS: OTP delivery verified through the approved test mail path" ;;
+            2) echo "BLOCKED: OTP delivery not verified (mail path not usable). Not a PASS."; exit 1 ;;
+            *) echo "FAIL: OTP delivery check failed (exit $rc)"; exit 1 ;;
+          esac
