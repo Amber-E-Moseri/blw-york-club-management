@@ -7,7 +7,7 @@ const anonKey = process.env.SUPABASE_ANON_KEY ?? '';
 
 export default defineConfig({
   testDir: './e2e',
-  testMatch: /release-smoke\.spec\.ts/,
+  testMatch: /(release-smoke|meeting-audience)\.spec\.ts/,
   fullyParallel: false,
   workers: 1,
   reporter: 'list',

@@ -45,7 +45,8 @@ async function waitForAuthReadiness() {
 }
 
 test.beforeAll(async ({}, testInfo) => {
-  testInfo.setTimeout(90_000);
+  // Each account is approved through the coordinator workflow (several round trips), so the budget covers local Supabase latency.
+  testInfo.setTimeout(150_000);
   await waitForAuthReadiness();
   for (const [key, a] of Object.entries(accounts)) {
     const { data, error } = await admin.auth.admin.createUser({
@@ -67,8 +68,12 @@ test.beforeAll(async ({}, testInfo) => {
   }
 });
 
-test.afterAll(async () => {
-  for (const id of ids) await admin.auth.admin.deleteUser(id);
+test.afterAll(async ({}, testInfo) => {
+  // Attempt every deletion, then fail loudly: one failed delete must not strand the other synthetic accounts, and must not be hidden.
+  testInfo.setTimeout(60_000);
+  const results = await Promise.allSettled(ids.map((id) => admin.auth.admin.deleteUser(id)));
+  const failed = results.filter((r) => r.status === 'rejected' || (r.status === 'fulfilled' && r.value.error));
+  if (failed.length > 0) throw new Error(`synthetic account cleanup failed for ${failed.length} of ${ids.length} users`);
 });
 
 function trackErrors(page: Page) {
@@ -85,7 +90,7 @@ async function signIn(page: Page, email: string, pw = password, expected: 'succe
     page.waitForResponse((response) => (
       response.url().startsWith(`${authUrl}/token?grant_type=password`)
         && response.request().method() === 'POST'
-    ), { timeout: 20_000 }),
+    ), { timeout: 45_000 }),
     page.getByRole('button', { name: 'Sign In' }).click(),
   ]);
   if (expected === 'success') expect(authResponse.status(), 'Supabase password auth should succeed').toBe(200);
