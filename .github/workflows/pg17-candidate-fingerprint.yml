@@ -118,7 +118,7 @@ jobs:
         env:
           F2_DB_ADMIN: postgres
           F2_OUT_DIR: ${{ runner.temp }}/pg17-out
-        run: scripts/certify-integrated-101.sh
+        run: bash scripts/certify-integrated-101.sh
 
       - name: Verify the candidate outputs (fail closed)
         run: |
