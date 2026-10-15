@@ -1,0 +1,104 @@
+name: Website live certification (test-only, isolated local stack)
+
+# Manual only. Never runs on push or pull request, never touches a hosted project, production or the protected
+# certification databases. The whole Supabase stack (Postgres 17, GoTrue, PostgREST, Storage, Edge Runtime) is started
+# inside this job on a GitHub-hosted runner and destroyed when the job ends. Test accounts are generated per run,
+# use the non-deliverable domain example.invalid, and their credentials are never printed.
+#
+# The Turnstile secret used here is Cloudflare's published test secret, which always passes. The failing Turnstile path
+# is covered by the unit tests, not by this job.
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact 40-character commit SHA to certify. Must equal the checked-out commit.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: website-certification-local
+  cancel-in-progress: false
+
+jobs:
+  certify:
+    name: Live certification (disposable local stack)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CERT_PROJECT_ID: websitecert-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Check out the candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.candidate_sha }}
+          persist-credentials: false
+
+      - name: "Gate: checkout equals the requested SHA (fail closed)"
+        run: |
+          set -euo pipefail
+          [ "$(git rev-parse HEAD)" = "${{ inputs.candidate_sha }}" ] || { echo "FAIL: checkout is not the requested SHA"; exit 1; }
+          echo "PASS: candidate verified"
+
+      - name: "Gate: migration frontier is 110 and no historical migration is missing"
+        run: |
+          set -euo pipefail
+          last="$(ls supabase/migrations/*.sql | sort | tail -1 | xargs basename)"
+          echo "Last migration: $last"
+          case "$last" in 110_*) echo "PASS: frontier 110";; *) echo "FAIL: unexpected frontier"; exit 1;; esac
+          test -f supabase/migrations/000_profiles.sql || { echo "FAIL: baseline missing"; exit 1; }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.98.2
+
+      - name: Point the local stack at this run's disposable project
+        run: |
+          set -euo pipefail
+          sed -i -E "s/^project_id = \".*\"/project_id = \"${CERT_PROJECT_ID}\"/" supabase/config.toml
+          grep -E '^project_id' supabase/config.toml
+
+      - name: Start the local stack and replay migrations 000-110 from scratch
+        run: |
+          set -euo pipefail
+          supabase start
+          supabase db reset --no-seed
+
+      - name: Start the website Edge Functions (test secrets only)
+        run: |
+          set -euo pipefail
+          printf 'CLIENT_HASH_SECRET=%s\nTURNSTILE_SECRET_KEY=%s\nWEBSITE_ALLOWED_ORIGINS=http://127.0.0.1:4173\n' \
+            "$(openssl rand -hex 32)" "1x0000000000000000000000000000000AA" > "$RUNNER_TEMP/functions.env"
+          nohup supabase functions serve --import-map supabase/functions/import_map.json --env-file "$RUNNER_TEMP/functions.env" \
+            > "$RUNNER_TEMP/functions.log" 2>&1 &
+          for i in $(seq 1 60); do
+            code="$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS http://127.0.0.1:54321/functions/v1/website-inquiry || true)"
+            if [ "$code" = "204" ]; then echo "PASS: inquiry function is serving"; break; fi
+            sleep 3
+          done
+          [ "$code" = "204" ] || { echo "FAIL: functions did not start"; tail -40 "$RUNNER_TEMP/functions.log"; exit 1; }
+
+      - name: Run the live certification
+        env:
+          CERT_RESULTS_FILE: ${{ runner.temp }}/website-certification-results.json
+        run: node scripts/website-certification/certify.mjs
+
+      - name: Upload results (no credentials)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: website-certification-results
+          path: ${{ runner.temp }}/website-certification-results.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Stop and destroy the local stack
+        if: always()
+        run: supabase stop --no-backup
