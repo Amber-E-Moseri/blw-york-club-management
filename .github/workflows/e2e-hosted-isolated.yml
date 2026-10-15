@@ -34,7 +34,10 @@ jobs:
     steps:
       - name: Reject an unpinned candidate
         run: |
-          if [[ "$CANDIDATE_SHA" != "fada4a3af3416d9c8943ffa6fb68e377157f9c99" ]]; then echo "candidate_sha must be the frozen candidate fada4a3af3416d9c8943ffa6fb68e377157f9c99" >&2; exit 1; fi
+          case "$CANDIDATE_SHA" in
+            fada4a3af3416d9c8943ffa6fb68e377157f9c99|734b0fed080fdec29d5533fde472cb5c1e7c6855) ;;
+            *) echo "candidate_sha must be an approved candidate: fada4a3af3416d9c8943ffa6fb68e377157f9c99 or 734b0fed080fdec29d5533fde472cb5c1e7c6855" >&2; exit 1 ;;
+          esac
           if [[ ! "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
             echo "candidate_sha must be a full 40-character lowercase SHA" >&2
             exit 1
