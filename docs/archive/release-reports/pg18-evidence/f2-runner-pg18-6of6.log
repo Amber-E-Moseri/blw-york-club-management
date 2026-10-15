@@ -1,0 +1,2855 @@
+== Migration frontier
+frontier baseline (cert_a) matches 096: last=096 applied=97 batch_function=0 people_update_granted=1
+frontier policy layer (cert_n) matches 097: last=097 applied=98 batch_function=1 people_update_granted=1
+frontier grant layer (cert_f2) matches 098: last=098 applied=99 batch_function=1 people_update_granted=0
+frontier concurrency data (cert_f2c) matches 098: last=098 applied=99 batch_function=1 people_update_granted=0
+frontier membership (cert_m100) matches 100: last=100 applied=101 batch_function=1 people_update_granted=0
+
+== baseline reproduction (096) (cert_a, policy layer)
+BEGIN
+CREATE TABLE
+CREATE TABLE
+GRANT
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+INSERT 0 6
+INSERT 0 2
+UPDATE 1
+UPDATE 1
+UPDATE 1
+UPDATE 1
+      set_config      
+----------------------
+ F2 fixture placement
+(1 row)
+
+UPDATE 1
+      set_config      
+----------------------
+ F2 fixture placement
+(1 row)
+
+UPDATE 1
+      set_config      
+----------------------
+ F2 fixture placement
+(1 row)
+
+UPDATE 1
+UPDATE 1
+INSERT 0 1
+INSERT 0 2
+ fixture 
+---------
+ 
+(1 row)
+
+ fixture 
+---------
+ 
+(1 row)
+
+ fixture 
+---------
+ 
+(1 row)
+
+ fixture 
+---------
+ 
+(1 row)
+
+ fixture 
+---------
+ 
+(1 row)
+
+== R1. N1 signup link, reproduced on the baseline (modelled as the auth.users INSERT; no email is sent)
+ cap 
+-----
+ 7
+(1 row)
+
+NOTICE:  PASS | N1a member can read the prospect row before any impostor signs up | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+INSERT 0 1
+NOTICE:  PASS | N1b the impostor profile is linked to the existing prospect person (no verification) | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | N1c no new person row was created by the link | left 7, right 7
+ assert_same 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | N1d member can no longer read the prospect row (linked pending profile hides it) | expect state=none rows=0 | actual state=none rows=0 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N1e impostor session reads the prospect email (pending, pre-approval) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N1f impostor session reads the prospect phone (pending, pre-approval) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+== R2. N2 attribution by staff, reproduced on the baseline
+NOTICE:  PASS | N2a leader inserts a contact attributed to another user succeeds (VULNERABLE) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N2b coordinator inserts attributed to another user succeeds (VULNERABLE) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N2c member spoof is refused (control: the member branch was already correct) | expect state=42501 rows=any | actual state=42501 rows=-1 msg=new row violates row-level security policy for table "contacts"
+ chk 
+-----
+ t
+(1 row)
+
+== R3. N3 contact attribution and identity changes, reproduced on the baseline
+NOTICE:  PASS | N3a leader changes logged_by of a4's contact succeeds (VULNERABLE) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N3b post-state: logged_by was really changed | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | N3c coordinator repoints person_id to another person succeeds (VULNERABLE) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N3d member changes logged_by of own contact matches zero rows (control) | expect state=none rows=0 | actual state=none rows=0 msg=
+ chk 
+-----
+ t
+(1 row)
+
+== R4. follow_up_assignee foreign-key oracle, reproduced on the baseline
+NOTICE:  PASS | FK1 leader sets follow_up_assignee to a NONEXISTENT profile: foreign-key violation | expect state=23503 rows=any | actual state=23503 rows=-1 msg=insert or update on table "contacts" violates foreign key constraint "contacts_follow_up_assignee_fkey"
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | FK2 leader sets follow_up_assignee to a HIDDEN, EXISTING profile: succeeds (ORACLE) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | FK3 the leader can not see that profile (so the success above was not a visibility grant) | expect state=none rows=0 | actual state=none rows=0 msg=
+ chk 
+-----
+ t
+(1 row)
+
+== R5. pre-fix retry order (person before contact), reproduced on the baseline
+ cap 
+-----
+ 7
+(1 row)
+
+ cap 
+-----
+ 4
+(1 row)
+
+NOTICE:  PASS | R5a first attempt: person insert (name only) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R5b first attempt: contact insert with key | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R5c retry: person insert happens before the key is checked | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R5d retry: the contact insert hits the idempotency index (the old code then looks up and returns) | expect state=23505 rows=any | actual state=23505 rows=-1 msg=duplicate key value violates unique constraint "contacts_logged_by_idempotency_key_unique"
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R5e ORPHAN: people grew by 2 while contacts grew by 1 (the retry left one orphan person row) | expected 2, observed 2
+ assert_int 
+------------
+ t
+(1 row)
+
+== R6. pre-fix phone-only retry, reproduced on the baseline
+NOTICE:  PASS | R6a phone-only first attempt: person with phone | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R6b phone-only retry: the person insert is refused by the phone index (the user sees a phone error on a retry) | expect state=23505 rows=any | actual state=23505 rows=-1 msg=duplicate key value violates unique constraint "people_phone_unique"
+ chk 
+-----
+ t
+(1 row)
+
+
+NOTICE:  == F2 SQL VERDICT: 23 checks recorded (declared 23), 0 failed
+ finish 
+--------
+ 
+(1 row)
+
+== END OF BASELINE REPRODUCTION (verdict above). A PASS here means the defect is present on 096.
+ROLLBACK
+
+== remediation: policy layer (cert_n, policy layer)
+BEGIN
+CREATE TABLE
+CREATE TABLE
+GRANT
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+INSERT 0 6
+INSERT 0 2
+UPDATE 1
+UPDATE 1
+UPDATE 1
+UPDATE 1
+      set_config      
+----------------------
+ F2 fixture placement
+(1 row)
+
+UPDATE 1
+      set_config      
+----------------------
+ F2 fixture placement
+(1 row)
+
+UPDATE 1
+      set_config      
+----------------------
+ F2 fixture placement
+(1 row)
+
+UPDATE 1
+UPDATE 1
+INSERT 0 1
+INSERT 0 2
+ fixture 
+---------
+ 
+(1 row)
+
+ fixture 
+---------
+ 
+(1 row)
+
+ fixture 
+---------
+ 
+(1 row)
+
+ fixture 
+---------
+ 
+(1 row)
+
+ fixture 
+---------
+ 
+(1 row)
+
+== A. submit_contact boundary
+NOTICE:  PASS | A01 member fresh submit | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | A02 member hidden applicant email (case and whitespace variant) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | A03 member visible prospect email | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | A04 member, nonexistent cell | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You cannot log a contact in that cell.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | A05 member, other cell c2 | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You cannot log a contact in that cell.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | A06 leader submit in own cell c1 | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | A07 pending applicant submit | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You cannot log contacts from this account.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | A08 anon submit | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for function submit_contact
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | A09 one-character name | expect state=22023 rows=any | actual state=22023 rows=-1 msg=Enter a contact name (2 to 200 characters).
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | A10 malformed email | expect state=22023 rows=any | actual state=22023 rows=-1 msg=Enter a valid email address.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | A11 oversized idempotency key | expect state=22023 rows=any | actual state=22023 rows=-1 msg=The submission key is invalid.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | A12 unassigned cell (NULL) member submit | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+== B. idempotency: a repeated key creates nothing; distinct keys stay independent
+ cap 
+-----
+ 7
+(1 row)
+
+                 cap                  
+--------------------------------------
+ 60187d3a-7b39-4d3e-aeee-63e911d341bc
+(1 row)
+
+ cap 
+-----
+ 13
+(1 row)
+
+NOTICE:  PASS | B01a repeat name-only key: same contact returned | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | B01b one contact for the key, and no new person (people unchanged) | left 13, right 13
+ assert_same 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | B01c same contact id on retry | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | B02 repeat phone-only key with HIDDEN phone (retry) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | B02r retry of the same phone-only key | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | B02s retry added no contact and no claim | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | B03 repeat email-only key with HIDDEN email, different payload | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | B03r retry with a different name and identity | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | B03s retry kept the original contact (one row, original name) | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | B04 distinct keys, same phone-only identity: both succeed | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | B04b second distinct key, same phone | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | B04c two independent contacts for the shared phone | expected 2, observed 2
+ assert_int 
+------------
+ t
+(1 row)
+
+NOTICE:  PASS | B05 same key used by a different member: independent | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | B05b same key from a second logger | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | B05c two rows, one per logger | expected 2, observed 2
+ assert_int 
+------------
+ t
+(1 row)
+
+NOTICE:  PASS | B06 no key (negative control): nothing is deduplicated | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | B06b no key, second call | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | B06c two rows for the keyless submissions | expected 2, observed 2
+ assert_int 
+------------
+ t
+(1 row)
+
+NOTICE:  PASS | B07 pending applicant replays a member key (no leak) | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You cannot log contacts from this account.
+ chk 
+-----
+ t
+(1 row)
+
+           cap            
+--------------------------
+ F2 idempotency cell move
+(1 row)
+
+UPDATE 1
+NOTICE:  PASS | B08 retry after the member moved cell: original contact still returned | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | B08b the retry is the original contact row | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+             cap             
+-----------------------------
+ F2 idempotency cell restore
+(1 row)
+
+UPDATE 1
+== N2. contacts INSERT attribution by role (policy layer: RLS; grants layer: privilege)
+NOTICE:  PASS | N2a leader inserts a contact attributed to member a4 | expect state=42501 rows=any | actual state=42501 rows=-1 msg=new row violates row-level security policy for table "contacts"
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N2b coordinator inserts attributed to a4 | expect state=42501 rows=any | actual state=42501 rows=-1 msg=new row violates row-level security policy for table "contacts"
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N2c admin inserts attributed to a4 | expect state=42501 rows=any | actual state=42501 rows=-1 msg=new row violates row-level security policy for table "contacts"
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N2d member inserts attributed to coordinator a2 | expect state=42501 rows=any | actual state=42501 rows=-1 msg=new row violates row-level security policy for table "contacts"
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N2e leader direct insert, self (positive control for the layer) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N2f member direct insert, self, own cell (positive control for the layer) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N2g member, self, other cell c2 (negative control) | expect state=42501 rows=any | actual state=42501 rows=-1 msg=new row violates row-level security policy for table "contacts"
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N2h no spoofed contact was written | expected 0, observed 0
+ assert_int 
+------------
+ t
+(1 row)
+
+== N3. contacts UPDATE of logged_by and person_id
+NOTICE:  PASS | N3a leader changes logged_by of a4's contact d1 | expect state=42501 rows=any | actual state=42501 rows=-1 msg=The person who logged a contact cannot be changed here.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N3b coordinator changes logged_by of d1 | expect state=42501 rows=any | actual state=42501 rows=-1 msg=The person who logged a contact cannot be changed here.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N3c coordinator repoints person_id of d1 to another person | expect state=42501 rows=any | actual state=42501 rows=-1 msg=The person linked to a contact cannot be changed here.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N3d member changes logged_by of own contact d1 | expect state=none rows=0 | actual state=none rows=0 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N3e leader edits notes of own-cell contact (positive control) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N3g leader moves own-cell contact into cell c2 (WITH CHECK: not a leader of c2) | expect state=42501 rows=any | actual state=42501 rows=-1 msg=new row violates row-level security policy for table "contacts"
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N3f post-state: d1 still logged by a4 and linked to e2 | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+== N3-corr. privileged correction (admin or coordinator, active target, reason, audit)
+NOTICE:  PASS | C01 leader calls correction | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You are not authorised for identity review.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | C02 coordinator, reason too short | expect state=22023 rows=any | actual state=22023 rows=-1 msg=Give a reason (3 to 500 characters).
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | C03 coordinator, PENDING target a6 | expect state=22023 rows=any | actual state=22023 rows=-1 msg=Choose an active user.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | C03b pending target left the contact unchanged | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | C04 coordinator, active target a4, valid reason | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | C04b post-state: d2 now logged by a4 | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | C04c one audit row written for the correction | expected 1, observed 1
+ assert_int 
+------------
+ t
+(1 row)
+
+NOTICE:  PASS | C05 member calls correction | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You are not authorised for identity review.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | C06 coordinator reads the audit table directly | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table contact_attribution_audit
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | C07 owner tries to rewrite an audit row | expect state=42501 rows=any | actual state=42501 rows=-1 msg=Audit records cannot be changed or removed.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | C08 owner correction path is allowed to change logged_by | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+== P2-4. follow_up_assignee: nonexistent and hidden profiles are indistinguishable
+NOTICE:  PASS | F01 member submit, assignee nonexistent | expect state=22023 rows=any | actual state=22023 rows=-1 msg=The follow-up assignee could not be set.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | F02 member submit, assignee hidden existing profile a5 | expect state=22023 rows=any | actual state=22023 rows=-1 msg=The follow-up assignee could not be set.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | F03 member submit, assignee self (legitimate) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | F04 leader submit, assignee member a4 of own cell (legitimate) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | F05 leader UPDATE follow_up_assignee to nonexistent profile | expect state=22023 rows=any | actual state=22023 rows=-1 msg=The follow-up assignee could not be set.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | F06 leader UPDATE follow_up_assignee to hidden profile a5 | expect state=22023 rows=any | actual state=22023 rows=-1 msg=The follow-up assignee could not be set.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | F07 leader UPDATE follow_up_assignee to own-cell member a4 (legitimate) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | F08 coordinator UPDATE follow_up_assignee to a5 (coordinator sees all) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+== P2-3. SECURITY DEFINER search_path and shadowing
+NOTICE:  PASS | S01 every definer function pins search_path to pg_catalog, public, with no pg_temp | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | S02 owner plants a temp function shadowing the normaliser | expect state=none rows=any | actual state=none rows=0 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | S03 member submit with an email, with the shadow in place | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | S04 member submit with a different email, with the shadow in place | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | S05 the shadow was not used: the second email is a fresh identity (claim unique) | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+== R. identity review: authorization, audit, once-only resolution
+NOTICE:  PASS | R01 member lists identity claims | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You are not authorised for identity review.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R02 leader lists identity claims | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You are not authorised for identity review.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R03 coordinator lists open claims | expect state=none rows=any | actual state=none rows=5 msg=
+ chk 
+-----
+ t
+(1 row)
+
+                 cap                  
+--------------------------------------
+ f33b0043-3a04-4627-a3b9-c03fd43480ec
+(1 row)
+
+NOTICE:  PASS | R04 member reveals a claim identity | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You are not authorised for identity review.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R05 coordinator reveals with a short reason | expect state=22023 rows=any | actual state=22023 rows=-1 msg=Give a reason (3 to 500 characters).
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R06 coordinator reveals with a valid reason | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R06b the reveal wrote a read-audit row | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | R07 admin reveals a person identity | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R08 leader reveals a person identity | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You are not authorised for identity review.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R09 coordinator attaches to a candidate that is not in the claim | expect state=22023 rows=any | actual state=22023 rows=-1 msg=Choose one of the matching people.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R10 coordinator keeps the claim separate | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R10b post-state: claim kept_separate, raw identity removed | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | R11 coordinator resolves the same claim again | expect state=P0001 rows=any | actual state=P0001 rows=-1 msg=This review is no longer open.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R12 owner tampers with the review audit | expect state=42501 rows=any | actual state=42501 rows=-1 msg=Audit records cannot be changed or removed.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R13 member reads identity_claims directly | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table identity_claims
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R14 coordinator reads the read-audit directly | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table identity_read_audit
+ chk 
+-----
+ t
+(1 row)
+
+== M. existing merge behaviour, restored (merge_people)
+                 cap                  
+--------------------------------------
+ c3b5aa6c-fb06-4e34-98a3-9f6d1886451e
+(1 row)
+
+NOTICE:  PASS | M01 member calls merge_people | expect state=P0001 rows=any | actual state=P0001 rows=-1 msg=Not authorised to merge people.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | M02 leader calls merge_people | expect state=P0001 rows=any | actual state=P0001 rows=-1 msg=Not authorised to merge people.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | M03 merge a person into itself | expect state=P0001 rows=any | actual state=P0001 rows=-1 msg=Cannot merge a person into themselves.
+ chk 
+-----
+ t
+(1 row)
+
+                 cap                  
+--------------------------------------
+ 3df8bf02-324d-4db8-a334-e50984b79fdc
+(1 row)
+
+NOTICE:  PASS | M04 coordinator merges a duplicate person into the prospect | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | M04b post-state: the merged contact now points at the prospect and the source person is removed | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | M05 owner-only merge_people cannot be called by anon | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for function merge_people
+ chk 
+-----
+ t
+(1 row)
+
+== E. direct write and read bypass, by layer
+NOTICE:  PASS | E01 member direct INSERT into people | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | E02 member reads people.email of the hidden applicant | expect state=none rows=0 | actual state=none rows=0 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | E03 member reads id and full_name | expect state=none rows=any | actual state=none rows=24 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | E04 member calls find_person_by_email | expect state=none rows=any | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | E05 member UPDATE contacts.person_id | expect state=none rows=0 | actual state=none rows=0 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | E06 service_role UPDATE contacts.person_id (guard trigger, both layers) | expect state=42501 rows=any | actual state=42501 rows=-1 msg=The person linked to a contact cannot be changed here.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | E07 anon reads people | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table people
+ chk 
+-----
+ t
+(1 row)
+
+
+== FO. follow_up_assignee: nonexistent and hidden profiles produce IDENTICAL messages, not only equal SQLSTATEs
+NOTICE:  PASS | FO1 direct update: nonexistent and hidden assignee raise the same message (and both are refused) | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | FO2 submit: nonexistent and hidden assignee raise the same message | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+== X. inactive accounts: no contact reads through logged_by; correction refuses an inactive target
+NOTICE:  PASS | X01 owner deactivates member a4 | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | X02 deactivated member reads the contacts they logged (negative) | expect state=none rows=0 | actual state=none rows=0 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | X03 owner reactivates a4 | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+ cap 
+-----
+ 17
+(1 row)
+
+NOTICE:  PASS | X04 positive control: the reactivated member reads their contacts again | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | X05 owner deactivates account a5 | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | X06 correction to an INACTIVE target is refused | expect state=22023 rows=any | actual state=22023 rows=-1 msg=Choose an active user.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | X07 owner reactivates a5 | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | X08 owner marks a5 rejected | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | X09 correction to a REJECTED target is refused | expect state=22023 rows=any | actual state=22023 rows=-1 msg=Choose an active user.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | X10 owner marks a5 pending | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | X11 correction to a PENDING target is refused | expect state=22023 rows=any | actual state=22023 rows=-1 msg=Choose an active user.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | X12 owner reactivates a5 after the status checks | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | X13 positive control: correction to an ACTIVE target succeeds (d2 to a4) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | X14 post-state: d2 now logged by a4 | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | X15 restore d2 to a3 | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | X16 post-state: d2 restored to a3 | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+== P. canonical identity: direct writes restricted; audited staff RPC is the only edit path
+NOTICE:  PASS | P00 owner inserts a disposable person for the delete check | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | P01 coordinator direct UPDATE of canonical identity | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | P02 coordinator direct DELETE of canonical identity | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | P03 coordinator RPC with a valid reason (phone correction) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | P04 post-state: the phone changed and exactly one audit row records the field, not the value | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | P05 RPC with a short reason is refused | expect state=22023 rows=any | actual state=22023 rows=-1 msg=Give a reason (3 to 500 characters).
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | P06 RPC to an email that belongs to another person is refused | expect state=P0001 rows=any | actual state=P0001 rows=-1 msg=That email or phone already belongs to another person.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | P07 member calls the identity RPC | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You are not authorised for identity review.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | P08 RPC with no change is refused | expect state=P0001 rows=any | actual state=P0001 rows=-1 msg=Nothing to change.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | P09 RPC to a phone that belongs to another person is refused | expect state=P0001 rows=any | actual state=P0001 rows=-1 msg=That email or phone already belongs to another person.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | P10 authenticated direct INSERT into the identity audit is refused | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table person_identity_audit
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | P11 owner UPDATE of an identity audit row is refused (append-only) | expect state=42501 rows=any | actual state=42501 rows=-1 msg=Audit records cannot be changed or removed.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | P12 owner DELETE of an identity audit row is refused (append-only) | expect state=42501 rows=any | actual state=42501 rows=-1 msg=Audit records cannot be changed or removed.
+ chk 
+-----
+ t
+(1 row)
+
+== S. definer functions: every one pins the path without pg_temp, and none is executable by anon or PUBLIC
+NOTICE:  PASS | S07 every SECURITY DEFINER function in public pins search_path to pg_catalog, public (no pg_temp) | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | S08 no SECURITY DEFINER function in public is executable by anon or PUBLIC | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  == F2 SQL VERDICT: 134 checks recorded (declared 134), 0 failed
+ finish 
+--------
+ 
+(1 row)
+
+== END OF SUITE (verdict above)
+ROLLBACK
+
+== remediation: grant layer (cert_f2, grants layer)
+BEGIN
+CREATE TABLE
+CREATE TABLE
+GRANT
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+INSERT 0 6
+INSERT 0 2
+UPDATE 1
+UPDATE 1
+UPDATE 1
+UPDATE 1
+      set_config      
+----------------------
+ F2 fixture placement
+(1 row)
+
+UPDATE 1
+      set_config      
+----------------------
+ F2 fixture placement
+(1 row)
+
+UPDATE 1
+      set_config      
+----------------------
+ F2 fixture placement
+(1 row)
+
+UPDATE 1
+UPDATE 1
+INSERT 0 1
+INSERT 0 2
+ fixture 
+---------
+ 
+(1 row)
+
+ fixture 
+---------
+ 
+(1 row)
+
+ fixture 
+---------
+ 
+(1 row)
+
+ fixture 
+---------
+ 
+(1 row)
+
+ fixture 
+---------
+ 
+(1 row)
+
+== A. submit_contact boundary
+NOTICE:  PASS | A01 member fresh submit | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | A02 member hidden applicant email (case and whitespace variant) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | A03 member visible prospect email | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | A04 member, nonexistent cell | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You cannot log a contact in that cell.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | A05 member, other cell c2 | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You cannot log a contact in that cell.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | A06 leader submit in own cell c1 | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | A07 pending applicant submit | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You cannot log contacts from this account.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | A08 anon submit | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for function submit_contact
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | A09 one-character name | expect state=22023 rows=any | actual state=22023 rows=-1 msg=Enter a contact name (2 to 200 characters).
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | A10 malformed email | expect state=22023 rows=any | actual state=22023 rows=-1 msg=Enter a valid email address.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | A11 oversized idempotency key | expect state=22023 rows=any | actual state=22023 rows=-1 msg=The submission key is invalid.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | A12 unassigned cell (NULL) member submit | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+== B. idempotency: a repeated key creates nothing; distinct keys stay independent
+ cap 
+-----
+ 7
+(1 row)
+
+                 cap                  
+--------------------------------------
+ 16e41441-2aef-465a-b564-5599febac970
+(1 row)
+
+ cap 
+-----
+ 13
+(1 row)
+
+NOTICE:  PASS | B01a repeat name-only key: same contact returned | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | B01b one contact for the key, and no new person (people unchanged) | left 13, right 13
+ assert_same 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | B01c same contact id on retry | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | B02 repeat phone-only key with HIDDEN phone (retry) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | B02r retry of the same phone-only key | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | B02s retry added no contact and no claim | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | B03 repeat email-only key with HIDDEN email, different payload | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | B03r retry with a different name and identity | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | B03s retry kept the original contact (one row, original name) | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | B04 distinct keys, same phone-only identity: both succeed | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | B04b second distinct key, same phone | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | B04c two independent contacts for the shared phone | expected 2, observed 2
+ assert_int 
+------------
+ t
+(1 row)
+
+NOTICE:  PASS | B05 same key used by a different member: independent | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | B05b same key from a second logger | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | B05c two rows, one per logger | expected 2, observed 2
+ assert_int 
+------------
+ t
+(1 row)
+
+NOTICE:  PASS | B06 no key (negative control): nothing is deduplicated | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | B06b no key, second call | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | B06c two rows for the keyless submissions | expected 2, observed 2
+ assert_int 
+------------
+ t
+(1 row)
+
+NOTICE:  PASS | B07 pending applicant replays a member key (no leak) | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You cannot log contacts from this account.
+ chk 
+-----
+ t
+(1 row)
+
+           cap            
+--------------------------
+ F2 idempotency cell move
+(1 row)
+
+UPDATE 1
+NOTICE:  PASS | B08 retry after the member moved cell: original contact still returned | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | B08b the retry is the original contact row | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+             cap             
+-----------------------------
+ F2 idempotency cell restore
+(1 row)
+
+UPDATE 1
+== N2. contacts INSERT attribution by role (policy layer: RLS; grants layer: privilege)
+NOTICE:  PASS | N2a leader inserts a contact attributed to member a4 | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table contacts
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N2b coordinator inserts attributed to a4 | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table contacts
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N2c admin inserts attributed to a4 | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table contacts
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N2d member inserts attributed to coordinator a2 | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table contacts
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N2e leader direct insert, self (positive control for the layer) | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table contacts
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N2f member direct insert, self, own cell (positive control for the layer) | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table contacts
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N2g member, self, other cell c2 (negative control) | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table contacts
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N2h no spoofed contact was written | expected 0, observed 0
+ assert_int 
+------------
+ t
+(1 row)
+
+== N3. contacts UPDATE of logged_by and person_id
+NOTICE:  PASS | N3a leader changes logged_by of a4's contact d1 | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table contacts
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N3b coordinator changes logged_by of d1 | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table contacts
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N3c coordinator repoints person_id of d1 to another person | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table contacts
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N3d member changes logged_by of own contact d1 | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table contacts
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N3e leader edits notes of own-cell contact (positive control) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N3g leader moves own-cell contact into cell c2 (WITH CHECK: not a leader of c2) | expect state=42501 rows=any | actual state=42501 rows=-1 msg=new row violates row-level security policy for table "contacts"
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | N3f post-state: d1 still logged by a4 and linked to e2 | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+== N3-corr. privileged correction (admin or coordinator, active target, reason, audit)
+NOTICE:  PASS | C01 leader calls correction | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You are not authorised for identity review.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | C02 coordinator, reason too short | expect state=22023 rows=any | actual state=22023 rows=-1 msg=Give a reason (3 to 500 characters).
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | C03 coordinator, PENDING target a6 | expect state=22023 rows=any | actual state=22023 rows=-1 msg=Choose an active user.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | C03b pending target left the contact unchanged | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | C04 coordinator, active target a4, valid reason | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | C04b post-state: d2 now logged by a4 | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | C04c one audit row written for the correction | expected 1, observed 1
+ assert_int 
+------------
+ t
+(1 row)
+
+NOTICE:  PASS | C05 member calls correction | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You are not authorised for identity review.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | C06 coordinator reads the audit table directly | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table contact_attribution_audit
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | C07 owner tries to rewrite an audit row | expect state=42501 rows=any | actual state=42501 rows=-1 msg=Audit records cannot be changed or removed.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | C08 owner correction path is allowed to change logged_by | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+== P2-4. follow_up_assignee: nonexistent and hidden profiles are indistinguishable
+NOTICE:  PASS | F01 member submit, assignee nonexistent | expect state=22023 rows=any | actual state=22023 rows=-1 msg=The follow-up assignee could not be set.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | F02 member submit, assignee hidden existing profile a5 | expect state=22023 rows=any | actual state=22023 rows=-1 msg=The follow-up assignee could not be set.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | F03 member submit, assignee self (legitimate) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | F04 leader submit, assignee member a4 of own cell (legitimate) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | F05 leader UPDATE follow_up_assignee to nonexistent profile | expect state=22023 rows=any | actual state=22023 rows=-1 msg=The follow-up assignee could not be set.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | F06 leader UPDATE follow_up_assignee to hidden profile a5 | expect state=22023 rows=any | actual state=22023 rows=-1 msg=The follow-up assignee could not be set.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | F07 leader UPDATE follow_up_assignee to own-cell member a4 (legitimate) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | F08 coordinator UPDATE follow_up_assignee to a5 (coordinator sees all) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+== P2-3. SECURITY DEFINER search_path and shadowing
+NOTICE:  PASS | S01 every definer function pins search_path to pg_catalog, public, with no pg_temp | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | S02 owner plants a temp function shadowing the normaliser | expect state=none rows=any | actual state=none rows=0 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | S03 member submit with an email, with the shadow in place | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | S04 member submit with a different email, with the shadow in place | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | S05 the shadow was not used: the second email is a fresh identity (claim unique) | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+== R. identity review: authorization, audit, once-only resolution
+NOTICE:  PASS | R01 member lists identity claims | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You are not authorised for identity review.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R02 leader lists identity claims | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You are not authorised for identity review.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R03 coordinator lists open claims | expect state=none rows=any | actual state=none rows=5 msg=
+ chk 
+-----
+ t
+(1 row)
+
+                 cap                  
+--------------------------------------
+ 1253b352-0798-42ab-a6d6-35061e199706
+(1 row)
+
+NOTICE:  PASS | R04 member reveals a claim identity | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You are not authorised for identity review.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R05 coordinator reveals with a short reason | expect state=22023 rows=any | actual state=22023 rows=-1 msg=Give a reason (3 to 500 characters).
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R06 coordinator reveals with a valid reason | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R06b the reveal wrote a read-audit row | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | R07 admin reveals a person identity | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R08 leader reveals a person identity | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You are not authorised for identity review.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R09 coordinator attaches to a candidate that is not in the claim | expect state=22023 rows=any | actual state=22023 rows=-1 msg=Choose one of the matching people.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R10 coordinator keeps the claim separate | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R10b post-state: claim kept_separate, raw identity removed | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | R11 coordinator resolves the same claim again | expect state=P0001 rows=any | actual state=P0001 rows=-1 msg=This review is no longer open.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R12 owner tampers with the review audit | expect state=42501 rows=any | actual state=42501 rows=-1 msg=Audit records cannot be changed or removed.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R13 member reads identity_claims directly | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table identity_claims
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R14 coordinator reads the read-audit directly | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table identity_read_audit
+ chk 
+-----
+ t
+(1 row)
+
+== M. existing merge behaviour, restored (merge_people)
+                 cap                  
+--------------------------------------
+ 2522de1e-68d0-4fb4-ae18-636b6a6da3bf
+(1 row)
+
+NOTICE:  PASS | M01 member calls merge_people | expect state=P0001 rows=any | actual state=P0001 rows=-1 msg=Not authorised to merge people.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | M02 leader calls merge_people | expect state=P0001 rows=any | actual state=P0001 rows=-1 msg=Not authorised to merge people.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | M03 merge a person into itself | expect state=P0001 rows=any | actual state=P0001 rows=-1 msg=Cannot merge a person into themselves.
+ chk 
+-----
+ t
+(1 row)
+
+                 cap                  
+--------------------------------------
+ 17348034-2edd-4e3e-a1f8-0c3a79f8b118
+(1 row)
+
+NOTICE:  PASS | M04 coordinator merges a duplicate person into the prospect | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | M04b post-state: the merged contact now points at the prospect and the source person is removed | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | M05 owner-only merge_people cannot be called by anon | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for function merge_people
+ chk 
+-----
+ t
+(1 row)
+
+== E. direct write and read bypass, by layer
+NOTICE:  PASS | E01 member direct INSERT into people | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table people
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | E02 member reads people.email of the hidden applicant | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table people
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | E03 member reads id and full_name | expect state=none rows=any | actual state=none rows=23 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | E04 member calls find_person_by_email | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for function find_person_by_email
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | E05 member UPDATE contacts.person_id | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table contacts
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | E06 service_role UPDATE contacts.person_id (guard trigger, both layers) | expect state=42501 rows=any | actual state=42501 rows=-1 msg=The person linked to a contact cannot be changed here.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | E07 anon reads people | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table people
+ chk 
+-----
+ t
+(1 row)
+
+
+== FO. follow_up_assignee: nonexistent and hidden profiles produce IDENTICAL messages, not only equal SQLSTATEs
+NOTICE:  PASS | FO1 direct update: nonexistent and hidden assignee raise the same message (and both are refused) | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | FO2 submit: nonexistent and hidden assignee raise the same message | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+== X. inactive accounts: no contact reads through logged_by; correction refuses an inactive target
+NOTICE:  PASS | X01 owner deactivates member a4 | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | X02 deactivated member reads the contacts they logged (negative) | expect state=none rows=0 | actual state=none rows=0 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | X03 owner reactivates a4 | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+ cap 
+-----
+ 16
+(1 row)
+
+NOTICE:  PASS | X04 positive control: the reactivated member reads their contacts again | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | X05 owner deactivates account a5 | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | X06 correction to an INACTIVE target is refused | expect state=22023 rows=any | actual state=22023 rows=-1 msg=Choose an active user.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | X07 owner reactivates a5 | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | X08 owner marks a5 rejected | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | X09 correction to a REJECTED target is refused | expect state=22023 rows=any | actual state=22023 rows=-1 msg=Choose an active user.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | X10 owner marks a5 pending | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | X11 correction to a PENDING target is refused | expect state=22023 rows=any | actual state=22023 rows=-1 msg=Choose an active user.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | X12 owner reactivates a5 after the status checks | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | X13 positive control: correction to an ACTIVE target succeeds (d2 to a4) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | X14 post-state: d2 now logged by a4 | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | X15 restore d2 to a3 | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | X16 post-state: d2 restored to a3 | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+== P. canonical identity: direct writes restricted; audited staff RPC is the only edit path
+NOTICE:  PASS | P00 owner inserts a disposable person for the delete check | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | P01 coordinator direct UPDATE of canonical identity | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table people
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | P02 coordinator direct DELETE of canonical identity | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table people
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | P03 coordinator RPC with a valid reason (phone correction) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | P04 post-state: the phone changed and exactly one audit row records the field, not the value | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | P05 RPC with a short reason is refused | expect state=22023 rows=any | actual state=22023 rows=-1 msg=Give a reason (3 to 500 characters).
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | P06 RPC to an email that belongs to another person is refused | expect state=P0001 rows=any | actual state=P0001 rows=-1 msg=That email or phone already belongs to another person.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | P07 member calls the identity RPC | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You are not authorised for identity review.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | P08 RPC with no change is refused | expect state=P0001 rows=any | actual state=P0001 rows=-1 msg=Nothing to change.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | P09 RPC to a phone that belongs to another person is refused | expect state=P0001 rows=any | actual state=P0001 rows=-1 msg=That email or phone already belongs to another person.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | P10 authenticated direct INSERT into the identity audit is refused | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table person_identity_audit
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | P11 owner UPDATE of an identity audit row is refused (append-only) | expect state=42501 rows=any | actual state=42501 rows=-1 msg=Audit records cannot be changed or removed.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | P12 owner DELETE of an identity audit row is refused (append-only) | expect state=42501 rows=any | actual state=42501 rows=-1 msg=Audit records cannot be changed or removed.
+ chk 
+-----
+ t
+(1 row)
+
+== S. definer functions: every one pins the path without pg_temp, and none is executable by anon or PUBLIC
+NOTICE:  PASS | S07 every SECURITY DEFINER function in public pins search_path to pg_catalog, public (no pg_temp) | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | S08 no SECURITY DEFINER function in public is executable by anon or PUBLIC | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  == F2 SQL VERDICT: 134 checks recorded (declared 134), 0 failed
+ finish 
+--------
+ 
+(1 row)
+
+== END OF SUITE (verdict above)
+ROLLBACK
+
+== import and replay (cert_f2, grants layer)
+BEGIN
+CREATE TABLE
+CREATE TABLE
+GRANT
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+INSERT 0 6
+INSERT 0 2
+UPDATE 1
+UPDATE 1
+UPDATE 1
+UPDATE 1
+      set_config      
+----------------------
+ F2 fixture placement
+(1 row)
+
+UPDATE 1
+      set_config      
+----------------------
+ F2 fixture placement
+(1 row)
+
+UPDATE 1
+      set_config      
+----------------------
+ F2 fixture placement
+(1 row)
+
+UPDATE 1
+UPDATE 1
+INSERT 0 1
+INSERT 0 2
+ fixture 
+---------
+ 
+(1 row)
+
+ fixture 
+---------
+ 
+(1 row)
+
+ fixture 
+---------
+ 
+(1 row)
+
+ fixture 
+---------
+ 
+(1 row)
+
+ fixture 
+---------
+ 
+(1 row)
+
+== I. import attempt identity
+ cap 
+-----
+ 3
+(1 row)
+
+NOTICE:  PASS | I01 first attempt: three rows imported | expected 3, observed 3
+ assert_int 
+------------
+ t
+(1 row)
+
+NOTICE:  PASS | I02 first attempt: tags written once (vip deduplicated, trimmed north, x) = 3 | expected 3, observed 3
+ assert_int 
+------------
+ t
+(1 row)
+
+NOTICE:  PASS | I03 first attempt: one follow-up (row 1 only) | expected 1, observed 1
+ assert_int 
+------------
+ t
+(1 row)
+
+  cap  
+-------
+ 3,3,1
+(1 row)
+
+ cap 
+-----
+ 3
+(1 row)
+
+NOTICE:  PASS | I04 COMPLETE retry: all three rows reported as already imported (not imported again) | expected 3, observed 3
+ assert_int 
+------------
+ t
+(1 row)
+
+NOTICE:  PASS | I05 COMPLETE retry: contacts, tags and follow-ups unchanged | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+ cap 
+-----
+ 1
+(1 row)
+
+NOTICE:  PASS | I06 partial retry: only the new row is imported | expected 1, observed 1
+ assert_int 
+------------
+ t
+(1 row)
+
+NOTICE:  PASS | I07 partial retry: exactly one new contact added (no duplicate of rows 1 and 2) | expected 4, observed 4
+ assert_int 
+------------
+ t
+(1 row)
+
+NOTICE:  PASS | I08 partial retry: the new row has its own tag, and completed rows gained none | expected 4, observed 4
+ assert_int 
+------------
+ t
+(1 row)
+
+ cap 
+-----
+ 3
+(1 row)
+
+NOTICE:  PASS | I09 independent attempt with identical content: three new rows imported | expected 3, observed 3
+ assert_int 
+------------
+ t
+(1 row)
+
+NOTICE:  PASS | I10 independent attempt: its own tags written (3 more) | expected 3, observed 3
+ assert_int 
+------------
+ t
+(1 row)
+
+NOTICE:  PASS | I11 independent attempt: its own follow-up (1 more) | expected 1, observed 1
+ assert_int 
+------------
+ t
+(1 row)
+
+ cap 
+-----
+ 1
+(1 row)
+
+NOTICE:  PASS | I12 refused row reported as rejected | expected 1, observed 1
+ assert_int 
+------------
+ t
+(1 row)
+
+NOTICE:  PASS | I13 refused row left no contact behind | expected 0, observed 0
+ assert_int 
+------------
+ t
+(1 row)
+
+NOTICE:  PASS | I14 refused row left no orphan tag behind | expected 0, observed 0
+ assert_int 
+------------
+ t
+(1 row)
+
+ cap 
+-----
+ 1
+(1 row)
+
+NOTICE:  PASS | I15 mixed batch: the authorized row imports, the other is refused | expected 1, observed 1
+ assert_int 
+------------
+ t
+(1 row)
+
+NOTICE:  == F2 SQL VERDICT: 15 checks recorded (declared 15), 0 failed
+ finish 
+--------
+ 
+(1 row)
+
+ROLLBACK
+
+== membership and merge (cert_m100, grants layer)
+BEGIN
+CREATE TABLE
+CREATE TABLE
+GRANT
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+INSERT 0 6
+INSERT 0 2
+UPDATE 1
+UPDATE 1
+UPDATE 1
+UPDATE 1
+      set_config      
+----------------------
+ F2 fixture placement
+(1 row)
+
+UPDATE 1
+      set_config      
+----------------------
+ F2 fixture placement
+(1 row)
+
+UPDATE 1
+      set_config      
+----------------------
+ F2 fixture placement
+(1 row)
+
+UPDATE 1
+UPDATE 1
+INSERT 0 1
+INSERT 0 2
+ fixture 
+---------
+ 
+(1 row)
+
+ fixture 
+---------
+ 
+(1 row)
+
+ fixture 
+---------
+ 
+(1 row)
+
+ fixture 
+---------
+ 
+(1 row)
+
+ fixture 
+---------
+ 
+(1 row)
+
+== MB0. setup: persons, a contact, prior history, a legacy account, and an active member with a membership
+NOTICE:  PASS | MB0a owner creates merge source person f3 | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | MB0b owner links contact d3 to merge source f3 | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | MB0c owner writes a pre-merge transition for the source | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | MB0d owner creates a second person f4 with an ACTIVE membership | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | MB0e owner creates a legacy account f5 (its profile is created by the signup trigger) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | MB0f owner links that profile to the merge source f3 | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | MB0g owner writes two HISTORICAL memberships for f3 (inactive and rejected) | expect state=none rows=2 | actual state=none rows=2 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | MB0h owner creates person f7 (a pending application) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | MB0i owner creates person f9 with contact d4 (for the atomicity fault) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+                 cap                  
+--------------------------------------
+ 12fa0aef-8fd3-4696-9633-0f1940f012dd
+(1 row)
+
+NOTICE:  PASS | MB0j owner gives member a4 their own ACTIVE membership (for the own-row read check) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+                 cap                  
+--------------------------------------
+ ccd74991-85f8-46a3-b3b2-b132b8674c56
+(1 row)
+
+ fixture 
+---------
+ 
+(1 row)
+
+== E. establishing a membership goes through establish_membership: staff only, one transaction
+NOTICE:  PASS | E01 coordinator establishes an active membership for prospect e2 (RPC) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | E02 post-state: e2 has exactly one active membership | expected 1, observed 1
+ assert_int 
+------------
+ t
+(1 row)
+
+NOTICE:  PASS | E03 post-state: the transition records the coordinator as performed_by (attribution) | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | E04 post-state: the contacts of e2 carry the membership flag (d1 and d2) | expected 2, observed 2
+ assert_int 
+------------
+ t
+(1 row)
+
+NOTICE:  PASS | E05 member a4 cannot establish a membership | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You are not authorised for identity review.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | E06 cell leader a3 cannot establish a membership | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You are not authorised for identity review.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | E07 pending applicant a6 cannot establish a membership | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You are not authorised for identity review.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | E08 an anonymous caller cannot establish a membership | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for function establish_membership
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | E09 establishing for a person that does not exist is refused | expect state=P0002 rows=any | actual state=P0002 rows=-1 msg=Person not found.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | E10 a second ACTIVE membership for e2 is refused (one active per person) | expect state=23505 rows=any | actual state=23505 rows=-1 msg=duplicate key value violates unique constraint "memberships_one_active_per_person"
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | E11 post-state: the refused duplicate left no transition and still one active membership | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | E12 a status other than active or pending is refused | expect state=22023 rows=any | actual state=22023 rows=-1 msg=Choose active or pending.
+ chk 
+-----
+ t
+(1 row)
+
+== D. direct writes to memberships and transitions are refused for every API role
+NOTICE:  PASS | D01 coordinator cannot INSERT a membership directly | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table memberships
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | D02 coordinator cannot UPDATE a membership directly | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table memberships
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | D03 coordinator cannot INSERT a transition directly | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table membership_transitions
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | D04 coordinator cannot DELETE a membership directly | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table memberships
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | D05 post-state: f4 still holds its active membership after the refused writes | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+== R. reading memberships: staff see all, an active member sees only their own, others see none
+NOTICE:  PASS | R01 coordinator reads the active membership of e2 | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R02 active member a4 reads NO membership of another person (e2) | expect state=none rows=0 | actual state=none rows=0 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R03 active member a4 reads their OWN membership | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R04 pending applicant a6 reads NO membership at all | expect state=none rows=0 | actual state=none rows=0 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R05 owner marks a5 rejected | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R06 rejected account a5 reads NO membership at all | expect state=none rows=0 | actual state=none rows=0 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R07 owner restores a5 to active | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | R08 active member a4 reads NO membership transition history | expect state=none rows=0 | actual state=none rows=0 msg=
+ chk 
+-----
+ t
+(1 row)
+
+ cap 
+-----
+ 1
+(1 row)
+
+NOTICE:  PASS | R09 positive control: the coordinator reads the transition history of e2 | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+== H. history and attribution: transitions are made by the RPC, record the caller, and follow the allowed path
+NOTICE:  PASS | H01 coordinator establishes a PENDING application for f7 | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+                 cap                  
+--------------------------------------
+ 301aa472-defb-4284-ae07-5694716a1acd
+(1 row)
+
+NOTICE:  PASS | H02 coordinator approves the pending membership (pending -> active) | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | H03 post-state: f7 is active, and the approval row names the coordinator as performed_by | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | H04 post-state: f7 has exactly two transitions (establishment and approval) | expected 2, observed 2
+ assert_int 
+------------
+ t
+(1 row)
+
+NOTICE:  PASS | H05 member a4 cannot transition a membership | expect state=42501 rows=any | actual state=42501 rows=-1 msg=You are not authorised for identity review.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | H06 an active membership cannot go back to pending (not an allowed change) | expect state=22023 rows=any | actual state=22023 rows=-1 msg=That membership change is not allowed.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | H07 post-state: the refused changes left f7 active, with no extra transition | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | H08 attribution: every transition of f7 names a real staff account (performed_by is never empty) | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | H09 owner-context constraint check: a pending row can coexist with the active membership of e2 | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | H10 owner-context constraint check: rejected history rows may repeat for e2 | expect state=none rows=2 | actual state=none rows=2 msg=
+ chk 
+-----
+ t
+(1 row)
+
+== F. atomicity: a failure after the membership row is written rolls the whole establishment back
+NOTICE:  PASS | F00 owner installs a fault that fails only the transition of the F2 fault test | expect state=none rows=any | actual state=none rows=0 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | F01 owner attaches the fault to transitions noted F2 fault injection | expect state=none rows=any | actual state=none rows=0 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | F02 the establishment that hits the fault fails with the injected SQLSTATE | expect state=P0001 rows=any | actual state=P0001 rows=-1 msg=F2 injected fault
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | F03 post-state: the membership row written before the fault was rolled back (f9 has none) | expected 0, observed 0
+ assert_int 
+------------
+ t
+(1 row)
+
+NOTICE:  PASS | F04 post-state: the contact flag on f9 was not set by the failed establishment | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | F05 post-state: no transition for the failed establishment survived | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+== M. merge: refusal and authorization
+NOTICE:  PASS | M01 member a4 cannot merge the source into e2 | expect state=P0001 rows=any | actual state=P0001 rows=-1 msg=Not authorised to merge people.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | M02 post-state: the refused merge left the source person and its contact untouched | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | M03 coordinator cannot merge two people who both hold an ACTIVE membership | expect state=P0001 rows=any | actual state=P0001 rows=-1 msg=Cannot merge people with two active memberships.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | M04 post-state: both persons with active memberships still exist, unchanged | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+== P. pending applicant identity is not changed by a merge or a direct write
+NOTICE:  PASS | P01 coordinator cannot write the applicant identity directly | expect state=42501 rows=any | actual state=42501 rows=-1 msg=permission denied for table people
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | P02 member cannot merge the pending applicant away | expect state=P0001 rows=any | actual state=P0001 rows=-1 msg=Not authorised to merge people.
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | P03 post-state: the applicant person still holds the hidden email and phone | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+== G. merge: a coordinator merge repoints contacts, transitions, memberships and profiles, then removes the source
+NOTICE:  PASS | G01 coordinator merges source f3 into prospect e2 | expect state=none rows=1 | actual state=none rows=1 msg=
+ chk 
+-----
+ t
+(1 row)
+
+NOTICE:  PASS | G02 post-state: the source person row is gone | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | G03 post-state: the contact moved from the source to e2 | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | G04 post-state: the pre-merge transition moved to e2 and kept its original notes | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | G05 post-state: a merge transition is recorded against e2 with the given notes | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | G06 post-state: the original contacts of e2 (d1, d2) are untouched | expected 2, observed 2
+ assert_int 
+------------
+ t
+(1 row)
+
+NOTICE:  PASS | G07 post-state: e2 has exactly one active membership after the merge | expected 1, observed 1
+ assert_int 
+------------
+ t
+(1 row)
+
+NOTICE:  PASS | G08 post-state: the source historical memberships moved to e2 (1 inactive, 3 rejected in total) | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  PASS | G09 post-state: the linked profile now points at e2 and no row points at the removed source | post-state
+ assert_true 
+-------------
+ t
+(1 row)
+
+NOTICE:  == F2 SQL VERDICT: 68 checks recorded (declared 68), 0 failed
+ finish 
+--------
+ 
+(1 row)
+
+== END OF MEMBERSHIP SUITE (verdict above)
+ROLLBACK
+
+== concurrency gate (cert_f2c, 20 trials)
+concurrency gate on cert_f2c: trials=20 batches=40 rows_expected=80 imported=80 refused=0 deadlocks=0 errors=0
+PASS: no deadlock, no refusal, no error, exact row count
+
+== F2 certification summary
+  baseline reproduction (096) | exit 0 | F2 SQL VERDICT: 23 checks recorded (declared 23), 0 failed
+  remediation: policy layer | exit 0 | F2 SQL VERDICT: 134 checks recorded (declared 134), 0 failed
+  remediation: grant layer | exit 0 | F2 SQL VERDICT: 134 checks recorded (declared 134), 0 failed
+  import and replay | exit 0 | F2 SQL VERDICT: 15 checks recorded (declared 15), 0 failed
+  membership and merge | exit 0 | F2 SQL VERDICT: 68 checks recorded (declared 68), 0 failed
+  concurrency gate | exit 0 | concurrency gate on cert_f2c: trials=20 batches=40 rows_expected=80 imported=80 refused=0 deadlocks=0 errors=0
+  mandatory runs completed: 6 of 6 (baseline, remediation policy, remediation grants, import, membership, concurrency)
+F2 CERTIFICATION: PASSED

@@ -1,0 +1,29 @@
+[WebServer] (node:22876) [DEP_WEBPACK_DEV_SERVER_ON_AFTER_SETUP_MIDDLEWARE] DeprecationWarning: 'onAfterSetupMiddleware' option is deprecated. Please use the 'setupMiddlewares' option.
+[WebServer] (Use `node --trace-deprecation ...` to show where the warning was created)
+[WebServer] (node:22876) [DEP_WEBPACK_DEV_SERVER_ON_BEFORE_SETUP_MIDDLEWARE] DeprecationWarning: 'onBeforeSetupMiddleware' option is deprecated. Please use the 'setupMiddlewares' option.
+Error: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY and SUPABASE_ANON_KEY are required
+
+   at affected-flows.spec.ts:14
+
+  12 | const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  13 | const anonKey = process.env.SUPABASE_ANON_KEY;
+> 14 | if (!url || !serviceKey || !anonKey) throw new Error('SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY and SUPABASE_ANON_KEY are required');
+     |                                            ^
+  15 | if (!/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url)) throw new Error('affected-flows only runs against a local Supabase stack');
+  16 |
+  17 | // The flows share one dev server and one database. Run them one at a time, with a longer assertion timeout, so a
+    at Object.<anonymous> (C:\Users\moser\AppData\Local\Temp\claude\C--Users-moser-Downloads-BLW-York\02d06928-f1d8-43fb-8883-986f9a9a28c0\scratchpad\wt-sprint\e2e\affected-flows.spec.ts:14:44)
+Error: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY and SUPABASE_ANON_KEY are required
+
+   at release-smoke.spec.ts:11
+
+   9 | const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  10 | const anonKey = process.env.SUPABASE_ANON_KEY;
+> 11 | if (!url || !serviceKey || !anonKey) throw new Error('SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY and SUPABASE_ANON_KEY are required');
+     |                                            ^
+  12 | if (!/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url)) throw new Error('release smoke only runs against a local Supabase stack');
+  13 |
+  14 | const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    at Object.<anonymous> (C:\Users\moser\AppData\Local\Temp\claude\C--Users-moser-Downloads-BLW-York\02d06928-f1d8-43fb-8883-986f9a9a28c0\scratchpad\wt-sprint\e2e\release-smoke.spec.ts:11:44)
+
+pw exit=1

@@ -1,0 +1,37 @@
+PASS  [Fixture] pending applicant has a linked people row created at signup
+PASS  [Admin] admin reads pending applicant people row
+PASS  [Coordinator] coordinator reads pending applicant people row
+PASS  [Cell leader] cell leader of the applicant's (no) cell cannot read the pending people row (leader A)
+PASS  [Cell leader] cell leader B cannot read pending people row
+PASS  [Member] ordinary active member cannot read pending applicant people row
+PASS  [Applicant] pending applicant reads no own people row (099: active-only)
+PASS  [Applicant] another pending applicant cannot read this people row (rejected applicant)
+PASS  [Anon] anon reads no people rows (no table privilege, so the read is refused) :: ERR permission denied for table people
+PASS  [Preserved] active member reads another active member's people row
+PASS  [Preserved] active member reads a walk-in people row (contact search)
+PASS  [Preserved] cell leader reads an active member's people row in own cell
+PASS  [Tightened] rejected account cannot read another member's people row (not an active account)
+PASS  [Preserved] rejected applicant reads no own people row (099: active-only)
+PASS  [Rejected applicant] cell leader cannot read a rejected applicant's people row (095: pending or rejected profiles are staff-only)
+PASS  [Rejected applicant] admin still reads a rejected applicant's people row (positive control, staff visibility)
+PASS  [Lookup] member cannot call the retired email lookup (execute revoked by 098) :: permission denied for function find_person_by_email
+PASS  [Lookup] member cannot probe a pending applicant's email through the lookup (no id leak) :: permission denied for function find_person_by_email
+PASS  [Lookup] admin cannot call the retired email lookup either (staff use get_person_identity) :: permission denied for function find_person_by_email
+PASS  [Lookup] cell leader cannot call the retired email lookup :: permission denied for function find_person_by_email
+PASS  [Lookup] admin resolves a pending applicant's identity through the audited staff read (positive control)
+PASS  [Privacy] cell leader cannot read the pending applicant's email or phone (column not granted, 098) :: permission denied for table people
+PASS  [Privacy] cell leader cannot filter people by the pending email (column not granted, 098) :: permission denied for table people
+PASS  [Write] active member direct insert into people is refused (use submit_contact) :: permission denied for table people
+PASS  [Outreach] active member logs a contact with a new email through submit_contact (contact logging path)
+PASS  [Privacy] member direct insert of a pending applicant's email is refused by privilege, so no unique-index oracle is reachable :: permission denied for table people
+PASS  [Write] ordinary member cannot update another person :: permission denied for table people
+PASS  [Identity] admin changes a walk-in phone through the authorised RPC update_person_identity (audited) :: phone=555-0199
+PASS  [Unauthorized direct UPDATE] admin direct UPDATE of people is refused (identity goes through update_person_identity, 098) :: permission denied for table people
+PASS  [Unauthorized direct DELETE] coordinator direct DELETE of a person is refused (098 revoked DELETE; 045 policy has no effect) :: permission denied for table people
+PASS  [Unauthorized direct DELETE] the walk-in person still exists after the refused delete
+PASS  [Write] ordinary member cannot delete a person (row still exists) :: permission denied for table people
+PASS  [service_role] service_role reads the pending row (BYPASSRLS, documented)
+PASS  [Helpers] anon cannot execute person_has_unapproved_profile
+PASS  [Helpers] authenticated may execute person_has_unapproved_profile and it reports true for the pending row
+
+SUMMARY: 35/35 passed on disposable PGlite (not Supabase)

@@ -1,0 +1,23 @@
+PASS	auth: outsider (active member, not sender) is refused with 403
+PASS	auth: refused dispatch sends nothing and changes no delivery
+PASS	auth: refused dispatch writes no dispatch audit row
+PASS	dispatch: sender dispatch succeeds with HTTP 200
+PASS	dispatch: response reports email accepted=1 failed=1 skipped=1
+PASS	dispatch: response reports one unknown outcome (the 5xx relay), not a silent drop
+PASS	dispatch: response reports push outcomes (none silently dropped)
+PASS	claim: the accepted recipient is recorded as accepted
+PASS	claim: the relay refusal is recorded as failed and not retryable
+PASS	claim: a 5xx relay response leaves the outcome unknown (sending), not re-sent
+PASS	claim: an opted-out recipient is skipped and never sent
+PASS	claim: push deliveries are recorded as failed with a reason and stay retryable (no provider configured)
+PASS	claim: each accepted email is sent exactly once with the per-recipient idempotency key
+PASS	audit: a dispatch audit row is written with actor, role, audience and count
+PASS	audit: the audit row is written before the first provider call
+PASS	replay: second dispatch returns 200
+PASS	replay: no duplicate email is sent
+PASS	replay: the accepted delivery is unchanged
+PASS	replay: every attempt is audited (two dispatch rows)
+PASS	auth: a sender who is no longer active is refused with 403
+PASS	privilege: an authenticated user cannot call claim_deliveries directly (403)
+
+21/21 dispatch compatibility checks passed

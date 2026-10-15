@@ -1,0 +1,36 @@
+PASS	inventory: exact table list (an unexpected new public table fails)
+PASS	inventory: exact view list
+PASS	inventory: no extra schemas
+PASS	ownership: every table is owned by postgres (so supabase_admin defaults never apply)
+PASS	RLS: enabled on every public table
+PASS	grants: anon holds no privilege on any table
+PASS	grants: anon holds no privilege on any view
+PASS	grants: no TRUNCATE / REFERENCES / TRIGGER / MAINTAIN for any API role
+PASS	grants: authenticated privileges match the reviewed matrix exactly
+PASS	grants: service_role matches the reviewed per-table set (none, exact, or full DML)
+PASS	grants: member_directory is read-only for authenticated and unreachable by anon
+PASS	views: security_invoker
+PASS	default ACLs: objects created by postgres in public grant nothing to API roles
+PASS	policies: every policy records its mode (PERMISSIVE or RESTRICTIVE)
+PASS	policies: the RESTRICTIVE set equals the reviewed set (restrictive changed to permissive fails)
+PASS	authorization: profiles has exactly the allow-listed policies (an unexpected policy fails the release gate)
+PASS	authorization: user_profiles has exactly the allow-listed policies (an unexpected policy fails the release gate)
+PASS	authorization: no policy on any table lacks an identity check
+PASS	authorization: no policy accepts "any signed-in account" (every such policy requires an active, approved account)
+PASS	authorization: profiles carries the privileged-column guard trigger
+PASS	identity: email_preferences is keyed by user_id and carries no member_id
+PASS	identity: push_subscriptions is keyed by user_id and carries no member_id
+PASS	identity: push_notification_log is keyed by user_id and carries no member_id
+PASS	identity: email_preferences primary key is user_id
+PASS	identity: push_subscriptions endpoint is unique and user_id is not (many devices per account)
+PASS	functions: exact allow-list (an unexpected new public function fails)
+PASS	functions: security mode, pinned search_path, owner and EXECUTE grants match exactly; PUBLIC and anon never execute
+PASS	functions: no SECURITY DEFINER function places pg_temp on its search path
+PASS	grants: column-level privileges match the reviewed set exactly
+PASS	storage: exact buckets with size and MIME limits
+PASS	storage: exact policy set on storage.objects
+PASS	storage: no policy applies to anon or public
+PASS	signup: on_auth_user_created trigger exists on auth.users
+FAIL	parity: schema fingerprint equals the golden fingerprint	sections differing: tables,functions,column_privileges,default_privileges
+
+33/34 checks passed

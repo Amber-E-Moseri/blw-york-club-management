@@ -1,0 +1,6 @@
+PASS  meetings_publication_gate is recorded as RESTRICTIVE before the change  [meetings_publication_gate | SELECT | {authenticated} | using=(is_meeting_manager(id) OR (is_active_member() AND (published_at IS NOT NULL))) | check= | RESTRICT]
+PASS  the flipped policy is recorded as PERMISSIVE  [meetings_publication_gate | SELECT | {authenticated} | using=(is_meeting_manager(id) OR (is_active_member() AND (published_at IS NOT NULL))) | check= | PERMISSI]
+PASS  the contract checker --same-as reports a mismatch after the mode flip  [FAIL	inventory: exact table list (an unexpected new public table fails)	{"missing":["contact_attribution_audit","identity_claims","identity_read_audit","identit]
+PASS  the mode flip is the only fingerprint difference on meetings  [predicate text identical; only mode differs]
+
+4/4 passed

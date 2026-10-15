@@ -1,0 +1,12 @@
+audit_reason_consumption_pglite_test exit=0
+authz_decisions_pglite_test exit=0
+n1_signup_linking_pglite_test exit=0
+people_privacy_pglite_test exit=1
+audience_specs_insert_exposure_test exit=0
+audit_service_role_grants_test exit=0
+communication_audit_append_only_test exit=0
+member_status_assignment_authz_test exit=0
+policy_mode_regression_test exit=1
+security_gap_regression_test exit=2
+run_sql_certification exit=1
+DONE
