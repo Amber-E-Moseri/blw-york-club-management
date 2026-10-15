@@ -116,7 +116,7 @@ jobs:
 
       - name: Full 101-frontier certification (replay, frontier, membership suite, candidate fingerprint)
         env:
-          F2_DB_ADMIN: postgres
+          F2_DB_ADMIN: supabase_admin
           F2_OUT_DIR: ${{ runner.temp }}/pg17-out
         run: bash scripts/certify-integrated-101.sh
 
