@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/foundation/Button';
 import { Input } from '../components/foundation/Input';
+import { VERIFY_REQUIRED_MESSAGE } from '../lib/auth';
+import { setPendingVerificationEmail } from '../lib/verification/emailOtp';
 import { isConfigured } from '../lib/supabase';
 
 interface LoginProps {
@@ -18,6 +21,12 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
   const [fullName, setFullName] = useState('');
   const [studentNumber, setStudentNumber] = useState('');
   const [localError, setLocalError] = useState('');
+  const navigate = useNavigate();
+
+  const openVerification = (address: string) => {
+    setPendingVerificationEmail(address.trim());
+    navigate('/verify-email');
+  };
 
   const handleSignIn = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +41,10 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
     if (password.length < 6) { setLocalError('Password must be at least 6 characters.'); return; }
     if (password !== confirm) { setLocalError('Passwords do not match.'); return; }
     const ok = await onSignUp(email, password, fullName.trim(), studentNumber.trim() || undefined);
-    if (ok) setMode('done');
+    if (ok) {
+      setPendingVerificationEmail(email.trim());
+      setMode('done');
+    }
   };
 
   return (
@@ -62,10 +74,12 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
           {mode === 'done' && (
             <div className="text-center space-y-4">
               <img src="/logo.png" alt="" className="w-14 h-14 mx-auto" />
-              <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Application submitted!</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Check your email</h2>
               <p className="text-sm text-gray-500">
-                Your account is pending approval by a leader. You'll be able to log in once you're approved.
+                We sent a six-digit code to your email address. Enter it to confirm your address. After that, a leader
+                will review your request.
               </p>
+              <Button fullWidth onClick={() => openVerification(email)}>Enter verification code</Button>
               <Button variant="ghost" onClick={() => setMode('signin')}>Back to Sign In</Button>
             </div>
           )}
@@ -79,6 +93,15 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
                 <Input label="Password" type="password" value={password} onChange={setPassword} placeholder="••••••••" autoComplete="current-password" />
                 {(error || localError) && (
                   <p className="text-xs text-york-600 dark:text-york-400" role="alert">{error || localError}</p>
+                )}
+                {error === VERIFY_REQUIRED_MESSAGE && (
+                  <button
+                    type="button"
+                    onClick={() => openVerification(email)}
+                    className="text-xs text-york-600 dark:text-york-400 font-semibold hover:underline"
+                  >
+                    Enter your verification code
+                  </button>
                 )}
                 <Button fullWidth loading={loading} type="submit">Sign In</Button>
               </form>

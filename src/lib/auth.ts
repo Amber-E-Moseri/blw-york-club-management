@@ -18,12 +18,16 @@ export interface AuthUser {
 export class AuthError extends Error {
   constructor(
     message: string,
-    public readonly code?: string
+    public readonly code?: string,
+    public readonly status?: number,
   ) {
     super(message);
     this.name = 'AuthError';
   }
 }
+
+/** Shown when a sign-in is refused because the sign-up email has not been verified yet. Login links to /verify-email. */
+export const VERIFY_REQUIRED_MESSAGE = 'Please verify your email address before signing in.';
 
 // ─── Permission map ───────────────────────────────────────────────────────────
 
@@ -86,10 +90,21 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   return buildAuthUser(data.user);
 }
 
-export async function verifyEmail(token: string): Promise<void> {
-  const { error } = await supabase.auth.verifyOtp({ token_hash: token, type: 'email' });
-  if (error) throw new AuthError(friendlyMessage(error.message), error.message);
-  console.debug('[auth] email verified');
+/**
+ * Confirms the six-digit sign-up code. Supabase Auth checks it; the account is verified only when this call succeeds.
+ * The code and the resulting session are never logged.
+ */
+export async function verifySignupOtp(email: string, token: string): Promise<void> {
+  const { error } = await supabase.auth.verifyOtp({ email, token, type: 'signup' });
+  if (error) throw new AuthError(friendlyMessage(error.message), error.code ?? error.message, error.status);
+  console.debug('[auth] sign-up email verified');
+}
+
+/** Asks Supabase Auth to send a new sign-up code. Supabase owns the throttle and answers 429 when it applies. */
+export async function resendSignupOtp(email: string): Promise<void> {
+  const { error } = await supabase.auth.resend({ type: 'signup', email });
+  if (error) throw new AuthError(friendlyMessage(error.message), error.code ?? error.message, error.status);
+  console.debug('[auth] sign-up code re-sent');
 }
 
 // ─── Role & permissions ───────────────────────────────────────────────────────
@@ -162,7 +177,7 @@ export function buildProfile(row: Record<string, unknown>): AuthUser {
 function friendlyMessage(raw: string): string {
   const map: Record<string, string> = {
     'Invalid login credentials': 'Incorrect email or password. Please try again.',
-    'Email not confirmed': 'Please confirm your email address before signing in.',
+    'Email not confirmed': VERIFY_REQUIRED_MESSAGE,
     'User already registered': 'An account with this email already exists.',
     'Password should be at least 6 characters': 'Password must be at least 6 characters long.',
     'Rate limit exceeded': 'Too many attempts. Please wait a moment and try again.',

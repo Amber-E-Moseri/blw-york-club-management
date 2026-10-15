@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { MainLayout } from './components/layout/MainLayout';
 import { Dashboard } from './pages/Dashboard';
@@ -35,10 +35,12 @@ import { usePushNotifications } from './hooks/usePushNotifications';
 import { PendingApproval } from './pages/PendingApproval';
 import { AdminPendingApprovals } from './pages/AdminPendingApprovals';
 import { PersonIdentityReview } from './pages/PersonIdentityReview';
+import { VerifyEmail } from './pages/VerifyEmail';
 import { useTheme } from './hooks/useTheme';
 
 function AppShell() {
   useTheme();
+  const location = useLocation();
   const { user, loading, error, signIn, signUp, signOut } = useAuth();
   const { subscribe } = usePushNotifications(user?.id);
   const [showPushPrompt, setShowPushPrompt] = useState(true);
@@ -52,6 +54,8 @@ function AppShell() {
   }
 
   if (!user) {
+    // Verification is reached only from the sign-up flow. Refreshing it is safe: the pending email lives in sessionStorage.
+    if (location.pathname === '/verify-email') return <VerifyEmail />;
     return <Login onSignIn={signIn} onSignUp={signUp} error={error} loading={loading} />;
   }
 
