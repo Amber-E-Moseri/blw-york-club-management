@@ -189,6 +189,8 @@ jobs:
           SUPABASE_ANON_KEY: ${{ secrets.CERT_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.CERT_SUPABASE_SERVICE_ROLE_KEY }}
           CERT_HOSTED: "1"
+          CERT_COORDINATOR_EMAIL: ${{ secrets.E2E_COORDINATOR_EMAIL }}
+          CERT_COORDINATOR_PASSWORD: ${{ secrets.E2E_COORDINATOR_PASSWORD }}
           CERT_EXPECTED_PROJECT_REF: ${{ vars.CERT_EXPECTED_PROJECT_REF }}
         run: |
           set -euo pipefail
