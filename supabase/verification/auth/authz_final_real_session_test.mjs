@@ -76,7 +76,7 @@ const rpc = (name, token, body) => call('POST', `/rest/v1/rpc/${name}`, token, b
 // Each fixture write must succeed; otherwise the run stops, so no test runs against a partial fixture.
 function mustOk(label, res, expectRows = false) {
   const ok = res.status >= 200 && res.status < 300 && (!expectRows || (Array.isArray(res.data) && res.data.length > 0));
-  if (!ok) throw new Error(`fixture write failed (${label}): HTTP ${res.status} ${JSON.stringify(res.data).slice(0, 200)}`);
+  if (!ok) throw new Error(`step failed (${label}): HTTP ${res.status} ${JSON.stringify(res.data).slice(0, 200)}`);
   return res.data;
 }
 
@@ -193,7 +193,9 @@ async function main() {
   const deact = await rpc('set_member_status', coord.token, { p_member_id: memberB.id, p_status: 'inactive', p_reason: `${run} test` });
   const afterRpc = mustOk('read after RPC', await svc('GET', `/profiles?id=eq.${memberB.id}&select=status`), true)[0];
   pass('Status', 'Coordinator set_member_status active -> inactive succeeds', deact.status < 300 && afterRpc.status === 'inactive', `HTTP ${deact.status}`);
-  const audit = mustOk('status audit', await svc('GET', `/member_status_audit?member_id=eq.${memberB.id}&select=from_status,to_status,actor_id`), false);
+  // Audit rows are readable by an admin or coordinator session under RLS (migration 080). service_role has no grant (086),
+  // so the read uses the coordinator's own session.
+  const audit = mustOk('read member_status_audit as coordinator', await call('GET', `/rest/v1/member_status_audit?member_id=eq.${memberB.id}&select=from_status,to_status,actor_id`, coord.token), false);
   pass('Status', 'member_status_audit records the change with the coordinator as actor',
     Array.isArray(audit) && audit.some((a) => a.from_status === 'active' && a.to_status === 'inactive' && a.actor_id === coord.id));
 
