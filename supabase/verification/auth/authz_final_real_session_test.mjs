@@ -85,11 +85,15 @@ async function signIn(email, password) {
 
 // Applicant: registration through the normal signup path. The database signup trigger makes the profile pending.
 async function registerApplicant(label) {
-  const email = `${run}.${label}@t9.test`;
+  // The approved sandbox domain: GoTrue rejects reserved .test domains (example.test was refused in the auth run).
+  const email = `${run}.${label}@sandbox.zazamail.link`;
   const password = `Pw-${run}-${label}-7`;
   const r = await call('POST', '/auth/v1/signup', null, { email, password });
   if (!r.data?.user?.id) throw new Error(`signup failed for ${label}: HTTP ${r.status}`);
   created.users.push(r.data.user.id);
+  // Confirm the synthetic email through the admin API so the sign-in below succeeds. The approval gate is unchanged.
+  const confirmed = await call('PUT', `/auth/v1/admin/users/${r.data.user.id}`, service, { email_confirm: true });
+  if (confirmed.status >= 300) throw new Error(`confirm failed for ${label}: HTTP ${confirmed.status}`);
   const who = await signIn(email, password);
   const prof = mustOk(`read pending profile ${label}`, await svc('GET', `/profiles?id=eq.${who.id}&select=id,status`), true);
   if (prof[0].status !== 'pending') throw new Error(`${label} is not pending after signup`);
