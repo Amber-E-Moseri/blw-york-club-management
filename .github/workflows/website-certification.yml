@@ -26,7 +26,7 @@ permissions:
   contents: read
 
 env:
-  CANDIDATE_SHA: ${{ inputs.candidate_sha || '393c2208300b2e98aa21270ec3f1155161c65c50' }}
+  CANDIDATE_SHA: ${{ inputs.candidate_sha || 'bad411f92a79a5b1016b24561022bbcee3e34517' }}
 
 concurrency:
   group: website-certification-local
