@@ -44,6 +44,21 @@ jobs:
           ref: ${{ env.CANDIDATE_SHA }}
           persist-credentials: false
 
+      - name: Check out the certification harness from this workflow's own commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: harness
+          persist-credentials: false
+
+      - name: Overlay the harness onto the candidate (the candidate's application code is unchanged)
+        run: |
+          set -euo pipefail
+          rm -rf scripts/website-certification
+          cp -r harness/scripts/website-certification scripts/
+          test -f scripts/website-certification/certify.mjs
+          echo "PASS: harness overlaid from ${GITHUB_SHA}"
+
       - name: "Gate: checkout equals the requested SHA (fail closed)"
         run: |
           set -euo pipefail
