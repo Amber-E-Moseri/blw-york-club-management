@@ -141,6 +141,10 @@ jobs:
           CERT_RESULTS_FILE: ${{ runner.temp }}/website-certification-results.json
         run: node scripts/website-certification/certify.mjs
 
+      - name: Function error lines (diagnostic; request bodies and tokens are not logged by the functions)
+        if: always()
+        run: |
+          grep -iE "configuration_error|error|boot" "$RUNNER_TEMP/functions.log" | sed -E "s/[A-Za-z0-9_-]{20,}.[A-Za-z0-9_-]{20,}.[A-Za-z0-9_-]{10,}/<redacted>/g" | tail -40 || true
       - name: Upload results (no credentials)
         if: always()
         uses: actions/upload-artifact@v4

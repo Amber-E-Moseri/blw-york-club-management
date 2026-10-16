@@ -211,6 +211,13 @@ async function main() {
   check('privacy', 'no network address or user agent column is stored for submissions or downloads', !/ip_address|user_agent|\bip\b/.test(cols), cols);
 
   // ---------- 5. Private media upload and registration
+  // Diagnostic (no secrets): the shape of a storage signing reply, with the token value removed.
+  const shapeProbe = await http(`${API}/storage/v1/object/upload/sign/site-media/diagnostic/${randomUUID()}.png`, { method: 'POST', headers: { ...bearer(SERVICE), 'content-type': 'application/json' }, body: '{}' });
+  const shapeKeys = shapeProbe.json && typeof shapeProbe.json === 'object' ? Object.keys(shapeProbe.json).join(',') : 'none';
+  const shapeUrl = String(shapeProbe.json?.url ?? '').replace(/token=[^&]*/, 'token=<redacted>').slice(0, 140);
+  console.log(`DIAG storage sign: http=${shapeProbe.status} keys=${shapeKeys} url=${shapeUrl}`);
+  const shapeCheck = await http(`${API}/storage/v1/object/upload/sign/site-media/diagnostic/${randomUUID()}.png`, { method: 'POST', headers: { ...bearer(SERVICE) }, body: '{}' });
+
   const img = await signedUpload(U.contributor.token, 'site-media', 'image/png', PNG_BYTES);
   check('media', 'a contributor uploads a site image through the signed upload', img.ok, JSON.stringify(img).slice(0, 160));
   const reg = await rpc('web_register_media', { p_bucket: 'site-media', p_storage_path: img.path, p_mime: 'image/png', p_bytes: PNG_BYTES.length, p_alt_text: 'Certification image' }, U.contributor.token);
