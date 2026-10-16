@@ -30,6 +30,8 @@ import { AdminEmailLog } from './pages/AdminEmailLog';
 import { Growth } from './pages/Growth';
 import { Communications } from './pages/Communications';
 import { Tasks } from './pages/Tasks';
+import { MyBsc } from './pages/MyBsc';
+import { AdminBscs } from './pages/AdminBscs';
 import { PushPermissionPrompt } from './components/feature/PushPermissionPrompt';
 import { usePushNotifications } from './hooks/usePushNotifications';
 import { PendingApproval } from './pages/PendingApproval';
@@ -95,6 +97,8 @@ function AppShell() {
         <Route path="/growth" element={<Growth user={user} />} />
         <Route path="/communications" element={<Communications user={user} />} />
         <Route path="/tasks" element={<Tasks user={user} />} />
+        <Route path="/my-bsc" element={<MyBsc user={user} />} />
+        <Route path="/admin/bscs" element={<AdminBscs user={user} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
