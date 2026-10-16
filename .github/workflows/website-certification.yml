@@ -24,7 +24,7 @@ permissions:
   contents: read
 
 env:
-  CANDIDATE_SHA: ${{ inputs.candidate_sha || '744c85bb809c92abc95054f019c1856b47036b41' }}
+  CANDIDATE_SHA: ${{ inputs.candidate_sha || 'f2782ce79de3235a612004291a5c715ff60177dd' }}
 
 concurrency:
   group: website-certification-local
@@ -121,8 +121,9 @@ jobs:
       - name: Start the website Edge Functions (test secrets only)
         run: |
           set -euo pipefail
-          printf 'CLIENT_HASH_SECRET=%s\nTURNSTILE_SECRET_KEY=%s\nWEBSITE_ALLOWED_ORIGINS=http://127.0.0.1:4173\n' \
-            "$(openssl rand -hex 32)" "1x0000000000000000000000000000000AA" > "$RUNNER_TEMP/functions.env"
+          API="$(supabase status -o env | grep -E '^API_URL=' | cut -d= -f2- | tr -d '"')"
+          printf 'CLIENT_HASH_SECRET=%s\nTURNSTILE_SECRET_KEY=%s\nWEBSITE_ALLOWED_ORIGINS=http://127.0.0.1:4173\nSUPABASE_PUBLIC_URL=%s\n' \
+            "$(openssl rand -hex 32)" "1x0000000000000000000000000000000AA" "$API" > "$RUNNER_TEMP/functions.env"
           API="$(supabase status -o env | grep -E '^API_URL=' | cut -d= -f2- | tr -d '"')"
           echo "Local API base: $API"
           ANON="$(supabase status -o env | grep -E '^ANON_KEY=' | cut -d= -f2- | tr -d '"')"; test -n "$ANON" || { echo "FAIL: anon key not read from status"; exit 1; }
