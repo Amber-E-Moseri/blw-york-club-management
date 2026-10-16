@@ -138,8 +138,9 @@ async function main() {
   // Cell A and its leader; BSC in cell A led by the BSC-only leader.
   const cellA = mustOk('cell A', await svc('POST', '/cells', { name: `${run} cell A` }), true)[0];
   created.cells.push(cellA.id);
-  mustOk('cell A leader', await svc('PATCH', `/cells?id=eq.${cellA.id}`, { leader_id: leaderA.id }), true);
+  // A member who already leads a cell cannot be moved, so the leader is placed first and designated afterwards.
   mustOk('place leader A', await rpc('transfer_member_cell', coord.token, { p_member_id: leaderA.id, p_cell_id: cellA.id, p_reason: 'Real-session placement' }), false);
+  mustOk('cell A leader', await svc('PATCH', `/cells?id=eq.${cellA.id}`, { leader_id: leaderA.id }), true);
   mustOk('place BSC-only leader', await rpc('transfer_member_cell', coord.token, { p_member_id: bscOnly.id, p_cell_id: cellA.id, p_reason: 'Real-session placement' }), false);
   mustOk('place member A', await rpc('transfer_member_cell', coord.token, { p_member_id: memberA.id, p_cell_id: cellA.id, p_reason: 'Real-session placement' }), false);
   const bscA = mustOk('BSC A', await svc('POST', '/bscs', { name: `${run} BSC A`, cell_id: cellA.id, leader_id: bscOnly.id }), true)[0];
@@ -151,8 +152,8 @@ async function main() {
   mustOk('approve leaderB', await rpc('approve_pending_member', coord.token, { target_member_id: leaderB.id }), false);
   const cellB = mustOk('cell B', await svc('POST', '/cells', { name: `${run} cell B` }), true)[0];
   created.cells.push(cellB.id);
-  mustOk('cell B leader', await svc('PATCH', `/cells?id=eq.${cellB.id}`, { leader_id: leaderB.id }), true);
   mustOk('place leader B', await rpc('transfer_member_cell', coord.token, { p_member_id: leaderB.id, p_cell_id: cellB.id, p_reason: 'Real-session placement' }), false);
+  mustOk('cell B leader', await svc('PATCH', `/cells?id=eq.${cellB.id}`, { leader_id: leaderB.id }), true);
 
   // Pending applicant placed in cell A through the audited RPC (migration 093), and a second applicant left unplaced.
   mustOk('admin places pending A', await rpc('assign_pending_applicant_to_cell', admin.token, { p_member_id: pendingA.id, p_cell_id: cellA.id, p_reason: 'Real-session placement' }), false);

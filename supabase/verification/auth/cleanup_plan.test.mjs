@@ -41,3 +41,8 @@ test('unknown kinds are ignored; no unrelated records are added', () => {
 test('a missing tracking object plans nothing and does not throw', () => {
   assert.deepEqual(planCleanup(undefined), { ops: [], skipped: [] });
 });
+
+test('cells are removed after accounts, so a cell still holding members is not blocked', () => {
+  const plan = planCleanup({ users: [A], cells: [B], people: [], contacts: [], bscs: [] });
+  assert.deepEqual(plan.ops.map((o) => o.kind), ['users', 'cells']);
+});
