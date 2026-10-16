@@ -114,7 +114,9 @@ begin
         end if;
         if v_section ? 'url' then
           v_url := v_section->>'url';
-          if v_url !~ '^(https://|/)[^\s]{0,500}$' or v_url ~* '^(https?://[^/]*@|https?://[^/]*:)' then
+          -- Postgres regular expressions allow at most 255 repetitions, so the length is checked separately.
+          if v_url <> '' and (v_url !~ '^(https://|/)[^\s]*$' or char_length(v_url) > 500
+                              or v_url ~* '^(https?://[^/]*@|https?://[^/]*:)') then
             raise exception 'Links must be https or a site path, without credentials.' using errcode = '22023';
           end if;
         end if;

@@ -526,6 +526,23 @@ rr = await as('authenticated', U.editor, `select pdf_path from public.web_list_e
   await owner(`update public.web_media set status = 'active' where id = $1`, [pdfId]);
 }
 
+// ---------- Content links (migration 105 regex fix): empty, long and unsafe section links
+{
+  const area = 'links105';
+  const cur = (await as('authenticated', U.editor, `select draft_version from public.web_get_content('page','what_we_do')`)).rows[0];
+  const v0 = Number(cur?.draft_version ?? 1);
+  const body = (url) => ({ title: 'Links', sections: [{ type: 'text', heading: 'h', body: 'b', url, visible: true }] });
+  let rr = await as('authenticated', U.editor, `select web_save_draft('page','what_we_do',$1::jsonb,$2)`, [JSON.stringify(body('')), v0]);
+  check(area, 'a section with no link is accepted (the editor default)', rr.ok, rr.error || '');
+  const longUrl = 'https://example.org/' + 'a'.repeat(300);
+  rr = await as('authenticated', U.editor, `select web_save_draft('page','what_we_do',$1::jsonb,$2)`, [JSON.stringify(body(longUrl)), v0 + 1]);
+  check(area, 'a long https link within 500 characters is accepted', rr.ok, rr.error || '');
+  rr = await as('authenticated', U.editor, `select web_save_draft('page','what_we_do',$1::jsonb,$2)`, [JSON.stringify(body('javascript:alert(1)')), v0 + 2]);
+  check(area, 'a script link is refused', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+  rr = await as('authenticated', U.editor, `select web_save_draft('page','what_we_do',$1::jsonb,$2)`, [JSON.stringify(body('https://example.org/' + 'a'.repeat(600))), v0 + 2]);
+  check(area, 'a link over 500 characters is refused', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+}
+
 // ---------- Migration 110: verified registration and orphaned-upload discovery
 {
   const area = 'media110';

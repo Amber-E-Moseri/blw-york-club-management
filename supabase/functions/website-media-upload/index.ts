@@ -51,6 +51,8 @@ Deno.serve(async (req: Request) => {
     return reply(403, { error: 'You do not have permission to upload here.' }, cors);
   }
 
+  // Links handed to the browser use the public address (SUPABASE_PUBLIC_URL, defaulting to SUPABASE_URL).
+  const publicBase = (Deno.env.get('SUPABASE_PUBLIC_URL') ?? supabaseUrl).replace(/\/+$/, '');
   const path = uploadObjectPath(bucket, mime, crypto.randomUUID(), new Date());
   const encodedPath = path.split('/').map(encodeURIComponent).join('/');
   const signed = await fetch(`${supabaseUrl}/storage/v1/object/upload/sign/${bucket}/${encodedPath}`, {
@@ -58,7 +60,7 @@ Deno.serve(async (req: Request) => {
     headers: { apikey: serviceKey, authorization: `Bearer ${serviceKey}`, 'content-type': 'application/json' },
     body: '{}',
   }).then((r) => (r.ok ? r.json() : null)).catch(() => null) as { url?: string } | null;
-  const uploadUrl = signed?.url ? buildStorageUrl(supabaseUrl, signed.url) : null;
+  const uploadUrl = signed?.url ? buildStorageUrl(publicBase, signed.url) : null;
   if (!uploadUrl) return reply(503, { error: 'Uploads are temporarily unavailable.' }, cors);
 
   console.log(JSON.stringify({ event: 'media_upload_issued', bucket, mime, bytes }));
