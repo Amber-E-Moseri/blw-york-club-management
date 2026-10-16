@@ -189,7 +189,10 @@ test.describe('restricted meeting audience', () => {
   test('NOT TESTED until executed: audience edits and removals take effect for RLS', async ({}, testInfo) => {
     // Remove the invitee.
     const dialog = await openInvitations(coordinatorPage);
-    await dialog.getByLabel(people.invitee.name).uncheck();
+    await dialog.getByRole('checkbox', {
+      name: people.invitee.name,
+      exact: true,
+    }).uncheck();
     await dialog.getByRole('button', { name: 'Preview recipients' }).click();
     await dialog.getByRole('button', { name: 'Save invitations' }).click();
     await expect(dialog.getByRole('status')).toBeVisible({ timeout: 15_000 });
