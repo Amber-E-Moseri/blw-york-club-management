@@ -45,7 +45,7 @@ concurrency:
 
 env:
   # The frozen application under test. Pinned here and verified by Gate 1b; never taken from inputs.
-  APP_UNDER_TEST_SHA: fada4a3af3416d9c8943ffa6fb68e377157f9c99
+  APP_UNDER_TEST_SHA: 6acd417b308afa0ae37a157dfe74a2a5e2badd36
 
 jobs:
   # ---------------------------------------------------------------------------------------------------------------
