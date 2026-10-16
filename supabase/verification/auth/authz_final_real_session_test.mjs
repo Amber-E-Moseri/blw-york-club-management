@@ -23,6 +23,9 @@
 
 import { assertCertificationTarget } from './lib.mjs';
 
+import { signupUserId } from './signup_response.mjs';
+import { planCleanup } from './cleanup_plan.mjs';
+
 const url = process.env.SUPABASE_URL;
 const anon = process.env.SUPABASE_ANON_KEY;
 const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -89,10 +92,10 @@ async function registerApplicant(label) {
   const email = `${run}.${label}@sandbox.zazamail.link`;
   const password = `Pw-${run}-${label}-7`;
   const r = await call('POST', '/auth/v1/signup', null, { email, password });
-  if (!r.data?.user?.id) throw new Error(`signup failed for ${label}: HTTP ${r.status}`);
-  created.users.push(r.data.user.id);
+  const userId = signupUserId(r);
+  created.users.push(userId);
   // Confirm the synthetic email through the admin API so the sign-in below succeeds. The approval gate is unchanged.
-  const confirmed = await call('PUT', `/auth/v1/admin/users/${r.data.user.id}`, service, { email_confirm: true });
+  const confirmed = await call('PUT', `/auth/v1/admin/users/${userId}`, service, { email_confirm: true });
   if (confirmed.status >= 300) throw new Error(`confirm failed for ${label}: HTTP ${confirmed.status}`);
   const who = await signIn(email, password);
   const prof = mustOk(`read pending profile ${label}`, await svc('GET', `/profiles?id=eq.${who.id}&select=id,status`), true);
@@ -306,22 +309,33 @@ async function main() {
   const memberACellSvc = mustOk('read after service cell PATCH', await svc('GET', `/profiles?id=eq.${memberA.id}&select=cell_id`), true)[0];
   pass('Bypass', 'service_role direct cell_id PATCH is refused (cell unchanged)', memberACellSvc.cell_id === cellA.id, `HTTP ${svcCell.status}`);
 
-  // ── Cleanup (only rows created by this run) ─────────────────────────────────────────────────────────────────────────
-  for (const id of created.contacts) await svc('DELETE', `/contacts?id=eq.${id}`, undefined, 'return=minimal');
-  for (const id of created.people) await svc('DELETE', `/people?id=eq.${id}`, undefined, 'return=minimal');
-  for (const id of created.bscs) await svc('DELETE', `/bscs?id=eq.${id}`, undefined, 'return=minimal');
-  for (const id of created.cells) await svc('DELETE', `/cells?id=eq.${id}`, undefined, 'return=minimal');
-  for (const id of created.users) {
-    const r = await call('DELETE', `/auth/v1/admin/users/${id}`, service, undefined);
-    if (r.status >= 300) console.log(`CLEANUP-WARN\tuser ${id}\tHTTP ${r.status}`);
-  }
-
   const counts = results.reduce((acc, r) => { acc[r.status] = (acc[r.status] ?? 0) + 1; return acc; }, {});
   console.log(`\nSUMMARY ${JSON.stringify(counts)}`);
-  process.exit(results.some((r) => r.status === 'FAIL' || r.status === 'BLOCKED') ? 1 : 0);
+  return results.some((r) => r.status === 'FAIL' || r.status === 'BLOCKED') ? 1 : 0;
 }
 
-main().catch((e) => {
+// Cleanup removes only the records this run tracked, and it runs even when signup or an assertion fails.
+async function cleanupRun() {
+  const { ops, skipped } = planCleanup(created);
+  for (const note of skipped) console.log(`CLEANUP-SKIP	${note}`);
+  for (const op of ops) {
+    if (op.kind === 'users') {
+      const r = await call('DELETE', `/auth/v1/admin/users/${op.id}`, service, undefined);
+      if (r.status >= 300) console.log(`CLEANUP-WARN	user ${op.id}	HTTP ${r.status}`);
+    } else {
+      const path = `/${op.kind}?id=eq.${op.id}`;
+      const r = await svc('DELETE', path, undefined, 'return=minimal');
+      if (r.status >= 300) console.log(`CLEANUP-WARN	${op.kind} ${op.id}	HTTP ${r.status}`);
+    }
+  }
+}
+
+let exitCode = 1;
+try {
+  exitCode = await main();
+} catch (e) {
   console.error('RUN ABORTED:', e.message);
-  process.exit(1);
-});
+} finally {
+  await cleanupRun().catch((e) => console.error(`CLEANUP-WARN	cleanup error: ${e.message}`));
+}
+process.exit(exitCode);
