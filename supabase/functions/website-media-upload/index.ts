@@ -70,7 +70,13 @@ Deno.serve(async (req: Request) => {
   }
   const uploadUrl = buildStorageUrl(publicBase, signed.url);
   if (!uploadUrl) {
-    console.error(JSON.stringify({ event: 'storage_url_rejected', function: 'website-media-upload' }));
+    // Diagnostic shape only: the origin of the base address, and the link with its token removed.
+    console.error(JSON.stringify({
+      event: 'storage_url_rejected',
+      function: 'website-media-upload',
+      base: publicBase.replace(/^(https?:\/\/[^/]+).*$/, '$1').slice(0, 80),
+      shape: String(signed.url).replace(/token=[^&]*/, 'token=<redacted>').slice(0, 120),
+    }));
     return reply(503, { error: 'Uploads are temporarily unavailable.' }, cors);
   }
 
