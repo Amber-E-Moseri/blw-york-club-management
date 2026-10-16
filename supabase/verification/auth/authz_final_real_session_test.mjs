@@ -200,8 +200,9 @@ async function main() {
     Array.isArray(audit) && audit.some((a) => a.from_status === 'active' && a.to_status === 'inactive' && a.actor_id === coord.id));
 
   // ── Contact logging (migration 092) ─────────────────────────────────────────────────────────────────────────────────
-  const personFor = async (who, name) => {
-    const r = await call('POST', '/rest/v1/people', who.token, { full_name: `${run} ${name}` }, 'return=representation');
+  // migration 098 revoked INSERT on people from authenticated; fixture person creation uses service_role
+  const personFor = async (_who, name) => {
+    const r = await svc('POST', '/people', { full_name: `${run} ${name}` });
     if (!Array.isArray(r.data) || !r.data[0]?.id) return null;
     created.people.push(r.data[0].id);
     return r.data[0].id;
