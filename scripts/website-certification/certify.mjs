@@ -125,6 +125,8 @@ async function main() {
   sql(`update public.profiles set role = 'admin', status = 'active' where id = ${sqlLit(U.bootstrapadmin.id)}`);
   // Test accounts are activated the way an approved member would be. Role assignment needs an active account.
   for (const u of Object.values(U)) sql(`update public.profiles set status = 'active' where id = ${sqlLit(u.id)}`);
+  // Diagnostic (no secrets): profile statuses after activation.
+  console.log('DIAG profile statuses: ' + sql(`select string_agg(status, ',' order by status) from public.profiles where id in (${Object.values(U).map((u) => sqlLit(u.id)).join(',')})`));
   check('auth', 'the bootstrap administrator is a core administrator', (await rpc('web_is_core_admin', {}, U.bootstrapadmin.token)).json === true);
   const ROLE = { admin: '7a000000-0000-4000-8000-000000000001', editor: '7a000000-0000-4000-8000-000000000002', publisher: '7a000000-0000-4000-8000-000000000003', contributor: '7a000000-0000-4000-8000-000000000004', analyst: '7a000000-0000-4000-8000-000000000005' };
   for (const r of ['admin', 'editor', 'publisher', 'contributor', 'analyst']) {
@@ -321,5 +323,6 @@ async function main() {
 main().catch((e) => {
   // The message is printed without any request or key material.
   console.error(`FATAL during certification: ${String(e.message ?? e).slice(0, 300)}`);
+  console.error(String(e.stack ?? '').split('\n').slice(1, 4).join('\n'));
   process.exit(1);
 });
