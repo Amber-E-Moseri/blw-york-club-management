@@ -123,6 +123,8 @@ async function main() {
   for (const label of ['bootstrapadmin', 'admin', 'editor', 'publisher', 'contributor', 'analyst', 'member']) U[label] = await createUser(label);
   for (const label of Object.keys(U)) check('auth', `password sign-in works for ${label}`, await signIn(U[label]));
   sql(`update public.profiles set role = 'admin', status = 'active' where id = ${sqlLit(U.bootstrapadmin.id)}`);
+  // Test accounts are activated the way an approved member would be. Role assignment needs an active account.
+  for (const u of Object.values(U)) sql(`update public.profiles set status = 'active' where id = ${sqlLit(u.id)}`);
   check('auth', 'the bootstrap administrator is a core administrator', (await rpc('web_is_core_admin', {}, U.bootstrapadmin.token)).json === true);
   const ROLE = { admin: '7a000000-0000-4000-8000-000000000001', editor: '7a000000-0000-4000-8000-000000000002', publisher: '7a000000-0000-4000-8000-000000000003', contributor: '7a000000-0000-4000-8000-000000000004', analyst: '7a000000-0000-4000-8000-000000000005' };
   for (const r of ['admin', 'editor', 'publisher', 'contributor', 'analyst']) {
@@ -245,7 +247,7 @@ async function main() {
   const signedUrl = dl.headers.get('location') ?? '';
   check('rhapsody', 'the signed link is a short-lived signed storage URL', /\/storage\/v1\/object\/sign\/rhapsody-pdfs\/.+\?token=/.test(signedUrl), signedUrl.slice(0, 80));
   check('rhapsody', 'the download response is not cached and does not leak the referrer', dl.headers.get('cache-control') === 'no-store' && dl.headers.get('referrer-policy') === 'no-referrer');
-  const file = await http(signedUrl);
+  const file = signedUrl ? await http(signedUrl) : { status: 0, text: '' };
   check('rhapsody', 'the signed link delivers the PDF', file.status === 200 && file.text.startsWith('%PDF'), file.status);
   const directPrivate = await http(`${API}/storage/v1/object/public/rhapsody-pdfs/${pdf.path}`);
   check('rhapsody', 'the private PDF is not reachable through the public path', directPrivate.status >= 400, directPrivate.status);
