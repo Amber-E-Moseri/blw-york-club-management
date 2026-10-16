@@ -4,7 +4,7 @@
 // GoTrue and calls PostgREST or an RPC with its own bearer token, which is the path the application uses. A forbidden
 // action is judged by the DATABASE STATE after the attempt, not by the HTTP status alone.
 //
-// Local stack only. Refuses any non-local SUPABASE_URL. Creates accounts and rows only with a per-run marker and removes
+// Local stack, or the approved hosted certification project under CERT_HOSTED=1. Refuses every other target. Creates accounts and rows only with a per-run marker and removes
 // exactly the rows and accounts it created. Every fixture write checks its result and aborts the run on failure.
 //
 // Fixture rules (see the fixture design in the release notes):
@@ -21,6 +21,8 @@
 //   CERT_COORDINATOR_EMAIL=... CERT_COORDINATOR_PASSWORD=... node supabase/verification/authz_final_real_session_test.mjs
 // Exits 1 on any FAIL and 2 on a configuration problem. BLOCKED rows are printed and do not pass the run.
 
+import { assertCertificationTarget } from './lib.mjs';
+
 const url = process.env.SUPABASE_URL;
 const anon = process.env.SUPABASE_ANON_KEY;
 const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -30,8 +32,12 @@ if (!url || !anon || !service || !coordEmail || !coordPassword) {
   console.error('SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, CERT_COORDINATOR_EMAIL and CERT_COORDINATOR_PASSWORD are required');
   process.exit(2);
 }
-if (!/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url)) {
-  console.error('refusing to run against a non-local Supabase URL');
+// Local stack, or the approved hosted certification project only when CERT_HOSTED=1 and it names
+// CERT_EXPECTED_PROJECT_REF. The shared guard also refuses the protected production project.
+try {
+  assertCertificationTarget(url);
+} catch (error) {
+  console.error(`refusing target: ${error.message}`);
   process.exit(2);
 }
 
