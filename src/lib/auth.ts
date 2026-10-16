@@ -94,6 +94,10 @@ export async function establishRecoverySession(link: RecoveryLink): Promise<Reco
     case 'invalid':
       return 'invalid';
     case 'pkce': {
+      // When a PKCE verifier is stored, supabase-js exchanges the code itself during initialization. A second
+      // exchange would fail, so an existing session counts as ready.
+      const existing = await supabase.auth.getSession();
+      if (!existing.error && existing.data.session) return 'ready';
       const { error } = await supabase.auth.exchangeCodeForSession(link.code);
       return error ? 'expired' : 'ready';
     }

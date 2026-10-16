@@ -16,9 +16,16 @@ const mockAuth = (supabase as unknown as { auth: Record<'exchangeCodeForSession'
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockAuth.getSession.mockResolvedValue({ data: { session: null }, error: null });
 });
 
 describe('establishRecoverySession', () => {
+  test('a PKCE code that supabase-js already exchanged is ready without a second exchange', async () => {
+    mockAuth.getSession.mockResolvedValue({ data: { session: { access_token: 'x' } }, error: null });
+    await expect(establishRecoverySession({ kind: 'pkce', code: 'CODE-0' })).resolves.toBe('ready');
+    expect(mockAuth.exchangeCodeForSession).not.toHaveBeenCalled();
+  });
+
   test('a PKCE code is exchanged once and reports ready on success', async () => {
     mockAuth.exchangeCodeForSession.mockResolvedValue({ data: {}, error: null });
     await expect(establishRecoverySession({ kind: 'pkce', code: 'CODE-1' })).resolves.toBe('ready');
