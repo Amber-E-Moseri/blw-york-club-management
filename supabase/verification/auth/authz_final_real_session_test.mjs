@@ -281,8 +281,10 @@ async function main() {
   const blankReason = await rpc('transfer_member_cell', coord.token, { p_member_id: memberA.id, p_cell_id: cellB.id, p_reason: '  ' });
   const memberAAfterBlank = mustOk('read member A after blank reason', await svc('GET', `/profiles?id=eq.${memberA.id}&select=cell_id`), true)[0];
   pass('Placement', 'A transfer with a blank reason is refused and changes nothing', blankReason.status >= 400 && memberAAfterBlank.cell_id === cellA.id, `HTTP ${blankReason.status}`);
-  const audited = mustOk('member_cell_audit', await svc('GET', `/member_cell_audit?member_id=eq.${pendingB.id}&select=to_cell_id,actor_id`), false);
-  const reasonRows = mustOk('member_cell_audit reasons', await svc('GET', `/member_cell_audit?member_id=eq.${pendingB.id}&select=reason,to_cell_id,actor_id,changed_at`), false);
+  // member_cell_audit: service_role has no grant (086). The read uses the coordinator's session, allowed by
+  // member_cell_audit_read (072, is_admin_or_coordinator).
+  const audited = mustOk('read member_cell_audit as coordinator', await call('GET', `/rest/v1/member_cell_audit?member_id=eq.${pendingB.id}&select=to_cell_id,actor_id`, coord.token), false);
+  const reasonRows = mustOk('read member_cell_audit reasons as coordinator', await call('GET', `/rest/v1/member_cell_audit?member_id=eq.${pendingB.id}&select=reason,to_cell_id,actor_id,changed_at`, coord.token), false);
   pass('Placement', 'Admin placement writes exactly one audit row with the reason, actor and destination',
     Array.isArray(reasonRows) && reasonRows.length === 1 && reasonRows[0].reason === 'Real-session placement' && reasonRows[0].to_cell_id === cellA.id && reasonRows[0].actor_id === admin.id
       && typeof reasonRows[0].changed_at === 'string' && Date.now() - Date.parse(reasonRows[0].changed_at) < 3600_000);
