@@ -24,7 +24,7 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "zod": [
+      "https://esm.sh/zod@3.23.8": [
         "./node_modules/zod"
       ]
     }

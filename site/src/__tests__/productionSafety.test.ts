@@ -1,4 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+// The shared Edge Function helpers import Zod from the pinned esm.sh URL. Tests use the installed package.
+vi.mock('https://esm.sh/zod@3.23.8', async () => await import('zod'));
+
 import { applyBrandVariables, brandPalette, contrastRatio, DEFAULT_BRAND, isHexColour, resolveBrand } from '../lib/brand';
 import { applyPublishedContent, editionsToSiteContent, unpublishedBase } from '../content/published';
 import { sampleContent } from '../content/sample-data';
