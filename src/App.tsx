@@ -36,6 +36,7 @@ import { PendingApproval } from './pages/PendingApproval';
 import { AdminPendingApprovals } from './pages/AdminPendingApprovals';
 import { PersonIdentityReview } from './pages/PersonIdentityReview';
 import { VerifyEmail } from './pages/VerifyEmail';
+import { ResetPassword } from './pages/ResetPassword';
 import { useTheme } from './hooks/useTheme';
 
 function AppShell() {
@@ -52,6 +53,9 @@ function AppShell() {
       </div>
     );
   }
+
+  // Public, and checked before the sign-in gate: a recovery session must not fall through to the main app.
+  if (location.pathname === '/reset-password') return <ResetPassword />;
 
   if (!user) {
     // Verification is reached only from the sign-up flow. Refreshing it is safe: the pending email lives in sessionStorage.
