@@ -198,7 +198,7 @@ jobs:
             log="$RUNNER_TEMP/$h.log"
             rc=0; node "supabase/verification/auth/$h" > "$log" 2>&1 || rc=$?
             if grep -q '^FAIL' "$log" || [ "$rc" -ne 0 ]; then
-              echo "FAIL: $h (exit $rc)"; grep -E '^(PASS|FAIL)' "$log" | head -50; exit 1
+              echo "FAIL: $h (exit $rc)"; grep -E '^(PASS|FAIL|BLOCKED|SUMMARY|CLEANUP-WARN|RUN ABORTED)' "$log" | cut -c1-300 | head -50; exit 1
             fi
             echo "PASS: $h ($(grep -c '^PASS' "$log") checks)"
           done
