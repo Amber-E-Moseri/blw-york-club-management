@@ -72,6 +72,31 @@ jobs:
           sed -i -E "s/^project_id = \".*\"/project_id = \"${CERT_PROJECT_ID}\"/" supabase/config.toml
           grep -E '^project_id' supabase/config.toml
 
+      - name: Configure the website functions for this runner only (not committed)
+        run: |
+          set -euo pipefail
+          # The edge runtime applies an import map only when a function declares it. Public functions skip the
+          # gateway JWT check; they carry their own checks (Turnstile, HMAC-keyed limits, service-key bearer for cleanup).
+          cat >> supabase/config.toml <<'TOML'
+
+          [functions.website-inquiry]
+          verify_jwt = false
+          import_map = "./functions/import_map.json"
+
+          [functions.website-rhapsody-pdf]
+          verify_jwt = false
+          import_map = "./functions/import_map.json"
+
+          [functions.website-media-upload]
+          verify_jwt = true
+          import_map = "./functions/import_map.json"
+
+          [functions.website-media-cleanup]
+          verify_jwt = false
+          import_map = "./functions/import_map.json"
+          TOML
+          tail -4 supabase/config.toml
+
       - name: Start the local stack and replay migrations 000-110 from scratch
         run: |
           set -euo pipefail
@@ -86,7 +111,7 @@ jobs:
           API="$(supabase status -o env | grep -E '^API_URL=' | cut -d= -f2- | tr -d '"')"
           echo "Local API base: $API"
           ANON="$(supabase status -o env | grep -E '^ANON_KEY=' | cut -d= -f2- | tr -d '"')"; test -n "$ANON" || { echo "FAIL: anon key not read from status"; exit 1; }
-          nohup supabase functions serve --import-map supabase/functions/import_map.json --env-file "$RUNNER_TEMP/functions.env" \
+          nohup supabase functions serve --env-file "$RUNNER_TEMP/functions.env" \
             > "$RUNNER_TEMP/functions.log" 2>&1 &
           for i in $(seq 1 60); do
             code="$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" -H 'content-type: application/json' -d '{}' $API/functions/v1/website-inquiry || true)"
