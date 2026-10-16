@@ -45,7 +45,10 @@ Deno.serve(async (req: Request) => {
     headers: { apikey: anonKey, authorization: `Bearer ${userToken}`, 'content-type': 'application/json' },
     body: JSON.stringify({ p_bucket: bucket }),
   }).catch(() => null);
-  if (!allowedRes) return reply(503, { error: 'Uploads are temporarily unavailable.' }, cors);
+  if (!allowedRes) {
+    console.error(JSON.stringify({ event: 'media_permission_check_unreachable', function: 'website-media-upload' }));
+    return reply(503, { error: 'Uploads are temporarily unavailable.' }, cors);
+  }
   if (allowedRes.status === 401) return reply(401, { error: 'Your session has ended. Please sign in again.' }, cors);
   if (!allowedRes.ok || (await allowedRes.json()) !== true) {
     return reply(403, { error: 'You do not have permission to upload here.' }, cors);
@@ -55,13 +58,21 @@ Deno.serve(async (req: Request) => {
   const publicBase = (Deno.env.get('SUPABASE_PUBLIC_URL') ?? supabaseUrl).replace(/\/+$/, '');
   const path = uploadObjectPath(bucket, mime, crypto.randomUUID(), new Date());
   const encodedPath = path.split('/').map(encodeURIComponent).join('/');
-  const signed = await fetch(`${supabaseUrl}/storage/v1/object/upload/sign/${bucket}/${encodedPath}`, {
+  const signRes = await fetch(`${supabaseUrl}/storage/v1/object/upload/sign/${bucket}/${encodedPath}`, {
     method: 'POST',
     headers: { apikey: serviceKey, authorization: `Bearer ${serviceKey}`, 'content-type': 'application/json' },
     body: '{}',
-  }).then((r) => (r.ok ? r.json() : null)).catch(() => null) as { url?: string } | null;
-  const uploadUrl = signed?.url ? buildStorageUrl(publicBase, signed.url) : null;
-  if (!uploadUrl) return reply(503, { error: 'Uploads are temporarily unavailable.' }, cors);
+  }).catch(() => null);
+  const signed = signRes?.ok ? ((await signRes.json().catch(() => null)) as { url?: string } | null) : null;
+  if (!signed?.url) {
+    console.error(JSON.stringify({ event: 'storage_sign_failed', function: 'website-media-upload', status: signRes?.status ?? 0 }));
+    return reply(503, { error: 'Uploads are temporarily unavailable.' }, cors);
+  }
+  const uploadUrl = buildStorageUrl(publicBase, signed.url);
+  if (!uploadUrl) {
+    console.error(JSON.stringify({ event: 'storage_url_rejected', function: 'website-media-upload' }));
+    return reply(503, { error: 'Uploads are temporarily unavailable.' }, cors);
+  }
 
   console.log(JSON.stringify({ event: 'media_upload_issued', bucket, mime, bytes }));
   return reply(200, { bucket, path, uploadUrl, mime, bytes }, cors);
