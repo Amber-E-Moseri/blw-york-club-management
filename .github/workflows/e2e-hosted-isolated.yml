@@ -30,7 +30,7 @@ jobs:
     timeout-minutes: 60
     env:
       CANDIDATE_SHA: ${{ inputs.candidate_sha }}
-      TOOLING_SHA: 676ff3eba0fa2f6428351cf5271881da62d46d48
+      TOOLING_SHA: a4ddff077b82743cbbdaea811d1649d7e98dfa45
     steps:
       - name: Reject an unpinned candidate
         run: |
