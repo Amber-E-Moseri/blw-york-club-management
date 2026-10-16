@@ -194,6 +194,8 @@ test.describe('restricted meeting audience', () => {
     await expect(dialog.getByRole('radio', { name: /Specific members/ })).toBeChecked({ timeout: 15_000 });
     await dialog.getByLabel('Find a member').fill(people.outsider.email);
     await dialog.getByRole('checkbox', { name: people.outsider.name, exact: true }).check();
+    // The filter hides every other member, so clear it before the invitee's row can be unchecked.
+    await dialog.getByLabel('Find a member').fill('');
     await dialog.getByRole('checkbox', { name: people.invitee.name, exact: true }).uncheck();
     await dialog.getByRole('button', { name: 'Preview recipients' }).click();
     await expect(dialog.getByText('Invitation preview')).toBeVisible({ timeout: 15_000 });
