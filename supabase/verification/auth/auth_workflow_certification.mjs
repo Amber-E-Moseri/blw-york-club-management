@@ -67,7 +67,7 @@ try {
   // The synthetic person is created here and removed in the finally block.
   const coordinator = await h.createUser('coordinator', { role: 'coordinator', status: 'active' });
   // Link the account to a person whose email matches it. Reuse only a record this run created; otherwise fail closed.
-  const found = await admin.from('people').select('id,email,created_at').ilike('email', email).maybeSingle();
+  const found = await admin.from('people').select('id,email,full_name,created_at').ilike('email', email).maybeSingle();
   if (found.error) throw new Error(`person lookup failed: ${found.error.message}`);
   let linkedCount = 0;
   if (found.data) {
