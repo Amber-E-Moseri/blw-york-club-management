@@ -1,0 +1,56 @@
+name: Website abandoned-media cleanup (daily)
+
+# Runs the website-media-cleanup Edge Function once a day. The function deletes only uploads that are at least 24 hours
+# old, unregistered, and not mentioned in any website content, and it revalidates each object immediately before deleting.
+#
+# Inert until all of these are true (set by the repository owner, not by this file):
+#   1. This file is on the default branch (GitHub runs scheduled workflows only from the default branch).
+#   2. The environment "website-cleanup" exists, with required reviewers, and holds:
+#        variable WEBSITE_SUPABASE_URL   the project's https URL (for example https://<ref>.supabase.co)
+#        secret   WEBSITE_CLEANUP_SERVICE_KEY   the project's service-role key, stored only in GitHub
+#   3. The function is deployed with --no-verify-jwt (it checks the bearer key itself).
+# Nothing here reads or writes production unless the owner completes steps 1-3.
+
+on:
+  schedule:
+    - cron: '20 3 * * *'   # daily, 03:20 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: website-media-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: Run abandoned-media cleanup
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: website-cleanup
+    steps:
+      - name: Check configuration (fail closed; values are never printed)
+        env:
+          SUPABASE_URL: ${{ vars.WEBSITE_SUPABASE_URL }}
+          SERVICE_KEY: ${{ secrets.WEBSITE_CLEANUP_SERVICE_KEY }}
+        run: |
+          set -euo pipefail
+          [ -n "$SUPABASE_URL" ] || { echo "FAIL: WEBSITE_SUPABASE_URL is not set"; exit 1; }
+          [ -n "$SERVICE_KEY" ] || { echo "FAIL: WEBSITE_CLEANUP_SERVICE_KEY is not set"; exit 1; }
+          case "$SUPABASE_URL" in https://*) ;; *) echo "FAIL: WEBSITE_SUPABASE_URL must be https"; exit 1;; esac
+          echo "PASS: configuration present"
+
+      - name: Invoke the cleanup function
+        env:
+          SUPABASE_URL: ${{ vars.WEBSITE_SUPABASE_URL }}
+          SERVICE_KEY: ${{ secrets.WEBSITE_CLEANUP_SERVICE_KEY }}
+        run: |
+          set -euo pipefail
+          code="$(curl -sS -o "$RUNNER_TEMP/cleanup.json" -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer $SERVICE_KEY" \
+            "$SUPABASE_URL/functions/v1/website-media-cleanup")"
+          echo "HTTP $code"
+          # Counts only. The body contains no object names.
+          cat "$RUNNER_TEMP/cleanup.json"; echo
+          [ "$code" = "200" ] || { echo "FAIL: cleanup did not complete"; exit 1; }
