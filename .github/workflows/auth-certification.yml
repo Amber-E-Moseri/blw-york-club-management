@@ -181,7 +181,7 @@ jobs:
           echo "PASS: migrations 000-103 applied in order to the certification project"
 
       - name: Mail-adapter unit tests (fixed MailSlurp inbox; mocked, no network, no key)
-        run: node --test supabase/verification/auth/mailslurp_otp.test.mjs supabase/verification/auth/person_link.test.mjs
+        run: node --test supabase/verification/auth/mailslurp_otp.test.mjs supabase/verification/auth/person_link.test.mjs supabase/verification/auth/signup_response.test.mjs supabase/verification/auth/cleanup_plan.test.mjs
       - name: Real GoTrue and PostgREST tests (real JWTs; hosted only)
         if: ${{ !inputs.delivery_only }}
         env:
