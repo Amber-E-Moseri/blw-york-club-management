@@ -169,3 +169,52 @@ describe('saved groups (operational tables)', () => {
     expect(fake.log.find((e) => e.op === 'in')!.args).toEqual(['profile_id', ['a']]);
   });
 });
+
+describe('restoring the saved audience', () => {
+  const SPEC_ID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+
+  test('a saved explicit audience comes back as the same selection', async () => {
+    const selection = { ...emptyAudienceSelection('explicit'), profileIds: [PROFILE_ID] };
+    fake.queue('rpc:set_meeting_audience', { data: { dry_run: false, recipients: 1, added: 1, removed: 0 }, error: null });
+    await audience.setMeetingAudience(MEETING_ID, selection);
+    const saved = fake.log.find((e) => e.target === 'rpc:set_meeting_audience')!.args[0] as Record<string, unknown>;
+    expect(saved).toMatchObject({ p_mode: 'explicit', p_profile_ids: [PROFILE_ID] });
+
+    // The database stores the spec and points the meeting at it. Reopening reads the same values back.
+    fake.queue('meetings', { data: { audience_spec_id: SPEC_ID }, error: null });
+    fake.queue('audience_specs', {
+      data: { mode: 'explicit', cell_ids: null, group_ids: null, profile_ids: [PROFILE_ID] },
+      error: null,
+    });
+    expect(await audience.fetchSavedMeetingAudience(MEETING_ID)).toEqual(selection);
+    expect(fake.log.find((e) => e.target === 'audience_specs' && e.op === 'eq')!.args).toEqual(['id', SPEC_ID]);
+  });
+
+  test('a saved cells audience restores its cell ids and leaves the other lists empty', async () => {
+    fake.queue('meetings', { data: { audience_spec_id: SPEC_ID }, error: null });
+    fake.queue('audience_specs', { data: { mode: 'cells', cell_ids: [GROUP_ID], group_ids: null, profile_ids: null }, error: null });
+    expect(await audience.fetchSavedMeetingAudience(MEETING_ID)).toEqual({
+      mode: 'cells',
+      cellIds: [GROUP_ID],
+      groupIds: [],
+      profileIds: [],
+    });
+  });
+
+  test('a meeting with no saved spec returns null, so the panel keeps its defaults', async () => {
+    fake.queue('meetings', { data: { audience_spec_id: null }, error: null });
+    expect(await audience.fetchSavedMeetingAudience(MEETING_ID)).toBeNull();
+    expect(fake.log.some((e) => e.target === 'audience_specs')).toBe(false);
+  });
+
+  test('a spec hidden by RLS (a cell leader) returns null instead of an error', async () => {
+    fake.queue('meetings', { data: { audience_spec_id: SPEC_ID }, error: null });
+    fake.queue('audience_specs', { data: null, error: null });
+    expect(await audience.fetchSavedMeetingAudience(MEETING_ID)).toBeNull();
+  });
+
+  test('a read error is surfaced, not treated as an empty audience', async () => {
+    fake.queue('meetings', { data: null, error: { message: 'permission denied for table meetings' } });
+    await expect(audience.fetchSavedMeetingAudience(MEETING_ID)).rejects.toThrow('permission denied for table meetings');
+  });
+});
