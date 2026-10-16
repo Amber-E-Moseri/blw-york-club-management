@@ -69,13 +69,17 @@ try {
   // Link the account to a person whose email matches it. Reuse only a record this run created; otherwise fail closed.
   const found = await admin.from('people').select('id,email,full_name,created_at').ilike('email', email).maybeSingle();
   if (found.error) throw new Error(`person lookup failed: ${found.error.message}`);
-  let linkedCount = 0;
+  let otherLinkedCount = 0;
+  let linkedToThisAccount = false;
   if (found.data) {
-    const counted = await admin.from('profiles').select('id', { count: 'exact', head: true }).eq('person_id', found.data.id);
-    if (counted.error) throw new Error(`profile count failed: ${counted.error.message}`);
-    linkedCount = counted.count ?? 0;
+    const others = await admin.from('profiles').select('id', { count: 'exact', head: true }).eq('person_id', found.data.id).neq('id', userId);
+    if (others.error) throw new Error(`profile count failed: ${others.error.message}`);
+    otherLinkedCount = others.count ?? 0;
+    const ownRow = await admin.from('profiles').select('person_id').eq('id', userId).maybeSingle();
+    if (ownRow.error) throw new Error(`own profile read failed: ${ownRow.error.message}`);
+    linkedToThisAccount = ownRow.data?.person_id === found.data.id;
   }
-  const plan = planPersonForLink({ existing: found.data, accountEmail: email, ownerMarker: `Cert Pending ${h.run}`, runStartIso, linkedProfileCount: linkedCount });
+  const plan = planPersonForLink({ existing: found.data, accountEmail: email, ownerMarker: `Cert Pending ${h.run}`, runStartIso, otherLinkedCount, linkedToThisAccount });
   if (plan.action === 'refuse') throw new Error(`approval link refused: ${plan.reason}`);
   if (plan.action === 'insert') {
     const inserted = await admin.from('people').insert({ full_name: 'Cert Linked Person', email }).select('id').single();
@@ -86,8 +90,12 @@ try {
   }
   personOwnedByRun = plan.ownedByRun === true;
   expect('synthetic person available for the account link', !!personId, 'no person id');
-  const linked = await coordinator.client.rpc('link_pending_profile_to_person', { p_profile_id: userId, p_person_id: personId, p_reason: 'Matched by staff review' });
-  expect('staff link of the account to its verified person', !linked.error, linked.error?.message);
+  if (plan.action === 'already-linked') {
+    expect('account already linked to its verified person (link step not needed)', true);
+  } else {
+    const linked = await coordinator.client.rpc('link_pending_profile_to_person', { p_profile_id: userId, p_person_id: personId, p_reason: 'Matched by staff review' });
+    expect('staff link of the account to its verified person', !linked.error, linked.error?.message);
+  }
 
   const approve = await coordinator.client.rpc('approve_pending_member', { target_member_id: userId });
   expect('approval by an authorised coordinator activates the account', !approve.error && (await h.profileOf(userId)).status === 'active', approve.error?.message);
