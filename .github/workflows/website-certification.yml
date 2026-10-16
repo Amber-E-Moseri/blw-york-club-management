@@ -72,7 +72,7 @@ jobs:
           set -euo pipefail
           last="$(ls supabase/migrations/*.sql | sort | tail -1 | xargs basename)"
           echo "Last migration: $last"
-          case "$last" in 110_*) echo "PASS: frontier 110";; *) echo "FAIL: unexpected frontier"; exit 1;; esac
+          case "$last" in 111_*) echo "PASS: frontier 111";; *) echo "FAIL: unexpected frontier (expected 111)"; exit 1;; esac
           test -f supabase/migrations/000_profiles.sql || { echo "FAIL: baseline missing"; exit 1; }
 
       - uses: actions/setup-node@v4
@@ -114,7 +114,7 @@ jobs:
           TOML
           tail -4 supabase/config.toml
 
-      - name: Start the local stack and replay migrations 000-110 from scratch
+      - name: Start the local stack and replay migrations 000-111 from scratch
         run: |
           set -euo pipefail
           supabase start
@@ -199,7 +199,7 @@ jobs:
           set -euo pipefail
           last="$(ls supabase/migrations/*.sql | sort | tail -1 | xargs basename)"
           echo "Last migration: $last"
-          case "$last" in 110_*) echo "PASS: frontier 110";; *) echo "FAIL: unexpected frontier"; exit 1;; esac
+          case "$last" in 111_*) echo "PASS: frontier 111";; *) echo "FAIL: unexpected frontier (expected 111)"; exit 1;; esac
           test -f supabase/migrations/000_profiles.sql || { echo "FAIL: baseline missing"; exit 1; }
 
       - uses: actions/setup-node@v4
@@ -241,7 +241,7 @@ jobs:
           TOML
           tail -4 supabase/config.toml
 
-      - name: Start the local stack and replay migrations 000-110 from scratch
+      - name: Start the local stack and replay migrations 000-111 from scratch
         run: |
           set -euo pipefail
           supabase start
