@@ -216,7 +216,6 @@ async function main() {
   const shapeKeys = shapeProbe.json && typeof shapeProbe.json === 'object' ? Object.keys(shapeProbe.json).join(',') : 'none';
   const shapeUrl = String(shapeProbe.json?.url ?? '').replace(/token=[^&]*/, 'token=<redacted>').slice(0, 140);
   console.log(`DIAG storage sign: http=${shapeProbe.status} keys=${shapeKeys} url=${shapeUrl}`);
-  const shapeCheck = await http(`${API}/storage/v1/object/upload/sign/site-media/diagnostic/${randomUUID()}.png`, { method: 'POST', headers: { ...bearer(SERVICE) }, body: '{}' });
 
   const img = await signedUpload(U.contributor.token, 'site-media', 'image/png', PNG_BYTES);
   check('media', 'a contributor uploads a site image through the signed upload', img.ok, JSON.stringify(img).slice(0, 160));
@@ -290,8 +289,9 @@ async function main() {
   check('cleanup', 'the cleanup function refuses a caller without the service key', denied.status === 401, denied.status);
   const run = await fn('website-media-cleanup', {}, { token: SERVICE });
   check('cleanup', 'the cleanup run completes', run.status === 200, run.status);
-  const orphanGone = await http(`${API}/storage/v1/object/public/site-media/${orphanPath}`);
-  check('cleanup', 'the abandoned upload is removed', orphanGone.status === 404, orphanGone.status);
+  // The object row is the authority: storage answers a missing public object with 400, so the database is asked directly.
+  const orphanRows = Number(sql(`select count(*) from storage.objects where bucket_id = 'site-media' and name = ${sqlLit(orphanPath)}`));
+  check('cleanup', 'the abandoned upload is removed', orphanRows === 0, `rows=${orphanRows}`);
   const keptImg = await http(`${API}/storage/v1/object/public/site-media/${img.path}`);
   check('cleanup', 'a registered image is kept', keptImg.status === 200, keptImg.status);
   const keptPdf = await http(`${API}/storage/v1/object/rhapsody-pdfs/${pdf.path}`, { headers: bearer(SERVICE) });
