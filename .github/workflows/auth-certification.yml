@@ -8,6 +8,9 @@ name: Authentication certification (exact candidate SHA)
 #              Simulated JWT claims and in-process PGlite only. These results do NOT certify real GoTrue or PostgREST.
 #   hosted   : real GoTrue, real PostgREST with real JWTs, and real OTP delivery against ONE allowlisted certification
 #              project. Bound to the GitHub Preview environment and the disposable Preview project only. Runs only when run_hosted is true.
+#              When final_authz_only is true, auth_workflow_certification and authorization_certification are skipped;
+#              only authz_final_real_session_test runs. Use this when those two suites are already certified and the
+#              Preview email quota must be preserved.
 #
 # Fail closed: every gate stops the job with FAIL before any test runs. A BLOCKED mail path is reported as BLOCKED
 # (not PASS). No secret value is printed; the owner connection string is masked before it is written to the job env.
@@ -32,6 +35,11 @@ on:
       replay_hosted_migrations:
         description: Apply migrations 000-103 to the certification project before testing (requires separate approval).
         required: true
+        type: boolean
+        default: false
+      final_authz_only:
+        description: Skip auth_workflow_certification and authorization_certification; run only authz_final_real_session_test. Use when those suites are already certified to stay within the Preview email quota.
+        required: false
         type: boolean
         default: false
 
@@ -195,6 +203,10 @@ jobs:
         run: |
           set -euo pipefail
           for h in auth_workflow_certification.mjs authorization_certification.mjs authz_final_real_session_test.mjs; do
+            if [[ "$h" != "authz_final_real_session_test.mjs" && "${{ inputs.final_authz_only }}" == "true" ]]; then
+              echo "SKIP: $h (final_authz_only=true; suite already certified)"
+              continue
+            fi
             log="$RUNNER_TEMP/$h.log"
             rc=0; node "supabase/verification/auth/$h" > "$log" 2>&1 || rc=$?
             if grep -q '^FAIL' "$log" || [ "$rc" -ne 0 ]; then
