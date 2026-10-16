@@ -58,6 +58,7 @@
     "people",
     "person_identity_audit",
     "prayer_requests",
+    "profile_approval_audit",
     "profile_link_audit",
     "profiles",
     "push_notification_log",
@@ -162,6 +163,7 @@
       "identity_review_audit",
       "people",
       "person_identity_audit",
+      "profile_approval_audit",
       "profile_link_audit",
       "scheduled_emails"
     ],
@@ -181,6 +183,7 @@
     "member_cell_audit",
     "member_status_audit",
     "person_identity_audit",
+    "profile_approval_audit",
     "profile_link_audit"
   ],
   "serviceRoleExact": {
@@ -846,6 +849,16 @@
       ]
     },
     "_f2_caller_person_id()": {
+      "security": "definer",
+      "execute": [
+        "authenticated"
+      ]
+    },
+    "_mask_email(text)": {
+      "security": "invoker",
+      "execute": []
+    },
+    "list_identity_link_queue(integer)": {
       "security": "definer",
       "execute": [
         "authenticated"

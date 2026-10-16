@@ -94,8 +94,10 @@ describe('migration 103 contract (text gate; the SQL is NOT executed here)', () 
     expect(body).toMatch(/before update or delete on public\.profile_approval_audit/i);
   });
 
-  test('no existing migration file is modified by 103 (it is additive, numbered after 102)', () => {
+  test('103 stays in place, and any later migration is a forward migration numbered after it', () => {
     const files = fs.readdirSync(path.join(root, 'supabase', 'migrations')).filter((f) => f.endsWith('.sql')).sort();
-    expect(files[files.length - 1]).toBe('103_identity_link_queue_and_approval_gate.sql');
+    const index = files.indexOf('103_identity_link_queue_and_approval_gate.sql');
+    expect(index).toBeGreaterThanOrEqual(0);
+    files.slice(index + 1).forEach((f) => expect(Number(f.match(/^\d+/)?.[0])).toBeGreaterThan(103));
   });
 });
