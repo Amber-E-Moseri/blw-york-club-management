@@ -159,3 +159,24 @@ describe('About and New Here are connected to published pages', () => {
     expect(out.publishedPages.newHere).toBe(true);
   });
 });
+
+describe('Foundation School shows no sample copy when published', () => {
+  it('renders only the published headline and intro, never the Phase C sample sections', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => json(String(url).includes('v_public_content') ? [{
+      kind: 'page', key: 'foundation_school', body: { title: 'Foundation School', sections: [{ type: 'text', heading: '', body: 'Published intro.', visible: true }] },
+      version_no: 1, published_at: '2026-10-01T00:00:00Z',
+    }] : [])));
+    render(
+      <MemoryRouter initialEntries={['/foundation-school']}>
+        <PublishedApp config={CONFIG_NO_TURNSTILE} />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByText('Published intro.')).toBeInTheDocument());
+    const fs = sampleContent.foundationSchool;
+    for (const sample of [fs.whatItIs, fs.learn[0].title, fs.journey[0].title, fs.benefits[0], fs.faqs[0].question]) {
+      expect(screen.queryByText(sample)).toBeNull();
+    }
+    expect(screen.queryByText('What participants will learn')).toBeNull();
+    expect(screen.queryByText('Frequently asked questions')).toBeNull();
+  });
+});

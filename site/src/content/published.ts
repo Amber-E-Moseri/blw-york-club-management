@@ -223,6 +223,7 @@ export function unpublishedBase(sample: SiteContent): SiteContent {
     about: { mission: '', vision: '', beliefs: [], ministries: [], leaders: [], opportunities: [] },
     newHere: { welcomePoints: [], expectations: [], faqs: [] },
     home: { ...sample.home, eyebrow: '', headingLead: '', headingAccent: '', headingTail: '', body: '' },
+    foundationSchool: { headline: '', intro: '', whatItIs: '', whoItIsFor: '', learn: [], journey: [], benefits: [], enrolSteps: [], faqs: [] },
     publishedPages: { home: false, about: false, foundationSchool: false, newHere: false },
     events: [],
     posts: [],

@@ -15,6 +15,7 @@ export function FoundationSchoolPage() {
     <>
       <PageHero eyebrow="FOUNDATION SCHOOL" title={fs.headline} lead={fs.intro} />
 
+      {(fs.whatItIs || fs.whoItIsFor) && (
       <Section labelledBy="fs-what">
         <div className="grid gap-8 md:grid-cols-2">
           <div>
@@ -27,7 +28,9 @@ export function FoundationSchoolPage() {
           </div>
         </div>
       </Section>
+      )}
 
+      {fs.learn.length > 0 && (
       <Section labelledBy="fs-learn" tone="card">
         <SectionHeading id="fs-learn" eyebrow="Curriculum" title="What participants will learn" />
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -39,7 +42,9 @@ export function FoundationSchoolPage() {
           ))}
         </ul>
       </Section>
+      )}
 
+      {fs.journey.length > 0 && (
       <Section labelledBy="fs-journey">
         <SectionHeading id="fs-journey" eyebrow="Step by step" title="The learning journey" />
         <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -52,7 +57,9 @@ export function FoundationSchoolPage() {
           ))}
         </ol>
       </Section>
+      )}
 
+      {fs.benefits.length > 0 && (
       <Section labelledBy="fs-benefits" tone="card">
         <SectionHeading id="fs-benefits" eyebrow="Benefits" title="What you gain" />
         <ul className="grid list-disc gap-3 pl-6 text-lg text-ink-soft marker:text-brand md:grid-cols-2">
@@ -61,7 +68,9 @@ export function FoundationSchoolPage() {
           ))}
         </ul>
       </Section>
+      )}
 
+      {(fs.enrolSteps.length > 0 || enrolUrl) && (
       <Section labelledBy="fs-enrol" tone="ink">
         <h2 id="fs-enrol" className="font-display text-3xl font-bold md:text-4xl">
           How to enrol
@@ -91,7 +100,9 @@ export function FoundationSchoolPage() {
           )}
         </div>
       </Section>
+      )}
 
+      {fs.faqs.length > 0 && (
       <Section labelledBy="fs-faq">
         <SectionHeading id="fs-faq" eyebrow="Questions" title="Frequently asked questions" />
         <div className="grid max-w-3xl gap-3">
@@ -111,6 +122,7 @@ export function FoundationSchoolPage() {
           </Link>
         </p>
       </Section>
+      )}
     </>
   );
 }
