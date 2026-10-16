@@ -83,11 +83,13 @@ jobs:
           set -euo pipefail
           printf 'CLIENT_HASH_SECRET=%s\nTURNSTILE_SECRET_KEY=%s\nWEBSITE_ALLOWED_ORIGINS=http://127.0.0.1:4173\n' \
             "$(openssl rand -hex 32)" "1x0000000000000000000000000000000AA" > "$RUNNER_TEMP/functions.env"
+          API="$(supabase status -o env | grep -E '^API_URL=' | cut -d= -f2- | tr -d '"')"
+          echo "Local API base: $API"
           ANON="$(supabase status -o env | grep -E '^ANON_KEY=' | cut -d= -f2- | tr -d '"')"; test -n "$ANON" || { echo "FAIL: anon key not read from status"; exit 1; }
           nohup supabase functions serve --import-map supabase/functions/import_map.json --env-file "$RUNNER_TEMP/functions.env" \
             > "$RUNNER_TEMP/functions.log" 2>&1 &
           for i in $(seq 1 60); do
-            code="$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" -H 'content-type: application/json' -d '{}' http://127.0.0.1:54321/functions/v1/website-inquiry || true)"
+            code="$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" -H 'content-type: application/json' -d '{}' $API/functions/v1/website-inquiry || true)"
             if [ "$code" = "400" ]; then echo "PASS: inquiry function is serving (validation answered)"; break; fi
             sleep 3
           done
