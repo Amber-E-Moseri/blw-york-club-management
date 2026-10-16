@@ -49,3 +49,29 @@ test('a long error_code is truncated', () => {
 test('partial signup: a user is returned only when its id is present, so nothing is tracked otherwise', () => {
   assert.throws(() => signupUserId({ status: 200, data: { user: {} } }), /no user/);
 });
+
+import { userIdFromAdminList } from './signup_response.mjs';
+
+const OWN = 'tmvagughe9i50.leadera@sandbox.zazamail.link';
+const OTHER = 'someone.else@sandbox.zazamail.link';
+
+test('admin list: returns the id of the exact email, ignoring case', () => {
+  const list = { data: { users: [{ id: ID, email: OWN.toUpperCase() }, { id: '99999999-9999-4999-8999-999999999999', email: OTHER }] } };
+  assert.equal(userIdFromAdminList(list, OWN), ID);
+});
+
+test('admin list: no matching email returns null, never another account', () => {
+  const list = { data: { users: [{ id: ID, email: OTHER }] } };
+  assert.equal(userIdFromAdminList(list, OWN), null);
+});
+
+test('admin list: two matches are ambiguous and return null', () => {
+  const list = { data: { users: [{ id: ID, email: OWN }, { id: '99999999-9999-4999-8999-999999999999', email: OWN }] } };
+  assert.equal(userIdFromAdminList(list, OWN), null);
+});
+
+test('admin list: malformed responses return null', () => {
+  assert.equal(userIdFromAdminList({ data: null }, OWN), null);
+  assert.equal(userIdFromAdminList({ data: { users: 'x' } }, OWN), null);
+  assert.equal(userIdFromAdminList({ data: { users: [{ email: OWN }] } }, OWN), null);
+});
