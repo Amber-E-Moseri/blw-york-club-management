@@ -24,7 +24,7 @@ permissions:
   contents: read
 
 env:
-  CANDIDATE_SHA: ${{ inputs.candidate_sha || 'f2782ce79de3235a612004291a5c715ff60177dd' }}
+  CANDIDATE_SHA: ${{ inputs.candidate_sha || '5a1b305bc042604f7957c9fc5ab71e892ed153d3' }}
 
 concurrency:
   group: website-certification-local
@@ -144,7 +144,7 @@ jobs:
       - name: Function error lines (diagnostic; request bodies and tokens are not logged by the functions)
         if: always()
         run: |
-          grep -iE "configuration_error|error|boot" "$RUNNER_TEMP/functions.log" | sed -E "s/[A-Za-z0-9_-]{20,}.[A-Za-z0-9_-]{20,}.[A-Za-z0-9_-]{10,}/<redacted>/g" | tail -40 || true
+          grep -iE "configuration_error|error|boot|failed|unreachable|rejected|missing" "$RUNNER_TEMP/functions.log" | sed -E "s/[A-Za-z0-9_-]{20,}.[A-Za-z0-9_-]{20,}.[A-Za-z0-9_-]{10,}/<redacted>/g" | tail -40 || true
       - name: Upload results (no credentials)
         if: always()
         uses: actions/upload-artifact@v4
