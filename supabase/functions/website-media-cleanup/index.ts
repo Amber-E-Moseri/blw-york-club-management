@@ -36,9 +36,17 @@ Deno.serve(async (req: Request) => {
 
   let deleted = 0;
   let failed = 0;
+  let skipped = 0;
   for (const row of listed.slice(0, MAX_PER_RUN)) {
     // Only the two website buckets are ever touched, whatever the database returns.
     if (row.bucket_id !== 'site-media' && row.bucket_id !== 'rhapsody-pdfs') { failed++; continue; }
+    // Revalidate against current references immediately before deleting. Anything referenced since the snapshot is kept.
+    const stillOrphan = await fetch(`${supabaseUrl}/rest/v1/rpc/web_upload_still_unreferenced`, {
+      method: 'POST',
+      headers: { apikey: serviceKey, authorization: `Bearer ${serviceKey}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ p_bucket: row.bucket_id, p_object_name: row.object_name, p_older_than_minutes: GRACE_MINUTES }),
+    }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    if (stillOrphan !== true) { skipped++; continue; }
     const encoded = row.object_name.split('/').map(encodeURIComponent).join('/');
     const res = await fetch(`${supabaseUrl}/storage/v1/object/${row.bucket_id}/${encoded}`, {
       method: 'DELETE',
@@ -47,8 +55,8 @@ Deno.serve(async (req: Request) => {
     if (res?.ok) deleted++;
     else failed++;
   }
-  console.log(JSON.stringify({ event: 'media_cleanup', candidates: listed.length, deleted, failed }));
-  return reply(200, { candidates: listed.length, deleted, failed });
+  console.log(JSON.stringify({ event: 'media_cleanup', candidates: listed.length, deleted, skipped, failed }));
+  return reply(200, { candidates: listed.length, deleted, skipped, failed });
 });
 
 function reply(status: number, payload: unknown): Response {

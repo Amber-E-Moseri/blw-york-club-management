@@ -578,6 +578,29 @@ rr = await as('authenticated', U.editor, `select pdf_path from public.web_list_e
   check(area, 'anon cannot list orphaned uploads', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
 }
 
+// ---------- Migration 111: revalidation before each deletion
+{
+  const area = 'reval111';
+  const old = "now() - interval '3 days'";
+  await owner(`insert into storage.objects (bucket_id, name, metadata, created_at) values
+    ('site-media','reval/still-orphan.jpg','{"size":"10","mimetype":"image/jpeg"}', ${old}),
+    ('site-media','reval/now-referenced.jpg','{"size":"10","mimetype":"image/jpeg"}', ${old}),
+    ('site-media','reval/recent.jpg','{"size":"10","mimetype":"image/jpeg"}', now())`);
+  let rr = await as('service_role', null, `select public.web_upload_still_unreferenced('site-media','reval/still-orphan.jpg',1440) as ok`);
+  check(area, 'an old unreferenced upload is still a deletion candidate', rr.ok && rr.rows[0].ok === true, rr.error || JSON.stringify(rr.rows));
+  await owner(`update public.web_content set draft = draft || '{"hero_image_url":"/storage/reval/now-referenced.jpg"}'::jsonb where kind='settings' and key='site'`);
+  rr = await as('service_role', null, `select public.web_upload_still_unreferenced('site-media','reval/now-referenced.jpg',1440) as ok`);
+  check(area, 'an upload referenced after the snapshot is no longer a candidate', rr.ok && rr.rows[0].ok === false, rr.error || JSON.stringify(rr.rows));
+  rr = await as('service_role', null, `select public.web_upload_still_unreferenced('site-media','reval/recent.jpg',1440) as ok`);
+  check(area, 'a recent upload is never a candidate', rr.ok && rr.rows[0].ok === false, rr.error || JSON.stringify(rr.rows));
+  rr = await as('service_role', null, `select public.web_upload_still_unreferenced('site-media','reval/still-orphan.jpg',60) as ok`);
+  check(area, 'the 24-hour minimum age cannot be shortened', rr.ok ? rr.rows[0].ok === false : true, rr.error || JSON.stringify(rr.rows));
+  rr = await as('authenticated', U.admin, `select public.web_upload_still_unreferenced('site-media','reval/still-orphan.jpg',1440)`);
+  check(area, 'signed-in users cannot ask revalidation questions', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+  rr = await as('anon', null, `select public.web_upload_still_unreferenced('site-media','reval/still-orphan.jpg',1440)`);
+  check(area, 'anon cannot ask revalidation questions', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
+}
+
 const failed = out.filter((x) => !x.ok);
 console.log(`\nD2 DATABASE TESTS: ${out.length - failed.length}/${out.length} passed`);
 if (failed.length) console.log('FAILED:\n' + failed.map((f) => `  [${f.area}] ${f.name}`).join('\n'));
