@@ -54,8 +54,8 @@ Deno.serve(async (req: Request) => {
     return reply(403, { error: 'You do not have permission to upload here.' }, cors);
   }
 
-  // Links handed to the browser use the public address (SUPABASE_PUBLIC_URL, defaulting to SUPABASE_URL).
-  const publicBase = (Deno.env.get('SUPABASE_PUBLIC_URL') ?? supabaseUrl).replace(/\/+$/, '');
+  // Links handed to the browser use the public address (WEBSITE_PUBLIC_URL, defaulting to SUPABASE_URL).
+  const publicBase = (Deno.env.get('WEBSITE_PUBLIC_URL') ?? supabaseUrl).replace(/\/+$/, '');
   const path = uploadObjectPath(bucket, mime, crypto.randomUUID(), new Date());
   const encodedPath = path.split('/').map(encodeURIComponent).join('/');
   const signRes = await fetch(`${supabaseUrl}/storage/v1/object/upload/sign/${bucket}/${encodedPath}`, {

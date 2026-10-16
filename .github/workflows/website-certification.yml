@@ -122,7 +122,7 @@ jobs:
         run: |
           set -euo pipefail
           API="$(supabase status -o env | grep -E '^API_URL=' | cut -d= -f2- | tr -d '"')"
-          printf 'CLIENT_HASH_SECRET=%s\nTURNSTILE_SECRET_KEY=%s\nWEBSITE_ALLOWED_ORIGINS=http://127.0.0.1:4173\nSUPABASE_PUBLIC_URL=%s\n' \
+          printf 'CLIENT_HASH_SECRET=%s\nTURNSTILE_SECRET_KEY=%s\nWEBSITE_ALLOWED_ORIGINS=http://127.0.0.1:4173\nWEBSITE_PUBLIC_URL=%s\n' \
             "$(openssl rand -hex 32)" "1x0000000000000000000000000000000AA" "$API" > "$RUNNER_TEMP/functions.env"
           API="$(supabase status -o env | grep -E '^API_URL=' | cut -d= -f2- | tr -d '"')"
           echo "Local API base: $API"

@@ -57,8 +57,8 @@ Deno.serve(async (req: Request) => {
   if (!recorded.ok) return text(503, 'The document is temporarily unavailable.');
 
   // 3. Sign a short-lived link for the private object.
-  // Links handed to the browser use the public address (SUPABASE_PUBLIC_URL, defaulting to SUPABASE_URL).
-  const publicBase = (Deno.env.get('SUPABASE_PUBLIC_URL') ?? supabaseUrl).replace(/\/+$/, '');
+  // Links handed to the browser use the public address (WEBSITE_PUBLIC_URL, defaulting to SUPABASE_URL).
+  const publicBase = (Deno.env.get('WEBSITE_PUBLIC_URL') ?? supabaseUrl).replace(/\/+$/, '');
   const encodedPath = row.storage_path.split('/').map(encodeURIComponent).join('/');
   const signed = await fetch(`${supabaseUrl}/storage/v1/object/sign/rhapsody-pdfs/${encodedPath}`, {
     method: 'POST',
