@@ -140,7 +140,9 @@ test.describe('restricted meeting audience', () => {
 
     await coordinatorPage.reload();
     const after = await openInvitations(coordinatorPage);
-    await expect(after.getByLabel(people.invitee.name)).toBeChecked();
+    // The saved mode is restored asynchronously after the dialog opens. Wait for it before reading the recipient list.
+    await expect(after.getByRole('radio', { name: /Specific members/ })).toBeChecked({ timeout: 15_000 });
+    await expect(after.getByRole('checkbox', { name: people.invitee.name, exact: true })).toBeChecked();
     expect(await after.getByLabel(people.outsider.name).isChecked(), 'a non-invited member must not be preselected').toBe(false);
     await shot(coordinatorPage, testInfo, 'audience-persisted-after-refresh');
   });
