@@ -1,12 +1,11 @@
 // Shared helpers for the website Edge Functions (inquiries, Rhapsody PDF delivery, media upload, media cleanup).
-// Validation uses Zod (AGENTS.md: Zod on every write path). The same file is unit-tested under Node in
-// site/src/__tests__/productionSafety.test.ts. Specifier "zod" resolves through supabase/functions/import_map.json in
-// Deno and through site/node_modules in the tests.
+// Validation uses Zod (AGENTS.md: Zod on every write path), pinned to 3.23.8. Deno fetches the exact version from esm.sh;
+// the Node tests and the type checker map the same URL to site/node_modules/zod.
 //
 // Privacy rules: raw network addresses and user agents never leave these helpers. Only keyed hashes are stored or
 // sent to the database, and the secret that keys them is server-side only.
 
-import { z } from 'zod';
+import { z } from 'https://esm.sh/zod@3.23.8';
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
