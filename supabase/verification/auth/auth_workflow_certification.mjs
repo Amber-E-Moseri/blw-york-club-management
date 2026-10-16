@@ -2,6 +2,7 @@
 // End-to-end Auth behaviour on the local stack with fake data: signup (hostile metadata ignored), login, pending
 // state, no self-activation, password reset (no account enumeration), logout (refresh token revoked).
 import { createClient } from '@supabase/supabase-js';
+import { planPersonForLink } from './person_link.mjs';
 import { harness, randomPassword } from './lib.mjs';
 
 const h = harness('auth-workflow');
@@ -11,14 +12,17 @@ const email = '84d516c7-1093-4e5c-8f1c-2ca7141d5824@sandbox.zazamail.link';
 const password = randomPassword();
 let userId;
 let personId;
+let personOwnedByRun = false;
+let runStartIso;
 
 try {
+  runStartIso = new Date().toISOString();
   const signUp = await h.newAnon().auth.signUp({
     email,
     password,
     options: {
       data: {
-        full_name: 'Cert Pending User',
+        full_name: `Cert Pending ${h.run}`,
         student_number: 'CERT-LOCAL',
         role: 'coordinator',
         status: 'active',
@@ -62,9 +66,26 @@ try {
   // Approval requires the pending account to be linked to an existing person whose email is the account email.
   // The synthetic person is created here and removed in the finally block.
   const coordinator = await h.createUser('coordinator', { role: 'coordinator', status: 'active' });
-  const person = await admin.from('people').insert({ full_name: 'Cert Linked Person', email }).select('id').single();
-  expect('synthetic person created for the account link', !person.error && !!person.data?.id, person.error?.message);
-  personId = person.data?.id;
+  // Link the account to a person whose email matches it. Reuse only a record this run created; otherwise fail closed.
+  const found = await admin.from('people').select('id,email,full_name,created_at').ilike('email', email).maybeSingle();
+  if (found.error) throw new Error(`person lookup failed: ${found.error.message}`);
+  let linkedCount = 0;
+  if (found.data) {
+    const counted = await admin.from('profiles').select('id', { count: 'exact', head: true }).eq('person_id', found.data.id);
+    if (counted.error) throw new Error(`profile count failed: ${counted.error.message}`);
+    linkedCount = counted.count ?? 0;
+  }
+  const plan = planPersonForLink({ existing: found.data, accountEmail: email, ownerMarker: `Cert Pending ${h.run}`, runStartIso, linkedProfileCount: linkedCount });
+  if (plan.action === 'refuse') throw new Error(`approval link refused: ${plan.reason}`);
+  if (plan.action === 'insert') {
+    const inserted = await admin.from('people').insert({ full_name: 'Cert Linked Person', email }).select('id').single();
+    if (inserted.error) throw new Error(`person insert failed: ${inserted.error.message}`);
+    personId = inserted.data.id;
+  } else {
+    personId = found.data.id;
+  }
+  personOwnedByRun = plan.ownedByRun === true;
+  expect('synthetic person available for the account link', !!personId, 'no person id');
   const linked = await coordinator.client.rpc('link_pending_profile_to_person', { p_profile_id: userId, p_person_id: personId, p_reason: 'Matched by staff review' });
   expect('staff link of the account to its verified person', !linked.error, linked.error?.message);
 
@@ -81,7 +102,8 @@ try {
   h.fail('harness completed without error', error.message);
 } finally {
   if (userId) await admin.auth.admin.deleteUser(userId);
-  if (personId) await admin.from('people').delete().eq('id', personId);
+  // Remove only a person this run created or verified as its own. Never a foreign or pre-existing record.
+  if (personId && personOwnedByRun) await admin.from('people').delete().eq('id', personId);
   await h.cleanup();
   h.report();
 }
