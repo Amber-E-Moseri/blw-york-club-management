@@ -187,31 +187,33 @@ test.describe('restricted meeting audience', () => {
   });
 
   test('NOT TESTED until executed: audience edits and removals take effect for RLS', async ({}, testInfo) => {
-    // Remove the invitee.
+    // An empty Specific members audience is refused, so the outsider is selected first and the invitee is removed second.
+    // The outsider's denial was already asserted in the publish test above, which runs first.
     const dialog = await openInvitations(coordinatorPage);
     // The saved mode is restored asynchronously after the dialog opens. Wait for it before reading the recipient list.
     await expect(dialog.getByRole('radio', { name: /Specific members/ })).toBeChecked({ timeout: 15_000 });
-    await dialog.getByRole('checkbox', {
-      name: people.invitee.name,
-      exact: true,
-    }).uncheck();
+    await dialog.getByLabel('Find a member').fill(people.outsider.email);
+    await dialog.getByRole('checkbox', { name: people.outsider.name, exact: true }).check();
+    await dialog.getByRole('checkbox', { name: people.invitee.name, exact: true }).uncheck();
     await dialog.getByRole('button', { name: 'Preview recipients' }).click();
+    await expect(dialog.getByText('Invitation preview')).toBeVisible({ timeout: 15_000 });
+    await expect(dialog.getByText(/This meeting will be sent to 1 person/)).toBeVisible();
     await dialog.getByRole('button', { name: 'Save invitations' }).click();
     await expect(dialog.getByRole('status')).toBeVisible({ timeout: 15_000 });
-    const removed = check('attendance after removal', await admin.from('meeting_attendances').select('user_id').eq('meeting_id', meetingId));
-    expect(removed.map((a) => a.user_id)).not.toContain(ids.invitee);
 
+    // The final persisted audience: exactly the outsider, and the saved spec names the same single participant.
+    const saved = check('attendance after save', await admin.from('meeting_attendances').select('user_id').eq('meeting_id', meetingId));
+    expect(saved.map((a) => a.user_id)).toEqual([ids.outsider]);
+    const meetingRow = check<{ audience_spec_id: string | null }>('meeting spec pointer', await admin.from('meetings').select('audience_spec_id').eq('id', meetingId).single());
+    const spec = check<{ mode: string; profile_ids: string[] | null }>('saved spec', await admin.from('audience_specs').select('mode, profile_ids').eq('id', meetingRow.audience_spec_id!).single());
+    expect(spec.mode).toBe('explicit');
+    expect(spec.profile_ids).toEqual([ids.outsider]);
+
+    // The removed invitee loses access through RLS; the newly selected participant gains it.
     const inviteeClient = await signedInClient(people.invitee.email);
     expect(check('removed invitee meetings', await inviteeClient.from('meetings').select('id').eq('id', meetingId))).toHaveLength(0);
-
-    // Add the outsider; the new invitee now reads the meeting through RLS.
-    await dialog.getByLabel('Find a member').fill(people.outsider.email);
-    await dialog.getByLabel(people.outsider.name).check();
-    await dialog.getByRole('button', { name: 'Preview recipients' }).click();
-    await dialog.getByRole('button', { name: 'Save invitations' }).click();
-    await expect(dialog.getByRole('status')).toBeVisible({ timeout: 15_000 });
     const outsiderClient = await signedInClient(people.outsider.email);
-    expect(check('added invitee meetings', await outsiderClient.from('meetings').select('id').eq('id', meetingId))).toHaveLength(1);
+    expect(check('selected participant meetings', await outsiderClient.from('meetings').select('id').eq('id', meetingId))).toHaveLength(1);
     await shot(coordinatorPage, testInfo, 'audience-edited');
   });
 });
