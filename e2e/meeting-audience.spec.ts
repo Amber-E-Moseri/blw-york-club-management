@@ -189,6 +189,8 @@ test.describe('restricted meeting audience', () => {
   test('NOT TESTED until executed: audience edits and removals take effect for RLS', async ({}, testInfo) => {
     // Remove the invitee.
     const dialog = await openInvitations(coordinatorPage);
+    // The saved mode is restored asynchronously after the dialog opens. Wait for it before reading the recipient list.
+    await expect(dialog.getByRole('radio', { name: /Specific members/ })).toBeChecked({ timeout: 15_000 });
     await dialog.getByRole('checkbox', {
       name: people.invitee.name,
       exact: true,
