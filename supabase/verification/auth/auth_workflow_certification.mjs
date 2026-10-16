@@ -22,7 +22,7 @@ try {
     password,
     options: {
       data: {
-        full_name: 'Cert Pending User',
+        full_name: `Cert Pending ${h.run}`,
         student_number: 'CERT-LOCAL',
         role: 'coordinator',
         status: 'active',
@@ -75,7 +75,7 @@ try {
     if (counted.error) throw new Error(`profile count failed: ${counted.error.message}`);
     linkedCount = counted.count ?? 0;
   }
-  const plan = planPersonForLink({ existing: found.data, accountEmail: email, runStartIso, linkedProfileCount: linkedCount });
+  const plan = planPersonForLink({ existing: found.data, accountEmail: email, ownerMarker: `Cert Pending ${h.run}`, runStartIso, linkedProfileCount: linkedCount });
   if (plan.action === 'refuse') throw new Error(`approval link refused: ${plan.reason}`);
   if (plan.action === 'insert') {
     const inserted = await admin.from('people').insert({ full_name: 'Cert Linked Person', email }).select('id').single();
