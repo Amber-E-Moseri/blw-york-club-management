@@ -23,7 +23,7 @@
 
 import { assertCertificationTarget } from './lib.mjs';
 
-import { signupUserId } from './signup_response.mjs';
+import { signupUserId, userIdFromAdminList } from './signup_response.mjs';
 import { planCleanup } from './cleanup_plan.mjs';
 
 const url = process.env.SUPABASE_URL;
@@ -92,7 +92,17 @@ async function registerApplicant(label) {
   const email = `${run}.${label}@sandbox.zazamail.link`;
   const password = `Pw-${run}-${label}-7`;
   const r = await call('POST', '/auth/v1/signup', null, { email, password });
-  const userId = signupUserId(r);
+  let userId;
+  try {
+    userId = signupUserId(r);
+  } catch (e) {
+    // The account may exist even though the response did not report it. Track it by its exact email, then abort;
+    // cleanup in finally removes it.
+    const listed = await call('GET', '/auth/v1/admin/users?per_page=1000', service, undefined);
+    const orphan = userIdFromAdminList(listed, email);
+    if (orphan) created.users.push(orphan);
+    throw e;
+  }
   created.users.push(userId);
   // Confirm the synthetic email through the admin API so the sign-in below succeeds. The approval gate is unchanged.
   const confirmed = await call('PUT', `/auth/v1/admin/users/${userId}`, service, { email_confirm: true });
