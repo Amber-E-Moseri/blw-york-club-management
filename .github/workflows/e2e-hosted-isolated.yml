@@ -35,8 +35,8 @@ jobs:
       - name: Reject an unpinned candidate
         run: |
           case "$CANDIDATE_SHA" in
-            fada4a3af3416d9c8943ffa6fb68e377157f9c99|734b0fed080fdec29d5533fde472cb5c1e7c6855) ;;
-            *) echo "candidate_sha must be an approved candidate: fada4a3af3416d9c8943ffa6fb68e377157f9c99 or 734b0fed080fdec29d5533fde472cb5c1e7c6855" >&2; exit 1 ;;
+            fada4a3af3416d9c8943ffa6fb68e377157f9c99|734b0fed080fdec29d5533fde472cb5c1e7c6855|6acd417b308afa0ae37a157dfe74a2a5e2badd36) ;;
+            *) echo "candidate_sha must be an approved candidate: fada4a3af3416d9c8943ffa6fb68e377157f9c99 or 734b0fed080fdec29d5533fde472cb5c1e7c6855, or 6acd417b308afa0ae37a157dfe74a2a5e2badd36" >&2; exit 1 ;;
           esac
           if [[ ! "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
             echo "candidate_sha must be a full 40-character lowercase SHA" >&2
