@@ -148,8 +148,14 @@ test.describe('restricted meeting audience', () => {
   });
 
   test('NOT TESTED until executed: publish, invitee sees the meeting, outsider cannot read or enumerate it', async ({ browser }, testInfo) => {
-    await openInvitations(coordinatorPage);
-    await coordinatorPage.getByRole('dialog').getByRole('button', { name: 'Publish meeting' }).click();
+    const dialog = await openInvitations(coordinatorPage);
+    // Publishing is enabled only after a recipient preview. The preview must show exactly the invitee, not the outsider.
+    await dialog.getByRole('button', { name: 'Preview recipients' }).click();
+    await expect(dialog.getByText('Invitation preview')).toBeVisible({ timeout: 15_000 });
+    await expect(dialog.getByText('This meeting will be sent to 1 person')).toBeVisible();
+    const previewed = check('attendance before publish', await admin.from('meeting_attendances').select('user_id').eq('meeting_id', meetingId));
+    expect(previewed.map((a) => a.user_id)).toEqual([ids.invitee]);
+    await dialog.getByRole('button', { name: 'Publish meeting' }).click();
     await expect.poll(async () => check<{ published_at: string | null }>('published_at', await admin.from('meetings').select('published_at').eq('id', meetingId).single()).published_at, { timeout: 15_000 }).not.toBeNull();
 
     const inviteeClient = await signedInClient(people.invitee.email);
