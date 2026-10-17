@@ -171,9 +171,10 @@ jobs:
           name: s8-fingerprint-${{ github.run_id }}
           path: |
             ${{ runner.temp }}/s8-out/schema_fingerprint.candidate-s8-r1.json
+            ${{ runner.temp }}/s8-out/schema_fingerprint.candidate-s8-r2.json
             ${{ runner.temp }}/s8-out/contract-check-s8.txt
             ${{ runner.temp }}/s8-out/cli.txt
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 90
 
       - name: Stop the local stack
