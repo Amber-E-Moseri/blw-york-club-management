@@ -19,7 +19,7 @@ export const PushPermissionPrompt: React.FC<Props> = ({ onAllow, onDismiss }) =>
     try {
       const dismissed = localStorage.getItem(STORAGE_KEY);
       if (dismissed) return;
-      if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+      if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
       if (Notification.permission !== 'default') return;
       setVisible(true);
     } catch {
