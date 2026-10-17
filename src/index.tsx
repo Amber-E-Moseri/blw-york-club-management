@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom/client';
 import './styles/globals.css';
 import './i18n';
 import App from './App';
-import { register as registerSW } from './serviceWorkerRegistration';
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 root.render(
@@ -11,17 +10,6 @@ root.render(
     <App />
   </React.StrictMode>
 );
-
-// Register CRA's Workbox service worker for offline/PWA support
-registerSW({
-  onUpdate: (registration) => {
-    console.log('[PWA] Update available. Reload to get the latest version.');
-    if (window.confirm('A new version of the app is available. Reload now?')) {
-      registration.waiting?.postMessage({ type: 'SKIP_WAITING' });
-      window.location.reload();
-    }
-  },
-});
 
 // Parse emojis via Twemoji for consistent cross-platform rendering
 declare const twemoji: { parse: (el: Element | Document, opts?: Record<string, unknown>) => void };
