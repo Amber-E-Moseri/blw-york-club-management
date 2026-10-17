@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Navigation } from './Navigation';
+import { MobileNavDrawer } from './MobileNavDrawer';
 import { PWAInstallBanner } from '../feature/PWAInstallBanner';
 import { QuickAddModal } from '../feature/QuickAddModal';
 import { cn } from '../../lib/utils';
@@ -19,6 +21,13 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const location = useLocation();
+
+  const closeMobileNav = useCallback(() => setMobileNavOpen(false), []);
+
+  // Browser back/forward changes the page without going through the drawer, so close it here too.
+  useEffect(() => { setMobileNavOpen(false); }, [location.pathname]);
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 text-gray-600 dark:bg-slate-950 dark:text-slate-300">
@@ -30,8 +39,13 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         userRole={user?.role}
         onLogout={onSignOut}
         onQuickAdd={() => setQuickAddOpen(true)}
+        onMenuToggle={() => setMobileNavOpen((v) => !v)}
+        mobileNavOpen={mobileNavOpen}
         className="md:hidden safe-header"
       />
+
+      {/* Mobile full-page menu (hamburger) */}
+      <MobileNavDrawer open={mobileNavOpen} onClose={closeMobileNav} user={user} />
 
       {/* Mobile bottom nav */}
       <Navigation userRole={user?.role} />
