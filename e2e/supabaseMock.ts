@@ -96,7 +96,16 @@ const fixtures: Record<string, unknown[]> = {
   testimonies: [],
 };
 
-export async function mockSupabase(page: Page) {
+export type MockRole = 'admin' | 'coordinator' | 'cell_leader' | 'member';
+
+export async function mockSupabase(page: Page, options: { role?: MockRole } = {}) {
+  const activeProfile = { ...profile, role: options.role ?? profile.role };
+  const activeFixtures: Record<string, unknown[]> = {
+    ...fixtures,
+    profiles: [activeProfile],
+    member_directory: [{ ...activeProfile, avatar_url: null, student_number: '900000001' }],
+  };
+
   await page.route('**/*', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -130,10 +139,10 @@ export async function mockSupabase(page: Page) {
 
     if (url.pathname.startsWith('/rest/v1/')) {
       const table = url.pathname.split('/').pop() ?? '';
-      const rows = fixtures[table] ?? [];
+      const rows = activeFixtures[table] ?? [];
       const wantsSingleProfile = table === 'profiles' && url.searchParams.get('id') === `eq.${user.id}`;
       const wantsSingleUserProfile = table === 'user_profiles' && url.searchParams.get('user_id') === `eq.${user.id}`;
-      const body = wantsSingleProfile ? profile : wantsSingleUserProfile ? (rows[0] ?? null) : rows;
+      const body = wantsSingleProfile ? activeProfile : wantsSingleUserProfile ? (rows[0] ?? null) : rows;
       const headers = {
         ...corsHeaders,
         'content-range': `0-${Math.max(rows.length - 1, 0)}/${rows.length}`,
