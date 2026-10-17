@@ -9,17 +9,12 @@ name: Hosted schema fingerprint (Preview, read-only verification)
 # - Fails closed unless the Preview project id and the pooler user both name the certification project, and no value
 #   names the protected production project.
 # - Declares the Preview environment only. Production secrets are never in scope.
+# - Compares ledger versions with the release frontier 000-038 and prints only migration numbers.
 # - Prints PASS or FAIL lines, counts and a SHA-256 of the fingerprint. The fingerprint JSON is kept in the runner's
 #   temporary directory and deleted at the end. Nothing is uploaded as an artifact.
 
 on:
   workflow_dispatch:
-    inputs:
-      golden_file:
-        description: "Golden fingerprint to compare against (repository path)"
-        required: false
-        default: "supabase/verification/schema_fingerprint.golden.json"
-        type: string
 
 permissions:
   contents: read
@@ -32,7 +27,9 @@ jobs:
     env:
       EXPECTED_CERT_PROJECT_ID: yziuhtxtznginhdpqurb
       PROTECTED_PRODUCTION_PROJECT_ID: rjtstjmtddqhesexltbj
-      GOLDEN_FILE: ${{ inputs.golden_file }}
+      GOLDEN_FILE: supabase/verification/schema_fingerprint.golden.json
+      RELEASE_FRONTIER_FIRST: "000"
+      RELEASE_FRONTIER_LAST: "038"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -105,6 +102,17 @@ jobs:
           echo "Ledger rows: $ledger_count"
           echo "Ledger version range: $ledger_range"
           echo "Ledger records version 038: $has_038"
+          # Coverage against the release frontier (000-038). Only migration numbers are read and printed.
+          ledger_versions=$(ro "select version from supabase_migrations.schema_migrations order by version;")
+          expected=$(seq -f '%03g' "$((10#$RELEASE_FRONTIER_FIRST))" "$((10#$RELEASE_FRONTIER_LAST))")
+          missing=$(comm -23 <(printf '%s\n' "$expected" | sort) <(printf '%s\n' "$ledger_versions" | grep -v '^$' | sort) | tr '\n' ' ')
+          extra=$(comm -13 <(printf '%s\n' "$expected" | sort) <(printf '%s\n' "$ledger_versions" | grep -v '^$' | sort) | tr '\n' ' ')
+          echo "Expected frontier: $RELEASE_FRONTIER_FIRST..$RELEASE_FRONTIER_LAST ($(printf '%s\n' "$expected" | wc -l) versions)"
+          echo "Ledger versions outside frontier (extra): ${extra:-none}"
+          echo "Frontier versions not in ledger (missing): ${missing:-none}"
+          coverage_rc=0
+          if [ -n "$missing" ] || [ -n "$extra" ]; then coverage_rc=1; fi
+          echo "$coverage_rc" > "$RUNNER_TEMP/coverage-rc"
           # Authorization test residue: count only. Test accounts use the @example.test domain; rows are never printed.
           residue=$(ro "select count(*) from auth.users where email like '%@example.test';")
           echo "Auth users on example.test (residue candidates): $residue"
@@ -133,9 +141,10 @@ jobs:
           node supabase/verification/check_schema_contract.mjs "$fp" || contract_rc=$?
           echo "== Golden comparison ($GOLDEN_FILE)"
           node supabase/verification/check_schema_contract.mjs "$fp" --golden "$GOLDEN_FILE" || golden_rc=$?
-          rm -f "$fp" "$RUNNER_TEMP/fingerprint.sql" "$RUNNER_TEMP/fingerprint-path"
-          if [ "$contract_rc" -ne 0 ] || [ "$golden_rc" -ne 0 ]; then
-            echo "FAIL: contract_rc=$contract_rc golden_rc=$golden_rc (see lines above)"
+          coverage_rc="$(cat "$RUNNER_TEMP/coverage-rc")"
+          rm -f "$fp" "$RUNNER_TEMP/fingerprint.sql" "$RUNNER_TEMP/fingerprint-path" "$RUNNER_TEMP/coverage-rc"
+          if [ "$contract_rc" -ne 0 ] || [ "$golden_rc" -ne 0 ] || [ "$coverage_rc" -ne 0 ]; then
+            echo "FAIL: contract_rc=$contract_rc golden_rc=$golden_rc coverage_rc=$coverage_rc (see lines above)"
             exit 1
           fi
-          echo "PASS: contract and golden comparison both passed"
+          echo "PASS: migration coverage, contract and golden comparison all passed"
