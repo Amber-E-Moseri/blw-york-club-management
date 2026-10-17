@@ -305,8 +305,8 @@ async function main() {
   const rejected = await registerApplicant('rejected');
   mustOk('reject applicant', await rpc('reject_pending_member', coord.token, { target_member_id: rejected.id }), false);
   const rejectedName = `${run} rejected contact`;
-  const rejectedTry = await logContact(rejected, { ...basePayload(rejectedName, rejected, null), person_id: pOwn ?? undefined });
-  pass('Contacts', 'Rejected member cannot insert a contact', (await contactRow(rejectedName)).length === 0, `HTTP ${rejectedTry.status}`);
+  const rejectedTry = await submitContact(rejected, rejectedName, null);
+  pass('Contacts', 'Rejected member cannot log a contact via submit_contact', (await contactRow(rejectedName)).length === 0, `HTTP ${rejectedTry.status}`);
 
   // ── Ordinary-member cell list (own cell only, through RLS) ──────────────────────────────────────────────────────────
   const cellList = await call('GET', '/rest/v1/cells?select=id,name', memberA.token);
