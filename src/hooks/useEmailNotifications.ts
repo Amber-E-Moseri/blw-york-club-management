@@ -4,9 +4,8 @@ import {
   fetchEmailPreferences,
   upsertEmailPreferences,
   fetchEmailLog,
-  fetchFailedEmailLogs,
 } from '../lib/queries/emailNotifications';
-import { resendEmail, sendEmail } from '../lib/email/emailService';
+import { sendEmail } from '../lib/email/emailService';
 import { supabase } from '../lib/supabase';
 
 export function useEmailPreferences() {
@@ -87,6 +86,7 @@ export function useOptOutAll() {
 export function useEmailLog(memberId?: string, filters?: { status?: EmailStatus }) {
   const [logs, setLogs] = useState<EmailLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,9 +99,12 @@ export function useEmailLog(memberId?: string, filters?: { status?: EmailStatus 
       }
     })();
     return () => { cancelled = true; };
-  }, [memberId, filters?.status]);
+  }, [memberId, filters?.status, reloadToken]);
 
-  return { logs, loading };
+  // Re-reads the log after an explicit action. It never sends anything by itself.
+  const reload = useCallback(() => setReloadToken((token) => token + 1), []);
+
+  return { logs, loading, reload };
 }
 
 export function useSendTestEmail() {
@@ -128,24 +131,3 @@ export function useSendTestEmail() {
   return { sendTest, sending, error };
 }
 
-export function useResendFailedEmails() {
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const resendFailed = useCallback(async (): Promise<number> => {
-    setSending(true);
-    setError(null);
-    try {
-      const failed = await fetchFailedEmailLogs();
-      await Promise.all(failed.map((log) => resendEmail(log.id)));
-      return failed.length;
-    } catch (err) {
-      setError((err as Error).message);
-      return 0;
-    } finally {
-      setSending(false);
-    }
-  }, []);
-
-  return { resendFailed, sending, error };
-}
