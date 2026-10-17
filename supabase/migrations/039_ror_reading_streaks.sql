@@ -22,7 +22,7 @@ returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
   select exists (
     select 1
@@ -72,7 +72,7 @@ returns table(
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
   with distinct_dates as (
     select distinct viewed_date as d
@@ -157,7 +157,7 @@ returns table(
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
   select
     m.id,
@@ -196,7 +196,7 @@ returns table(
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
   select
     m.id,
