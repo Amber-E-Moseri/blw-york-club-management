@@ -8,6 +8,21 @@
     --color-brand-hover: #A60D26;
     --color-brand-deep: #8B0D1F;
     --color-brand-soft: #FFF1F2;
+    /* RGB channel values for ink/paper — consumed by Tailwind tokens (see tailwind.config.js). */
+    --color-ink: 17 24 39;
+    --color-ink-soft: 31 41 55;
+    --color-ink-muted: 75 85 99;
+    --color-paper: 250 250 248;
+    --color-paper-card: 255 255 255;
+    --color-paper-edge: 232 232 232;
+  }
+  html.dark {
+    --color-ink: 249 250 251;
+    --color-ink-soft: 229 231 235;
+    --color-ink-muted: 156 163 175;
+    --color-paper: 17 24 39;
+    --color-paper-card: 31 41 55;
+    --color-paper-edge: 55 65 81;
   }
   html {
     scroll-behavior: smooth;

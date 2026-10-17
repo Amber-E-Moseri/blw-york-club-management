@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useSiteContent } from '../content/SiteContentContext';
 import { buttonClass } from './ui';
+import { ThemeToggle } from './ThemeToggle';
 
 const SAMPLE_BANNER =
   'Demo preview. Names, dates, venues, times and documents are sample content. Nothing shown here is published information.';
@@ -36,16 +37,16 @@ export function SiteLayout() {
     <div className="flex min-h-screen flex-col overflow-x-hidden bg-paper font-sans text-ink">
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-[100] focus:rounded-lg focus:bg-ink focus:px-4 focus:py-3 focus:text-white"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-[100] focus:rounded-lg focus:bg-gray-900 focus:px-4 focus:py-3 focus:text-white"
       >
         Skip to content
       </a>
 
       {settings.isSample && (
-        <div className="bg-ink px-4 py-2 text-center text-[13px] leading-snug text-white">{SAMPLE_BANNER}</div>
+        <div className="bg-gray-900 px-4 py-2 text-center text-[13px] leading-snug text-white">{SAMPLE_BANNER}</div>
       )}
 
-      <header className="sticky top-0 z-50 border-b border-paper-edge bg-white/95 backdrop-blur">
+      <header className="sticky top-0 z-50 border-b border-paper-edge bg-paper-card/95 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-content items-center justify-between gap-4 px-5 md:px-8">
           <Link
             to="/"
@@ -96,13 +97,14 @@ export function SiteLayout() {
             <Link to="/new-here" className={`${buttonClass('primary')} hidden !min-h-[40px] !py-2.5 xl:inline-flex`}>
               Plan Your Visit
             </Link>
+            <ThemeToggle />
             <button
               ref={menuButtonRef}
               type="button"
               aria-expanded={menuOpen}
               aria-controls={menuId}
               onClick={() => setMenuOpen((open) => !open)}
-              className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-gray-300 bg-white px-3 text-sm font-bold lg:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-paper-edge bg-paper-card px-3 text-sm font-bold text-ink lg:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
             >
               {menuOpen ? 'Close' : 'Menu'}
             </button>
@@ -110,7 +112,7 @@ export function SiteLayout() {
         </div>
 
         {menuOpen && (
-          <nav id={menuId} aria-label="Mobile" className="border-t border-paper-edge bg-white px-5 pb-6 pt-2 lg:hidden">
+          <nav id={menuId} aria-label="Mobile" className="border-t border-paper-edge bg-paper-card px-5 pb-6 pt-2 lg:hidden">
             <ul className="grid gap-1">
               {nav.map((item) => (
                 <li key={item.path}>
@@ -147,7 +149,7 @@ export function SiteLayout() {
 function SiteFooter() {
   const { settings, nav } = useSiteContent();
   return (
-    <footer className="bg-ink text-white">
+    <footer className="bg-gray-900 text-white">
       <div className="mx-auto grid max-w-content gap-10 px-5 py-12 md:grid-cols-3 md:px-8">
         <div>
           <p className="font-display text-2xl font-bold">{settings.name}</p>
