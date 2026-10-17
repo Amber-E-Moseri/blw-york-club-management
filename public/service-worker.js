@@ -73,8 +73,8 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: payload.body,
-    icon: payload.icon || '/logo192.png',
-    badge: payload.badge || '/logo192.png',
+    icon: payload.icon || '/icon-192.png',
+    badge: payload.badge || '/icon-192.png',
     tag: payload.tag,
     data: payload.data || { url: '/' },
     actions: payload.actions || [],
