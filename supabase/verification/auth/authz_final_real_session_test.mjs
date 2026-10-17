@@ -199,63 +199,72 @@ async function main() {
   pass('Status', 'member_status_audit records the change with the coordinator as actor',
     Array.isArray(audit) && audit.some((a) => a.from_status === 'active' && a.to_status === 'inactive' && a.actor_id === coord.id));
 
-  // ── Contact logging (migration 092) ─────────────────────────────────────────────────────────────────────────────────
-  // migration 098 revoked INSERT on people from authenticated; fixture person creation uses service_role
-  const personFor = async (_who, name) => {
-    const r = await svc('POST', '/people', { full_name: `${run} ${name}` });
-    if (!Array.isArray(r.data) || !r.data[0]?.id) return null;
-    created.people.push(r.data[0].id);
-    return r.data[0].id;
-  };
-  const logContact = (who, body) => call('POST', '/rest/v1/contacts', who.token, body, 'return=representation');
+  // ── Contact logging (migration 098: submit_contact RPC path) ────────────────────────────────────────────────────────
+  // Migration 098 revoked direct INSERT on contacts AND people from authenticated. The only supported write path
+  // is submit_contact() / submit_contacts_batch(). person creation is internal to the RPC.
+
   const contactRow = async (name) => {
     const r = await svc('GET', `/contacts?contact_name=eq.${encodeURIComponent(name)}&select=id,logged_by,cell_id`);
     return Array.isArray(r.data) ? r.data : [];
   };
 
-  const basePayload = (name, who, cellId) => ({
-    contact_name: name, cell_id: cellId, date_contacted: new Date().toISOString().slice(0, 10),
-    tag: '', follow_up_status: '', phone_hidden: false, is_member: false, logged_by: who.id,
-  });
+  // Helper: submit one contact via the RPC; returns {status, data}.
+  const today = new Date().toISOString().slice(0, 10);
+  const submitContact = (who, contactName, cellId, extra = {}) =>
+    rpc('submit_contact', who.token, { p_contact_name: contactName, p_cell_id: cellId, p_date_contacted: today, ...extra });
 
-  // Positive: active member logs to own cell, and unassigned.
-  const pOwn = await personFor(memberA, 'own');
+  // Guard: direct REST INSERT on contacts must be denied for all authenticated callers (migration 098).
+  const guardInsert = await call('POST', '/rest/v1/contacts', memberA.token, {
+    contact_name: `${run} direct-guard`, cell_id: cellA.id, date_contacted: today,
+    tag: '', follow_up_status: '', phone_hidden: false, is_member: false, logged_by: memberA.id,
+  }, 'return=representation');
+  pass('Contacts', 'Direct REST INSERT on contacts is denied for authenticated (migration 098)',
+    guardInsert.status === 403, `HTTP ${guardInsert.status}`);
+
+  // Positive: active member logs a contact to their own cell via submit_contact.
   const ownName = `${run} own-cell contact`;
-  if (pOwn) {
-    const r = await logContact(memberA, { ...basePayload(ownName, memberA, cellA.id), person_id: pOwn });
-    const rows = await contactRow(ownName);
-    pass('Contacts', 'Active member logs a contact to own cell', r.status < 300 && rows.length === 1 && rows[0].logged_by === memberA.id);
-    if (rows[0]) created.contacts.push(rows[0].id);
-  } else blocked('Contacts', 'Active member logs a contact to own cell', 'person creation returned no row');
+  const ownR = await submitContact(memberA, ownName, cellA.id);
+  const ownRows = await contactRow(ownName);
+  pass('Contacts', 'Active member logs a contact to own cell',
+    ownR.status < 300 && ownRows.length === 1 && ownRows[0].logged_by === memberA.id, `HTTP ${ownR.status}`);
+  if (ownRows[0]) created.contacts.push(ownRows[0].id);
 
-  const pNone = await personFor(memberB, 'unassigned');
+  // Positive: active member logs a contact with p_cell_id null (unassigned).
+  // Note: memberB was deactivated by the Status section above, so memberA is used here with null cell_id.
+  // submit_contact always allows p_cell_id = null regardless of the caller's own cell.
   const noneName = `${run} unassigned contact`;
-  if (pNone) {
-    const r = await logContact(memberB, { ...basePayload(noneName, memberB, null), person_id: pNone });
-    const rows = await contactRow(noneName);
-    pass('Contacts', 'Active member without a cell logs an unassigned contact', r.status < 300 && rows.length === 1 && rows[0].cell_id === null);
-    if (rows[0]) created.contacts.push(rows[0].id);
-  }
+  const noneR = await submitContact(memberA, noneName, null);
+  const noneRows = await contactRow(noneName);
+  pass('Contacts', 'Active member logs an unassigned contact (p_cell_id null)',
+    noneR.status < 300 && noneRows.length === 1 && noneRows[0].cell_id === null, `HTTP ${noneR.status}`);
+  if (noneRows[0]) created.contacts.push(noneRows[0].id);
 
-  // Negative: cross-cell attribution by an active member.
+  // Negative: cross-cell — submit_contact enforces p_cell_id must be the caller's own cell.
   const crossName = `${run} cross-cell contact`;
-  const cross = await logContact(memberA, { ...basePayload(crossName, memberA, cellB.id), person_id: pOwn ?? undefined });
-  pass('Contacts', 'Active member cannot attribute a contact to another cell', (await contactRow(crossName)).length === 0, `HTTP ${cross.status}`);
+  const crossR = await submitContact(memberA, crossName, cellB.id);
+  pass('Contacts', 'Active member cannot attribute a contact to another cell',
+    (await contactRow(crossName)).length === 0, `HTTP ${crossR.status}`);
 
-  // Negative: ownership spoofing (logged_by is another person).
-  const spoofName = `${run} spoofed logger`;
-  const spoof = await logContact(memberA, { ...basePayload(spoofName, { id: leaderA.id }, cellA.id), person_id: pOwn ?? undefined });
-  pass('Contacts', 'Active member cannot log a contact as another logger', (await contactRow(spoofName)).length === 0, `HTTP ${spoof.status}`);
+  // Negative: logger attribution spoofing — submit_contact always sets logged_by = auth.uid() internally.
+  // There is no logged_by parameter; verify the stored row carries the caller's own uid, not another member's.
+  const spoofName = `${run} spoof-check`;
+  const spoofR = await submitContact(memberA, spoofName, cellA.id);
+  const spoofRows = await contactRow(spoofName);
+  pass('Contacts', 'submit_contact enforces logged_by = auth.uid(); attribution to another member is impossible',
+    spoofR.status < 300 && spoofRows.length === 1 &&
+    spoofRows[0].logged_by === memberA.id && spoofRows[0].logged_by !== leaderA.id, `HTTP ${spoofR.status}`);
+  if (spoofRows[0]) created.contacts.push(spoofRows[0].id);
 
   // Self-read: a member reads own logged contacts and not another member's.
   const own = await call('GET', `/rest/v1/contacts?select=contact_name,logged_by`, memberA.token);
   const sawOther = Array.isArray(own.data) && own.data.some((c) => c.logged_by !== memberA.id);
   pass('Contacts', 'Active member self-read returns only contacts they logged', Array.isArray(own.data) && !sawOther);
 
-  // Negative: pending and rejected accounts cannot log contacts.
+  // Negative: pending applicant cannot log contacts (submit_contact calls _f2_active_actor which requires status=active).
   const pendingContact = `${run} pending contact`;
-  const pendingTry = await logContact(pendingB, { ...basePayload(pendingContact, pendingB, null), person_id: pOwn ?? undefined });
-  pass('Contacts', 'Pending applicant cannot log a contact', (await contactRow(pendingContact)).length === 0, `HTTP ${pendingTry.status}`);
+  const pendingTry = await submitContact(pendingB, pendingContact, null);
+  pass('Contacts', 'Pending applicant cannot log a contact',
+    (await contactRow(pendingContact)).length === 0, `HTTP ${pendingTry.status}`);
 
   // ── Placement (migration 093) ───────────────────────────────────────────────────────────────────────────────────────
   const placeAsLeader = await rpc('assign_pending_applicant_to_cell', leaderA.token, { p_member_id: pendingB.id, p_cell_id: cellA.id, p_reason: 'Real-session placement' });
