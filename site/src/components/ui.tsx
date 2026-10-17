@@ -100,7 +100,7 @@ export function Section({
   const tones = {
     paper: 'bg-paper text-ink',
     card: 'bg-paper-card text-ink',
-    ink: 'bg-ink text-white',
+    ink: 'bg-gray-900 text-white',
   } as const;
   return (
     <section aria-labelledby={labelledBy} className={`${tones[tone]} px-5 py-12 md:px-8 md:py-16 ${className}`}>

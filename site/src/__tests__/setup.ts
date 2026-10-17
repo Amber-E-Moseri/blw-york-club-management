@@ -10,3 +10,18 @@ afterEach(() => {
 
 // jsdom does not implement layout scrolling. Routes call scrollTo on navigation, so stub it.
 Object.defineProperty(window, 'scrollTo', { value: () => undefined, writable: true });
+
+// jsdom does not implement matchMedia. Theme hooks call it on mount, so stub it globally.
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => undefined,
+    removeListener: () => undefined,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    dispatchEvent: () => false,
+  }),
+});
