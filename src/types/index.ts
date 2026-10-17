@@ -16,7 +16,8 @@ export interface User {
 
 export type EventCategory = 'Bible Study' | 'Worship' | 'Fellowship' | 'Outreach' | 'Prayer' | 'Other';
 
-export type EventAudience = 'all' | 'meeting';
+/** Event audience. The database accepts these modes (060; composite added by 077). */
+export type EventAudience = 'all' | 'meeting' | 'cells' | 'saved_groups' | 'explicit' | 'composite';
 
 export interface Event {
   id: string;
@@ -47,6 +48,9 @@ export interface Member {
   phone?: string;
   student_number?: string;
   cell_id?: string;
+  status?: 'pending' | 'active' | 'inactive' | 'rejected';
+  /** Bible Study Class the member is in, when the viewer can see it. A cell change is blocked while it is set. */
+  bsc_name?: string | null;
 }
 
 // ─── Announcements ───────────────────────────────────────────────────────────
@@ -194,12 +198,40 @@ export interface BulkImportRow {
   notes?: string;
   tags?: string;
   follow_up_person?: string;
+  /** 1-based position of the row in the uploaded file. It is the row's key within an import attempt, so it must not change. */
+  file_row?: number;
+}
+
+/** One contact row this attempt has written: its content fingerprint and the row's position in the file when it was written. */
+export interface WrittenRow {
+  fingerprint: string;
+  position: number;
+}
+
+/**
+ * One logical import, from the first upload until it is finished. `written` lists every contact this import has written.
+ * Rows are matched by CONTENT, so a corrected file that reorders, inserts or removes rows neither duplicates nor drops
+ * anything. Kept in sessionStorage per user (it is not durable across browsers or sessions; see the migration proposal).
+ */
+export interface ImportAttempt {
+  attemptId: string;
+  written: WrittenRow[];
 }
 
 export interface ImportResult {
+  /** Rows newly written by this submission. */
   imported: number;
+  /** Rows this import had already written. They are matched by content and not written again. */
+  alreadyCompleted: number;
   failed: number;
   errors: Array<{ row: number; message: string }>;
+  /**
+   * File positions of rows that match a written row's POSITION but not its content. They look like an edit to a row already
+   * written, so they are held: nothing is written for them until the user chooses to import them as new contacts.
+   */
+  heldChanged: number[];
+  /** The attempt to carry into the next upload. null when the import is finished (every row written or matched). */
+  nextAttempt: ImportAttempt | null;
 }
 
 export type SortDir = 'asc' | 'desc';
@@ -209,9 +241,9 @@ export interface SortState {
   dir: SortDir;
 }
 
-// ─── Confessions ─────────────────────────────────────────────────────────────
+// ─── Affirmations ────────────────────────────────────────────────────────────
 
-export interface Confession {
+export interface Affirmation {
   id: string;
   title: string;
   body: string;
@@ -223,7 +255,7 @@ export interface Confession {
   declaration_count?: number;
 }
 
-export interface ConfessionDeclaration {
+export interface AffirmationDeclaration {
   id: string;
   confession_id: string;
   user_id: string;
@@ -334,11 +366,15 @@ export interface Meeting {
   category: MeetingCategory;
   cell_id?: string;
   allow_join_requests?: boolean;
+  /** null while the meeting is a draft. Only organizers can see a draft. */
+  published_at?: string | null;
   created_by: string;
   created_at: string;
   reminder_sent: boolean;
   attendance_count?: number;
   user_confirmed?: boolean;
+  /** The signed-in user's own attendance state for this meeting, if they have one. */
+  user_attendance_status?: MeetingAttendanceStatus | null;
 }
 
 export interface MeetingInput {
@@ -353,7 +389,12 @@ export interface MeetingInput {
   category: MeetingCategory;
   cell_id?: string;
   allow_join_requests?: boolean;
+  /** Create as an unpublished draft. Not stored as a column: the query layer maps it to published_at. */
+  draft?: boolean;
 }
+
+export type MeetingAttendanceStatus = 'invited' | 'confirmed' | 'attended' | 'absent' | 'excused';
+export type MeetingInvitationSource = 'self' | 'member' | 'group' | 'cell' | 'all';
 
 export interface MeetingAttendance {
   id: string;
@@ -362,6 +403,27 @@ export interface MeetingAttendance {
   user_name: string;
   confirmed_at: string;
   attended?: boolean;
+  attendance_status: MeetingAttendanceStatus;
+  invited_via: MeetingInvitationSource;
+  invited_by?: string | null;
+}
+
+/** Named, reusable group of members (operational table saved_groups, migration 059). */
+export interface SavedGroup {
+  id: string;
+  name: string;
+  description?: string | null;
+  created_by: string;
+  is_active: boolean;
+  created_at: string;
+  member_count?: number;
+}
+
+export interface AudiencePerson {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  cell_id: string | null;
 }
 
 // ─── Message of the Week ─────────────────────────────────────────────────────
@@ -746,4 +808,10 @@ export interface SearchResult {
   title: string;
   subtitle?: string;
   href: string;
+}
+
+/** Options for one bulk import submission. */
+export interface BulkImportOptions {
+  /** Import the rows held as changed (they look like edits to rows already written) as NEW contacts. An explicit user action. */
+  importChangedAsNew?: boolean;
 }
