@@ -153,12 +153,31 @@ try {
     cleanup.logs.push(data.id);
     return data.id;
   };
-  const resendBad = await send(coordinator, { action: 'resend', messageId: await insLog(member.id, strangerFor('resend')) });
-  expect('B13 resend of a log row whose address does not belong to its member is skipped, not dispatched', !reachedProvider(resendBad) && /skipped/.test(resendBad.text), `${resendBad.status} ${resendBad.text.slice(0, 140)}`);
-  const resendOpt = await send(coordinator, { action: 'resend', messageId: await insLog(member2.id, member2.email) });
-  expect('B14 resend for a member who has since opted out is skipped', /skipped/.test(resendOpt.text) && !reachedProvider(resendOpt), `${resendOpt.status} ${resendOpt.text.slice(0, 140)}`);
-  const resendOk = await send(coordinator, { action: 'resend', messageId: await insLog(member.id, member.email) });
-  expect('B15 control: resend to the member\'s own address reaches the provider boundary', reachedProvider(resendOk), `${resendOk.status} ${resendOk.text.slice(0, 140)}`);
+  const statusOf = async (id) => (await admin.from('email_log').select('status').eq('id', id).single()).data?.status;
+  // B13 and B14 use reserved test-domain fixtures. The production resend policy refuses them before any identity or
+  // preference check, so they must return RESEND_NOT_ALLOWED, never reach the provider, and leave the row failed.
+  const badId = await insLog(member.id, strangerFor('resend'));
+  const resendBad = await send(coordinator, { action: 'resend', messageId: badId });
+  expect('B13 resend to a reserved test-domain address is refused by the resend policy (RESEND_NOT_ALLOWED), not dispatched, row left failed', resendBad.status === 422 && /RESEND_NOT_ALLOWED/.test(resendBad.text) && !reachedProvider(resendBad) && (await statusOf(badId)) === 'failed', `${resendBad.status} ${resendBad.text.slice(0, 140)} status=${await statusOf(badId)}`);
+  const optId = await insLog(member2.id, member2.email);
+  const resendOpt = await send(coordinator, { action: 'resend', messageId: optId });
+  expect('B14 resend to a reserved test-domain address is refused by the resend policy (RESEND_NOT_ALLOWED), not dispatched, row left failed', resendOpt.status === 422 && /RESEND_NOT_ALLOWED/.test(resendOpt.text) && !reachedProvider(resendOpt) && (await statusOf(optId)) === 'failed', `${resendOpt.status} ${resendOpt.text.slice(0, 140)} status=${await statusOf(optId)}`);
+
+  // B15 must use a non-reserved fixture address so the production policy allows the resend; it must not bypass the policy.
+  // The provider is fully mocked: scripts/certify-local.sh starts the local functions with EMAIL_CRON_SECRET and
+  // UNSUBSCRIBE_SECRET only (no EMAIL_RELAY_URL, EMAIL_RELAY_SECRET or Gmail credentials), so dispatch stops at
+  // EMAIL_PROVIDER_NOT_CONFIGURED before any network call. This harness refuses non-local Supabase URLs (lib.mjs).
+  expect('B15 pre: the harness environment carries no relay URL, relay secret or Gmail credentials', !process.env.EMAIL_RELAY_URL && !process.env.EMAIL_RELAY_SECRET && !process.env.GMAIL_APP_PASSWORD && !process.env.GMAIL_USER);
+  const fixtureEmail = `b15.${rnd()}@cert-fixture.net`;
+  const fixtureMember = await h.createUser('fixture', { role: 'member', status: 'active' });
+  const { error: authEmailErr } = await admin.auth.admin.updateUserById(fixtureMember.id, { email: fixtureEmail, email_confirm: true });
+  if (authEmailErr) throw new Error(`fixture auth email: ${authEmailErr.message}`);
+  const { error: profileEmailErr } = await admin.from('profiles').update({ email: fixtureEmail }).eq('id', fixtureMember.id);
+  if (profileEmailErr) throw new Error(`fixture profile email: ${profileEmailErr.message}`);
+  await admin.from('email_preferences').upsert({ user_id: fixtureMember.id, opt_out_all: false, admin_announcements: true }, { onConflict: 'user_id' });
+  const okId = await insLog(fixtureMember.id, fixtureEmail);
+  const resendOk = await send(coordinator, { action: 'resend', messageId: okId });
+  expect('B15 control: resend to a non-reserved fixture address reaches the (mocked) provider boundary', reachedProvider(resendOk), `${resendOk.status} ${resendOk.text.slice(0, 140)}`);
 
   // scheduled delivery: identity travels with the scheduled row and is enforced when the cron dispatches
   if (cronSecret) {
