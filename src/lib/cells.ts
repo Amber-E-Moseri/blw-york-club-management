@@ -1,5 +1,15 @@
 import type { Cell, Member } from '../types';
 
+export const CELL_NAME_MAX_LENGTH = 80;
+
+/** Returns an error message for an unusable cell name, or null when the trimmed name is acceptable. */
+export function validateCellName(name: string): string | null {
+  const trimmed = name.trim();
+  if (trimmed.length === 0) return 'Enter a cell name.';
+  if (trimmed.length > CELL_NAME_MAX_LENGTH) return `Cell names can be at most ${CELL_NAME_MAX_LENGTH} characters.`;
+  return null;
+}
+
 export interface CellSummary {
   id: string;
   name: string;

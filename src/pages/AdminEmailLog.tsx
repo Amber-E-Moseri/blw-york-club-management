@@ -327,7 +327,7 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
                   }}>
                     Duplicate
                   </Button>
-                  <Button variant="warning" icon={<Send className="h-4 w-4" />} loading={sendingTest} disabled onClick={async () => {
+                  <Button variant="warning" icon={<Send className="h-4 w-4" />} loading={sendingTest} disabled={!isComposerValid || !testEmail.trim() || sendingTest} onClick={async () => {
                     await runComposerAction(setSendingTest, setComposerError, setNotice, async () => {
                       const testRender = renderComposerEmail({
                         subject,
@@ -355,7 +355,7 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
               )}
               {(composerError || resendError) && <p className="text-sm text-red-600" role="alert">{composerError || resendError}</p>}
               {notice && <p className="text-sm text-green-600" role="status">{notice}</p>}
-              <p className="text-xs text-gray-400">Sending is disabled until the email relay is configured. Account approval, password reset, and authentication emails are managed separately from this composer.</p>
+              <p className="text-xs text-gray-400">Test sends need the email relay to be configured. Account approval, password reset, and authentication emails are managed separately from this composer.</p>
             </div>
           </Card>
 
