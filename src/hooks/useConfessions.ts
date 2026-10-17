@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Confession } from '../types';
+import type { Affirmation as Confession } from '../types';
 import {
   fetchUpcomingConfessions,
   fetchConfessionsForDate,

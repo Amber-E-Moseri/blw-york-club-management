@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import type { RecoveryLink } from './recoveryLink';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -76,6 +77,40 @@ export async function changePassword(newPassword: string): Promise<void> {
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) throw new AuthError(friendlyMessage(error.message), error.message);
   console.debug('[auth] password changed');
+}
+
+export type RecoveryStatus = 'ready' | 'expired' | 'invalid' | 'missing';
+
+/**
+ * Turns a password-recovery callback into a session that changePassword can use. Returns a status only. The code,
+ * token hash and tokens are never logged or returned.
+ */
+export async function establishRecoverySession(link: RecoveryLink): Promise<RecoveryStatus> {
+  switch (link.kind) {
+    case 'none':
+      return 'missing';
+    case 'expired':
+      return 'expired';
+    case 'invalid':
+      return 'invalid';
+    case 'pkce': {
+      // When a PKCE verifier is stored, supabase-js exchanges the code itself during initialization. A second
+      // exchange would fail, so an existing session counts as ready.
+      const existing = await supabase.auth.getSession();
+      if (!existing.error && existing.data.session) return 'ready';
+      const { error } = await supabase.auth.exchangeCodeForSession(link.code);
+      return error ? 'expired' : 'ready';
+    }
+    case 'token_hash': {
+      const { error } = await supabase.auth.verifyOtp({ type: 'recovery', token_hash: link.tokenHash });
+      return error ? 'expired' : 'ready';
+    }
+    case 'implicit': {
+      // The client already consumed the fragment and stored the session before this runs.
+      const { data, error } = await supabase.auth.getSession();
+      return !error && data.session ? 'ready' : 'expired';
+    }
+  }
 }
 
 export async function getCurrentUser(): Promise<AuthUser | null> {

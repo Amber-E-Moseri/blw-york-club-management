@@ -3,7 +3,7 @@ import { CheckCircle, Heart } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../foundation/Button';
 import { Badge } from '../foundation/Badge';
-import type { Confession } from '../../types';
+import type { Affirmation as Confession } from '../../types';
 
 interface Props {
   confession: Confession;

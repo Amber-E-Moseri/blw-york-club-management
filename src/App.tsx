@@ -32,6 +32,7 @@ import { PushPermissionPrompt } from './components/feature/PushPermissionPrompt'
 import { usePushNotifications } from './hooks/usePushNotifications';
 import { PendingApproval } from './pages/PendingApproval';
 import { AdminPendingApprovals } from './pages/AdminPendingApprovals';
+import { ResetPassword } from './pages/ResetPassword';
 import { useTheme } from './hooks/useTheme';
 
 function AppShell() {
@@ -47,6 +48,9 @@ function AppShell() {
       </div>
     );
   }
+
+  // Public, and checked before the sign-in gate: a recovery session must not fall through to the main app.
+  if (window.location.pathname === '/reset-password') return <ResetPassword />;
 
   if (!user) {
     return <Login onSignIn={signIn} onSignUp={signUp} error={error} loading={loading} />;

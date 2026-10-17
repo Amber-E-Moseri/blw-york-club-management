@@ -40,12 +40,12 @@ export const MeetingsHub: React.FC<Props> = ({ user }) => {
 
   const handleConfirm = async (meetingId: string) => {
     if (!user) return;
-    await confirm(meetingId, user.id, user.name);
+    await confirm(meetingId);
   };
 
   const handleCancel = async (meetingId: string) => {
     if (!user) return;
-    await cancel(meetingId, user.id);
+    await cancel(meetingId);
   };
 
   const filtered = meetings.filter((m) => {

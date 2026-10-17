@@ -106,7 +106,7 @@ export const Outreach: React.FC<Props> = ({ user }) => {
 
   const handleBulkImport = async (rows: BulkImportRow[]): Promise<ImportResult> => {
     if (!user) {
-      return { imported: 0, failed: rows.length, errors: [{ row: 0, message: 'You must be signed in.' }] };
+      return { imported: 0, alreadyCompleted: 0, failed: rows.length, errors: [{ row: 0, message: 'You must be signed in.' }], heldChanged: [], nextAttempt: null };
     }
     return mutations.bulkImport(rows, user.id, cells, users);
   };

@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import type { Meeting, MeetingInput, MeetingAttendance } from '../../types';
+import type { Meeting, MeetingInput, MeetingAttendance, MeetingAttendanceStatus } from '../../types';
 
 export async function fetchMeetings(upcoming = true): Promise<Meeting[]> {
   const today = new Date().toISOString().split('T')[0];
@@ -21,7 +21,7 @@ export async function fetchMeetings(upcoming = true): Promise<Meeting[]> {
 
   const { data: ownAttendances, error: attendanceError } = await supabase
     .from('meeting_attendances')
-    .select('meeting_id')
+    .select('meeting_id, attendance_status')
     .eq('user_id', userId)
     .in('meeting_id', meetings.map((meeting) => meeting.id));
 
@@ -30,11 +30,17 @@ export async function fetchMeetings(upcoming = true): Promise<Meeting[]> {
     return meetings.map((meeting) => ({ ...meeting, user_confirmed: false }));
   }
 
-  const confirmedMeetingIds = new Set((ownAttendances ?? []).map((row) => row.meeting_id as string));
-  return meetings.map((meeting) => ({
-    ...meeting,
-    user_confirmed: confirmedMeetingIds.has(meeting.id),
-  }));
+  const attendanceByMeetingId = new Map(
+    (ownAttendances ?? []).map((row) => [row.meeting_id as string, row.attendance_status as MeetingAttendanceStatus])
+  );
+  return meetings.map((meeting) => {
+    const status = attendanceByMeetingId.get(meeting.id) ?? null;
+    return {
+      ...meeting,
+      user_attendance_status: status,
+      user_confirmed: status === 'confirmed' || status === 'attended',
+    };
+  });
 }
 
 export async function fetchMeeting(id: string): Promise<Meeting | null> {
@@ -44,19 +50,26 @@ export async function fetchMeeting(id: string): Promise<Meeting | null> {
   return data;
 }
 
-function normalizeInput<T extends Partial<MeetingInput>>(input: T): T {
-  const out = { ...input };
+function normalizeInput<T extends Partial<MeetingInput>>(input: T): Omit<T, 'draft' | 'published_at'> {
+  const out = { ...input } as Record<string, unknown>;
   if ('end_time' in out && !out.end_time) delete out.end_time;
-  if ('location' in out && !out.location) (out as Record<string, unknown>).location = null;
-  if ('zoom_link' in out && !out.zoom_link) (out as Record<string, unknown>).zoom_link = null;
-  return out;
+  if ('location' in out && !out.location) out.location = null;
+  if ('zoom_link' in out && !out.zoom_link) out.zoom_link = null;
+  delete out.draft;
+  delete out.published_at;
+  return out as Omit<T, 'draft' | 'published_at'>;
 }
 
 export async function createMeeting(
   input: MeetingInput & { created_by: string }
 ): Promise<Meeting> {
+  const isDraft = (input as unknown as Record<string, unknown>).draft === true;
+  const row = {
+    ...normalizeInput(input),
+    published_at: isDraft ? null : new Date().toISOString(),
+  };
   const { data, error } = await supabase
-    .from('meetings').insert(normalizeInput(input)).select().single();
+    .from('meetings').insert(row).select().single();
   if (error) throw new Error(error.message);
   return data;
 }
@@ -76,25 +89,15 @@ export async function deleteMeeting(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-export async function confirmAttendance(
-  meetingId: string,
-  userId: string,
-  userName: string
-): Promise<void> {
+export async function confirmAttendance(meetingId: string): Promise<void> {
   const { error } = await supabase
-    .from('meeting_attendances')
-    .upsert(
-      { meeting_id: meetingId, user_id: userId, user_name: userName },
-      { onConflict: 'meeting_id,user_id', ignoreDuplicates: true },
-    );
+    .rpc('respond_to_meeting_invitation', { p_meeting_id: meetingId, p_response: 'confirmed' });
   if (error) throw new Error(error.message);
 }
 
-export async function cancelAttendance(meetingId: string, userId: string): Promise<void> {
+export async function cancelAttendance(meetingId: string): Promise<void> {
   const { error } = await supabase
-    .from('meeting_attendances')
-    .delete()
-    .match({ meeting_id: meetingId, user_id: userId });
+    .rpc('respond_to_meeting_invitation', { p_meeting_id: meetingId, p_response: 'excused' });
   if (error) throw new Error(error.message);
 }
 
@@ -115,7 +118,19 @@ export async function markAttended(
 ): Promise<void> {
   const { error } = await supabase
     .from('meeting_attendances')
-    .update({ attended })
+    .update({ attendance_status: attended ? 'attended' : 'absent' })
+    .match({ meeting_id: meetingId, user_id: userId });
+  if (error) throw new Error(error.message);
+}
+
+export async function markAttendanceStatus(
+  meetingId: string,
+  userId: string,
+  status: MeetingAttendanceStatus
+): Promise<void> {
+  const { error } = await supabase
+    .from('meeting_attendances')
+    .update({ attendance_status: status })
     .match({ meeting_id: meetingId, user_id: userId });
   if (error) throw new Error(error.message);
 }
