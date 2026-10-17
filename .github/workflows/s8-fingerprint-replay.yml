@@ -105,7 +105,7 @@ jobs:
           set -euo pipefail
           C="supabase_db_${S8_DISPOSABLE_ID}"
           npx supabase db reset --local
-          row="$(docker exec -i "$C" psql -U supabase_admin -d postgres -X -At -c \
+          row="$(docker exec -i "$C" psql -U postgres -d postgres -X -At -c \
             "select count(*), max(version) from supabase_migrations.schema_migrations")"
           [ "$row" = "${EXPECTED_MIGRATIONS}|${LAST_MIGRATION}" ] \
             || { echo "FAIL: ledger after first replay is '$row', expected ${EXPECTED_MIGRATIONS}|${LAST_MIGRATION}" >&2; exit 1; }
@@ -116,7 +116,9 @@ jobs:
           set -euo pipefail
           C="supabase_db_${S8_DISPOSABLE_ID}"
           OUT="$RUNNER_TEMP/s8-out"
-          docker exec -i "$C" psql -U supabase_admin -d postgres -X -q -At \
+          # Use postgres, not supabase_admin: supabase_admin has auth on its search_path, so
+          # pg_get_expr drops the schema qualifier and renders auth.uid() as uid(). The golden keeps auth.uid().
+          docker exec -i "$C" psql -U postgres -d postgres -X -q -At \
             < supabase/verification/schema_fingerprint.sql \
             > "$OUT/schema_fingerprint.candidate-s8-r1.json"
           node -e "JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8'))" \
@@ -130,11 +132,11 @@ jobs:
           C="supabase_db_${S8_DISPOSABLE_ID}"
           OUT="$RUNNER_TEMP/s8-out"
           npx supabase db reset --local
-          row="$(docker exec -i "$C" psql -U supabase_admin -d postgres -X -At -c \
+          row="$(docker exec -i "$C" psql -U postgres -d postgres -X -At -c \
             "select count(*), max(version) from supabase_migrations.schema_migrations")"
           [ "$row" = "${EXPECTED_MIGRATIONS}|${LAST_MIGRATION}" ] \
             || { echo "FAIL: ledger after second replay is '$row'" >&2; exit 1; }
-          docker exec -i "$C" psql -U supabase_admin -d postgres -X -q -At \
+          docker exec -i "$C" psql -U postgres -d postgres -X -q -At \
             < supabase/verification/schema_fingerprint.sql \
             > "$OUT/schema_fingerprint.candidate-s8-r2.json"
           node -e "
