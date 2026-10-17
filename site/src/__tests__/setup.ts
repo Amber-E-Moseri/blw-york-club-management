@@ -1,0 +1,11 @@
+import '@testing-library/jest-dom/vitest';
+import { cleanup } from '@testing-library/react';
+import { afterEach } from 'vitest';
+
+// Globals are off, so Testing Library does not clean up between tests automatically. Do it explicitly.
+afterEach(() => {
+  cleanup();
+});
+
+// jsdom does not implement layout scrolling. Routes call scrollTo on navigation, so stub it.
+Object.defineProperty(window, 'scrollTo', { value: () => undefined, writable: true });
