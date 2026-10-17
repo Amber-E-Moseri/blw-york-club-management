@@ -140,11 +140,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "Golden fingerprint is already up to date — no commit needed"
           else
-            git commit -m "ci: regenerate schema golden fingerprint for migration 039
-
-Replayed migrations 000-039 on a disposable local Supabase stack.
-Two independent replays are byte-identical.
-Contract check passes."
+            git commit -m "ci: regenerate schema golden fingerprint for migration 039 (two replays byte-identical, contract passes)"
             git push
             echo "PASS: updated golden committed and pushed"
           fi
