@@ -1,0 +1,141 @@
+name: Hosted schema fingerprint (Preview, read-only verification)
+
+# Manual only (workflow_dispatch). Never runs on push or pull request.
+#
+# Runs the existing read-only fingerprint query (supabase/verification/schema_fingerprint.sql) against the certification
+# project and checks the result with the existing contract checker. The golden file is read, never written.
+#
+# - Reads only. Every query runs inside `begin read only` and `commit`. Nothing is written, migrated or reset.
+# - Fails closed unless the Preview project id and the pooler user both name the certification project, and no value
+#   names the protected production project.
+# - Declares the Preview environment only. Production secrets are never in scope.
+# - Prints PASS or FAIL lines, counts and a SHA-256 of the fingerprint. The fingerprint JSON is kept in the runner's
+#   temporary directory and deleted at the end. Nothing is uploaded as an artifact.
+
+on:
+  workflow_dispatch:
+    inputs:
+      golden_file:
+        description: "Golden fingerprint to compare against (repository path)"
+        required: false
+        default: "supabase/verification/schema_fingerprint.golden.json"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify-hosted-fingerprint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: Preview
+    env:
+      EXPECTED_CERT_PROJECT_ID: yziuhtxtznginhdpqurb
+      PROTECTED_PRODUCTION_PROJECT_ID: rjtstjmtddqhesexltbj
+      GOLDEN_FILE: ${{ inputs.golden_file }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify project identity (comparison only; no value is printed)
+        env:
+          CERT_SUPABASE_PROJECT_ID: ${{ secrets.CERT_SUPABASE_PROJECT_ID }}
+          CERT_SUPABASE_URL: ${{ secrets.CERT_SUPABASE_URL }}
+        run: |
+          set -euo pipefail
+          fail() { echo "FAIL: $1"; exit 1; }
+          [ -n "${CERT_SUPABASE_PROJECT_ID:-}" ] || fail "CERT_SUPABASE_PROJECT_ID is not set in the Preview environment"
+          [ -n "${CERT_SUPABASE_URL:-}" ] || fail "CERT_SUPABASE_URL is not set in the Preview environment"
+          [ "$CERT_SUPABASE_PROJECT_ID" != "$PROTECTED_PRODUCTION_PROJECT_ID" ] || fail "Preview points at the protected production project"
+          [ "$CERT_SUPABASE_PROJECT_ID" = "$EXPECTED_CERT_PROJECT_ID" ] || fail "project id is not the certification project"
+          URL_REF="$(printf '%s' "$CERT_SUPABASE_URL" | sed -E 's#^https://([^.]+)\.supabase\.co.*#\1#')"
+          [ "$URL_REF" = "$EXPECTED_CERT_PROJECT_ID" ] || fail "CERT_SUPABASE_URL does not name the certification project"
+          echo "PASS: project id and URL both name the certification project (values not printed)"
+
+      - name: Validate Session Pooler configuration (fail closed; no value printed)
+        env:
+          CERT_SUPABASE_POOLER_HOST: ${{ secrets.CERT_SUPABASE_POOLER_HOST }}
+          CERT_SUPABASE_POOLER_PORT: ${{ secrets.CERT_SUPABASE_POOLER_PORT }}
+          CERT_SUPABASE_POOLER_USER: ${{ secrets.CERT_SUPABASE_POOLER_USER }}
+          CERT_SUPABASE_POOLER_DATABASE: ${{ secrets.CERT_SUPABASE_POOLER_DATABASE }}
+          CERT_SUPABASE_DB_PASSWORD: ${{ secrets.CERT_SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          fail() { echo "FAIL: $1"; exit 1; }
+          for v in CERT_SUPABASE_POOLER_HOST CERT_SUPABASE_POOLER_PORT CERT_SUPABASE_POOLER_USER CERT_SUPABASE_POOLER_DATABASE CERT_SUPABASE_DB_PASSWORD; do
+            [ -n "${!v:-}" ] || fail "$v is not set in the Preview environment"
+          done
+          [ "$CERT_SUPABASE_POOLER_USER" = "postgres.$EXPECTED_CERT_PROJECT_ID" ] || fail "CERT_SUPABASE_POOLER_USER does not name the certification project"
+          printf '%s' "$CERT_SUPABASE_POOLER_HOST" | grep -qE '^aws-[0-9]+-[a-z0-9-]+\.pooler\.supabase\.com$' || fail "CERT_SUPABASE_POOLER_HOST is not a Supabase Session Pooler host"
+          [ "$CERT_SUPABASE_POOLER_PORT" = "5432" ] || fail "CERT_SUPABASE_POOLER_PORT must be the Session Pooler port 5432"
+          [ "$CERT_SUPABASE_POOLER_DATABASE" = "postgres" ] || fail "CERT_SUPABASE_POOLER_DATABASE must be postgres"
+          for v in CERT_SUPABASE_POOLER_HOST CERT_SUPABASE_POOLER_USER; do
+            case "${!v}" in *"$PROTECTED_PRODUCTION_PROJECT_ID"*) fail "$v names the protected production project" ;; esac
+          done
+          case "$CERT_SUPABASE_POOLER_HOST" in db.*) fail "CERT_SUPABASE_POOLER_HOST is a direct database host, not the pooler" ;; esac
+          echo "PASS: Session Pooler configuration is valid (values not printed)"
+
+      - name: Read-only ledger, residue and fingerprint extraction
+        env:
+          CERT_SUPABASE_POOLER_HOST: ${{ secrets.CERT_SUPABASE_POOLER_HOST }}
+          CERT_SUPABASE_POOLER_PORT: ${{ secrets.CERT_SUPABASE_POOLER_PORT }}
+          CERT_SUPABASE_POOLER_USER: ${{ secrets.CERT_SUPABASE_POOLER_USER }}
+          CERT_SUPABASE_POOLER_DATABASE: ${{ secrets.CERT_SUPABASE_POOLER_DATABASE }}
+          CERT_SUPABASE_DB_PASSWORD: ${{ secrets.CERT_SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          export PGPASSWORD="$CERT_SUPABASE_DB_PASSWORD"
+          conn="host=$CERT_SUPABASE_POOLER_HOST port=$CERT_SUPABASE_POOLER_PORT dbname=$CERT_SUPABASE_POOLER_DATABASE user=$CERT_SUPABASE_POOLER_USER sslmode=require"
+          ro() {
+            psql "$conn" -X -q -t -A -v ON_ERROR_STOP=1 <<SQL
+          begin read only;
+          $1
+          commit;
+          SQL
+          }
+          # Ledger: counts and version bounds only.
+          ledger_count=$(ro "select count(*) from supabase_migrations.schema_migrations;")
+          ledger_range=$(ro "select min(version) || ' .. ' || max(version) from supabase_migrations.schema_migrations;")
+          has_038=$(ro "select exists (select 1 from supabase_migrations.schema_migrations where version = '038');")
+          echo "Ledger rows: $ledger_count"
+          echo "Ledger version range: $ledger_range"
+          echo "Ledger records version 038: $has_038"
+          # Authorization test residue: count only. Test accounts use the @example.test domain; rows are never printed.
+          residue=$(ro "select count(*) from auth.users where email like '%@example.test';")
+          echo "Auth users on example.test (residue candidates): $residue"
+          # Fingerprint: the reviewed read-only SELECT, written to a temporary file that is deleted at the end.
+          fp="$RUNNER_TEMP/fingerprint.json"
+          {
+            echo "begin read only;"
+            echo "\\o $fp"
+            cat supabase/verification/schema_fingerprint.sql
+            echo ";"
+            echo "\\o"
+            echo "commit;"
+          } > "$RUNNER_TEMP/fingerprint.sql"
+          psql "$conn" -X -q -t -A -v ON_ERROR_STOP=1 -f "$RUNNER_TEMP/fingerprint.sql" > /dev/null
+          test -s "$fp" || { echo "FAIL: fingerprint extraction produced no output"; exit 1; }
+          echo "Fingerprint SHA-256: $(sha256sum "$fp" | cut -c1-64)"
+          echo "$fp" > "$RUNNER_TEMP/fingerprint-path"
+          echo "PASS: read-only extraction completed (counts only; nothing was written)"
+
+      - name: Contract check and golden comparison (no database access)
+        run: |
+          set -euo pipefail
+          fp="$(cat "$RUNNER_TEMP/fingerprint-path")"
+          contract_rc=0; golden_rc=0
+          echo "== Contract (schema_contract.json)"
+          node supabase/verification/check_schema_contract.mjs "$fp" || contract_rc=$?
+          echo "== Golden comparison ($GOLDEN_FILE)"
+          node supabase/verification/check_schema_contract.mjs "$fp" --golden "$GOLDEN_FILE" || golden_rc=$?
+          rm -f "$fp" "$RUNNER_TEMP/fingerprint.sql" "$RUNNER_TEMP/fingerprint-path"
+          if [ "$contract_rc" -ne 0 ] || [ "$golden_rc" -ne 0 ]; then
+            echo "FAIL: contract_rc=$contract_rc golden_rc=$golden_rc (see lines above)"
+            exit 1
+          fi
+          echo "PASS: contract and golden comparison both passed"
