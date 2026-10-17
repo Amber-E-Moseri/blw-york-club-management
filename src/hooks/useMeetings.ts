@@ -42,8 +42,8 @@ export function useMeetings(upcoming = true) {
     setMeetings((prev) => prev.filter((m) => m.id !== id));
   }, []);
 
-  const confirm = useCallback(async (meetingId: string, userId: string, userName: string) => {
-    await confirmAttendance(meetingId, userId, userName);
+  const confirm = useCallback(async (meetingId: string) => {
+    await confirmAttendance(meetingId);
     setMeetings((prev) =>
       prev.map((m) =>
         m.id === meetingId
@@ -58,8 +58,8 @@ export function useMeetings(upcoming = true) {
     );
   }, []);
 
-  const cancel = useCallback(async (meetingId: string, userId: string) => {
-    await cancelAttendance(meetingId, userId);
+  const cancel = useCallback(async (meetingId: string) => {
+    await cancelAttendance(meetingId);
     setMeetings((prev) =>
       prev.map((m) =>
         m.id === meetingId

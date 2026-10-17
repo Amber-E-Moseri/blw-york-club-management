@@ -50,7 +50,7 @@ function AppShell() {
   }
 
   // Public, and checked before the sign-in gate: a recovery session must not fall through to the main app.
-  if (location.pathname === '/reset-password') return <ResetPassword />;
+  if (window.location.pathname === '/reset-password') return <ResetPassword />;
 
   if (!user) {
     return <Login onSignIn={signIn} onSignUp={signUp} error={error} loading={loading} />;
