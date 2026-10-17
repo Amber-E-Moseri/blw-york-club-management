@@ -5,6 +5,10 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // Website Management tokens (the public site design system, kept in step with site/tailwind.config.js).
+        brand: { DEFAULT: '#C8102E', hover: '#A60D26', deep: '#8B0D1F', soft: '#FFF1F2' },
+        ink: { DEFAULT: '#111827', soft: '#1F2937', muted: '#4B5563' },
+        paper: { DEFAULT: '#FAFAF8', card: '#FFFFFF', edge: '#E8E8E8' },
         york: {
           50: '#FFF5F5',
           100: '#FFEBEB',
@@ -41,6 +45,7 @@ module.exports = {
         small: ['14px', { lineHeight: '1.4' }],
         tiny: ['12px', { lineHeight: '1.3' }],
       },
+      maxWidth: { content: '1200px', prose: '720px' },
       spacing: {
         xs: '4px',
         sm: '8px',
@@ -72,6 +77,8 @@ module.exports = {
         'ease-in': 'cubic-bezier(0.4, 0, 1, 1)',
       },
       fontFamily: {
+        display: ['"Playfair Display"', 'Georgia', 'serif'],
+        mono: ['"DM Mono"', 'ui-monospace', 'monospace'],
         sans: [
           '-apple-system',
           'BlinkMacSystemFont',

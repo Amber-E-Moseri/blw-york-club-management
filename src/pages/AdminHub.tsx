@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   AlertCircle, BarChart3, BookMarked, CalendarDays, CheckSquare, ChevronRight,
   ClipboardCheck, ClipboardList, Download, KeyRound, Mail, Megaphone, Settings,
-  Users, Video, type LucideIcon,
+  Users, Video, Globe, type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { AuthUser } from '../lib/auth';
@@ -50,6 +50,7 @@ const TOOL_GROUPS: {
     items: [
       { label: 'Reports', desc: 'Outreach and activity analytics', icon: BarChart3, path: '/admin/contact-reports' },
       { label: 'Roles & Access', desc: 'Custom admin roles and assignments', icon: KeyRound, path: '/admin/roles' },
+      { label: 'Website Management', desc: 'Edit public website pages, events, Rhapsody and menus', icon: Globe, path: '/admin/website' },
       { label: 'Communications', desc: 'Email delivery and failure log', icon: Mail, path: '/admin/email-log' },
       { label: 'Data Export', desc: 'Download members, contacts, and attendance', icon: Download, path: '/admin/exports' },
       { label: 'Settings', desc: 'Profile and account preferences', icon: Settings, path: '/profile' },
