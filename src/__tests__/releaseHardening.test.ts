@@ -70,11 +70,11 @@ describe('final release hardening', () => {
     expect(service).toContain('trackEmailOpen(messageId: string, trackingToken: string)');
   });
 
-  test('custom email composer keeps sends disabled until relay is configured', () => {
+  test('custom email composer Send Test needs a recipient and a valid draft', () => {
     const page = read('src/pages/AdminEmailLog.tsx');
 
-    expect(page).toContain('Sending is disabled until the email relay is configured');
+    expect(page).toContain('Test sends need the email relay to be configured');
     expect(page).toContain('<Button variant="warning"');
-    expect(page).toContain('disabled onClick=');
+    expect(page).toContain('disabled={!isComposerValid || !testEmail.trim() || sendingTest} onClick=');
   });
 });
