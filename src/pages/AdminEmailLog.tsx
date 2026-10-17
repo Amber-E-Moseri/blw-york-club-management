@@ -127,6 +127,26 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
     };
   }, [logs]);
 
+  // The per-row action, shared by the phone card list and the tablet/desktop table.
+  const resendActionFor = (log: EmailLog) => {
+    if (log.status !== 'failed') return null;
+    const decision = evaluateResend(log, new Date());
+    if (decision.allowed) {
+      return (
+        <Button
+          variant="secondary"
+          size="small"
+          loading={resendingId === log.id}
+          disabled={resendingId !== null}
+          onClick={() => handleResend(log)}
+        >
+          Resend
+        </Button>
+      );
+    }
+    return <span className="text-xs text-gray-400" title={decision.reason}>Not resendable</span>;
+  };
+
   const selectedRecipients = useMemo(
     () => recipients.filter((recipient) => selectedRecipientIds.includes(recipient.id)),
     [recipients, selectedRecipientIds]
@@ -151,7 +171,7 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-8">
+    <div className="flex-1 overflow-y-auto p-4 sm:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
         <div>
           <h1 className="text-h1">Communications</h1>
@@ -437,7 +457,28 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
             </select>
           }
         >
-          <div className="overflow-x-auto">
+          {/* Phones: one card per message, so nothing needs sideways scrolling. */}
+          <ul className="space-y-3 sm:hidden">
+            {loading ? (
+              <li className="py-4 text-sm text-gray-400">Loading...</li>
+            ) : logs.length === 0 ? (
+              <li className="py-4 text-sm text-gray-400">No email logs found.</li>
+            ) : logs.map((log) => (
+              <li key={log.id} className="space-y-2 rounded-md border border-gray-100 p-3">
+                <p className="break-words text-sm font-medium text-gray-900">{log.subject}</p>
+                <p className="break-all text-xs text-gray-700">{log.recipient_email}</p>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                  <span>{log.template_type}</span>
+                  <span className="rounded-full bg-gray-100 px-2 py-1 font-semibold text-gray-700">{log.status}</span>
+                  <span>{new Date(log.created_at).toLocaleString()}</span>
+                </div>
+                {resendActionFor(log) && <div>{resendActionFor(log)}</div>}
+              </li>
+            ))}
+          </ul>
+
+          {/* Tablet and desktop: the full table. */}
+          <div className="hidden overflow-x-auto sm:block">
             <table className="w-full text-sm text-left">
               <thead>
                 <tr className="border-b border-gray-100 text-xs uppercase text-gray-400">
@@ -455,7 +496,6 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
                 ) : logs.length === 0 ? (
                   <tr><td className="py-4 text-gray-400" colSpan={6}>No email logs found.</td></tr>
                 ) : logs.map((log) => {
-                  const resendDecision = log.status === 'failed' ? evaluateResend(log, new Date()) : null;
                   return (
                     <tr key={log.id} className="border-b border-gray-50">
                       <td className="py-3 pr-4 text-gray-700">{log.recipient_email}</td>
@@ -465,23 +505,7 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
                         <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700">{log.status}</span>
                       </td>
                       <td className="py-3 pr-4 text-gray-500">{new Date(log.created_at).toLocaleString()}</td>
-                      <td className="py-3 pr-4">
-                        {resendDecision && (
-                          resendDecision.allowed ? (
-                            <Button
-                              variant="secondary"
-                              size="small"
-                              loading={resendingId === log.id}
-                              disabled={resendingId !== null}
-                              onClick={() => handleResend(log)}
-                            >
-                              Resend
-                            </Button>
-                          ) : (
-                            <span className="text-xs text-gray-400" title={resendDecision.reason}>Not resendable</span>
-                          )
-                        )}
-                      </td>
+                      <td className="py-3 pr-4">{resendActionFor(log)}</td>
                     </tr>
                   );
                 })}
