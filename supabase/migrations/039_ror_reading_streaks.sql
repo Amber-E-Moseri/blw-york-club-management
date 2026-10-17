@@ -217,6 +217,12 @@ as $$
 $$;
 
 -- ─── Grants ──────────────────────────────────────────────────────────────────
+-- PostgreSQL grants EXECUTE to PUBLIC by default; revoke before re-granting to authenticated only.
+
+revoke all on function public.is_member_in_my_cell(uuid)               from public, anon;
+revoke all on function public.get_ror_streak(uuid, text, text)          from public, anon;
+revoke all on function public.get_cell_ror_progress(text, text)         from public, anon;
+revoke all on function public.get_org_ror_progress(text, text)          from public, anon;
 
 grant execute on function public.get_ror_streak(uuid, text, text)          to authenticated;
 grant execute on function public.get_cell_ror_progress(text, text)         to authenticated;
