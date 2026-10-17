@@ -65,7 +65,11 @@
     "audit_staff_profile_edits()": { "security": "definer", "execute": [] },
     "guard_profile_privileged_columns()": { "security": "invoker", "execute": [] },
     "handle_new_user()": { "security": "definer", "execute": [] },
-    "set_updated_at()": { "security": "invoker", "execute": [] }
+    "set_updated_at()": { "security": "invoker", "execute": [] },
+    "is_member_in_my_cell(uuid)": { "security": "definer", "execute": ["authenticated"] },
+    "get_ror_streak(uuid,text,text)": { "security": "definer", "execute": ["authenticated"] },
+    "get_cell_ror_progress(text,text)": { "security": "definer", "execute": ["authenticated"] },
+    "get_org_ror_progress(text,text)": { "security": "definer", "execute": ["authenticated"] }
   },
   "definerSearchPath": "search_path=public, pg_temp",
   "storage": {

@@ -11,6 +11,8 @@ interface DevotionalCardProps {
   onShare?: () => void;
   onDownload?: () => void;
   onFullscreen?: () => void;
+  onMarkRead?: () => void;
+  marking?: boolean;
 }
 
 function formatViewedAt(value?: string | null): string | null {
@@ -30,6 +32,8 @@ export const DevotionalCard: React.FC<DevotionalCardProps> = ({
   onShare,
   onDownload,
   onFullscreen,
+  onMarkRead,
+  marking = false,
 }) => {
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
@@ -64,12 +68,24 @@ export const DevotionalCard: React.FC<DevotionalCardProps> = ({
       </div>
 
       <div className="mx-auto mt-4 max-w-[900px] space-y-4">
-        {viewedTime && (
-          <div className="flex items-center justify-center gap-2 text-small font-semibold text-success">
+        {viewedAt ? (
+          <div className="flex items-center justify-center gap-2 text-small font-semibold text-success" role="status">
             <span aria-hidden="true">✓</span>
-            <span>Viewed at {viewedTime}</span>
+            <span>Marked as read{viewedTime ? ` at ${viewedTime}` : ''}</span>
           </div>
-        )}
+        ) : onMarkRead ? (
+          <div className="flex justify-center">
+            <Button
+              variant="success"
+              onClick={onMarkRead}
+              disabled={marking}
+              className="min-w-[180px]"
+              aria-label="Mark this devotional as read"
+            >
+              {marking ? 'Saving…' : 'Mark as Read'}
+            </Button>
+          </div>
+        ) : null}
 
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <Button variant="secondary" onClick={onPrevious} disabled={!onPrevious} className="md:w-44">
