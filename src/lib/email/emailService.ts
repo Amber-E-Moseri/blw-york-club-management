@@ -108,7 +108,7 @@ export function buildUnsubscribeUrl(_memberId: string, _notifType: EmailTemplate
 
 export function getAppOrigin(): string {
   if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
-  return process.env.REACT_APP_PUBLIC_APP_URL || 'https://blw-york.vercel.app';
+  return process.env.REACT_APP_PUBLIC_APP_URL || 'https://blwyork.vercel.app';
 }
 
 export function getSupabaseFunctionUrl(functionName: string): string {
