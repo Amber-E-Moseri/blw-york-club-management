@@ -2,8 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DevotionalCard } from '../components/feature/DevotionalCard';
+import { RorStreakBadge } from '../components/feature/RorStreakBadge';
+import { RorCalendar } from '../components/feature/RorCalendar';
 import { Button } from '../components/foundation/Button';
 import { useDevotional, useDevotionalByDay } from '../hooks/useDevotional';
+import { useRorStreak } from '../hooks/useRorStreak';
 import type { AuthUser } from '../lib/auth';
 
 interface DevotionalViewerProps {
@@ -31,6 +34,9 @@ export const DevotionalViewer: React.FC<DevotionalViewerProps> = ({ user }) => {
   const todayState = useDevotional();
   const selectedState = useDevotionalByDay(selectedMonth, selectedDay, selectedYear, false);
   const state = isToday ? todayState : selectedState;
+
+  const devotionalId = state.devotional?.id;
+  const { streak, readDates } = useRorStreak(user?.id, devotionalId);
 
   useEffect(() => {
     if (
@@ -132,20 +138,50 @@ export const DevotionalViewer: React.FC<DevotionalViewerProps> = ({ user }) => {
                     onShare={handleShare}
                     onDownload={handleDownload}
                     onFullscreen={handleFullscreen}
+                    onMarkRead={user ? state.markAsRead : undefined}
+                    marking={state.marking}
                   />
                 </div>
+
+                {streak && (
+                  <div className="mt-6">
+                    <h2 className="text-sm font-semibold text-gray-600 dark:text-slate-400 mb-3 uppercase tracking-wider">
+                      Your Reading Streak
+                    </h2>
+                    <RorStreakBadge streak={streak} />
+                  </div>
+                )}
+
+                {devotional && streak && (
+                  <div className="mt-4">
+                    <RorCalendar
+                      totalDays={devotional.total_days}
+                      readDates={readDates}
+                      month={selectedMonth}
+                      year={selectedYear}
+                    />
+                  </div>
+                )}
               </section>
 
               <aside className="hidden xl:block">
-                <div className="sticky top-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-                  <p className="stat-label">Today</p>
-                  <p className="mt-2 text-h2">{state.stats?.viewed_count ?? 0}</p>
-                  <p className="text-small text-gray-400">member views</p>
-                  <div className="divider" />
-                  <p className="text-small font-semibold text-gray-900">Reading Progress</p>
-                  <p className="mt-1 text-small text-gray-500">
-                    Day {page.day_of_month} of {devotional.total_days}
-                  </p>
+                <div className="sticky top-6 space-y-4">
+                  <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                    <p className="stat-label">Today</p>
+                    <p className="mt-2 text-h2">{state.stats?.viewed_count ?? 0}</p>
+                    <p className="text-small text-gray-400">members read</p>
+                    <div className="divider" />
+                    <p className="text-small font-semibold text-gray-900 dark:text-slate-100">Progress</p>
+                    <p className="mt-1 text-small text-gray-500">
+                      Day {page.day_of_month} of {devotional.total_days}
+                    </p>
+                  </div>
+                  {streak && (
+                    <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                      <p className="stat-label mb-2">Your streak</p>
+                      <RorStreakBadge streak={streak} compact />
+                    </div>
+                  )}
                 </div>
               </aside>
             </div>

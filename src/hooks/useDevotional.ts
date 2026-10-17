@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import {
   getAllPages,
@@ -8,6 +8,7 @@ import {
   getMonthlyDevotional,
   getViewForDay,
   logView,
+  markAsRead as markAsReadQuery,
 } from '../lib/queries/devotionals';
 import type {
   DevotionalDailyPage,
@@ -23,6 +24,8 @@ interface DailyState {
   stats: DevotionalEngagementStats | null;
   loading: boolean;
   error: string | null;
+  markAsRead: () => Promise<void>;
+  marking: boolean;
 }
 
 interface MonthState {
@@ -47,7 +50,8 @@ function messageFromError(error: unknown): string {
 
 export function useDevotional(): DailyState {
   const today = useMemo(() => currentParts(), []);
-  return useDevotionalByDay(today.month, today.day, today.year, true);
+  // shouldLogView=false: completion is recorded only via the explicit "Mark as Read" button.
+  return useDevotionalByDay(today.month, today.day, today.year, false);
 }
 
 export function useDevotionalByDay(
@@ -56,7 +60,8 @@ export function useDevotionalByDay(
   year?: number,
   shouldLogView = false
 ): DailyState {
-  const [state, setState] = useState<DailyState>({
+  const [marking, setMarking] = useState(false);
+  const [state, setState] = useState<Omit<DailyState, 'markAsRead' | 'marking'>>({
     devotional: null,
     page: null,
     view: null,
@@ -127,7 +132,20 @@ export function useDevotionalByDay(
     };
   }, [month, day, year, shouldLogView]);
 
-  return state;
+  const markAsRead = useCallback(async () => {
+    const { data: auth } = await supabase.auth.getUser();
+    const userId = auth.user?.id;
+    if (!userId || !state.devotional || !state.page) return;
+    setMarking(true);
+    try {
+      const view = await markAsReadQuery(userId, state.devotional.id, state.page.day_of_month);
+      setState((s) => ({ ...s, view }));
+    } finally {
+      setMarking(false);
+    }
+  }, [state.devotional, state.page]);
+
+  return { ...state, markAsRead, marking };
 }
 
 export function useDevotionalByMonth(month: number, year?: number): MonthState {
