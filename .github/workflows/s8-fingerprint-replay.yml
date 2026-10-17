@@ -1,0 +1,182 @@
+name: S8 schema fingerprint replay (golden verification)
+
+# Manual only (workflow_dispatch). Resolves the S8 production upgrade gate.
+#
+# Runs entirely on a GitHub-hosted runner — no Docker Desktop required on the developer's machine.
+# The runner starts a disposable local Supabase stack (Supabase CLI manages Docker on the runner),
+# replays migrations 000-038 from empty, generates the schema fingerprint twice, verifies both replays
+# are byte-identical, and compares the result against supabase/verification/schema_fingerprint.golden.json.
+#
+# - Uses no hosted Supabase credentials and no production access. Declares no secrets.
+# - All schema reads are against the disposable local stack only.
+# - The golden fingerprint file is never modified by this workflow.
+# - A PASS on the golden comparison closes the S8 gate without any golden update.
+# - If the golden comparison fails, the candidate fingerprint (uploaded as an artifact) and the
+#   contract-check output identify every difference for review.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  EXPECTED_MIGRATIONS: "39"
+  LAST_MIGRATION: "038"
+
+jobs:
+  s8-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Record HEAD commit and verify migration count
+        run: |
+          set -euo pipefail
+          HEAD_SHA="$(git rev-parse HEAD)"
+          echo "HEAD: $HEAD_SHA"
+          echo "s8_head_sha=$HEAD_SHA" >> "$GITHUB_ENV"
+          mapfile -t MIG < <(ls supabase/migrations | grep -E '^[0-9]{3}_.*\.sql$' | sort)
+          [ "${#MIG[@]}" -eq "$EXPECTED_MIGRATIONS" ] || { echo "FAIL: expected $EXPECTED_MIGRATIONS migrations, found ${#MIG[@]}" >&2; exit 1; }
+          i=0
+          for f in "${MIG[@]}"; do
+            v=$((10#${f%%_*}))
+            [ "$v" -eq "$i" ] || { echo "FAIL: migration gap or duplicate at $(printf '%03d' "$i") (found $f)" >&2; exit 1; }
+            i=$((i + 1))
+          done
+          [ "${MIG[-1]%%_*}" = "$LAST_MIGRATION" ] || { echo "FAIL: last migration is ${MIG[-1]}, expected $LAST_MIGRATION" >&2; exit 1; }
+          echo "PASS: $EXPECTED_MIGRATIONS migrations present, contiguous 000-$LAST_MIGRATION"
+          for f in \
+            supabase/verification/schema_fingerprint.sql \
+            supabase/verification/schema_fingerprint.golden.json \
+            supabase/verification/schema_contract.json \
+            supabase/verification/check_schema_contract.mjs \
+            supabase/config.toml; do
+            [ -f "$f" ] || { echo "FAIL: required file missing: $f" >&2; exit 1; }
+          done
+          echo "PASS: required verification files present"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies from the lockfile
+        run: npm ci
+
+      - name: Record the exact Supabase CLI version
+        run: |
+          set -euo pipefail
+          LOCKED="$(node -p "require('./package-lock.json').packages['node_modules/supabase'].version")"
+          INSTALLED="$(npx supabase --version | tr -d '[:space:]')"
+          [ -n "$LOCKED" ] || { echo "FAIL: no locked supabase CLI version" >&2; exit 1; }
+          [ "$INSTALLED" = "$LOCKED" ] || { echo "FAIL: installed CLI $INSTALLED differs from locked $LOCKED" >&2; exit 1; }
+          mkdir -p "$RUNNER_TEMP/s8-out"
+          echo "supabase_cli_version=$INSTALLED" > "$RUNNER_TEMP/s8-out/cli.txt"
+          echo "head_sha=$s8_head_sha" >> "$RUNNER_TEMP/s8-out/cli.txt"
+          echo "expected_migrations=$EXPECTED_MIGRATIONS" >> "$RUNNER_TEMP/s8-out/cli.txt"
+          echo "last_migration=$LAST_MIGRATION" >> "$RUNNER_TEMP/s8-out/cli.txt"
+          cat "$RUNNER_TEMP/s8-out/cli.txt"
+          echo "PASS: Supabase CLI $INSTALLED (locked)"
+
+      - name: Point the local stack at a per-run disposable project
+        run: |
+          set -euo pipefail
+          ID="s8replay-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          sed -i -E "s/^project_id = \".*\"/project_id = \"$ID\"/" supabase/config.toml
+          grep -E '^project_id' supabase/config.toml
+          echo "S8_DISPOSABLE_ID=$ID" >> "$GITHUB_ENV"
+
+      - name: Start the disposable local stack
+        run: |
+          set +e
+          npx supabase start > "$RUNNER_TEMP/supabase-start.log" 2>&1
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ]; then grep -viE 'key|secret|token|jwt|password' "$RUNNER_TEMP/supabase-start.log" || true; exit "$rc"; fi
+          echo "Disposable local stack started (credentials withheld from the log)"
+
+      - name: First replay — migrate 000 through 038 from empty
+        run: |
+          set -euo pipefail
+          C="supabase_db_${S8_DISPOSABLE_ID}"
+          npx supabase db reset --local
+          row="$(docker exec -i "$C" psql -U supabase_admin -d postgres -X -At -c \
+            "select count(*), max(version) from supabase_migrations.schema_migrations")"
+          [ "$row" = "${EXPECTED_MIGRATIONS}|${LAST_MIGRATION}" ] \
+            || { echo "FAIL: ledger after first replay is '$row', expected ${EXPECTED_MIGRATIONS}|${LAST_MIGRATION}" >&2; exit 1; }
+          echo "PASS: first replay ledger $row"
+
+      - name: Generate schema fingerprint from the first replay
+        run: |
+          set -euo pipefail
+          C="supabase_db_${S8_DISPOSABLE_ID}"
+          OUT="$RUNNER_TEMP/s8-out"
+          docker exec -i "$C" psql -U supabase_admin -d postgres -X -q -At \
+            < supabase/verification/schema_fingerprint.sql \
+            > "$OUT/schema_fingerprint.candidate-s8-r1.json"
+          node -e "JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8'))" \
+            "$OUT/schema_fingerprint.candidate-s8-r1.json" \
+            || { echo "FAIL: first-replay fingerprint is not valid JSON" >&2; exit 1; }
+          echo "PASS: first-replay fingerprint written ($(wc -c < "$OUT/schema_fingerprint.candidate-s8-r1.json") bytes)"
+
+      - name: Second independent replay — must produce byte-identical fingerprint
+        run: |
+          set -euo pipefail
+          C="supabase_db_${S8_DISPOSABLE_ID}"
+          OUT="$RUNNER_TEMP/s8-out"
+          npx supabase db reset --local
+          row="$(docker exec -i "$C" psql -U supabase_admin -d postgres -X -At -c \
+            "select count(*), max(version) from supabase_migrations.schema_migrations")"
+          [ "$row" = "${EXPECTED_MIGRATIONS}|${LAST_MIGRATION}" ] \
+            || { echo "FAIL: ledger after second replay is '$row'" >&2; exit 1; }
+          docker exec -i "$C" psql -U supabase_admin -d postgres -X -q -At \
+            < supabase/verification/schema_fingerprint.sql \
+            > "$OUT/schema_fingerprint.candidate-s8-r2.json"
+          node -e "
+            const r1 = require('fs').readFileSync(process.argv[1], 'utf8');
+            const r2 = require('fs').readFileSync(process.argv[2], 'utf8');
+            if (r1 !== r2) { console.error('FAIL: replays are not byte-identical'); process.exit(1); }
+            console.log('PASS: two independent replays are byte-identical');
+          " "$OUT/schema_fingerprint.candidate-s8-r1.json" "$OUT/schema_fingerprint.candidate-s8-r2.json"
+
+      - name: Schema contract and golden comparison
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/s8-out"
+          # Contract check + golden comparison — all checks in one pass.
+          node supabase/verification/check_schema_contract.mjs \
+            "$OUT/schema_fingerprint.candidate-s8-r1.json" \
+            --golden supabase/verification/schema_fingerprint.golden.json \
+            > "$OUT/contract-check-s8.txt" 2>&1 || true
+          cat "$OUT/contract-check-s8.txt"
+          if grep -q '^FAIL' "$OUT/contract-check-s8.txt"; then
+            echo ""
+            echo "FAIL: contract or golden comparison has failures (see contract-check-s8.txt in the artifact)" >&2
+            echo "TABLE/FUNCTION DIFFERENCES ARE RECORDED IN THE ARTIFACT. Open the S8 correction PR to review." >&2
+            exit 1
+          fi
+          grep -q '^PASS' "$OUT/contract-check-s8.txt" || { echo "FAIL: contract check printed no PASS lines" >&2; exit 1; }
+          echo ""
+          echo "PASS: schema contract and golden fingerprint comparison both passed — S8 gate CLOSED"
+
+      - name: Upload S8 evidence artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s8-fingerprint-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/s8-out/schema_fingerprint.candidate-s8-r1.json
+            ${{ runner.temp }}/s8-out/schema_fingerprint.candidate-s8-r2.json
+            ${{ runner.temp }}/s8-out/contract-check-s8.txt
+            ${{ runner.temp }}/s8-out/cli.txt
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Stop the local stack
+        if: always()
+        run: npx supabase stop --no-backup
