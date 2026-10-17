@@ -4,9 +4,10 @@ import { Card } from '../components/foundation/Card';
 import { Button } from '../components/foundation/Button';
 import { Input } from '../components/foundation/Input';
 import { renderSampleEmailTemplate } from '../lib/email/emailTemplates';
-import { useEmailLog, useResendFailedEmails } from '../hooks/useEmailNotifications';
+import { useEmailLog } from '../hooks/useEmailNotifications';
 import { renderComposerEmail, validateEmailPlaceholders, ALLOWED_EMAIL_PLACEHOLDERS } from '../lib/email/emailComposer';
-import { sendEmail } from '../lib/email/emailService';
+import { resendEmail, sendEmail } from '../lib/email/emailService';
+import { evaluateResend } from '../lib/email/resendPolicy';
 import {
   fetchEmailComposerRecipients,
   fetchEmailDrafts,
@@ -18,7 +19,7 @@ import {
   type EmailTemplateRecord,
 } from '../lib/queries/emailComposer';
 import type { AuthUser } from '../lib/auth';
-import type { EmailStatus, EmailTemplateType } from '../types';
+import type { EmailLog, EmailStatus, EmailTemplateType } from '../types';
 
 interface Props {
   user: AuthUser | null;
@@ -67,8 +68,33 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
   const [body, setBody] = useState(DEFAULT_BODY);
   const [selectedRecipientIds, setSelectedRecipientIds] = useState<string[]>([]);
   const [testEmail, setTestEmail] = useState(user?.email ?? '');
-  const { logs, loading } = useEmailLog(undefined, { status: status || undefined });
-  const { resendFailed, sending: resending, error: resendError } = useResendFailedEmails();
+  const { logs, loading, reload: reloadLogs } = useEmailLog(undefined, { status: status || undefined });
+  const [resendingId, setResendingId] = useState<string | null>(null);
+
+  // Per-row, explicit action only. The user confirms recipient, subject and original send date before anything is sent.
+  const handleResend = async (log: EmailLog) => {
+    const decision = evaluateResend(log, new Date());
+    if (!decision.allowed) {
+      setComposerError(decision.reason);
+      return;
+    }
+    const confirmed = window.confirm(
+      `Resend this email? This sends one new message.\n\nTo: ${log.recipient_email}\nSubject: ${log.subject}\nOriginally created: ${new Date(log.created_at).toLocaleString()}`
+    );
+    if (!confirmed) return;
+    setResendingId(log.id);
+    setComposerError('');
+    setNotice('');
+    try {
+      await resendEmail(log.id);
+      setNotice('Email resent.');
+    } catch (error) {
+      setComposerError((error as Error).message);
+    } finally {
+      setResendingId(null);
+      reloadLogs();
+    }
+  };
 
   const loadComposerData = useCallback(async () => {
     const [templateRows, draftRows, recipientRows] = await Promise.all([
@@ -353,7 +379,7 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
               {invalidPlaceholders.length > 0 && (
                 <p className="text-sm text-red-600" role="alert">Invalid placeholders: {invalidPlaceholders.join(', ')}</p>
               )}
-              {(composerError || resendError) && <p className="text-sm text-red-600" role="alert">{composerError || resendError}</p>}
+              {composerError && <p className="text-sm text-red-600" role="alert">{composerError}</p>}
               {notice && <p className="text-sm text-green-600" role="status">{notice}</p>}
               <p className="text-xs text-gray-400">Test sends need the email relay to be configured. Account approval, password reset, and authentication emails are managed separately from this composer.</p>
             </div>
@@ -393,21 +419,6 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
             </div>
           </Card>
 
-          <Card title="Admin Tools">
-            <div className="space-y-4">
-              <Button
-                variant="secondary"
-                onClick={async () => {
-                  const count = await resendFailed();
-                  setNotice(`Resend requested for ${count} failed email${count === 1 ? '' : 's'}.`);
-                }}
-                loading={resending}
-              >
-                Resend Failed Emails
-              </Button>
-              <p className="text-sm text-gray-500">Resending uses the existing email log records and backend authorization checks.</p>
-            </div>
-          </Card>
         </div>
 
         <Card
@@ -435,24 +446,45 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
                   <th className="py-2 pr-4">Template</th>
                   <th className="py-2 pr-4">Status</th>
                   <th className="py-2 pr-4">Created</th>
+                  <th className="py-2 pr-4">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td className="py-4 text-gray-400" colSpan={5}>Loading...</td></tr>
+                  <tr><td className="py-4 text-gray-400" colSpan={6}>Loading...</td></tr>
                 ) : logs.length === 0 ? (
-                  <tr><td className="py-4 text-gray-400" colSpan={5}>No email logs found.</td></tr>
-                ) : logs.map((log) => (
-                  <tr key={log.id} className="border-b border-gray-50">
-                    <td className="py-3 pr-4 text-gray-700">{log.recipient_email}</td>
-                    <td className="py-3 pr-4 text-gray-900">{log.subject}</td>
-                    <td className="py-3 pr-4 text-gray-500">{log.template_type}</td>
-                    <td className="py-3 pr-4">
-                      <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700">{log.status}</span>
-                    </td>
-                    <td className="py-3 pr-4 text-gray-500">{new Date(log.created_at).toLocaleString()}</td>
-                  </tr>
-                ))}
+                  <tr><td className="py-4 text-gray-400" colSpan={6}>No email logs found.</td></tr>
+                ) : logs.map((log) => {
+                  const resendDecision = log.status === 'failed' ? evaluateResend(log, new Date()) : null;
+                  return (
+                    <tr key={log.id} className="border-b border-gray-50">
+                      <td className="py-3 pr-4 text-gray-700">{log.recipient_email}</td>
+                      <td className="py-3 pr-4 text-gray-900">{log.subject}</td>
+                      <td className="py-3 pr-4 text-gray-500">{log.template_type}</td>
+                      <td className="py-3 pr-4">
+                        <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700">{log.status}</span>
+                      </td>
+                      <td className="py-3 pr-4 text-gray-500">{new Date(log.created_at).toLocaleString()}</td>
+                      <td className="py-3 pr-4">
+                        {resendDecision && (
+                          resendDecision.allowed ? (
+                            <Button
+                              variant="secondary"
+                              size="small"
+                              loading={resendingId === log.id}
+                              disabled={resendingId !== null}
+                              onClick={() => handleResend(log)}
+                            >
+                              Resend
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-gray-400" title={resendDecision.reason}>Not resendable</span>
+                          )
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
