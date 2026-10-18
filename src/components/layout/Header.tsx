@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { Moon, Plus, Sun } from 'lucide-react';
 import { cn, getInitials } from '../../lib/utils';
+import { useTheme } from '../../hooks/useTheme';
 
 export interface HeaderProps {
   userName?: string;
@@ -25,6 +26,7 @@ export const Header: React.FC<HeaderProps> = ({
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -73,13 +75,27 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Logo + Title */}
       <div className="flex items-center gap-2.5">
         <img src="/logo.png" alt="BLW York" className="w-8 h-8 rounded-md shrink-0" />
-        <span className="text-lg font-bold text-york-600 leading-tight hidden sm:block">
+        <span className="text-lg font-bold text-gray-900 dark:text-slate-100 leading-tight hidden sm:block">
           BLW York Hub
         </span>
-        <span className="text-lg font-bold text-york-600 sm:hidden">BLW York</span>
+        <span className="text-lg font-bold text-gray-900 dark:text-slate-100 sm:hidden">BLW York</span>
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Dark / light mode toggle — mobile only */}
+        <button
+          type="button"
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          aria-label="Toggle dark mode"
+          className={cn(
+            'md:hidden flex items-center justify-center w-9 h-9 rounded-md',
+            'text-gray-600 hover:bg-red-50 hover:text-york-600 dark:text-slate-300 dark:hover:bg-slate-800',
+            'focus:outline-none focus:ring-2 focus:ring-york-600 transition-colors duration-150',
+          )}
+        >
+          {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        </button>
+
         {/* Quick Add button */}
         {onQuickAdd && (
           <>
