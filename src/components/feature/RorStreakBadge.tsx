@@ -64,12 +64,15 @@ const StatTile: React.FC<{
   highlight?: boolean;
 }> = ({ icon, label, value, highlight }) => (
   <div className={cn(
-    'rounded-2xl border px-4 py-3 bg-white dark:bg-slate-800',
+    'rounded-2xl border px-3 py-2.5 sm:px-4 sm:py-3 bg-white dark:bg-slate-800',
     highlight
       ? 'border-emerald-200 dark:border-emerald-700'
       : 'border-gray-200 dark:border-slate-700',
   )}>
-    <div className="flex items-center gap-2 mb-1">{icon}<span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500">{label}</span></div>
-    <p className="text-xl font-bold text-gray-900 dark:text-white leading-none">{value}</p>
+    <div className="flex items-center gap-1.5 mb-1 min-w-0">
+      <span className="shrink-0">{icon}</span>
+      <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500 truncate">{label}</span>
+    </div>
+    <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white leading-none truncate">{value}</p>
   </div>
 );
