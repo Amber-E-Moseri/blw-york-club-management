@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '../components/foundation/Button';
 import { Input } from '../components/foundation/Input';
-import { AuthError, resetPassword } from '../lib/auth';
+import { AuthError, resetPassword, verifyEmailOtp } from '../lib/auth';
 import { isConfigured } from '../lib/supabase';
 
 interface LoginProps {
@@ -28,7 +28,7 @@ function isRateLimited(err: unknown): boolean {
 }
 
 export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading }) => {
-  const [mode, setMode] = useState<'signin' | 'signup' | 'done' | 'forgot'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup' | 'verify' | 'done' | 'forgot'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -38,6 +38,9 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
   const [resetEmail, setResetEmail] = useState('');
   const [resetBusy, setResetBusy] = useState(false);
   const [resetNotice, setResetNotice] = useState<ResetNotice | null>(null);
+  const [otpCode, setOtpCode] = useState('');
+  const [otpBusy, setOtpBusy] = useState(false);
+  const [otpError, setOtpError] = useState('');
 
   const openForgotPassword = () => {
     setMode('forgot');
@@ -78,7 +81,24 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
     if (password.length < 6) { setLocalError('Password must be at least 6 characters.'); return; }
     if (password !== confirm) { setLocalError('Passwords do not match.'); return; }
     const ok = await onSignUp(email, password, fullName.trim(), studentNumber.trim() || undefined);
-    if (ok) setMode('done');
+    if (ok) { setOtpCode(''); setOtpError(''); setMode('verify'); }
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (otpBusy) return;
+    const code = otpCode.trim();
+    if (!/^\d{6}$/.test(code)) { setOtpError('Enter the 6-digit code from the email.'); return; }
+    setOtpBusy(true);
+    setOtpError('');
+    try {
+      await verifyEmailOtp(email, code);
+      setMode('done');
+    } catch (err) {
+      setOtpError(err instanceof AuthError ? err.message : 'Invalid or expired code. Try again.');
+    } finally {
+      setOtpBusy(false);
+    }
   };
 
   return (
@@ -103,6 +123,33 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
         )}
 
         <div className="bg-white rounded-lg shadow-md p-8">
+
+          {/* Email OTP verification */}
+          {mode === 'verify' && (
+            <>
+              <h2 className="text-xl font-bold text-center mb-2">Check your email</h2>
+              <p className="text-sm text-gray-500 text-center mb-5">
+                We sent a 6-digit code to <strong>{email}</strong>. Enter it below to confirm your address.
+              </p>
+              <form className="space-y-4" onSubmit={handleVerify} noValidate>
+                <Input
+                  label="Verification code"
+                  value={otpCode}
+                  onChange={(v) => setOtpCode(v.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="000000"
+                  maxLength={6}
+                  autoComplete="one-time-code"
+                  error={otpError || undefined}
+                />
+                <Button fullWidth loading={otpBusy} disabled={otpBusy} type="submit">Verify</Button>
+              </form>
+              <p className="text-center text-sm text-gray-500 mt-5">
+                <button type="button" onClick={() => { setMode('signin'); setOtpCode(''); setOtpError(''); }} className="text-york-600 font-semibold hover:underline">
+                  Back to Sign In
+                </button>
+              </p>
+            </>
+          )}
 
           {/* Sign-up success */}
           {mode === 'done' && (

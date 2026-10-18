@@ -48,6 +48,7 @@ export interface Member {
   phone?: string;
   student_number?: string;
   cell_id?: string;
+  bsc_id?: string | null;
   status?: 'pending' | 'active' | 'inactive' | 'rejected';
   /** Bible Study Class the member is in, when the viewer can see it. A cell change is blocked while it is set. */
   bsc_name?: string | null;
@@ -154,6 +155,13 @@ export interface Cell {
   id: string;
   name: string;
   leader_id?: string;
+}
+
+export interface Bsc {
+  id: string;
+  cell_id: string;
+  name: string;
+  leader_id?: string | null;
 }
 
 export interface ContactTagRelation {

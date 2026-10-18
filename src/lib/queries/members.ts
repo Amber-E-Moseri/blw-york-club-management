@@ -62,10 +62,15 @@ export interface MemberFilters {
   cellId?: string;
 }
 
+export async function assignMemberToCell(memberId: string, cellId: string | null): Promise<void> {
+  const { error } = await supabase.from('profiles').update({ cell_id: cellId }).eq('id', memberId);
+  if (error) throw new Error(error.message ?? 'Failed to assign member to cell.');
+}
+
 export async function fetchMembersFiltered(filters: MemberFilters = {}): Promise<Member[]> {
   let q = supabase
     .from('member_directory')
-    .select('id, full_name, email, avatar_url, role, joined_at, cell_id')
+    .select('id, full_name, email, avatar_url, role, joined_at, cell_id, bsc_id, bsc_name')
     .order('full_name', { ascending: true });
 
   if (filters.search) {

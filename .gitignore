@@ -20,6 +20,9 @@ yarn-error.log*
 # Claude Code
 .claude/
 
+# Vercel
+.vercel/
+
 # Editor
 .DS_Store
 .vscode/settings.json

@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import type { RecoveryLink } from './recoveryLink';
+import type { ConfirmLink } from './confirmLink';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -109,6 +110,41 @@ export async function establishRecoverySession(link: RecoveryLink): Promise<Reco
       // The client already consumed the fragment and stored the session before this runs.
       const { data, error } = await supabase.auth.getSession();
       return !error && data.session ? 'ready' : 'expired';
+    }
+  }
+}
+
+/**
+ * Verifies a 6-digit OTP code sent to the user's email after sign-up.
+ */
+export async function verifyEmailOtp(email: string, token: string): Promise<void> {
+  const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
+  if (error) throw new AuthError(friendlyMessage(error.message), error.message);
+  console.debug('[auth] email OTP verified');
+}
+
+export type ConfirmStatus = 'confirmed' | 'expired' | 'invalid' | 'missing';
+
+/**
+ * Turns an email-confirmation callback into a verified Supabase session. Returns a status only.
+ */
+export async function establishConfirmSession(link: ConfirmLink): Promise<ConfirmStatus> {
+  switch (link.kind) {
+    case 'none':
+      return 'missing';
+    case 'expired':
+      return 'expired';
+    case 'invalid':
+      return 'invalid';
+    case 'pkce': {
+      const existing = await supabase.auth.getSession();
+      if (!existing.error && existing.data.session) return 'confirmed';
+      const { error } = await supabase.auth.exchangeCodeForSession(link.code);
+      return error ? 'expired' : 'confirmed';
+    }
+    case 'token_hash': {
+      const { error } = await supabase.auth.verifyOtp({ type: 'email', token_hash: link.tokenHash });
+      return error ? 'expired' : 'confirmed';
     }
   }
 }

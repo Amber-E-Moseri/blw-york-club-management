@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, Users } from 'lucide-react';
-import { fetchMembersFiltered } from '../lib/queries/members';
+import { BookOpen, ChevronDown, ChevronUp, Plus, Users, UserPlus } from 'lucide-react';
+import { fetchMembersFiltered, assignMemberToCell } from '../lib/queries/members';
 import { createCell, fetchCells } from '../lib/queries/contacts';
+import { fetchBscsByCell, createBsc, assignMemberToBsc } from '../lib/queries/bscs';
 import { summarizeCells, validateCellName, type CellSummary } from '../lib/cells';
 import { getMonthlyDevotional } from '../lib/queries/devotionals';
 import type { AuthUser } from '../lib/auth';
-import type { Cell, Member, MonthlyDevotional } from '../types';
+import type { Bsc, Cell, Member, MonthlyDevotional } from '../types';
 import { Button } from '../components/foundation/Button';
 import { Input } from '../components/foundation/Input';
 import { RorProgressTable } from '../components/feature/RorProgressTable';
@@ -48,6 +49,100 @@ export const Cells: React.FC<Props> = ({ user }) => {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [createNotice, setCreateNotice] = useState<string | null>(null);
+
+  // Member assignment state (coordinator-only)
+  const [assigningCellId, setAssigningCellId] = useState<string | null>(null);
+  const [assignMemberId, setAssignMemberId] = useState('');
+  const [assigning, setAssigning] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
+
+  const handleAssignMember = async (cellId: string) => {
+    if (!assignMemberId) return;
+    setAssigning(true);
+    setAssignError(null);
+    try {
+      await assignMemberToCell(assignMemberId, cellId);
+      setMembers((prev) =>
+        prev.map((m) => (m.id === assignMemberId ? { ...m, cell_id: cellId, bsc_id: null } : m)),
+      );
+      setAssignMemberId('');
+      setAssigningCellId(null);
+    } catch (e: unknown) {
+      setAssignError(e instanceof Error ? e.message : 'Could not assign member.');
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  // BSC state (coordinator-only)
+  const [bscsByCellId, setBscsByCellId] = useState<Record<string, Bsc[]>>({});
+  const [bscLoadingId, setBscLoadingId] = useState<string | null>(null);
+  const [newBscName, setNewBscName] = useState<Record<string, string>>({});
+  const [creatingBscId, setCreatingBscId] = useState<string | null>(null);
+  const [bscCreateError, setBscCreateError] = useState<Record<string, string | null>>({});
+  const [assigningBscId, setAssigningBscId] = useState<string | null>(null);
+  const [bscAssignMemberId, setBscAssignMemberId] = useState('');
+  const [bscAssigning, setBscAssigning] = useState(false);
+  const [bscAssignError, setBscAssignError] = useState<string | null>(null);
+
+  const loadBscs = async (cellId: string) => {
+    if (bscsByCellId[cellId] !== undefined) return;
+    setBscLoadingId(cellId);
+    try {
+      const rows = await fetchBscsByCell(cellId);
+      setBscsByCellId((prev) => ({ ...prev, [cellId]: rows }));
+    } catch {
+      setBscsByCellId((prev) => ({ ...prev, [cellId]: [] }));
+    } finally {
+      setBscLoadingId(null);
+    }
+  };
+
+  const handleOpenCell = (cellId: string, isOpen: boolean) => {
+    setOpenId(isOpen ? null : cellId);
+    if (!isOpen) loadBscs(cellId);
+  };
+
+  const handleCreateBsc = async (cellId: string) => {
+    const name = (newBscName[cellId] ?? '').trim();
+    if (!name) return;
+    setCreatingBscId(cellId);
+    setBscCreateError((prev) => ({ ...prev, [cellId]: null }));
+    try {
+      const bsc = await createBsc(cellId, name);
+      setBscsByCellId((prev) => ({
+        ...prev,
+        [cellId]: [...(prev[cellId] ?? []), bsc].sort((a, b) => a.name.localeCompare(b.name)),
+      }));
+      setNewBscName((prev) => ({ ...prev, [cellId]: '' }));
+    } catch (e: unknown) {
+      setBscCreateError((prev) => ({ ...prev, [cellId]: e instanceof Error ? e.message : 'Could not create BSC.' }));
+    } finally {
+      setCreatingBscId(null);
+    }
+  };
+
+  const handleAssignToBsc = async (bscId: string, cellId: string) => {
+    if (!bscAssignMemberId) return;
+    setBscAssigning(true);
+    setBscAssignError(null);
+    try {
+      await assignMemberToBsc(bscAssignMemberId, bscId);
+      setMembers((prev) =>
+        prev.map((m) => {
+          if (m.id !== bscAssignMemberId) return m;
+          const bscName = bscsByCellId[cellId]?.find((b) => b.id === bscId)?.name ?? undefined;
+          return { ...m, bsc_id: bscId, bsc_name: bscName };
+        }),
+      );
+      setBscAssignMemberId('');
+      setAssigningBscId(null);
+    } catch (e: unknown) {
+      setBscAssignError(e instanceof Error ? e.message : 'Could not assign member to BSC.');
+    } finally {
+      setBscAssigning(false);
+    }
+  };
 
   useEffect(() => {
     if (level < 1) return;
@@ -94,6 +189,13 @@ export const Cells: React.FC<Props> = ({ user }) => {
   };
 
   const summaries = useMemo<CellSummary[]>(() => summarizeCells(cells, members), [cells, members]);
+
+  // Cell leaders can manage BSCs only in cells they personally lead; coordinators manage all.
+  const bscManageableCells = useMemo(() => {
+    if (user?.role === 'coordinator') return new Set(cells.map((c) => c.id));
+    if (user?.role === 'cell_leader') return new Set(cells.filter((c) => c.leader_id === user.id).map((c) => c.id));
+    return new Set<string>();
+  }, [cells, user]);
   const unassigned = members.filter((m) => !m.cell_id).length;
 
   if (level < 1) {
@@ -198,7 +300,7 @@ export const Cells: React.FC<Props> = ({ user }) => {
                 type="button"
                 className="w-full flex items-center gap-3 p-4 text-left"
                 aria-expanded={isOpen}
-                onClick={() => setOpenId(isOpen ? null : cell.id)}
+                onClick={() => handleOpenCell(cell.id, isOpen)}
               >
                 <Users className="w-5 h-5 text-york-600 shrink-0" aria-hidden="true" />
                 <span className="flex-1 min-w-0">
@@ -212,15 +314,175 @@ export const Cells: React.FC<Props> = ({ user }) => {
               </button>
 
               {isOpen && (
-                <div className="border-t border-gray-100 dark:border-slate-700 px-4 py-3">
-                  {cell.members.length === 0 ? (
-                    <p className="text-sm text-gray-500 dark:text-slate-400">No members yet.</p>
-                  ) : (
-                    <ul className="text-sm text-gray-800 dark:text-slate-200 space-y-1">
-                      {cell.members.map((m) => (
-                        <li key={m.id}>{m.full_name}</li>
-                      ))}
-                    </ul>
+                <div className="border-t border-gray-100 dark:border-slate-700 px-4 py-4 space-y-4">
+
+                  {/* ── Cell members not yet in a BSC ─────────────────────── */}
+                  {(() => {
+                    const unassignedToAnyBsc = cell.members.filter((m) => !m.bsc_id);
+                    return (
+                      <section>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 mb-1.5">
+                          Cell members — no BSC
+                        </p>
+                        {unassignedToAnyBsc.length === 0 ? (
+                          <p className="text-xs text-gray-400 dark:text-slate-500 italic">All members are in a BSC.</p>
+                        ) : (
+                          <ul className="text-sm text-gray-800 dark:text-slate-200 space-y-0.5">
+                            {unassignedToAnyBsc.map((m) => (
+                              <li key={m.id} className="flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-slate-600 shrink-0" />
+                                {m.full_name}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </section>
+                    );
+                  })()}
+
+                  {/* ── Bible Study Classes ────────────────────────────────── */}
+                  <section>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 mb-2">
+                      Bible Study Classes
+                    </p>
+
+                    {bscLoadingId === cell.id ? (
+                      <p className="text-xs text-gray-400 dark:text-slate-500">Loading…</p>
+                    ) : (bscsByCellId[cell.id] ?? []).length === 0 && !bscManageableCells.has(cell.id) ? (
+                      <p className="text-xs text-gray-400 dark:text-slate-500 italic">No BSCs yet.</p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {(bscsByCellId[cell.id] ?? []).map((bsc) => {
+                          const bscMembers = cell.members.filter((m) => m.bsc_id === bsc.id);
+                          const isAssigningThisBsc = assigningBscId === bsc.id;
+                          const eligibleForBsc = cell.members.filter((m) => m.bsc_id !== bsc.id);
+                          return (
+                            <li
+                              key={bsc.id}
+                              className="rounded-xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/40 px-3 py-2.5 space-y-2"
+                            >
+                              <div className="flex items-center gap-2">
+                                <BookOpen className="w-3.5 h-3.5 text-york-600 shrink-0" aria-hidden="true" />
+                                <span className="text-sm font-semibold text-gray-800 dark:text-slate-200">{bsc.name}</span>
+                                <span className="ml-auto text-xs text-gray-400">{bscMembers.length} {bscMembers.length === 1 ? 'member' : 'members'}</span>
+                              </div>
+                              {bscMembers.length > 0 && (
+                                <ul className="pl-5 space-y-0.5">
+                                  {bscMembers.map((m) => (
+                                    <li key={m.id} className="text-xs text-gray-700 dark:text-slate-300 flex items-center gap-1.5">
+                                      <span className="w-1 h-1 rounded-full bg-york-400 shrink-0" />
+                                      {m.full_name}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+
+                              {bscManageableCells.has(cell.id) && (
+                                <div>
+                                  {isAssigningThisBsc ? (
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <select
+                                        className="flex-1 min-w-0 px-2 py-1.5 text-xs border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-gray-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-york-600"
+                                        value={bscAssignMemberId}
+                                        onChange={(e) => { setBscAssignMemberId(e.target.value); setBscAssignError(null); }}
+                                        disabled={bscAssigning}
+                                      >
+                                        <option value="">Select member…</option>
+                                        {eligibleForBsc.map((m) => (
+                                          <option key={m.id} value={m.id}>
+                                            {m.full_name}{m.bsc_id ? ' (move)' : ''}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <Button type="button" variant="primary" size="small" loading={bscAssigning} disabled={bscAssigning || !bscAssignMemberId} onClick={() => handleAssignToBsc(bsc.id, cell.id)}>Add</Button>
+                                      <Button type="button" variant="ghost" size="small" disabled={bscAssigning} onClick={() => { setAssigningBscId(null); setBscAssignMemberId(''); setBscAssignError(null); }}>Cancel</Button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => { setAssigningBscId(bsc.id); setBscAssignMemberId(''); setBscAssignError(null); }}
+                                      className="flex items-center gap-1 text-[11px] font-semibold text-york-600 hover:text-york-700 dark:text-york-400 transition-colors"
+                                    >
+                                      <UserPlus className="w-3 h-3" aria-hidden="true" />
+                                      Add member to BSC
+                                    </button>
+                                  )}
+                                  {bscAssignError && isAssigningThisBsc && (
+                                    <p className="mt-1 text-xs text-red-600">{bscAssignError}</p>
+                                  )}
+                                </div>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+
+                    {/* Create BSC form */}
+                    {bscManageableCells.has(cell.id) && (
+                      <div className="mt-2 flex items-center gap-2 flex-wrap">
+                        <input
+                          type="text"
+                          placeholder="New BSC name…"
+                          value={newBscName[cell.id] ?? ''}
+                          onChange={(e) => setNewBscName((prev) => ({ ...prev, [cell.id]: e.target.value }))}
+                          maxLength={80}
+                          className="flex-1 min-w-0 px-3 py-1.5 text-sm border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-gray-800 dark:text-slate-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-york-600"
+                        />
+                        <Button
+                          type="button"
+                          variant="primary"
+                          size="small"
+                          loading={creatingBscId === cell.id}
+                          disabled={creatingBscId === cell.id || !(newBscName[cell.id] ?? '').trim()}
+                          onClick={() => handleCreateBsc(cell.id)}
+                        >
+                          <Plus className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+                          Create BSC
+                        </Button>
+                        {bscCreateError[cell.id] && (
+                          <p className="w-full text-xs text-red-600">{bscCreateError[cell.id]}</p>
+                        )}
+                      </div>
+                    )}
+                  </section>
+
+                  {/* ── Add member to cell ─────────────────────────────────── */}
+                  {canCreate && (
+                    <section className="border-t border-gray-100 dark:border-slate-700 pt-3">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 mb-1.5">
+                        Assign member to cell
+                      </p>
+                      {assigningCellId === cell.id ? (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <select
+                            className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-gray-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-york-600"
+                            value={assignMemberId}
+                            onChange={(e) => { setAssignMemberId(e.target.value); setAssignError(null); }}
+                            disabled={assigning}
+                          >
+                            <option value="">Select member…</option>
+                            {members.filter((m) => m.cell_id !== cell.id).map((m) => (
+                              <option key={m.id} value={m.id}>{m.full_name}{m.cell_id ? ' (move)' : ''}</option>
+                            ))}
+                          </select>
+                          <Button type="button" variant="primary" size="small" loading={assigning} disabled={assigning || !assignMemberId} onClick={() => handleAssignMember(cell.id)}>Assign</Button>
+                          <Button type="button" variant="ghost" size="small" disabled={assigning} onClick={() => { setAssigningCellId(null); setAssignMemberId(''); setAssignError(null); }}>Cancel</Button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => { setAssigningCellId(cell.id); setAssignMemberId(''); setAssignError(null); }}
+                          className="flex items-center gap-1.5 text-xs font-semibold text-york-600 hover:text-york-700 dark:text-york-400 dark:hover:text-york-300 transition-colors"
+                        >
+                          <UserPlus className="w-3.5 h-3.5" aria-hidden="true" />
+                          Add member to cell
+                        </button>
+                      )}
+                      {assignError && assigningCellId === cell.id && (
+                        <p className="mt-1 text-xs text-red-600">{assignError}</p>
+                      )}
+                    </section>
                   )}
                 </div>
               )}

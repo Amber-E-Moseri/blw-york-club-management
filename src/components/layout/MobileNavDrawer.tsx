@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Moon, Sun } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { AuthUser } from '../../lib/auth';
+import { useTheme } from '../../hooks/useTheme';
 import { useTranslation } from '../../i18n';
 import { getVisibleNavGroups } from './navItems';
 
@@ -20,6 +22,7 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({ open, onClose,
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation('nav');
+  const { theme, setTheme } = useTheme();
   const groups = getVisibleNavGroups(user?.role);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -72,6 +75,20 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({ open, onClose,
             </div>
           </div>
         ))}
+
+        <div className="border-t border-gray-100 dark:border-slate-700 pt-2 mt-2">
+          <button
+            type="button"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="flex items-center gap-3 w-full min-h-[44px] px-3 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors duration-150"
+            aria-label="Toggle dark mode"
+          >
+            {theme === 'dark'
+              ? <Sun className="w-4 h-4 shrink-0" aria-hidden="true" />
+              : <Moon className="w-4 h-4 shrink-0" aria-hidden="true" />}
+            <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+          </button>
+        </div>
       </nav>
     </div>
   );
