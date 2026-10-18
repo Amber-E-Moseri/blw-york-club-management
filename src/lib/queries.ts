@@ -121,16 +121,43 @@ export async function getAnnouncements(limit = 5): Promise<Announcement[]> {
   return data ?? [];
 }
 
+/** Saves an announcement and returns its id. Nothing is pushed here; see notifyAnnouncementMembers. */
 export async function createAnnouncement(
   title: string,
   body: string,
   authorId: string,
   authorName: string
-): Promise<void> {
-  const { error } = await supabase
+): Promise<string> {
+  const { data, error } = await supabase
     .from('announcements')
-    .insert({ title, body, author_id: authorId, author_name: authorName });
+    .insert({ title, body, author_id: authorId, author_name: authorName })
+    .select('id')
+    .single();
   if (error) throw new Error(error.message);
+  return (data as { id: string }).id;
+}
+
+export interface AnnouncementNotifyResult {
+  recipients: number;
+  devices: number;
+  sent: number;
+  failed: number;
+  expired: number;
+}
+
+/** Sends the push notification for a saved announcement through the notify-announcement edge function. */
+export async function notifyAnnouncementMembers(announcementId: string): Promise<AnnouncementNotifyResult> {
+  const { data, error } = await supabase.functions.invoke<AnnouncementNotifyResult & { error?: string }>(
+    'notify-announcement',
+    { body: { announcement_id: announcementId } }
+  );
+  if (error) {
+    // A non-2xx reply carries the function's own message in the response body.
+    const detail = await (error as { context?: Response }).context?.json?.().catch(() => null);
+    throw new Error((detail as { error?: string } | null)?.error ?? error.message);
+  }
+  if (!data || data.error) throw new Error(data?.error ?? 'Could not send notifications');
+  return data;
 }
 
 // ─── Prayer Requests ─────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Moon, Plus, Sun } from 'lucide-react';
+import { Moon, Plus } from 'lucide-react';
 import { cn, getInitials } from '../../lib/utils';
 import { useTheme } from '../../hooks/useTheme';
 
@@ -42,11 +42,12 @@ export const Header: React.FC<HeaderProps> = ({
     <header
       className={cn(
         'h-[60px] bg-white border-b-2 border-york-600 shadow-sm dark:bg-slate-900',
-        'flex items-center justify-between px-5 shrink-0 sticky top-0 z-30',
+        'grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-2 px-5 shrink-0 sticky top-0 z-30',
         className,
       )}
     >
-      {/* Hamburger — mobile only, shown when onMenuToggle provided */}
+      {/* Hamburger — mobile only, shown when onMenuToggle provided. Its own grid column keeps it clear of the logo. */}
+      {!onMenuToggle && <span aria-hidden="true" className="w-11" />}
       {onMenuToggle && (
         <button
           type="button"
@@ -72,29 +73,31 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
       )}
 
-      {/* Logo + Title */}
-      <div className="flex items-center gap-2.5">
+      {/* Logo + Title — centred in the middle column so it never runs under the hamburger */}
+      <div className="flex items-center gap-2.5 justify-self-center min-w-0">
         <img src="/logo.png" alt="BLW York" className="w-8 h-8 rounded-md shrink-0" />
-        <span className="text-lg font-bold text-gray-900 dark:text-slate-100 leading-tight hidden sm:block">
+        <span className="text-lg font-bold text-gray-900 dark:text-slate-100 leading-tight hidden sm:block truncate">
           BLW York Hub
         </span>
-        <span className="text-lg font-bold text-gray-900 dark:text-slate-100 sm:hidden">BLW York</span>
+        <span className="text-lg font-bold text-gray-900 dark:text-slate-100 sm:hidden truncate">BLW York</span>
       </div>
 
-      <div className="flex items-center gap-2">
-        {/* Dark / light mode toggle — mobile only */}
-        <button
-          type="button"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          aria-label="Toggle dark mode"
-          className={cn(
-            'md:hidden flex items-center justify-center w-9 h-9 rounded-md',
-            'text-gray-600 hover:bg-red-50 hover:text-york-600 dark:text-slate-300 dark:hover:bg-slate-800',
-            'focus:outline-none focus:ring-2 focus:ring-york-600 transition-colors duration-150',
-          )}
-        >
-          {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-        </button>
+      <div className="flex items-center gap-2 justify-self-end">
+        {/* Header only offers the switch to dark mode; light mode is not offered here */}
+        {theme !== 'dark' && (
+          <button
+            type="button"
+            onClick={() => setTheme('dark')}
+            aria-label="Switch to dark mode"
+            className={cn(
+              'md:hidden flex items-center justify-center w-9 h-9 rounded-md',
+              'text-gray-600 hover:bg-red-50 hover:text-york-600',
+              'focus:outline-none focus:ring-2 focus:ring-york-600 transition-colors duration-150',
+            )}
+          >
+            <Moon className="w-5 h-5" />
+          </button>
+        )}
 
         {/* Quick Add button */}
         {onQuickAdd && (

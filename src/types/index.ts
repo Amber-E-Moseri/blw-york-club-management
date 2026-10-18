@@ -712,7 +712,8 @@ export type PushNotificationType =
   | 'prophecy'
   | 'habit'
   | 'devotional'
-  | 'event';
+  | 'event'
+  | 'announcement';
 
 export type PushStatus = 'queued' | 'sent' | 'failed' | 'clicked' | 'dismissed';
 

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AnnouncementCard } from '../components/feature';
 import { Button } from '../components/foundation/Button';
 import { Input } from '../components/foundation/Input';
-import { getAnnouncements, createAnnouncement } from '../lib/queries';
+import { getAnnouncements, createAnnouncement, notifyAnnouncementMembers } from '../lib/queries';
 import type { Announcement } from '../types';
 import type { AuthUser } from '../lib/auth';
 
@@ -16,6 +16,8 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
   const [body, setBody] = useState('');
   const [saving, setSaving] = useState(false);
   const [postError, setPostError] = useState<string | null>(null);
+  const [notify, setNotify] = useState(true);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     getAnnouncements(20).then(setItems).catch(console.error).finally(() => setLoading(false));
@@ -26,12 +28,29 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
     setSaving(true);
     setPostError(null);
     try {
-      await createAnnouncement(title, body, user.id, user.name);
+      const id = await createAnnouncement(title, body, user.id, user.name);
+
+      // The announcement is saved at this point. A notification failure is reported, not retried by re-posting,
+      // which would create a duplicate announcement.
+      let postNotice: string | null = null;
+      if (notify) {
+        try {
+          const result = await notifyAnnouncementMembers(id);
+          postNotice = result.sent > 0
+            ? `Posted. Notified ${result.sent} of ${result.recipients} ${result.recipients === 1 ? 'member' : 'members'}.`
+            : `Posted. No one was notified: ${result.recipients === 0 ? 'no members have push enabled' : 'no active push subscriptions'}.`;
+          if (result.failed > 0) postNotice += ` ${result.failed} delivery failed.`;
+        } catch (e) {
+          postNotice = `Posted, but notifications failed: ${e instanceof Error ? e.message : 'unknown error'}.`;
+        }
+      }
+
       const fresh = await getAnnouncements(20);
       setItems(fresh);
       setTitle('');
       setBody('');
       setShowForm(false);
+      setNotice(postNotice);
     } catch (e) {
       setPostError(e instanceof Error ? e.message : 'Failed to post.');
     } finally {
@@ -57,6 +76,15 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
           <div className="card mb-6 space-y-3">
             <Input label="Title" value={title} onChange={setTitle} />
             <Input label="Message" type="textarea" value={body} onChange={setBody} />
+            <label className="flex items-center gap-2 text-small text-gray-700">
+              <input
+                type="checkbox"
+                checked={notify}
+                onChange={(e) => setNotify(e.target.checked)}
+                className="h-4 w-4 accent-york-600"
+              />
+              Send a push notification to members
+            </label>
             {postError && (
               <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
                 {postError}
@@ -64,6 +92,10 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
             )}
             <Button onClick={handlePost} loading={saving}>Post Announcement</Button>
           </div>
+        )}
+
+        {notice && (
+          <p className="text-small text-gray-600 mb-4" role="status">{notice}</p>
         )}
 
         {loading ? (
