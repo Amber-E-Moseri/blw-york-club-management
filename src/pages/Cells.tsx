@@ -256,8 +256,9 @@ export const Cells: React.FC<Props> = ({ user }) => {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100">Cells</h1>
-        <p className="text-sm text-gray-500 dark:text-slate-400">
+        <p className="text-[11px] font-bold text-york-600 uppercase tracking-wider">People</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-1">Cells</h1>
+        <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
           {cells.length} {cells.length === 1 ? 'cell' : 'cells'}
           {unassigned > 0 && ` · ${unassigned} ${unassigned === 1 ? 'member' : 'members'} not in a cell`}
         </p>
@@ -278,8 +279,8 @@ export const Cells: React.FC<Props> = ({ user }) => {
             error={createError ?? undefined}
           />
           <div className="flex items-center gap-3">
-            <Button type="submit" variant="primary" loading={creating} disabled={creating || !newCellName.trim()}>
-              Add cell
+            <Button type="submit" variant="primary" fullWidth loading={creating} disabled={creating || !newCellName.trim()}>
+              + Add cell
             </Button>
             {createNotice && <span role="status" className="text-sm text-gray-600 dark:text-slate-400">{createNotice}</span>}
           </div>
@@ -349,11 +350,13 @@ export const Cells: React.FC<Props> = ({ user }) => {
                 aria-expanded={isOpen}
                 onClick={() => handleOpenCell(cell.id, isOpen)}
               >
-                <Users className="w-5 h-5 text-york-600 shrink-0" aria-hidden="true" />
+                <span className="w-10 h-10 rounded-xl bg-york-50 dark:bg-york-900/30 flex items-center justify-center shrink-0">
+                  <Users className="w-5 h-5 text-york-600 dark:text-york-300" aria-hidden="true" />
+                </span>
                 <span className="flex-1 min-w-0">
-                  <span className="block text-sm font-bold text-gray-900 dark:text-slate-100 truncate">{cell.name}</span>
-                  <span className="block text-xs text-gray-500 dark:text-slate-400">
-                    Leader: {cell.leaderName ?? 'Not assigned'} · {cell.members.length}{' '}
+                  <span className="block text-[15px] font-bold text-gray-900 dark:text-slate-100 truncate">{cell.name}</span>
+                  <span className="block text-sm text-gray-500 dark:text-slate-400 truncate">
+                    Led by {cell.leaderName ?? 'no one yet'} · {cell.members.length}{' '}
                     {cell.members.length === 1 ? 'member' : 'members'}
                   </span>
                 </span>
@@ -366,7 +369,7 @@ export const Cells: React.FC<Props> = ({ user }) => {
                   {/* ── Cell leader assignment ────────────────────────────── */}
                   {canCreate && (
                     <section>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 mb-1.5">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-1.5">
                         Cell leader
                       </p>
                       {settingLeaderCellId === cell.id ? (
@@ -386,12 +389,12 @@ export const Cells: React.FC<Props> = ({ user }) => {
                           <Button type="button" variant="ghost" size="small" disabled={settingLeader} onClick={() => { setSettingLeaderCellId(null); setLeaderMemberId(''); setSetLeaderError(null); }}>Cancel</Button>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-700 dark:text-slate-300">{cell.leaderName ?? 'Not assigned'}</span>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">{cell.leaderName ?? 'Not assigned'}</span>
                           <button
                             type="button"
                             onClick={() => { setSettingLeaderCellId(cell.id); setLeaderMemberId(''); setSetLeaderError(null); }}
-                            className="text-[11px] font-semibold text-york-600 hover:text-york-700 dark:text-york-400 transition-colors"
+                            className="h-8 px-3 text-xs font-semibold text-gray-700 dark:text-slate-200 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
                           >
                             {cell.leaderName ? 'Change' : 'Assign'}
                           </button>
@@ -408,7 +411,7 @@ export const Cells: React.FC<Props> = ({ user }) => {
                     const unassignedToAnyBsc = cell.members.filter((m) => !m.bsc_id);
                     return (
                       <section>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 mb-1.5">
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-1.5">
                           Cell members — no BSC
                         </p>
                         {unassignedToAnyBsc.length === 0 ? (
@@ -429,7 +432,7 @@ export const Cells: React.FC<Props> = ({ user }) => {
 
                   {/* ── Bible Study Classes ────────────────────────────────── */}
                   <section>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 mb-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-2">
                       Bible Study Classes
                     </p>
 
@@ -446,18 +449,20 @@ export const Cells: React.FC<Props> = ({ user }) => {
                           return (
                             <li
                               key={bsc.id}
-                              className="rounded-xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/40 px-3 py-2.5 space-y-2"
+                              className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 space-y-2.5"
                             >
                               <div className="flex items-center gap-2">
-                                <BookOpen className="w-3.5 h-3.5 text-york-600 shrink-0" aria-hidden="true" />
-                                <span className="text-sm font-semibold text-gray-800 dark:text-slate-200">{bsc.name}</span>
-                                <span className="ml-auto text-xs text-gray-400">{bscMembers.length} {bscMembers.length === 1 ? 'member' : 'members'}</span>
+                                <BookOpen className="w-4 h-4 text-york-600 dark:text-york-300 shrink-0" aria-hidden="true" />
+                                <span className="text-sm font-bold text-gray-900 dark:text-slate-100">{bsc.name}</span>
+                                <span className="ml-auto text-xs text-gray-500 dark:text-slate-400">{bscMembers.length} {bscMembers.length === 1 ? 'member' : 'members'}</span>
                               </div>
                               {bscMembers.length > 0 && (
-                                <ul className="pl-5 space-y-0.5">
+                                <ul className="flex flex-wrap gap-1.5">
                                   {bscMembers.map((m) => (
-                                    <li key={m.id} className="text-xs text-gray-700 dark:text-slate-300 flex items-center gap-1.5">
-                                      <span className="w-1 h-1 rounded-full bg-york-400 shrink-0" />
+                                    <li
+                                      key={m.id}
+                                      className="px-2.5 py-1 text-xs font-medium text-gray-700 dark:text-slate-300 border border-gray-200 dark:border-slate-600 rounded-full bg-white dark:bg-slate-800"
+                                    >
                                       {m.full_name}
                                     </li>
                                   ))}
@@ -526,10 +531,10 @@ export const Cells: React.FC<Props> = ({ user }) => {
                                     <button
                                       type="button"
                                       onClick={() => { setAssigningBscId(bsc.id); setBscAssignMemberId(''); setBscAssignError(null); }}
-                                      className="flex items-center gap-1 text-[11px] font-semibold text-york-600 hover:text-york-700 dark:text-york-400 transition-colors"
+                                      className="flex items-center gap-1.5 text-xs font-semibold text-york-600 hover:text-york-700 dark:text-york-300 dark:hover:text-york-200 transition-colors"
                                     >
-                                      <UserPlus className="w-3 h-3" aria-hidden="true" />
-                                      Add member to BSC
+                                      <UserPlus className="w-3.5 h-3.5" aria-hidden="true" />
+                                      Add member
                                     </button>
                                   )}
                                   {bscAssignError && isAssigningThisBsc && (
@@ -545,19 +550,19 @@ export const Cells: React.FC<Props> = ({ user }) => {
 
                     {/* Create BSC form */}
                     {bscManageableCells.has(cell.id) && (
-                      <div className="mt-2 flex items-center gap-2 flex-wrap">
+                      <div className="mt-2 space-y-2">
                         <input
                           type="text"
-                          placeholder="New BSC name…"
+                          placeholder="New BSC name"
                           value={newBscName[cell.id] ?? ''}
                           onChange={(e) => setNewBscName((prev) => ({ ...prev, [cell.id]: e.target.value }))}
                           maxLength={80}
-                          className="flex-1 min-w-0 px-3 py-1.5 text-sm border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-gray-800 dark:text-slate-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-york-600"
+                          className="w-full h-11 px-3 text-sm border border-gray-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-gray-800 dark:text-slate-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-york-600"
                         />
                         <Button
                           type="button"
                           variant="primary"
-                          size="small"
+                          fullWidth
                           loading={creatingBscId === cell.id}
                           disabled={creatingBscId === cell.id || !(newBscName[cell.id] ?? '').trim()}
                           onClick={() => handleCreateBsc(cell.id)}
@@ -574,10 +579,7 @@ export const Cells: React.FC<Props> = ({ user }) => {
 
                   {/* ── Add member to cell ─────────────────────────────────── */}
                   {canCreate && (
-                    <section className="border-t border-gray-100 dark:border-slate-700 pt-3">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 mb-1.5">
-                        Assign member to cell
-                      </p>
+                    <section className="border-t border-gray-100 dark:border-slate-700 pt-4">
                       {assigningCellId === cell.id ? (
                         <div className="flex items-center gap-2 flex-wrap">
                           <select
@@ -598,9 +600,9 @@ export const Cells: React.FC<Props> = ({ user }) => {
                         <button
                           type="button"
                           onClick={() => { setAssigningCellId(cell.id); setAssignMemberId(''); setAssignError(null); }}
-                          className="flex items-center gap-1.5 text-xs font-semibold text-york-600 hover:text-york-700 dark:text-york-400 dark:hover:text-york-300 transition-colors"
+                          className="flex w-full h-11 items-center justify-center gap-2 text-sm font-semibold text-gray-700 dark:text-slate-200 border border-gray-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
                         >
-                          <UserPlus className="w-3.5 h-3.5" aria-hidden="true" />
+                          <UserPlus className="w-4 h-4" aria-hidden="true" />
                           Add member to cell
                         </button>
                       )}
@@ -656,8 +658,8 @@ const OrgRorSection: React.FC<OrgRorSectionProps> = ({ rows, loading, onViewMemb
   return (
     <div className="space-y-4 pt-2">
       <div>
-        <h2 className="text-base font-bold text-gray-900 dark:text-white">ROR Reading Overview</h2>
-        <p className="text-xs text-gray-500 dark:text-slate-400">Organisation-wide for current month</p>
+        <h2 className="text-[15px] font-bold text-gray-900 dark:text-slate-100">ROR reading overview</h2>
+        <p className="text-xs text-gray-500 dark:text-slate-400">Organisation-wide, current month</p>
       </div>
 
       {loading ? (
@@ -676,19 +678,19 @@ const OrgRorSection: React.FC<OrgRorSectionProps> = ({ rows, loading, onViewMemb
           </div>
 
           {byCells.length > 0 && (
-            <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Progress by cell</h3>
-              <ul className="space-y-2">
+            <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm p-4">
+              <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 mb-3">Progress by cell</h3>
+              <ul className="space-y-3">
                 {byCells.map((c) => (
                   <li key={c.name} className="flex items-center gap-3">
-                    <span className="text-sm text-gray-700 dark:text-slate-300 w-32 truncate">{c.name}</span>
+                    <span className="text-sm text-gray-700 dark:text-slate-300 w-24 truncate">{c.name}</span>
                     <div className="flex-1 bg-gray-100 dark:bg-slate-700 rounded-full h-2">
                       <div
                         className="bg-york-600 h-2 rounded-full transition-all"
                         style={{ width: `${c.count > 0 ? Math.round((c.done / c.count) * 100) : 0}%` }}
                       />
                     </div>
-                    <span className="text-xs text-gray-500 w-20 text-right">
+                    <span className="text-xs text-gray-500 dark:text-slate-400 w-16 text-right whitespace-nowrap">
                       {c.done}/{c.count} full
                     </span>
                   </li>
@@ -710,8 +712,8 @@ const OrgRorSection: React.FC<OrgRorSectionProps> = ({ rows, loading, onViewMemb
 };
 
 const OrgStat: React.FC<{ label: string; value: string | number }> = ({ label, value }) => (
-  <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3">
-    <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">{label}</p>
-    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">{value}</p>
+  <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm px-3.5 py-3">
+    <p className="text-xs text-gray-500 dark:text-slate-400">{label}</p>
+    <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-1">{value}</p>
   </div>
 );

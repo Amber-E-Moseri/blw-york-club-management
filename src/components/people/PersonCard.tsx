@@ -1,5 +1,5 @@
 import React from 'react';
-import { Phone, Mail, ChevronRight } from 'lucide-react';
+import { Mail, ChevronRight } from 'lucide-react';
 import { getInitials } from '../../lib/utils';
 import { PersonStatusBadge } from './PersonStatusBadge';
 import type { Member } from '../../types';
@@ -14,7 +14,7 @@ export const PersonCard: React.FC<PersonCardProps> = ({ member, onSelect, canSee
   <button
     type="button"
     onClick={onSelect}
-    className="w-full text-left bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl p-4 flex items-center gap-3 hover:border-york-300 dark:hover:border-york-700 hover:shadow-md transition-all active:scale-[0.99]"
+    className="w-full text-left px-4 py-3.5 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors"
   >
     {/* Avatar */}
     <div className="w-10 h-10 rounded-full bg-york-600 text-white flex items-center justify-center text-sm font-bold shrink-0 overflow-hidden">
@@ -28,25 +28,19 @@ export const PersonCard: React.FC<PersonCardProps> = ({ member, onSelect, canSee
     {/* Info */}
     <div className="flex-1 min-w-0">
       <p className="font-semibold text-sm text-gray-900 dark:text-slate-100 truncate">{member.full_name}</p>
-      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-        <PersonStatusBadge role={member.role} size="xs" />
+      <div className="flex items-center gap-2 mt-1 flex-wrap">
+        <PersonStatusBadge role={member.role} />
         {member.cellName && (
-          <span className="text-[11px] text-gray-400 dark:text-slate-500 truncate">{member.cellName}</span>
+          <span className="text-sm text-gray-500 dark:text-slate-400 truncate">{member.cellName}</span>
         )}
       </div>
-      {canSeeContact && (
-        <div className="flex items-center gap-3 mt-1">
-          {member.email && (
-            <span className="flex items-center gap-1 text-[11px] text-gray-400 dark:text-slate-500 truncate">
-              <Mail className="w-3 h-3 shrink-0" />{member.email}
-            </span>
-          )}
-          {member.phone && (
-            <span className="flex items-center gap-1 text-[11px] text-gray-400 dark:text-slate-500">
-              <Phone className="w-3 h-3 shrink-0" />{member.phone}
-            </span>
-          )}
-        </div>
+      {canSeeContact && member.email && (
+        <span className="flex items-center gap-1.5 mt-1 text-xs text-gray-500 dark:text-slate-400 truncate">
+          <Mail className="w-3.5 h-3.5 shrink-0" />{member.email}
+        </span>
+      )}
+      {canSeeContact && member.phone && (
+        <p className="mt-0.5 text-xs text-gray-400 dark:text-slate-500">{member.phone}</p>
       )}
     </div>
 

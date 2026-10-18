@@ -100,22 +100,20 @@ export const Members: React.FC<Props> = ({ user }) => {
   return (
     <div className="space-y-5 pb-4">
       {/* Header */}
-      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
-        <div className="border-t-4 border-york-600 px-5 py-5">
-          <p className="text-xs font-semibold text-york-600 uppercase tracking-wider">Community</p>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100 mt-1">People</h1>
-          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
-            Your ministry directory — members, leaders, and cells.
-          </p>
-        </div>
+      <div>
+        <p className="text-[11px] font-bold text-york-600 uppercase tracking-wider">Community</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-1">People</h1>
+        <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
+          Your ministry directory: members, leaders and cells.
+        </p>
       </div>
 
       {/* Stats strip */}
       {!loading && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <StatChip label="Total members" value={totalMembers} />
+        <div className="grid grid-cols-3 gap-2.5">
+          <StatChip label="Members" value={totalMembers} />
           <StatChip label="Leaders" value={leaderCount} />
-          <StatChip label="Cells" value={cells.length} className="hidden sm:block" />
+          <StatChip label="Cells" value={cells.length} />
         </div>
       )}
 
@@ -151,8 +149,8 @@ export const Members: React.FC<Props> = ({ user }) => {
         </div>
       ) : (
         <>
-          {/* Mobile cards */}
-          <div className="sm:hidden space-y-2">
+          {/* Mobile list */}
+          <div className="sm:hidden bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden divide-y divide-gray-100 dark:divide-slate-700">
             {enriched.map((m) => (
               <PersonCard
                 key={m.id}
@@ -244,9 +242,9 @@ export const Members: React.FC<Props> = ({ user }) => {
   );
 };
 
-const StatChip: React.FC<{ label: string; value: number; className?: string }> = ({ label, value, className }) => (
-  <div className={`bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm px-4 py-3 ${className ?? ''}`}>
-    <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">{label}</p>
-    <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-0.5">{value}</p>
+const StatChip: React.FC<{ label: string; value: number }> = ({ label, value }) => (
+  <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm px-3.5 py-3">
+    <p className="text-xs text-gray-500 dark:text-slate-400">{label}</p>
+    <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-1">{value}</p>
   </div>
 );

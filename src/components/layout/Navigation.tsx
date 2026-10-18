@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  Calendar, CalendarDays, ClipboardList, LayoutDashboard, Sparkles,
+  Calendar, CalendarDays, ClipboardList, Ellipsis, LayoutGrid, Sparkles,
 } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
@@ -19,24 +19,35 @@ interface TabItem {
 }
 
 const LEADER_TABS: TabItem[] = [
-  { label: 'Home',     path: '/',         icon: LayoutDashboard, minRole: 0 },
-  { label: 'Outreach', path: '/contacts', icon: ClipboardList,   minRole: 1 },
-  { label: 'Meetings', path: '/meetings', icon: Calendar,        minRole: 0 },
-  { label: 'Growth',   path: '/growth',   icon: Sparkles,        minRole: 0 },
+  { label: 'Home',     path: '/',         icon: LayoutGrid,    minRole: 0 },
+  { label: 'Outreach', path: '/contacts', icon: ClipboardList, minRole: 1 },
+  { label: 'Meetings', path: '/meetings', icon: Calendar,      minRole: 0 },
+  { label: 'Growth',   path: '/growth',   icon: Sparkles,      minRole: 0 },
 ];
 
 const MEMBER_TABS: TabItem[] = [
-  { label: 'Home',     path: '/',        icon: LayoutDashboard, minRole: 0 },
-  { label: 'Meetings', path: '/meetings', icon: Calendar,        minRole: 0 },
-  { label: 'Events',   path: '/events',   icon: CalendarDays,    minRole: 0 },
-  { label: 'Growth',   path: '/growth',   icon: Sparkles,        minRole: 0 },
+  { label: 'Home',     path: '/',         icon: LayoutGrid,    minRole: 0 },
+  { label: 'Meetings', path: '/meetings', icon: Calendar,      minRole: 0 },
+  { label: 'Events',   path: '/events',   icon: CalendarDays,  minRole: 0 },
+  { label: 'Growth',   path: '/growth',   icon: Sparkles,      minRole: 0 },
 ];
 
 export interface NavigationProps {
   userRole?: AuthUser['role'];
+  /** Toggles the full mobile menu drawer; the "More" tab opens it. */
+  onMore?: () => void;
+  /** Whether the mobile menu drawer is currently open. */
+  moreOpen?: boolean;
 }
 
-export const Navigation: React.FC<NavigationProps> = ({ userRole = 'member' }) => {
+const tabClass = (active: boolean) => cn(
+  'relative flex-1 flex flex-col items-center justify-center gap-1 py-2 min-h-[56px] text-[11px] font-medium transition-colors duration-150',
+  active
+    ? 'text-york-600 dark:text-york-300'
+    : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200',
+);
+
+export const Navigation: React.FC<NavigationProps> = ({ userRole = 'member', onMore, moreOpen = false }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const level = ROLE_LEVEL[userRole] ?? 0;
@@ -50,7 +61,7 @@ export const Navigation: React.FC<NavigationProps> = ({ userRole = 'member' }) =
     >
       <div className="flex items-stretch">
         {tabs.map((tab) => {
-          const active = location.pathname === tab.path;
+          const active = !moreOpen && location.pathname === tab.path;
           const Icon = tab.icon;
           return (
             <button
@@ -59,21 +70,29 @@ export const Navigation: React.FC<NavigationProps> = ({ userRole = 'member' }) =
               onClick={() => navigate(tab.path)}
               aria-current={active ? 'page' : undefined}
               aria-label={tab.label}
-              className={cn(
-                'flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 min-h-[56px] text-[10px] font-medium transition-colors duration-150',
-                active
-                  ? 'text-york-600 dark:text-york-300'
-                  : 'text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300',
-              )}
+              className={tabClass(active)}
             >
-              <Icon className={cn('w-5 h-5', active && 'scale-110 transition-transform')} />
+              {active && <span className="absolute top-0 w-6 h-0.5 bg-york-600 dark:bg-york-400 rounded-b-full" />}
+              <Icon className={cn('w-5 h-5', active && 'text-york-600 dark:text-york-300')} />
               <span>{tab.label}</span>
-              {active && (
-                <span className="absolute bottom-0 w-6 h-0.5 bg-york-600 dark:bg-york-400 rounded-t-full" />
-              )}
             </button>
           );
         })}
+
+        {onMore && (
+          <button
+            type="button"
+            onClick={onMore}
+            aria-expanded={moreOpen}
+            aria-controls="mobile-nav-drawer"
+            aria-label="More"
+            className={tabClass(moreOpen)}
+          >
+            {moreOpen && <span className="absolute top-0 w-6 h-0.5 bg-york-600 dark:bg-york-400 rounded-b-full" />}
+            <Ellipsis className="w-5 h-5" />
+            <span>More</span>
+          </button>
+        )}
       </div>
     </nav>
   );

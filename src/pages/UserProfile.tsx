@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Card } from '../components/foundation/Card';
-import { Button } from '../components/foundation/Button';
+import { Pencil } from 'lucide-react';
 import { Badge } from '../components/foundation/Badge';
 import { ProfileForm } from '../components/feature/ProfileForm';
 import { PushNotificationSettings } from '../components/feature/PushNotificationSettings';
@@ -78,9 +77,14 @@ export const UserProfile: React.FC<UserProfileProps> = ({ currentUser, viewUserI
     : '—';
 
   return (
-    <div className="flex-1 overflow-y-auto p-8">
-      <div className="max-w-xl mx-auto space-y-6">
-        <h1 className="text-h1">{isOwnProfile ? 'My Profile' : 'Member Profile'}</h1>
+    <div className="mx-auto max-w-xl space-y-5 pb-4">
+      <div>
+        <p className="text-[11px] font-bold uppercase tracking-wider text-york-600">Account</p>
+        <h1 className="mt-1 text-2xl font-bold text-gray-900 dark:text-slate-100">
+          {isOwnProfile ? 'Profile' : 'Member profile'}
+        </h1>
+        <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">Your details and notification settings.</p>
+      </div>
 
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-md px-4 py-3 text-sm text-red-700">
@@ -88,7 +92,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ currentUser, viewUserI
           </div>
         )}
 
-        <Card>
+        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           {editing ? (
             <ProfileForm
               profile={profile}
@@ -102,32 +106,36 @@ export const UserProfile: React.FC<UserProfileProps> = ({ currentUser, viewUserI
             />
           ) : (
             <>
-              {/* Header row */}
-              <div className="flex items-start gap-5 mb-6">
-                <div className="w-20 h-20 rounded-full bg-york-600 text-white flex items-center justify-center text-2xl font-bold shrink-0 overflow-hidden">
+              {/* Identity */}
+              <div className="flex flex-col items-center text-center">
+                <div className="w-20 h-20 rounded-full bg-york-600 text-white flex items-center justify-center text-2xl font-bold overflow-hidden">
                   {profile.avatarUrl ? (
                     <img src={profile.avatarUrl} alt={displayName} className="w-full h-full object-cover" />
                   ) : (
                     initials
                   )}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-h2 truncate">{displayName}</h2>
-                  {profile.role && (
-                    <Badge variant={roleBadgeVariant(profile.role)} className="mt-1">
-                      {ROLE_LABELS[profile.role]}
-                    </Badge>
-                  )}
-                </div>
-                {isOwnProfile && (
-                  <Button variant="secondary" size="small" onClick={() => setEditing(true)}>
-                    Edit
-                  </Button>
+                <h2 className="mt-3 text-xl font-bold text-gray-900 dark:text-slate-100 break-words max-w-full">{displayName}</h2>
+                {profile.role && (
+                  <Badge variant={roleBadgeVariant(profile.role)} className="mt-2">
+                    {ROLE_LABELS[profile.role]}
+                  </Badge>
                 )}
               </div>
 
+              {isOwnProfile && (
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className="mt-5 flex w-full h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                >
+                  <Pencil className="w-4 h-4" aria-hidden="true" />
+                  Edit profile
+                </button>
+              )}
+
               {/* Details */}
-              <dl className="space-y-3 text-small">
+              <dl className="mt-5 divide-y divide-gray-100 dark:divide-slate-700">
                 <Row label="Email" value={profile.email} />
                 <Row label="Phone" value={maskPhone(profile.phone)} />
                 {profile.studentNumber && (
@@ -138,26 +146,25 @@ export const UserProfile: React.FC<UserProfileProps> = ({ currentUser, viewUserI
               </dl>
 
               {profile.bio && (
-                <div className="mt-5 pt-5 border-t border-gray-100">
-                  <p className="text-tiny font-semibold text-gray-400 uppercase tracking-wider mb-2">About</p>
-                  <p className="text-small text-gray-600">{profile.bio}</p>
+                <div className="mt-4 border-t border-gray-100 pt-4 dark:border-slate-700">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">About</p>
+                  <p className="text-sm leading-relaxed text-gray-600 dark:text-slate-300">{profile.bio}</p>
                 </div>
               )}
             </>
           )}
-        </Card>
+        </div>
 
-        {isOwnProfile && (
-          <PushNotificationSettings userId={currentUser?.id} />
-        )}
-      </div>
+      {isOwnProfile && (
+        <PushNotificationSettings userId={currentUser?.id} />
+      )}
     </div>
   );
 };
 
 const Row: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div className="flex gap-2">
-    <dt className="font-semibold text-gray-400 w-24 shrink-0">{label}</dt>
-    <dd className="text-gray-900">{value}</dd>
+  <div className="flex items-center gap-3 py-3">
+    <dt className="w-24 shrink-0 text-sm text-gray-500 dark:text-slate-400">{label}</dt>
+    <dd className="min-w-0 break-words text-sm font-semibold text-gray-900 dark:text-slate-100">{value}</dd>
   </div>
 );
