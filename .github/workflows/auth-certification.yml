@@ -19,7 +19,10 @@ on:
   workflow_dispatch:
     inputs:
       candidate_sha:
-        description: Exact 40-character commit SHA to certify. Must match the checked-out commit.
+        description: >-
+          Exact 40-character commit SHA of the certification workflow to certify.
+          This must be a SHA from the certification branch (main), NOT the frozen application SHA
+          pinned in APP_UNDER_TEST_SHA. Must match the checked-out commit.
         required: true
         type: string
       run_hosted:
@@ -94,6 +97,24 @@ jobs:
           want="${{ inputs.candidate_sha }}"
           [ "$(git rev-parse HEAD)" = "$want" ] || { echo "FAIL: checkout does not equal requested SHA"; exit 1; }
           echo "PASS: candidate SHA verified"
+
+      - name: "Gate 1c: mail-adapter test files present at candidate SHA (fail closed)"
+        run: |
+          set -euo pipefail
+          missing=()
+          for f in \
+            supabase/verification/auth/mailslurp_otp.test.mjs \
+            supabase/verification/auth/person_link.test.mjs \
+            supabase/verification/auth/signup_response.test.mjs \
+            supabase/verification/auth/cleanup_plan.test.mjs; do
+            [ -f "$f" ] || missing+=("$f")
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "FAIL: mail-adapter test files missing at candidate SHA. Verify that candidate_sha is the certification workflow SHA (from main), not the frozen application SHA (APP_UNDER_TEST_SHA = $APP_UNDER_TEST_SHA)."
+            for m in "${missing[@]}"; do echo "  MISSING: $m"; done
+            exit 1
+          fi
+          echo "PASS: all 4 mail-adapter test files present at candidate SHA"
 
       - name: "Gate 2: required secrets present (names only; values never printed)"
         env:
