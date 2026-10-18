@@ -22,6 +22,7 @@ import { BookOfMonthPage } from './pages/BookOfMonth';
 import { WeeklyMessages } from './pages/WeeklyMessages';
 import { HabitTracker } from './pages/HabitTracker';
 import { AdminRoleManagement } from './pages/AdminRoleManagement';
+import { WebsiteManagement } from './website/WebsiteManagement';
 import { AdminContactReports } from './pages/AdminContactReports';
 import { EmailPreferences } from './pages/EmailPreferences';
 import { AdminZoomSettings } from './pages/AdminZoomSettings';
@@ -76,6 +77,7 @@ function AppShell() {
         <Route path="/admin/testimonies" element={<AdminTestimonies user={user} />} />
         <Route path="/admin/reports" element={<AdminDevotionalReport user={user} />} />
         <Route path="/admin/roles" element={<AdminRoleManagement user={user} />} />
+        <Route path="/admin/website/*" element={<WebsiteManagement user={user} />} />
         <Route path="/admin/contact-reports" element={<AdminContactReports user={user} />} />
         <Route path="/admin/zoom" element={<AdminZoomSettings user={user} />} />
         <Route path="/admin/exports" element={<AdminDataExport user={user} />} />
