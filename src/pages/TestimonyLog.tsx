@@ -9,21 +9,21 @@ import type { Testimony, TestimonyInput, TestimonyCategory, TestimonyEntryType, 
 
 interface Props { user: AuthUser | null; }
 
-const CATEGORIES: { value: TestimonyCategory | 'all'; label: string; emoji: string }[] = [
-  { value: 'all',            label: 'All',          emoji: '✨' },
-  { value: 'provision',      label: 'Provision',    emoji: '💰' },
-  { value: 'healing',        label: 'Healing',      emoji: '🙏' },
-  { value: 'prayer_answered',label: 'Prayer',       emoji: '✝️' },
-  { value: 'growth',         label: 'Growth',       emoji: '🌱' },
-  { value: 'other',          label: 'Other',        emoji: '📖' },
+const CATEGORIES: { value: TestimonyCategory | 'all'; label: string }[] = [
+  { value: 'all',             label: 'All' },
+  { value: 'provision',       label: 'Provision' },
+  { value: 'healing',         label: 'Healing' },
+  { value: 'prayer_answered', label: 'Prayer' },
+  { value: 'growth',          label: 'Growth' },
+  { value: 'other',           label: 'Other' },
 ];
 
 type Tab = 'all' | 'testimony' | 'prophecy';
 
-const TABS: { value: Tab; label: string; emoji: string }[] = [
-  { value: 'all',       label: 'All',        emoji: '✨' },
-  { value: 'testimony', label: 'Testimonies', emoji: '📖' },
-  { value: 'prophecy',  label: 'Prophecies', emoji: '🔮' },
+const TABS: { value: Tab; label: string }[] = [
+  { value: 'all',       label: 'All' },
+  { value: 'testimony', label: 'Testimonies' },
+  { value: 'prophecy',  label: 'Prophecies' },
 ];
 
 export const TestimonyLog: React.FC<Props> = ({ user }) => {
@@ -71,7 +71,7 @@ export const TestimonyLog: React.FC<Props> = ({ user }) => {
               tab === t.value ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            {t.emoji} {t.label}
+            {t.label}
           </button>
         ))}
       </div>
@@ -100,7 +100,7 @@ export const TestimonyLog: React.FC<Props> = ({ user }) => {
                   : 'bg-white text-gray-600 border-gray-200 hover:border-york-400'
               }`}
             >
-              {cat.emoji} {cat.label}
+              {cat.label}
             </button>
           ))}
           <label className="inline-flex items-center gap-1.5 ml-2 cursor-pointer">
@@ -133,7 +133,6 @@ export const TestimonyLog: React.FC<Props> = ({ user }) => {
 
       {!loading && testimonies.length === 0 && (
         <div className="text-center py-16 bg-white border border-gray-200 rounded-xl">
-          <p className="text-3xl mb-3">✨</p>
           <p className="text-base font-semibold text-gray-700">Nothing here yet</p>
           <p className="text-sm text-gray-400 mt-1">Be the first to share!</p>
           <div className="mt-4">

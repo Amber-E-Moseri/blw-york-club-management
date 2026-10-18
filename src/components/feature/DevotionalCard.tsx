@@ -57,6 +57,7 @@ export const DevotionalCard: React.FC<DevotionalCardProps> = ({
           <img
             src={page.image_url}
             alt={`${devotional.book_title} Day ${page.day_of_month}`}
+            data-devotional-image
             className="block w-full aspect-[2/1] object-contain bg-white"
             onLoad={() => setImageLoading(false)}
             onError={() => {
