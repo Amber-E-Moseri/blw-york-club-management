@@ -1,4 +1,4 @@
-import { summarizeCells } from '../lib/cells';
+import { summarizeCells, validateCellName, CELL_NAME_MAX_LENGTH } from '../lib/cells';
 import type { Cell, Member } from '../types';
 
 const member = (id: string, full_name: string, cell_id?: string): Member => ({
@@ -44,5 +44,21 @@ describe('summarizeCells', () => {
     const result = summarizeCells(cells, members);
     const allMembers = result.flatMap((c) => c.members.map((m) => m.id));
     expect(allMembers).not.toContain('m3');
+  });
+});
+
+describe('validateCellName', () => {
+  it('rejects a blank or whitespace-only name', () => {
+    expect(validateCellName('')).toBe('Enter a cell name.');
+    expect(validateCellName('   ')).toBe('Enter a cell name.');
+  });
+
+  it('accepts a trimmed name within the length limit', () => {
+    expect(validateCellName('  Cell 7  ')).toBeNull();
+    expect(validateCellName('x'.repeat(CELL_NAME_MAX_LENGTH))).toBeNull();
+  });
+
+  it('rejects a name longer than the limit', () => {
+    expect(validateCellName('x'.repeat(CELL_NAME_MAX_LENGTH + 1))).toMatch(/at most 80 characters/);
   });
 });

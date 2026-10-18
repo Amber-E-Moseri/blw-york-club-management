@@ -40,12 +40,12 @@ export const Meetings: React.FC<Props> = ({ user }) => {
 
   const handleConfirm = async (meetingId: string) => {
     if (!user) return;
-    await confirm(meetingId, user.id, user.name);
+    await confirm(meetingId);
   };
 
   const handleCancel = async (meetingId: string) => {
     if (!user) return;
-    await cancel(meetingId, user.id);
+    await cancel(meetingId);
   };
 
   // Filter by category; also hide leadership from non-leaders unless allow_join_requests

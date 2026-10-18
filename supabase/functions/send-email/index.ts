@@ -5,6 +5,7 @@ import {
   recipientMatchesIdentity,
   type EmailPreferenceRow,
 } from '../_shared/email-preference-guard.ts';
+import { evaluateResend } from '../_shared/email-resend-policy.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -76,7 +77,7 @@ Deno.serve(async (req) => {
     }
 
     if (body.action === 'resend') {
-      await requireAuthorizedCaller(req, 'notifications.send');
+      const actorId = await requireAuthorizedCaller(req, 'notifications.send');
       const { data: log, error } = await supabase
         .from('email_log')
         .select('*')
@@ -84,31 +85,61 @@ Deno.serve(async (req) => {
         .single();
       if (error) throw error;
 
-      // Re-check preferences at resend time — the member may have opted out
-      // since the original send attempt.
-      const guardResult = await checkEmailPreference(log.member_id, log.template_type, log.recipient_email);
-      if (!guardResult.send) {
-        await supabase.from('email_log').update({
-          status: 'skipped',
-          failed_reason: `Resend skipped: ${guardResult.reason}`,
-        }).eq('id', body.messageId);
-        return json({ skipped: true, reason: guardResult.reason });
+      const decision = evaluateResend(log, new Date());
+      if (!decision.allowed) {
+        auditResend('email.resend.blocked', actorId, body.messageId, decision.reason);
+        return json({ error: 'RESEND_NOT_ALLOWED', message: decision.reason }, 422);
       }
 
-      const html = withOpenTrackingPixel(
-        log.html_content ?? `<p>${escapeHtml(log.subject)}</p>`,
-        log.id,
-        log.tracking_token,
-      );
-      const sent = await sendProviderEmail(log.recipient_email, log.subject, html, log.text_content ?? undefined);
-      await supabase.from('email_log').update({
-        status: 'sent',
-        sent_at: new Date().toISOString(),
-        failed_reason: null,
-        provider_message_id: sent.id,
-        retry_count: (log.retry_count ?? 0) + 1,
-      }).eq('id', body.messageId);
-      return json({ id: sent.id });
+      // Claim the row before any provider call. Only one request can move it from failed to queued, so a double click
+      // or a concurrent request cannot send the same message twice.
+      const { data: claimed, error: claimError } = await supabase
+        .from('email_log')
+        .update({ status: 'queued' })
+        .eq('id', body.messageId)
+        .eq('status', 'failed')
+        .select('id');
+      if (claimError) throw claimError;
+      if (!claimed || claimed.length === 0) {
+        auditResend('email.resend.blocked', actorId, body.messageId, 'not in failed state');
+        return json({ error: 'RESEND_NOT_ALLOWED', message: 'This email is no longer in a failed state.' }, 409);
+      }
+      auditResend('email.resend.requested', actorId, body.messageId, log.template_type ?? 'unknown');
+
+      try {
+        // Re-check preferences at resend time — the member may have opted out
+        // since the original send attempt.
+        const guardResult = await checkEmailPreference(log.member_id, log.template_type, log.recipient_email);
+        if (!guardResult.send) {
+          await supabase.from('email_log').update({
+            status: 'skipped',
+            failed_reason: `Resend skipped: ${guardResult.reason}`,
+          }).eq('id', body.messageId);
+          auditResend('email.resend.skipped', actorId, body.messageId, guardResult.reason);
+          return json({ skipped: true, reason: guardResult.reason });
+        }
+
+        const html = withOpenTrackingPixel(
+          log.html_content ?? `<p>${escapeHtml(log.subject)}</p>`,
+          log.id,
+          log.tracking_token,
+        );
+        const sent = await sendProviderEmail(log.recipient_email, log.subject, html, log.text_content ?? undefined);
+        await supabase.from('email_log').update({
+          status: 'sent',
+          sent_at: new Date().toISOString(),
+          failed_reason: null,
+          provider_message_id: sent.id,
+          retry_count: (log.retry_count ?? 0) + 1,
+        }).eq('id', body.messageId);
+        auditResend('email.resend.sent', actorId, body.messageId, sent.id);
+        return json({ id: sent.id });
+      } catch (sendError) {
+        // Return the row to failed so it can be reviewed. The original failed_reason is kept. Nothing retries automatically.
+        await supabase.from('email_log').update({ status: 'failed' }).eq('id', body.messageId);
+        auditResend('email.resend.failed', actorId, body.messageId, sendError instanceof Error ? sendError.message : 'unknown');
+        throw sendError;
+      }
     }
 
     if (body.action === 'batch') {
@@ -220,6 +251,14 @@ async function requireAuthorizedCaller(req: Request, permission: string): Promis
   }
 
   throw new HttpError('Not authorised to send email', 403);
+}
+
+/**
+ * Structured audit record for manual resends. It names the authenticated actor and the email_log row, but never the
+ * recipient address, subject or body. Shipped to the function logs, not stored in the database.
+ */
+function auditResend(event: string, actorId: string, messageId: string, detail: string) {
+  console.info(JSON.stringify({ event, actor: actorId, messageId, detail, at: new Date().toISOString() }));
 }
 
 // ─── Preference enforcement ───────────────────────────────────────────────────

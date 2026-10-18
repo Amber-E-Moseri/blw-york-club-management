@@ -4,9 +4,10 @@ import { Card } from '../components/foundation/Card';
 import { Button } from '../components/foundation/Button';
 import { Input } from '../components/foundation/Input';
 import { renderSampleEmailTemplate } from '../lib/email/emailTemplates';
-import { useEmailLog, useResendFailedEmails } from '../hooks/useEmailNotifications';
+import { useEmailLog } from '../hooks/useEmailNotifications';
 import { renderComposerEmail, validateEmailPlaceholders, ALLOWED_EMAIL_PLACEHOLDERS } from '../lib/email/emailComposer';
-import { sendEmail } from '../lib/email/emailService';
+import { resendEmail, sendEmail } from '../lib/email/emailService';
+import { evaluateResend } from '../lib/email/resendPolicy';
 import {
   fetchEmailComposerRecipients,
   fetchEmailDrafts,
@@ -18,7 +19,7 @@ import {
   type EmailTemplateRecord,
 } from '../lib/queries/emailComposer';
 import type { AuthUser } from '../lib/auth';
-import type { EmailStatus, EmailTemplateType } from '../types';
+import type { EmailLog, EmailStatus, EmailTemplateType } from '../types';
 
 interface Props {
   user: AuthUser | null;
@@ -67,8 +68,33 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
   const [body, setBody] = useState(DEFAULT_BODY);
   const [selectedRecipientIds, setSelectedRecipientIds] = useState<string[]>([]);
   const [testEmail, setTestEmail] = useState(user?.email ?? '');
-  const { logs, loading } = useEmailLog(undefined, { status: status || undefined });
-  const { resendFailed, sending: resending, error: resendError } = useResendFailedEmails();
+  const { logs, loading, reload: reloadLogs } = useEmailLog(undefined, { status: status || undefined });
+  const [resendingId, setResendingId] = useState<string | null>(null);
+
+  // Per-row, explicit action only. The user confirms recipient, subject and original send date before anything is sent.
+  const handleResend = async (log: EmailLog) => {
+    const decision = evaluateResend(log, new Date());
+    if (!decision.allowed) {
+      setComposerError(decision.reason);
+      return;
+    }
+    const confirmed = window.confirm(
+      `Resend this email? This sends one new message.\n\nTo: ${log.recipient_email}\nSubject: ${log.subject}\nOriginally created: ${new Date(log.created_at).toLocaleString()}`
+    );
+    if (!confirmed) return;
+    setResendingId(log.id);
+    setComposerError('');
+    setNotice('');
+    try {
+      await resendEmail(log.id);
+      setNotice('Email resent.');
+    } catch (error) {
+      setComposerError((error as Error).message);
+    } finally {
+      setResendingId(null);
+      reloadLogs();
+    }
+  };
 
   const loadComposerData = useCallback(async () => {
     const [templateRows, draftRows, recipientRows] = await Promise.all([
@@ -101,6 +127,26 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
     };
   }, [logs]);
 
+  // The per-row action, shared by the phone card list and the tablet/desktop table.
+  const resendActionFor = (log: EmailLog) => {
+    if (log.status !== 'failed') return null;
+    const decision = evaluateResend(log, new Date());
+    if (decision.allowed) {
+      return (
+        <Button
+          variant="secondary"
+          size="small"
+          loading={resendingId === log.id}
+          disabled={resendingId !== null}
+          onClick={() => handleResend(log)}
+        >
+          Resend
+        </Button>
+      );
+    }
+    return <span className="text-xs text-gray-400" title={decision.reason}>Not resendable</span>;
+  };
+
   const selectedRecipients = useMemo(
     () => recipients.filter((recipient) => selectedRecipientIds.includes(recipient.id)),
     [recipients, selectedRecipientIds]
@@ -125,7 +171,7 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-8">
+    <div className="flex-1 overflow-y-auto p-4 sm:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
         <div>
           <h1 className="text-h1">Communications</h1>
@@ -327,7 +373,7 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
                   }}>
                     Duplicate
                   </Button>
-                  <Button variant="warning" icon={<Send className="h-4 w-4" />} loading={sendingTest} disabled onClick={async () => {
+                  <Button variant="warning" icon={<Send className="h-4 w-4" />} loading={sendingTest} disabled={!isComposerValid || !testEmail.trim() || sendingTest} onClick={async () => {
                     await runComposerAction(setSendingTest, setComposerError, setNotice, async () => {
                       const testRender = renderComposerEmail({
                         subject,
@@ -353,9 +399,9 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
               {invalidPlaceholders.length > 0 && (
                 <p className="text-sm text-red-600" role="alert">Invalid placeholders: {invalidPlaceholders.join(', ')}</p>
               )}
-              {(composerError || resendError) && <p className="text-sm text-red-600" role="alert">{composerError || resendError}</p>}
+              {composerError && <p className="text-sm text-red-600" role="alert">{composerError}</p>}
               {notice && <p className="text-sm text-green-600" role="status">{notice}</p>}
-              <p className="text-xs text-gray-400">Sending is disabled until the email relay is configured. Account approval, password reset, and authentication emails are managed separately from this composer.</p>
+              <p className="text-xs text-gray-400">Test sends need the email relay to be configured. Account approval, password reset, and authentication emails are managed separately from this composer.</p>
             </div>
           </Card>
 
@@ -393,21 +439,6 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
             </div>
           </Card>
 
-          <Card title="Admin Tools">
-            <div className="space-y-4">
-              <Button
-                variant="secondary"
-                onClick={async () => {
-                  const count = await resendFailed();
-                  setNotice(`Resend requested for ${count} failed email${count === 1 ? '' : 's'}.`);
-                }}
-                loading={resending}
-              >
-                Resend Failed Emails
-              </Button>
-              <p className="text-sm text-gray-500">Resending uses the existing email log records and backend authorization checks.</p>
-            </div>
-          </Card>
         </div>
 
         <Card
@@ -426,7 +457,28 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
             </select>
           }
         >
-          <div className="overflow-x-auto">
+          {/* Phones: one card per message, so nothing needs sideways scrolling. */}
+          <ul className="space-y-3 sm:hidden">
+            {loading ? (
+              <li className="py-4 text-sm text-gray-400">Loading...</li>
+            ) : logs.length === 0 ? (
+              <li className="py-4 text-sm text-gray-400">No email logs found.</li>
+            ) : logs.map((log) => (
+              <li key={log.id} className="space-y-2 rounded-md border border-gray-100 p-3">
+                <p className="break-words text-sm font-medium text-gray-900">{log.subject}</p>
+                <p className="break-all text-xs text-gray-700">{log.recipient_email}</p>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                  <span>{log.template_type}</span>
+                  <span className="rounded-full bg-gray-100 px-2 py-1 font-semibold text-gray-700">{log.status}</span>
+                  <span>{new Date(log.created_at).toLocaleString()}</span>
+                </div>
+                {resendActionFor(log) && <div>{resendActionFor(log)}</div>}
+              </li>
+            ))}
+          </ul>
+
+          {/* Tablet and desktop: the full table. */}
+          <div className="hidden overflow-x-auto sm:block">
             <table className="w-full text-sm text-left">
               <thead>
                 <tr className="border-b border-gray-100 text-xs uppercase text-gray-400">
@@ -435,24 +487,28 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
                   <th className="py-2 pr-4">Template</th>
                   <th className="py-2 pr-4">Status</th>
                   <th className="py-2 pr-4">Created</th>
+                  <th className="py-2 pr-4">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td className="py-4 text-gray-400" colSpan={5}>Loading...</td></tr>
+                  <tr><td className="py-4 text-gray-400" colSpan={6}>Loading...</td></tr>
                 ) : logs.length === 0 ? (
-                  <tr><td className="py-4 text-gray-400" colSpan={5}>No email logs found.</td></tr>
-                ) : logs.map((log) => (
-                  <tr key={log.id} className="border-b border-gray-50">
-                    <td className="py-3 pr-4 text-gray-700">{log.recipient_email}</td>
-                    <td className="py-3 pr-4 text-gray-900">{log.subject}</td>
-                    <td className="py-3 pr-4 text-gray-500">{log.template_type}</td>
-                    <td className="py-3 pr-4">
-                      <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700">{log.status}</span>
-                    </td>
-                    <td className="py-3 pr-4 text-gray-500">{new Date(log.created_at).toLocaleString()}</td>
-                  </tr>
-                ))}
+                  <tr><td className="py-4 text-gray-400" colSpan={6}>No email logs found.</td></tr>
+                ) : logs.map((log) => {
+                  return (
+                    <tr key={log.id} className="border-b border-gray-50">
+                      <td className="py-3 pr-4 text-gray-700">{log.recipient_email}</td>
+                      <td className="py-3 pr-4 text-gray-900">{log.subject}</td>
+                      <td className="py-3 pr-4 text-gray-500">{log.template_type}</td>
+                      <td className="py-3 pr-4">
+                        <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700">{log.status}</span>
+                      </td>
+                      <td className="py-3 pr-4 text-gray-500">{new Date(log.created_at).toLocaleString()}</td>
+                      <td className="py-3 pr-4">{resendActionFor(log)}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import type { Confession, ConfessionDeclaration } from '../../types';
+import type { Affirmation as Confession, AffirmationDeclaration as ConfessionDeclaration } from '../../types';
 
 export async function fetchConfessionsForDate(date: string): Promise<Confession[]> {
   const userId = (await supabase.auth.getUser()).data.user?.id;

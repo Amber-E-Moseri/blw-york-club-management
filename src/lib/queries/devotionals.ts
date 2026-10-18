@@ -146,6 +146,12 @@ export async function logView(
   return data;
 }
 
+/**
+ * Explicit "Mark as Read" — only called from a deliberate user action, never
+ * automatically on page open.  Uses the same upsert so repeated clicks are safe.
+ */
+export const markAsRead = logView;
+
 export async function getViewForDay(
   memberId: string,
   devotionalId: string,

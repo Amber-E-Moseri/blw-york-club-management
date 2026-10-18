@@ -78,13 +78,27 @@ export async function scheduleEmail(
 }
 
 /**
- * Retry a previously failed message by its email_log id.
+ * Manually resend one failed message by its email_log id. Callers must confirm with the user first.
+ * The server enforces the same policy (src/lib/email/resendPolicy.ts) and returns the refusal reason.
  */
 export async function resendEmail(messageId: string): Promise<void> {
   const { error } = await supabase.functions.invoke('send-email', {
     body: { action: 'resend', messageId },
   });
-  if (error) throw new Error(`Resend failed: ${error.message}`);
+  if (error) throw new Error(`Resend failed: ${await readFunctionErrorMessage(error)}`);
+}
+
+async function readFunctionErrorMessage(error: { message: string; context?: unknown }): Promise<string> {
+  const response = error.context as { json?: () => Promise<{ message?: string }> } | undefined;
+  if (response && typeof response.json === 'function') {
+    try {
+      const body = await response.json();
+      if (body?.message) return body.message;
+    } catch {
+      // The body was not JSON; fall back to the generic message.
+    }
+  }
+  return error.message;
 }
 
 /**
@@ -108,7 +122,7 @@ export function buildUnsubscribeUrl(_memberId: string, _notifType: EmailTemplate
 
 export function getAppOrigin(): string {
   if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
-  return process.env.REACT_APP_PUBLIC_APP_URL || 'https://blw-york.vercel.app';
+  return process.env.REACT_APP_PUBLIC_APP_URL || 'https://blwyork.vercel.app';
 }
 
 export function getSupabaseFunctionUrl(functionName: string): string {

@@ -149,6 +149,14 @@ export async function fetchCells(): Promise<Cell[]> {
   return data ?? [];
 }
 
+// Coordinator-only: cells_manage RLS allows the insert only when the caller's profile role is 'coordinator'.
+export async function createCell(name: string): Promise<Cell> {
+  const { data, error } = await supabase
+    .from('cells').insert({ name }).select('id, name, leader_id').single();
+  if (error) throw new Error(error.message ?? 'Could not create the cell.');
+  return data;
+}
+
 // ─── contact_tags ─────────────────────────────────────────────────────────────
 
 export async function fetchContactTags(contactId: string): Promise<ContactTagRelation[]> {
@@ -251,7 +259,7 @@ export async function bulkImportContacts(
   cells: Cell[],
   users: Pick<import('../../types').User, 'id' | 'email' | 'full_name'>[] = [],
 ): Promise<ImportResult> {
-  const result: ImportResult = { imported: 0, failed: 0, errors: [] };
+  const result: ImportResult = { imported: 0, alreadyCompleted: 0, failed: 0, errors: [], heldChanged: [], nextAttempt: null };
   const cellMap = Object.fromEntries(
     cells.map((c) => [c.name.toLowerCase(), c.id])
   );
