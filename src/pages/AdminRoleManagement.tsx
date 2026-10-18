@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { ChevronRight, Plus, Shield, Users } from 'lucide-react';
 import { Button } from '../components/foundation/Button';
-import { Card } from '../components/foundation/Card';
 import { Input } from '../components/foundation/Input';
-import { Badge } from '../components/foundation/Badge';
-import type { AdminPermissionKey, AdminRole, AdminRoleAssignment, Member } from '../types';
+import type { AdminPermissionKey, AdminRole, AdminRoleAssignment, Member, UserRole } from '../types';
 import type { AuthUser } from '../lib/auth';
-import { ADMIN_PERMISSIONS, groupPermissions } from '../lib/permissions';
+import { ADMIN_PERMISSIONS } from '../lib/permissions';
+import { cn } from '../lib/utils';
 import {
   assignAdminRole,
   createAdminRole,
@@ -23,14 +23,56 @@ interface Props {
 
 const emptyPermissions: AdminPermissionKey[] = [];
 
+/** Built-in profile roles. Their membership comes from profiles.role and is not editable here. */
+const BUILT_IN_ROLES: { key: UserRole; label: string }[] = [
+  { key: 'coordinator', label: 'Coordinator' },
+  { key: 'admin', label: 'Admin' },
+  { key: 'cell_leader', label: 'Cell leader' },
+  { key: 'member', label: 'Member' },
+];
+
+const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
+
+interface ToggleProps {
+  checked: boolean;
+  disabled?: boolean;
+  label: string;
+  onChange: () => void;
+}
+
+const Toggle: React.FC<ToggleProps> = ({ checked, disabled = false, label, onChange }) => (
+  <button
+    type="button"
+    role="switch"
+    aria-checked={checked}
+    aria-label={label}
+    disabled={disabled}
+    onClick={onChange}
+    className={cn(
+      'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors',
+      checked ? 'bg-york-600' : 'bg-gray-300 dark:bg-slate-600',
+      disabled && 'cursor-not-allowed opacity-50',
+    )}
+  >
+    <span
+      className={cn(
+        'inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform',
+        checked ? 'translate-x-5' : 'translate-x-0.5',
+      )}
+    />
+  </button>
+);
+
 export const AdminRoleManagement: React.FC<Props> = ({ user }) => {
   const [roles, setRoles] = useState<AdminRole[]>([]);
   const [assignments, setAssignments] = useState<AdminRoleAssignment[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedRole, setSelectedRole] = useState<AdminRole | null>(null);
+  const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [permissions, setPermissions] = useState<AdminPermissionKey[]>(emptyPermissions);
+  const [assignOpen, setAssignOpen] = useState(false);
   const [assignmentRoleId, setAssignmentRoleId] = useState('');
   const [assignmentUserId, setAssignmentUserId] = useState('');
   const [loading, setLoading] = useState(true);
@@ -38,7 +80,7 @@ export const AdminRoleManagement: React.FC<Props> = ({ user }) => {
   const [error, setError] = useState<string | null>(null);
 
   const isCoordinator = user?.role === 'coordinator';
-  const grouped = useMemo(() => groupPermissions(), []);
+  const isSystemSelected = !!selectedRole?.is_system;
 
   async function load() {
     setLoading(true);
@@ -65,6 +107,9 @@ export const AdminRoleManagement: React.FC<Props> = ({ user }) => {
 
   function startEdit(role: AdminRole) {
     setSelectedRole(role);
+    setCreating(false);
+    setAssignOpen(false);
+    setAssignmentRoleId(role.id);
     setName(role.name);
     setDescription(role.description ?? '');
     setPermissions(role.permissions ?? []);
@@ -72,9 +117,16 @@ export const AdminRoleManagement: React.FC<Props> = ({ user }) => {
 
   function resetForm() {
     setSelectedRole(null);
+    setCreating(false);
+    setAssignOpen(false);
     setName('');
     setDescription('');
     setPermissions([]);
+  }
+
+  function startCreate() {
+    resetForm();
+    setCreating(true);
   }
 
   function togglePermission(permission: AdminPermissionKey) {
@@ -125,7 +177,6 @@ export const AdminRoleManagement: React.FC<Props> = ({ user }) => {
     setError(null);
     try {
       await assignAdminRole(assignmentRoleId, assignmentUserId, user.id);
-      setAssignmentRoleId('');
       setAssignmentUserId('');
       await load();
     } catch (err) {
@@ -147,139 +198,241 @@ export const AdminRoleManagement: React.FC<Props> = ({ user }) => {
   if (!isCoordinator) {
     return (
       <div className="flex min-h-[360px] items-center justify-center">
-        <p className="text-small text-gray-400">Only coordinators can manage custom admin roles.</p>
+        <p className="text-sm text-gray-400">Only coordinators can manage custom admin roles.</p>
       </div>
     );
   }
 
+  const selectedAssignments = selectedRole
+    ? assignments.filter((a) => a.role_id === selectedRole.id)
+    : [];
+  const builtInCount = (key: UserRole) => members.filter((m) => m.role === key).length;
+  const assignmentCount = (roleId: string) => assignments.filter((a) => a.role_id === roleId).length;
+  const showPanel = !!selectedRole || creating;
+
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div className="mx-auto max-w-6xl space-y-6 pb-4">
+      {/* Header */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-small font-bold uppercase text-york-600">Admin</p>
-          <h1 className="text-h1">Role Management</h1>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-york-600">Administration</p>
+          <h1 className="mt-1 text-2xl font-bold text-gray-900 dark:text-slate-100">Roles &amp; access</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">Control what each role can see and change.</p>
         </div>
-        <Button variant="secondary" onClick={resetForm}>New Role</Button>
+        <Button variant="primary" onClick={startCreate} className="w-fit" icon={<Plus className="w-4 h-4" />}>
+          New role
+        </Button>
       </div>
 
-      {error && <div className="rounded-md border border-york-200 bg-york-50 p-4 text-small text-york-700">{error}</div>}
+      {error && (
+        <div className="rounded-xl border border-york-200 bg-york-50 p-4 text-sm text-york-700 dark:border-york-800 dark:bg-york-900/20 dark:text-york-300">
+          {error}
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[380px_1fr]">
-        <Card title={selectedRole ? 'Edit Role' : 'Create Role'} hasRedBorder>
-          <div className="space-y-4">
-            <Input label="Role Name" value={name} onChange={setName} placeholder="Admin-PFCC" required />
-            <Input label="Description" value={description} onChange={setDescription} type="textarea" rows={3} />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
+        {/* Role list */}
+        <div className="self-start overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          {loading ? (
+            <p className="px-4 py-6 text-sm text-gray-400">Loading…</p>
+          ) : (
+            <>
+              <ul className="divide-y divide-gray-100 dark:divide-slate-700">
+                {BUILT_IN_ROLES.map((role) => (
+                  <li key={role.key} className="flex items-center gap-3 px-4 py-3.5">
+                    <RoleIcon />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{role.label}</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400">
+                        {builtInCount(role.key)} {plural(builtInCount(role.key), 'person', 'people')}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+                {roles.map((role) => {
+                  const active = selectedRole?.id === role.id;
+                  const count = assignmentCount(role.id);
+                  return (
+                    <li key={role.id}>
+                      <button
+                        type="button"
+                        onClick={() => startEdit(role)}
+                        aria-current={active ? 'true' : undefined}
+                        className={cn(
+                          'flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors',
+                          active ? 'bg-red-50 dark:bg-york-900/30' : 'hover:bg-gray-50 dark:hover:bg-slate-700/40',
+                        )}
+                      >
+                        <RoleIcon active={active} />
+                        <div className="min-w-0 flex-1">
+                          <p className={cn('truncate text-sm font-semibold', active ? 'text-york-600 dark:text-york-300' : 'text-gray-900 dark:text-slate-100')}>
+                            {role.name}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-slate-400">
+                            {count} {plural(count, 'person', 'people')}
+                            {role.is_system && ' · System'}
+                          </p>
+                        </div>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-gray-300 dark:text-slate-600" aria-hidden="true" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="border-t border-gray-100 px-4 py-3 text-xs text-gray-400 dark:border-slate-700 dark:text-slate-500">
+                Built-in roles are fixed. Custom roles can be edited.
+              </p>
+            </>
+          )}
+        </div>
 
-            <div className="space-y-4">
-              {Object.entries(grouped).map(([group, items]) => (
-                <div key={group}>
-                  <p className="mb-2 text-small font-bold text-gray-900">{group}</p>
-                  <div className="space-y-2">
-                    {items.map((permission) => (
-                      <label key={permission.key} className="flex items-center gap-3 rounded-md border border-gray-200 p-3">
-                        <input
-                          type="checkbox"
-                          checked={permissions.includes(permission.key)}
-                          onChange={() => togglePermission(permission.key)}
-                          className="h-4 w-4 accent-york-600"
-                        />
-                        <span className="text-small text-gray-700">{permission.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              ))}
+        {/* Detail panel */}
+        {showPanel ? (
+          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-4 dark:border-slate-700">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-gray-900 dark:text-slate-100">
+                  {selectedRole ? selectedRole.name : 'New role'}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-slate-400">
+                  {selectedRole
+                    ? `${selectedAssignments.length} ${plural(selectedAssignments.length, 'person', 'people')} hold this role`
+                    : 'Not saved yet'}
+                </p>
+              </div>
+              {selectedRole && (
+                <button
+                  type="button"
+                  onClick={() => setAssignOpen((open) => !open)}
+                  className="flex h-9 shrink-0 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                >
+                  <Users className="h-4 w-4" aria-hidden="true" />
+                  Assign people
+                </button>
+              )}
             </div>
 
-            <Button onClick={handleSave} loading={saving} fullWidth>
-              {selectedRole ? 'Save Role' : 'Create Role'}
-            </Button>
-          </div>
-        </Card>
-
-        <div className="space-y-6">
-          <Card title="Permission Matrix">
-            {loading ? (
-              <p className="text-small text-gray-400">Loading...</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="table-base min-w-[760px]">
-                  <thead>
-                    <tr>
-                      <th>Role</th>
-                      {ADMIN_PERMISSIONS.map((permission) => (
-                        <th key={permission.key}>{permission.label}</th>
-                      ))}
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {roles.map((role) => (
-                      <tr key={role.id}>
-                        <td className="font-bold text-gray-900">
-                          {role.name}
-                          {role.is_system && <Badge variant="light" size="small" className="ml-2">System</Badge>}
-                        </td>
-                        {ADMIN_PERMISSIONS.map((permission) => (
-                          <td key={permission.key}>
-                            {role.permissions?.includes(permission.key) ? (
-                              <span className="font-bold text-success">Yes</span>
-                            ) : (
-                              <span className="text-gray-300">No</span>
-                            )}
-                          </td>
-                        ))}
-                        <td>
-                          <div className="flex gap-2">
-                            <Button size="small" variant="ghost" onClick={() => startEdit(role)}>Edit</Button>
-                            {!role.is_system && (
-                              <Button size="small" variant="danger" onClick={() => handleDelete(role)}>Delete</Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
+            {/* Assign people */}
+            {selectedRole && assignOpen && (
+              <div className="space-y-4 border-b border-gray-100 px-5 py-4 dark:border-slate-700">
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <select
+                    className="input-field flex-1"
+                    value={assignmentUserId}
+                    onChange={(e) => setAssignmentUserId(e.target.value)}
+                    aria-label="Person to assign"
+                  >
+                    <option value="">Select person</option>
+                    {members.map((member) => (
+                      <option key={member.id} value={member.id}>{member.full_name || member.email}</option>
                     ))}
-                  </tbody>
-                </table>
+                  </select>
+                  <Button onClick={handleAssign} disabled={!assignmentUserId || !assignmentRoleId}>Assign</Button>
+                </div>
+                {selectedAssignments.length === 0 ? (
+                  <p className="text-xs text-gray-400 dark:text-slate-500">No one has this role yet.</p>
+                ) : (
+                  <ul className="divide-y divide-gray-100 dark:divide-slate-700">
+                    {selectedAssignments.map((assignment) => (
+                      <li key={assignment.id} className="flex items-center justify-between gap-3 py-2.5">
+                        <p className="min-w-0 truncate text-sm text-gray-900 dark:text-slate-100">
+                          {assignment.user?.full_name || assignment.user?.email}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAssignment(assignment)}
+                          className="text-xs font-semibold text-york-600 hover:text-york-700 dark:text-york-300"
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
-          </Card>
 
-          <Card title="Role Assignments" hasRedBorder>
-            <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-[1fr_1fr_auto]">
-              <select className="input-field" value={assignmentUserId} onChange={(e) => setAssignmentUserId(e.target.value)}>
-                <option value="">Select user</option>
-                {members.map((member) => (
-                  <option key={member.id} value={member.id}>{member.full_name || member.email}</option>
-                ))}
-              </select>
-              <select className="input-field" value={assignmentRoleId} onChange={(e) => setAssignmentRoleId(e.target.value)}>
-                <option value="">Select role</option>
-                {roles.map((role) => (
-                  <option key={role.id} value={role.id}>{role.name}</option>
-                ))}
-              </select>
-              <Button onClick={handleAssign} disabled={!assignmentUserId || !assignmentRoleId}>Assign</Button>
+            {/* Name and description */}
+            <div className="space-y-3 border-b border-gray-100 px-5 py-4 dark:border-slate-700">
+              <Input
+                label="Role name"
+                value={name}
+                onChange={setName}
+                placeholder="e.g. Outreach team"
+                required
+                disabled={isSystemSelected}
+              />
+              <Input
+                label="Description"
+                value={description}
+                onChange={setDescription}
+                type="textarea"
+                rows={2}
+                disabled={isSystemSelected}
+              />
             </div>
 
-            <div className="space-y-2">
-              {assignments.length === 0 ? (
-                <p className="text-small text-gray-400">No custom role assignments yet.</p>
-              ) : assignments.map((assignment) => (
-                <div key={assignment.id} className="flex flex-col gap-2 rounded-md border border-gray-200 p-3 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <p className="text-small font-bold text-gray-900">{assignment.user?.full_name || assignment.user?.email}</p>
-                    <p className="text-tiny text-gray-400">{assignment.role?.name}</p>
-                  </div>
-                  <Button size="small" variant="ghost" onClick={() => handleRemoveAssignment(assignment)}>
-                    Remove
-                  </Button>
-                </div>
+            {/* Permissions */}
+            <ul className="divide-y divide-gray-100 dark:divide-slate-700">
+              {ADMIN_PERMISSIONS.map((permission) => (
+                <li key={permission.key} className="flex items-center justify-between gap-4 px-5 py-3.5">
+                  <span className="text-sm text-gray-700 dark:text-slate-300">{permission.label}</span>
+                  <Toggle
+                    checked={permissions.includes(permission.key)}
+                    disabled={isSystemSelected}
+                    label={permission.label}
+                    onChange={() => togglePermission(permission.key)}
+                  />
+                </li>
               ))}
+            </ul>
+
+            {isSystemSelected && (
+              <p className="border-t border-gray-100 px-5 py-3 text-xs text-gray-400 dark:border-slate-700 dark:text-slate-500">
+                System roles can’t be edited.
+              </p>
+            )}
+
+            {/* Footer */}
+            <div className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-100 px-5 py-4 dark:border-slate-700">
+              {selectedRole && !selectedRole.is_system && (
+                <button
+                  type="button"
+                  onClick={() => handleDelete(selectedRole)}
+                  className="mr-auto text-xs font-semibold text-york-600 hover:text-york-700 dark:text-york-300"
+                >
+                  Delete role
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => (selectedRole ? startEdit(selectedRole) : resetForm())}
+                className="h-10 rounded-xl border border-gray-200 bg-white px-5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                Discard
+              </button>
+              <Button onClick={handleSave} loading={saving} disabled={isSystemSelected}>
+                {selectedRole ? 'Save changes' : 'Create role'}
+              </Button>
             </div>
-          </Card>
-        </div>
+          </div>
+        ) : (
+          <div className="flex min-h-[240px] items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">Select a role to see its permissions, or create a new one.</p>
+          </div>
+        )}
       </div>
     </div>
   );
 };
+
+const RoleIcon: React.FC<{ active?: boolean }> = ({ active = false }) => (
+  <span
+    className={cn(
+      'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl',
+      active ? 'bg-york-600 text-white' : 'bg-york-50 text-york-600 dark:bg-york-900/30 dark:text-york-300',
+    )}
+  >
+    <Shield className="h-4 w-4" aria-hidden="true" />
+  </span>
+);
