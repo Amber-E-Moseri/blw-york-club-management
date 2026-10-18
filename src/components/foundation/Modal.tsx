@@ -125,7 +125,7 @@ export const Modal: React.FC<ModalProps> = ({
       <div
         ref={dialogRef}
         className={cn(
-          'relative w-full bg-white rounded-lg shadow-xl',
+          'relative w-full bg-white dark:bg-slate-800 rounded-lg shadow-xl',
           'flex flex-col max-h-[90vh]',
           'animate-[slideUp_0.25s_ease-out]',
           sizeStyles[size],
@@ -133,13 +133,13 @@ export const Modal: React.FC<ModalProps> = ({
         )}
       >
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-gray-100 shrink-0">
+        <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-gray-100 dark:border-slate-700 shrink-0">
           <div className="min-w-0 flex-1">
-            <h2 id={titleId} className="text-xl font-bold text-gray-900 leading-tight">
+            <h2 id={titleId} className="text-xl font-bold text-gray-900 dark:text-slate-100 leading-tight">
               {title}
             </h2>
             {subtitle && (
-              <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
+              <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">{subtitle}</p>
             )}
           </div>
           {closeButton && (
@@ -148,8 +148,8 @@ export const Modal: React.FC<ModalProps> = ({
               onClick={onClose}
               aria-label="Close dialog"
               className={cn(
-                'shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-gray-400',
-                'hover:text-york-600 hover:bg-red-50 transition-colors duration-150',
+                'shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-gray-400 dark:text-slate-500',
+                'hover:text-york-600 hover:bg-red-50 dark:hover:text-york-300 dark:hover:bg-slate-700 transition-colors duration-150',
                 'focus:outline-none focus:ring-2 focus:ring-york-600'
               )}
             >
@@ -167,7 +167,7 @@ export const Modal: React.FC<ModalProps> = ({
 
         {/* Footer */}
         {footer && (
-          <div className="shrink-0 flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
+          <div className="shrink-0 flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 dark:border-slate-700">
             {footer}
           </div>
         )}

@@ -4,7 +4,8 @@ import { Button } from '../foundation/Button';
 import { Input } from '../foundation/Input';
 import { cn } from '../../lib/utils';
 import { addDays } from '../../lib/queries/weeklyMessages';
-import type { WeeklyMessage, WeeklyMessageInput, MessageScope, RecurrenceType } from '../../types';
+import type { WeeklyMessage, WeeklyMessageInput, MessageScope, MessageAudienceType, RecurrenceType } from '../../types';
+import type { Cell, Member, Bsc } from '../../types';
 
 interface Props {
   isOpen: boolean;
@@ -15,6 +16,12 @@ interface Props {
   defaultWeekStart?: string;
   canSetOrgScope: boolean;
   saving?: boolean;
+  /** Available cells for audience targeting (coordinators/admins see all; cell leaders see their own). */
+  audienceCells?: Cell[];
+  /** Available members for member-level targeting. */
+  audienceMembers?: Pick<Member, 'id' | 'full_name'>[];
+  /** Available BSCs for BSC-level targeting. Key = cell_id. */
+  audienceBscs?: Record<string, Bsc[]>;
 }
 
 function todayMonday(): string {
@@ -26,6 +33,8 @@ function todayMonday(): string {
 
 const EMPTY: WeeklyMessageInput = {
   scope: 'org',
+  audience_type: 'org',
+  audience_id: null,
   title: '',
   body: '',
   drive_link: '',
@@ -39,6 +48,7 @@ const EMPTY: WeeklyMessageInput = {
 export const WeeklyMessageForm: React.FC<Props> = ({
   isOpen, onClose, onSave, message, defaultScope = 'org',
   defaultWeekStart, canSetOrgScope, saving = false,
+  audienceCells = [], audienceMembers = [], audienceBscs = {},
 }) => {
   const [form, setForm] = useState<WeeklyMessageInput>(EMPTY);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -48,6 +58,8 @@ export const WeeklyMessageForm: React.FC<Props> = ({
     if (message) {
       setForm({
         scope: message.scope,
+        audience_type: message.audience_type ?? 'org',
+        audience_id: message.audience_id ?? null,
         title: message.title,
         body: message.body,
         drive_link: message.drive_link ?? '',
@@ -112,31 +124,105 @@ export const WeeklyMessageForm: React.FC<Props> = ({
     >
       <form onSubmit={handleSubmit} className="space-y-4 p-1">
         {canSetOrgScope && (
-          <div>
-            <span className="block text-sm font-medium text-gray-700 mb-1.5">Audience</span>
-            <div className="flex gap-3">
+          <div className="space-y-3">
+            <span className="block text-sm font-medium text-gray-700 dark:text-slate-300">Visibility</span>
+            <div className="flex gap-2 flex-wrap">
               {(['org', 'personal'] as MessageScope[]).map((s) => (
                 <label
                   key={s}
                   className={cn(
-                    'flex items-center gap-2 cursor-pointer px-4 py-2 rounded-md border text-sm font-medium transition-colors',
+                    'flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-md border text-sm font-medium transition-colors',
                     form.scope === s
-                      ? 'border-york-600 bg-red-50 text-york-700'
-                      : 'border-gray-200 text-gray-600 hover:border-gray-300',
+                      ? 'border-york-600 bg-red-50 text-york-700 dark:bg-york-900/30 dark:text-york-300'
+                      : 'border-gray-200 dark:border-slate-600 text-gray-600 dark:text-slate-400 hover:border-gray-300',
                   )}
                 >
-                  <input
-                    type="radio"
-                    name="scope"
-                    value={s}
-                    checked={form.scope === s}
-                    onChange={() => set('scope', s)}
-                    className="sr-only"
-                  />
-                  {s === 'org' ? '🏛️ Organization' : '🔒 Personal (only me)'}
+                  <input type="radio" name="scope" value={s} checked={form.scope === s}
+                    onChange={() => { set('scope', s); if (s === 'personal') { set('audience_type', 'org'); set('audience_id', null); } }}
+                    className="sr-only" />
+                  {s === 'org' ? 'Organisation' : 'Personal (only me)'}
                 </label>
               ))}
             </div>
+
+            {form.scope === 'org' && audienceCells.length > 0 && (
+              <div className="space-y-2">
+                <span className="block text-sm font-medium text-gray-700 dark:text-slate-300">Send to</span>
+                <div className="flex gap-2 flex-wrap">
+                  {([
+                    { value: 'org',    label: 'Everyone' },
+                    { value: 'cell',   label: 'A Cell' },
+                    { value: 'bsc',    label: 'A BSC' },
+                    { value: 'member', label: 'A Member' },
+                  ] as { value: MessageAudienceType; label: string }[]).map((opt) => (
+                    <label
+                      key={opt.value}
+                      className={cn(
+                        'flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-md border text-sm font-medium transition-colors',
+                        form.audience_type === opt.value
+                          ? 'border-york-600 bg-red-50 text-york-700 dark:bg-york-900/30 dark:text-york-300'
+                          : 'border-gray-200 dark:border-slate-600 text-gray-600 dark:text-slate-400 hover:border-gray-300',
+                      )}
+                    >
+                      <input type="radio" name="audience_type" value={opt.value}
+                        checked={form.audience_type === opt.value}
+                        onChange={() => { set('audience_type', opt.value); set('audience_id', null); }}
+                        className="sr-only" />
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
+
+                {form.audience_type === 'cell' && (
+                  <select
+                    value={form.audience_id ?? ''}
+                    onChange={(e) => set('audience_id', e.target.value || null)}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-york-600"
+                  >
+                    <option value="">Select cell…</option>
+                    {audienceCells.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                )}
+
+                {form.audience_type === 'bsc' && (
+                  <>
+                    <select
+                      value={form.audience_id?.startsWith('cell:') ? form.audience_id.slice(5) : ''}
+                      onChange={(e) => set('audience_id', e.target.value ? `cell:${e.target.value}` : null)}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-york-600"
+                    >
+                      <option value="">Select cell first…</option>
+                      {audienceCells.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    {(() => {
+                      const selectedCellId = form.audience_id?.startsWith('cell:') ? form.audience_id.slice(5) : null;
+                      const bscs = selectedCellId ? (audienceBscs[selectedCellId] ?? []) : [];
+                      return selectedCellId ? (
+                        <select
+                          value={(!form.audience_id?.startsWith('cell:') ? form.audience_id : '') ?? ''}
+                          onChange={(e) => set('audience_id', e.target.value || null)}
+                          className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-york-600"
+                        >
+                          <option value="">Select BSC…</option>
+                          {bscs.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                        </select>
+                      ) : null;
+                    })()}
+                  </>
+                )}
+
+                {form.audience_type === 'member' && (
+                  <select
+                    value={form.audience_id ?? ''}
+                    onChange={(e) => set('audience_id', e.target.value || null)}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-york-600"
+                  >
+                    <option value="">Select member…</option>
+                    {audienceMembers.map((m) => <option key={m.id} value={m.id}>{m.full_name}</option>)}
+                  </select>
+                )}
+              </div>
+            )}
           </div>
         )}
 

@@ -437,6 +437,7 @@ export interface AudiencePerson {
 // ─── Message of the Week ─────────────────────────────────────────────────────
 
 export type MessageScope = 'org' | 'personal';
+export type MessageAudienceType = 'org' | 'cell' | 'bsc' | 'member';
 export type RecurrenceType = 'none' | 'weekly' | 'biweekly';
 
 export interface WeeklyMessage {
@@ -444,6 +445,10 @@ export interface WeeklyMessage {
   created_by: string;
   author_name: string;
   scope: MessageScope;
+  /** Who can see this message (only meaningful when scope = 'org'). */
+  audience_type: MessageAudienceType;
+  /** The id of the specific cell / BSC / member when audience_type is not 'org'. */
+  audience_id?: string | null;
   title: string;
   body: string;
   drive_link?: string;
@@ -458,6 +463,8 @@ export interface WeeklyMessage {
 
 export interface WeeklyMessageInput {
   scope: MessageScope;
+  audience_type: MessageAudienceType;
+  audience_id?: string | null;
   title: string;
   body: string;
   drive_link?: string;

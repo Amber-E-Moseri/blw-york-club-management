@@ -98,7 +98,13 @@ export async function createWeeklyMessage(
   userId: string,
   authorName: string,
 ): Promise<WeeklyMessage[]> {
-  const baseRow = { ...input, created_by: userId, author_name: authorName };
+  const baseRow = {
+    ...input,
+    audience_type: input.audience_type ?? 'org',
+    audience_id: input.audience_id ?? null,
+    created_by: userId,
+    author_name: authorName,
+  };
   const rows: typeof baseRow[] = [baseRow];
 
   if (input.is_recurring && input.recurrence_weeks > 1) {

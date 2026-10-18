@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Lock,
   NotebookPen,
@@ -8,8 +8,11 @@ import { WeeklyMessageCard } from '../components/feature/WeeklyMessageCard';
 import { WeeklyMessageForm } from '../components/feature/WeeklyMessageForm';
 import { useMonthMessages, useWeeklyMessageMutations } from '../hooks/useWeeklyMessages';
 import { getMondayOfWeek, getWeekBounds } from '../lib/queries/weeklyMessages';
+import { fetchCells } from '../lib/queries/contacts';
+import { fetchBscsByCell } from '../lib/queries/bscs';
+import { fetchMembersFiltered } from '../lib/queries/members';
 import type { AuthUser } from '../lib/auth';
-import type { WeeklyMessage, WeeklyMessageInput } from '../types';
+import type { WeeklyMessage, WeeklyMessageInput, Cell, Member, Bsc } from '../types';
 
 interface Props { user: AuthUser | null; }
 
@@ -65,6 +68,20 @@ export const WeeklyMessages: React.FC<Props> = ({ user }) => {
   const [defaultScope, setDefaultScope] = useState<'org' | 'personal'>('org');
 
   const isAdmin = canAdmin(user?.role ?? 'member');
+
+  const [audienceCells, setAudienceCells] = useState<Cell[]>([]);
+  const [audienceMembers, setAudienceMembers] = useState<Pick<Member, 'id' | 'full_name'>[]>([]);
+  const [audienceBscs, setAudienceBscs] = useState<Record<string, Bsc[]>>({});
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetchCells().then((cells) => {
+      setAudienceCells(cells);
+      Promise.all(cells.map((c) => fetchBscsByCell(c.id).then((bscs) => [c.id, bscs] as const)))
+        .then((pairs) => setAudienceBscs(Object.fromEntries(pairs)));
+    }).catch(() => {});
+    fetchMembersFiltered().then((ms) => setAudienceMembers(ms)).catch(() => {});
+  }, [isAdmin]);
 
   const { messages, loading, error, reload } = useMonthMessages(
     viewYear,
@@ -317,6 +334,9 @@ export const WeeklyMessages: React.FC<Props> = ({ user }) => {
         defaultWeekStart={defaultWeekStart}
         canSetOrgScope={isAdmin}
         saving={saving}
+        audienceCells={audienceCells}
+        audienceMembers={audienceMembers}
+        audienceBscs={audienceBscs}
       />
     </div>
   );

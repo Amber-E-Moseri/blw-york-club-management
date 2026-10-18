@@ -36,6 +36,11 @@ export const WeeklyMessageCard: React.FC<Props> = ({
         <Badge variant={m.scope === 'org' ? 'primary' : 'light'} size="small">
           {m.scope === 'org' ? 'Org' : 'Personal'}
         </Badge>
+        {m.scope === 'org' && m.audience_type && m.audience_type !== 'org' && (
+          <Badge variant="light" size="small">
+            {m.audience_type === 'cell' ? 'Cell' : m.audience_type === 'bsc' ? 'BSC' : 'Member'}
+          </Badge>
+        )}
         <span className="text-xs text-gray-400">{formatWeekRange(m.week_start, m.week_end)}</span>
       </div>
       {canEdit && (
