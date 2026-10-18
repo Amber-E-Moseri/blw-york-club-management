@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import vercelConfig from '../../vercel.json';
 import { applyIndexingDirective, indexingDirective, type IndexingInputs } from '../lib/indexing';
+
+const robotsHeader = vercelConfig.headers.flatMap((h) => h.headers).find((h) => h.key === 'X-Robots-Tag');
 
 const APPROVED_PRODUCTION: IndexingInputs = {
   vercelEnv: 'production',
@@ -74,5 +77,20 @@ describe('applyIndexingDirective', () => {
 
   it('refuses to build a page with no head, rather than shipping without a directive', () => {
     expect(() => applyIndexingDirective('<html><body></body></html>', 'noindex')).toThrow(/no <\/head>/);
+  });
+});
+
+describe('two-step release lock', () => {
+  // The header is the second lock. Removing it is the reviewed release step, so this test fails on purpose once it is
+  // removed. The release PR must then update this test together with the approval record in RELEASE-INDEXING.md.
+  it('keeps a noindex, nofollow X-Robots-Tag header on every response until the release PR removes it', () => {
+    expect(robotsHeader).toEqual({ key: 'X-Robots-Tag', value: 'noindex, nofollow' });
+    expect(vercelConfig.headers[0].source).toBe('/(.*)');
+  });
+
+  it('documents that the header overrides an approved index directive, so an approved build still gets noindex', () => {
+    // Approval makes the HTML say index, but the header is always noindex. Both are sent, and the stricter wins.
+    expect(indexingDirective(APPROVED_PRODUCTION)).toBe('index');
+    expect(robotsHeader?.value).toContain('noindex');
   });
 });

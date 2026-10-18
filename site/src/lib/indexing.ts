@@ -1,5 +1,14 @@
 // Search-indexing policy for the public website. Pure functions, so the build config and the tests share one rule.
 // Fail closed: a page is indexable only when every condition below holds. Missing or unknown values mean noindex.
+//
+// Indexing is locked in two steps, and both must be released before a page can be indexed:
+//   1. The approval flag (SITE_INDEXING_APPROVED=true) makes the built HTML say "index, follow".
+//   2. The X-Robots-Tag header in site/vercel.json says "noindex, nofollow" on every response. A crawler that sees
+//      both directives takes the stricter one, so the header keeps the site noindex until it is removed in a reviewed
+//      change. The approval flag alone never enables indexing. See site/RELEASE-INDEXING.md for the release checklist.
+//
+// A configured backend does not prove that real content is published. That check and the decision to index belong to
+// the owner's sign-off, which is recorded by setting the approval flag after the checklist is complete.
 
 export type IndexingDirective = 'index' | 'noindex';
 
