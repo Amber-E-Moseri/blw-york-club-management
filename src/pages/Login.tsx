@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '../components/foundation/Button';
 import { Input } from '../components/foundation/Input';
-import { AuthError, resetPassword, verifyEmailOtp } from '../lib/auth';
+import { AuthError, resetPassword, resendConfirmation, verifyEmailOtp } from '../lib/auth';
 import { isConfigured } from '../lib/supabase';
 
 interface LoginProps {
@@ -41,6 +41,7 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
   const [otpCode, setOtpCode] = useState('');
   const [otpBusy, setOtpBusy] = useState(false);
   const [otpError, setOtpError] = useState('');
+  const [resendBusy, setResendBusy] = useState(false);
 
   const openForgotPassword = () => {
     setMode('forgot');
@@ -82,6 +83,24 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
     if (password !== confirm) { setLocalError('Passwords do not match.'); return; }
     const ok = await onSignUp(email, password, fullName.trim(), studentNumber.trim() || undefined);
     if (ok) { setOtpCode(''); setOtpError(''); setMode('verify'); }
+  };
+
+  const isUnconfirmedError = (msg: string | null) =>
+    !!msg && /confirm your email/i.test(msg);
+
+  const handleResend = async () => {
+    if (resendBusy) return;
+    setResendBusy(true);
+    try {
+      await resendConfirmation(email);
+      setOtpCode('');
+      setOtpError('');
+      setMode('verify');
+    } catch {
+      // leave the existing error visible; user can try again
+    } finally {
+      setResendBusy(false);
+    }
   };
 
   const handleVerify = async (e: React.FormEvent) => {
@@ -176,7 +195,19 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
                   </button>
                 </div>
                 {(error || localError) && (
-                  <p className="text-xs text-red-600" role="alert">{error || localError}</p>
+                  <div>
+                    <p className="text-xs text-red-600" role="alert">{error || localError}</p>
+                    {isUnconfirmedError(error || localError) && (
+                      <button
+                        type="button"
+                        onClick={handleResend}
+                        disabled={resendBusy}
+                        className="mt-1.5 text-xs text-york-600 dark:text-york-400 font-semibold hover:underline disabled:opacity-50"
+                      >
+                        {resendBusy ? 'Sending…' : 'Resend verification code'}
+                      </button>
+                    )}
+                  </div>
                 )}
                 <Button fullWidth loading={loading} type="submit">Sign In</Button>
               </form>

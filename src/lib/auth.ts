@@ -114,6 +114,12 @@ export async function establishRecoverySession(link: RecoveryLink): Promise<Reco
   }
 }
 
+export async function resendConfirmation(email: string): Promise<void> {
+  const { error } = await supabase.auth.resend({ type: 'signup', email });
+  if (error) throw new AuthError(friendlyMessage(error.message), error.message);
+  console.debug('[auth] confirmation resent to', email);
+}
+
 /**
  * Verifies a 6-digit OTP code sent to the user's email after sign-up.
  */
