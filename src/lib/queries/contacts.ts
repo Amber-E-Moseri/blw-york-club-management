@@ -8,7 +8,7 @@ import type {
 
 export async function fetchContacts(filters: ContactFilters = {}): Promise<Contact[]> {
   let q = supabase
-    .from('contacts')
+    .from('contacts_bsc_view')
     .select('*')
     .eq('archived', filters.archived ?? false)
     .order('date_contacted', { ascending: false });
@@ -27,7 +27,7 @@ export async function fetchContacts(filters: ContactFilters = {}): Promise<Conta
 
 export async function fetchContact(id: string): Promise<Contact | null> {
   const { data, error } = await supabase
-    .from('contacts').select('*').eq('id', id).single();
+    .from('contacts_bsc_view').select('*').eq('id', id).single();
   if (error) throw new Error(error.message ?? 'Unknown error');
   return data;
 }

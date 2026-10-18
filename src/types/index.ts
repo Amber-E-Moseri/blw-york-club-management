@@ -94,6 +94,7 @@ export interface DashboardStats {
 export interface Contact {
   id: string;
   cell_id: string;
+  person_id?: string;
   contact_name: string;
   contact_phone?: string;
   phone_hidden: boolean;
@@ -103,6 +104,8 @@ export interface Contact {
   follow_up_assignee?: string;
   date_contacted: string;
   notes?: string;
+  /** True when contact_phone and notes are masked by BSC peer policy. */
+  sensitive_hidden?: boolean;
   is_member: boolean;
   member_id?: string;
   logged_by: string;

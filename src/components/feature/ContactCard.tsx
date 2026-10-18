@@ -49,18 +49,25 @@ export const ContactCard: React.FC<Props> = ({
     >
       <div className="space-y-5">
         <div className="grid gap-3 sm:grid-cols-2 dark:text-slate-100">
-          <Info label="Phone" value={contact.contact_phone || 'Not recorded'} />
+          <Info
+            label="Phone"
+            value={contact.contact_phone || (contact.sensitive_hidden ? 'Hidden' : 'Not recorded')}
+          />
           <Info label="Email" value={contact.email || 'Not recorded'} />
           <Info label="Status" value={contact.follow_up_status || 'Not set'} />
           <Info label="Date Contacted" value={contact.date_contacted} />
         </div>
 
-        {contact.notes && (
+        {(contact.notes || contact.sensitive_hidden) && (
           <section>
             <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 mb-2">Notes</h3>
-            <p className="text-sm text-gray-600 dark:text-slate-300 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-md p-3">
-              {contact.notes}
-            </p>
+            {contact.notes ? (
+              <p className="text-sm text-gray-600 dark:text-slate-300 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-md p-3">
+                {contact.notes}
+              </p>
+            ) : (
+              <p className="text-sm text-gray-400 dark:text-slate-500 italic">Hidden</p>
+            )}
           </section>
         )}
 
