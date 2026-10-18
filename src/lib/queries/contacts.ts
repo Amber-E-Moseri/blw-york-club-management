@@ -157,6 +157,12 @@ export async function createCell(name: string): Promise<Cell> {
   return data;
 }
 
+export async function assignCellLeader(cellId: string, leaderId: string): Promise<void> {
+  const { error } = await supabase
+    .from('cells').update({ leader_id: leaderId }).eq('id', cellId);
+  if (error) throw new Error(error.message ?? 'Could not assign cell leader.');
+}
+
 // ─── contact_tags ─────────────────────────────────────────────────────────────
 
 export async function fetchContactTags(contactId: string): Promise<ContactTagRelation[]> {

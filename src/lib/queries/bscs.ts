@@ -21,6 +21,12 @@ export async function createBsc(cellId: string, name: string): Promise<Bsc> {
   return data as Bsc;
 }
 
+export async function assignBscLeader(bscId: string, leaderId: string): Promise<void> {
+  const { error } = await supabase
+    .from('bscs').update({ leader_id: leaderId }).eq('id', bscId);
+  if (error) throw new Error(error.message ?? 'Could not assign BSC leader.');
+}
+
 export async function assignMemberToBsc(memberId: string, bscId: string | null): Promise<void> {
   const { error } = await supabase
     .from('profiles')

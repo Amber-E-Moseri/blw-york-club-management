@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { BookOpen, ChevronDown, ChevronUp, Plus, Users, UserPlus } from 'lucide-react';
 import { fetchMembersFiltered, assignMemberToCell } from '../lib/queries/members';
-import { createCell, fetchCells } from '../lib/queries/contacts';
-import { fetchBscsByCell, createBsc, assignMemberToBsc } from '../lib/queries/bscs';
+import { createCell, fetchCells, assignCellLeader } from '../lib/queries/contacts';
+import { fetchBscsByCell, createBsc, assignMemberToBsc, assignBscLeader } from '../lib/queries/bscs';
 import { summarizeCells, validateCellName, type CellSummary } from '../lib/cells';
 import { getMonthlyDevotional } from '../lib/queries/devotionals';
 import type { AuthUser } from '../lib/auth';
@@ -56,6 +56,18 @@ export const Cells: React.FC<Props> = ({ user }) => {
   const [assigning, setAssigning] = useState(false);
   const [assignError, setAssignError] = useState<string | null>(null);
 
+  // Cell leader assignment state (coordinator-only)
+  const [settingLeaderCellId, setSettingLeaderCellId] = useState<string | null>(null);
+  const [leaderMemberId, setLeaderMemberId] = useState('');
+  const [settingLeader, setSettingLeader] = useState(false);
+  const [setLeaderError, setSetLeaderError] = useState<string | null>(null);
+
+  // BSC leader assignment state
+  const [settingLeaderBscId, setSettingLeaderBscId] = useState<string | null>(null);
+  const [bscLeaderMemberId, setBscLeaderMemberId] = useState('');
+  const [settingBscLeader, setSettingBscLeader] = useState(false);
+  const [setBscLeaderError, setSetBscLeaderError] = useState<string | null>(null);
+
   const handleAssignMember = async (cellId: string) => {
     if (!assignMemberId) return;
     setAssigning(true);
@@ -71,6 +83,41 @@ export const Cells: React.FC<Props> = ({ user }) => {
       setAssignError(e instanceof Error ? e.message : 'Could not assign member.');
     } finally {
       setAssigning(false);
+    }
+  };
+
+  const handleSetCellLeader = async (cellId: string) => {
+    if (!leaderMemberId) return;
+    setSettingLeader(true);
+    setSetLeaderError(null);
+    try {
+      await assignCellLeader(cellId, leaderMemberId);
+      setCells((prev) => prev.map((c) => c.id === cellId ? { ...c, leader_id: leaderMemberId } : c));
+      setLeaderMemberId('');
+      setSettingLeaderCellId(null);
+    } catch (e: unknown) {
+      setSetLeaderError(e instanceof Error ? e.message : 'Could not assign leader.');
+    } finally {
+      setSettingLeader(false);
+    }
+  };
+
+  const handleSetBscLeader = async (bscId: string, cellId: string) => {
+    if (!bscLeaderMemberId) return;
+    setSettingBscLeader(true);
+    setSetBscLeaderError(null);
+    try {
+      await assignBscLeader(bscId, bscLeaderMemberId);
+      setBscsByCellId((prev) => ({
+        ...prev,
+        [cellId]: (prev[cellId] ?? []).map((b) => b.id === bscId ? { ...b, leader_id: bscLeaderMemberId } : b),
+      }));
+      setBscLeaderMemberId('');
+      setSettingLeaderBscId(null);
+    } catch (e: unknown) {
+      setSetBscLeaderError(e instanceof Error ? e.message : 'Could not assign BSC leader.');
+    } finally {
+      setSettingBscLeader(false);
     }
   };
 
@@ -316,6 +363,46 @@ export const Cells: React.FC<Props> = ({ user }) => {
               {isOpen && (
                 <div className="border-t border-gray-100 dark:border-slate-700 px-4 py-4 space-y-4">
 
+                  {/* ── Cell leader assignment ────────────────────────────── */}
+                  {canCreate && (
+                    <section>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 mb-1.5">
+                        Cell leader
+                      </p>
+                      {settingLeaderCellId === cell.id ? (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <select
+                            className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-gray-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-york-600"
+                            value={leaderMemberId}
+                            onChange={(e) => { setLeaderMemberId(e.target.value); setSetLeaderError(null); }}
+                            disabled={settingLeader}
+                          >
+                            <option value="">Select member…</option>
+                            {cell.members.map((m) => (
+                              <option key={m.id} value={m.id}>{m.full_name}</option>
+                            ))}
+                          </select>
+                          <Button type="button" variant="primary" size="small" loading={settingLeader} disabled={settingLeader || !leaderMemberId} onClick={() => handleSetCellLeader(cell.id)}>Set</Button>
+                          <Button type="button" variant="ghost" size="small" disabled={settingLeader} onClick={() => { setSettingLeaderCellId(null); setLeaderMemberId(''); setSetLeaderError(null); }}>Cancel</Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-700 dark:text-slate-300">{cell.leaderName ?? 'Not assigned'}</span>
+                          <button
+                            type="button"
+                            onClick={() => { setSettingLeaderCellId(cell.id); setLeaderMemberId(''); setSetLeaderError(null); }}
+                            className="text-[11px] font-semibold text-york-600 hover:text-york-700 dark:text-york-400 transition-colors"
+                          >
+                            {cell.leaderName ? 'Change' : 'Assign'}
+                          </button>
+                        </div>
+                      )}
+                      {setLeaderError && settingLeaderCellId === cell.id && (
+                        <p className="mt-1 text-xs text-red-600">{setLeaderError}</p>
+                      )}
+                    </section>
+                  )}
+
                   {/* ── Cell members not yet in a BSC ─────────────────────── */}
                   {(() => {
                     const unassignedToAnyBsc = cell.members.filter((m) => !m.bsc_id);
@@ -377,6 +464,44 @@ export const Cells: React.FC<Props> = ({ user }) => {
                                 </ul>
                               )}
 
+                              {bscManageableCells.has(cell.id) && (
+                                <div className="space-y-1.5">
+                                  {/* BSC leader */}
+                                  {(() => {
+                                    const leaderName = bscMembers.find((m) => m.id === bsc.leader_id)?.full_name ?? null;
+                                    const isSettingThisBscLeader = settingLeaderBscId === bsc.id;
+                                    return isSettingThisBscLeader ? (
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <select
+                                          className="flex-1 min-w-0 px-2 py-1.5 text-xs border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-gray-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-york-600"
+                                          value={bscLeaderMemberId}
+                                          onChange={(e) => { setBscLeaderMemberId(e.target.value); setSetBscLeaderError(null); }}
+                                          disabled={settingBscLeader}
+                                        >
+                                          <option value="">Select leader…</option>
+                                          {cell.members.map((m) => (
+                                            <option key={m.id} value={m.id}>{m.full_name}</option>
+                                          ))}
+                                        </select>
+                                        <Button type="button" variant="primary" size="small" loading={settingBscLeader} disabled={settingBscLeader || !bscLeaderMemberId} onClick={() => handleSetBscLeader(bsc.id, cell.id)}>Set</Button>
+                                        <Button type="button" variant="ghost" size="small" disabled={settingBscLeader} onClick={() => { setSettingLeaderBscId(null); setBscLeaderMemberId(''); setSetBscLeaderError(null); }}>Cancel</Button>
+                                        {setBscLeaderError && <p className="w-full text-xs text-red-600">{setBscLeaderError}</p>}
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[11px] text-gray-500 dark:text-slate-400">Leader: {leaderName ?? 'Not assigned'}</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => { setSettingLeaderBscId(bsc.id); setBscLeaderMemberId(''); setSetBscLeaderError(null); }}
+                                          className="text-[11px] font-semibold text-york-600 hover:text-york-700 dark:text-york-400 transition-colors"
+                                        >
+                                          {leaderName ? 'Change' : 'Assign'}
+                                        </button>
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              )}
                               {bscManageableCells.has(cell.id) && (
                                 <div>
                                   {isAssigningThisBsc ? (
