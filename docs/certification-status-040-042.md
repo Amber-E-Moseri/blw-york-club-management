@@ -12,8 +12,8 @@ This document records the failure. It does not change any policy, the schema con
 
 | Item | Value |
 |---|---|
-| Latest run on `main` | [39095096132](https://github.com/Amber-E-Moseri/club_management/actions/runs/39095096132) (commit `8fb1697`): `build-test` passed, `certification` failed |
-| Previous runs on `main` | [39095081560](https://github.com/Amber-E-Moseri/club_management/actions/runs/39095081560) (commit `70d8341`): same pattern. [39092723147](https://github.com/Amber-E-Moseri/club_management/actions/runs/39092723147) (commit `fb1ed2c`): same pattern, and the log below was checked |
+| Latest run on `main` | [39096170295](https://github.com/Amber-E-Moseri/club_management/actions/runs/39096170295) (commit `656c517`): `build-test` passed, `certification` failed |
+| Previous runs on `main` | [39095096132](https://github.com/Amber-E-Moseri/club_management/actions/runs/39095096132) (commit `8fb1697`), [39095081560](https://github.com/Amber-E-Moseri/club_management/actions/runs/39095081560) (commit `70d8341`): same pattern. [39092723147](https://github.com/Amber-E-Moseri/club_management/actions/runs/39092723147) (commit `fb1ed2c`): same pattern, and the log below was checked |
 | Check script | `scripts/certify-local.sh` (replays all migrations on a local Supabase stack) |
 | Result reported by the script on the failing run | 23 of 30 checks passed |
 

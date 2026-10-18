@@ -83,9 +83,13 @@ The public site is in `site/`. It has pages for the home page, about, events (wi
 - **Forms.** Contact, "New here" and prayer requests go through a protected inquiry path. That path is designed to check Turnstile and a per-client limit before the database accepts a message. The Edge Function that does those checks is not on `main`.
 - **Configuration safety.** The client refuses an anon key that carries the service-role claim, and `site/src/__tests__/config.test.ts` covers that case.
 
+**Status:** the pages and the client code are merged. The content they request comes from views and functions that are not on `main`. Against this repository's migrations, those requests have no matching database objects, so the public site cannot load its content from this repository's schema.
+
 ### Website CMS: drafting, publishing and version conflicts
 
 The client code in `websiteApi.ts` and the admin screens in `site/src/admin/` show these behaviours. The database functions they call are not on `main`.
+
+**Status:** implemented in client code only. These behaviours cannot be exercised against this repository's database until the backend is provided (see [Roadmap](#12-roadmap-and-status)). The version checks and conflict mapping are unit-tested in `site/src/__tests__/websiteApi.test.ts`. That test uses a fake HTTP layer, not a real database.
 
 - **Content** (page, settings, navigation): edits save as a draft with a draft version. Publishing sends the draft version the editor loaded, and creates a new published version with a note. Earlier versions can be listed and rolled back.
 - **Blog posts:** draft, published or archived, with an optional publish time and a version number.
@@ -99,7 +103,7 @@ The client code in `websiteApi.ts` and the admin screens in `site/src/admin/` sh
 
 Audience targeting is merged, and its database dependencies are on `main`. Deployment is not verified.
 
-- **Weekly messages** (migration [041](supabase/migrations/041_message_audience_targeting.sql)): adds `audience_type` (`org`, `cell`, `bsc` or `member`) and `audience_id`. Cards show the audience label. **Not enforced:** the read policy from migration 017 allows only `scope = 'org'` or the creator, and no list query filters on the audience. A targeted message can therefore be read by anyone who can read org-scope messages.
+- **Weekly messages** (migration [041](supabase/migrations/041_message_audience_targeting.sql)): adds `audience_type` (`org`, `cell`, `bsc` or `member`) and `audience_id`. Cards show the audience label, which is display only. **Not enforced:** the read policy from migration 017 allows only `scope = 'org'` or the creator, and no list query filters on the audience. A targeted message can therefore be read by anyone who can read org-scope messages.
 - **Events** (migration [038](supabase/migrations/038_event_audience_and_notifications.sql)): `audience` is `all` or `meeting`. `all` sends push notifications to every active member with push enabled. `meeting` sends them to the people assigned to the event's meeting. Events do not use the cell, BSC or member scopes that weekly messages use.
 
 ### Identity and access
@@ -161,7 +165,7 @@ Audience targeting is merged, and its database dependencies are on `main`. Deplo
 |---|---|
 | Public website served at `/site` on the Hub domain | Merged (PR [#72](https://github.com/Amber-E-Moseri/club_management/pull/72)) |
 | Website management inside the Hub (frontend port, no migrations) | Merged (PR [#74](https://github.com/Amber-E-Moseri/club_management/pull/74)) |
-| Public website app (`site/`): a separate Vite app with its own build and tests | Merged in the repository; deployment is configured by `site/vercel.json` |
+| Public website app (`site/`): a separate Vite app with its own build and tests | Client code merged. Its data backend is not on `main`. Deployment is not verified (`site/vercel.json` exists) |
 | Website CMS: draft and published versions, conflict detection (409 / Postgres `40001`), media upload checks | Front end merged. **The backend is not in `main`'s migrations or Edge Functions**, so the CMS endpoints it calls are not defined by this repository. See [Roadmap](#12-roadmap-and-status) |
 | Rate limiting for website endpoints | **Not implemented on `main`.** The shared guard module only extracts the caller's address for a rate-limit key |
 
@@ -369,12 +373,12 @@ Read [docs/database-and-identity.md](docs/database-and-identity.md) before you w
 
 The workflow in [.github/workflows/ci.yml](.github/workflows/ci.yml) has two jobs:
 
-| Job | Steps | Latest run on `main` ([run 39095096132](https://github.com/Amber-E-Moseri/club_management/actions/runs/39095096132), commit `8fb1697`) |
+| Job | Steps | Latest run on `main` ([run 39096170295](https://github.com/Amber-E-Moseri/club_management/actions/runs/39096170295), commit `656c517`) |
 |---|---|---|
 | `build-test` | `npm ci`, `npm run typecheck`, `npm test`, `npm run build` | **Passed** |
 | `certification` | `npm ci`, then `./scripts/certify-local.sh`: replays all migrations on a local Supabase stack and compares the schema with the reviewed contract | **Failed** |
 
-The same pattern appears in the two runs before it: [39095081560](https://github.com/Amber-E-Moseri/club_management/actions/runs/39095081560) (commit `70d8341`) and [39092723147](https://github.com/Amber-E-Moseri/club_management/actions/runs/39092723147) (commit `fb1ed2c`). In each of these, `build-test` passed and `certification` failed. The ten most recent runs on `main` all concluded with a failure.
+The same pattern appears in the earlier runs: [39095096132](https://github.com/Amber-E-Moseri/club_management/actions/runs/39095096132) (commit `8fb1697`), [39095081560](https://github.com/Amber-E-Moseri/club_management/actions/runs/39095081560) (commit `70d8341`) and [39092723147](https://github.com/Amber-E-Moseri/club_management/actions/runs/39092723147) (commit `fb1ed2c`). In each of these, `build-test` passed and `certification` failed. The ten most recent runs on `main` all concluded with a failure.
 
 The CI badge at the top shows the most recent run of the workflow on `main`. A red badge means at least one job failed. A green badge means both jobs passed.
 
