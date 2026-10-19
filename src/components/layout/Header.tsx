@@ -47,7 +47,6 @@ export const Header: React.FC<HeaderProps> = ({
       )}
     >
       {/* Hamburger — mobile only, shown when onMenuToggle provided. Its own grid column keeps it clear of the logo. */}
-      {!onMenuToggle && <span aria-hidden="true" className="w-11" />}
       {onMenuToggle && (
         <button
           type="button"
@@ -73,8 +72,8 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
       )}
 
-      {/* Logo + Title — centred in the middle column so it never runs under the hamburger */}
-      <div className="flex items-center gap-2.5 justify-self-center min-w-0">
+      {/* Logo + Title — mobile only. The desktop sidebar already shows the brand, so the desktop header omits it. */}
+      <div className={cn('flex items-center gap-2.5 justify-self-center min-w-0', !onMenuToggle && 'hidden')}>
         <img src="/logo.png" alt="BLW York" className="w-8 h-8 rounded-md shrink-0" />
         <span className="text-lg font-bold text-gray-900 dark:text-slate-100 leading-tight hidden sm:block truncate">
           BLW York Hub
@@ -82,7 +81,7 @@ export const Header: React.FC<HeaderProps> = ({
         <span className="text-lg font-bold text-gray-900 dark:text-slate-100 sm:hidden truncate">BLW York</span>
       </div>
 
-      <div className="flex items-center gap-2 justify-self-end">
+      <div className="flex items-center gap-2 justify-self-end ml-auto">
         {/* Header only offers the switch to dark mode; light mode is not offered here */}
         {theme !== 'dark' && (
           <button
