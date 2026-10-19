@@ -18,10 +18,11 @@ interface DevotionalViewerProps {
 
 const CALENDAR_PANEL_ID = 'ror-calendar-panel';
 
-// The reader and its zoom library only load when a member first opens an image.
-const DevotionalImageReader = lazy(() =>
-  import('../components/feature/DevotionalImageReader').then((m) => ({ default: m.DevotionalImageReader })),
-);
+// The reader and its zoom library are kept out of the main bundle. They are prefetched once the
+// viewer mounts, so the first tap on the image opens the reader without waiting on a download.
+const loadDevotionalImageReader = () =>
+  import('../components/feature/DevotionalImageReader').then((m) => ({ default: m.DevotionalImageReader }));
+const DevotionalImageReader = lazy(loadDevotionalImageReader);
 
 function getInitialDay(): number {
   const day = new URLSearchParams(window.location.search).get('day');
@@ -76,6 +77,10 @@ export const DevotionalViewer: React.FC<DevotionalViewerProps> = ({ user }) => {
     : 0;
 
   const closeReader = useCallback(() => setReaderOpen(false), []);
+
+  useEffect(() => {
+    void loadDevotionalImageReader();
+  }, []);
 
   async function handleShare() {
     const url = window.location.href;

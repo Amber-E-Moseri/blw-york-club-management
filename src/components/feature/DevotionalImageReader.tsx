@@ -47,7 +47,8 @@ export const DevotionalImageReader: React.FC<DevotionalImageReaderProps> = ({
   useEffect(() => {
     if (!open) return;
     const main = document.getElementById('main-content');
-    const scrollTop = main?.scrollTop ?? 0;
+    const mainScrollTop = main?.scrollTop ?? 0;
+    const windowScrollY = window.scrollY;
     const previousOverflow = document.body.style.overflow;
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
@@ -56,7 +57,8 @@ export const DevotionalImageReader: React.FC<DevotionalImageReaderProps> = ({
 
     return () => {
       document.body.style.overflow = previousOverflow;
-      if (main) main.scrollTop = scrollTop;
+      if (main) main.scrollTop = mainScrollTop;
+      window.scrollTo(0, windowScrollY);
       opener?.focus?.();
     };
   }, [open]);

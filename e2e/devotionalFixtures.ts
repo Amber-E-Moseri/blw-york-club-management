@@ -50,10 +50,18 @@ export interface Options {
 
 export interface Recorder {
   markReadCalls: number;
+  /** Read on each write, so a test can make a retry succeed. */
+  failMarkRead: boolean;
+  /** Delay before the write responds, to observe the saving state. */
+  markReadDelayMs: number;
 }
 
 export async function setup(page: Page, options: Options = {}): Promise<Recorder> {
-  const recorder: Recorder = { markReadCalls: 0 };
+  const recorder: Recorder = {
+    markReadCalls: 0,
+    failMarkRead: !!options.failMarkRead,
+    markReadDelayMs: 0,
+  };
   const readRows = (options.readDays ?? []).map((day) => ({
     viewed_date: `2026-10-${String(day).padStart(2, '0')}`,
     day_of_month: day,
@@ -101,7 +109,8 @@ export async function setup(page: Page, options: Options = {}): Promise<Recorder
     if (table === 'devotional_views') {
       if (request.method() === 'POST') {
         recorder.markReadCalls += 1;
-        if (options.failMarkRead) return reply({ message: 'Simulated failure' }, 500);
+        if (recorder.markReadDelayMs) await new Promise((resolve) => setTimeout(resolve, recorder.markReadDelayMs));
+        if (recorder.failMarkRead) return reply({ message: 'Simulated failure' }, 500);
         const payload = JSON.parse(request.postData() ?? '{}') as Record<string, unknown>;
         const row = { ...(Array.isArray(payload) ? payload[0] : payload), viewed_at: new Date().toISOString() };
         viewsStore.push(row as (typeof viewsStore)[number]);

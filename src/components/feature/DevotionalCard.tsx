@@ -53,7 +53,7 @@ export const DevotionalCard: React.FC<DevotionalCardProps> = ({
   return (
     <div className="w-full space-y-4">
       {/* Image: edge-to-edge on phones, bordered card on desktop */}
-      <div className="relative overflow-hidden rounded-2xl border-0 bg-white shadow-none md:border md:border-gray-200 md:shadow-sm dark:md:border-slate-700">
+      <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 max-md:border-0 max-md:shadow-none">
         {imageLoading && !imageError && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-white dark:bg-slate-800">
             <div className="w-8 h-8 border-4 border-york-600 border-t-transparent rounded-full animate-spin" />
@@ -66,11 +66,19 @@ export const DevotionalCard: React.FC<DevotionalCardProps> = ({
             <p className="text-tiny text-gray-400">Try refreshing or contact a coordinator.</p>
           </div>
         ) : (
-          <button
-            type="button"
+          // Plain element with role="button" keeps the image's DOM and corner clipping the same as before.
+          <div
+            role="button"
+            tabIndex={0}
             onClick={onOpenReader}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onOpenReader?.();
+              }
+            }}
             aria-label={`Open ${devotional.book_title} day ${page.day_of_month} in full screen`}
-            className="group relative block w-full rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-york-600"
+            className="group relative block w-full cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-york-600"
           >
             <img
               src={page.image_url}
@@ -83,7 +91,7 @@ export const DevotionalCard: React.FC<DevotionalCardProps> = ({
                 setImageError(true);
               }}
             />
-          </button>
+          </div>
         )}
       </div>
 
