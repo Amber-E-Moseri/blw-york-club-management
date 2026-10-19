@@ -70,6 +70,12 @@ export const Modal: React.FC<ModalProps> = ({
   const generatedId = useId();
   const titleId = `modal-title-${generatedId}`;
 
+  // Callers often pass an inline arrow for onClose, which changes identity on every
+  // parent render. Keep the latest handler in a ref so the listener and focus effect
+  // below don't re-run (and re-steal focus) each time the parent re-renders.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+
   // Focus trap
   const trapFocus = useCallback((e: KeyboardEvent) => {
     if (!dialogRef.current) return;
@@ -87,14 +93,14 @@ export const Modal: React.FC<ModalProps> = ({
       }
     }
     if (e.key === 'Escape' && closeOnEscape) {
-      onClose();
+      onCloseRef.current();
     }
-  }, [closeOnEscape, onClose]);
+  }, [closeOnEscape]);
 
   useEffect(() => {
     if (!isOpen) return;
     document.addEventListener('keydown', trapFocus);
-    // Move focus into modal
+    // Move focus into modal (once, when it opens)
     const firstFocusable = dialogRef.current?.querySelector<HTMLElement>(FOCUSABLE);
     firstFocusable?.focus();
     // Prevent background scroll
