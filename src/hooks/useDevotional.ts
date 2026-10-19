@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import {
   getAllPages,
@@ -26,6 +26,8 @@ interface DailyState {
   error: string | null;
   markAsRead: () => Promise<void>;
   marking: boolean;
+  /** Set when the last Mark as read attempt failed. Cleared on the next attempt. */
+  markError: string | null;
 }
 
 interface MonthState {
@@ -61,7 +63,10 @@ export function useDevotionalByDay(
   shouldLogView = false
 ): DailyState {
   const [marking, setMarking] = useState(false);
-  const [state, setState] = useState<Omit<DailyState, 'markAsRead' | 'marking'>>({
+  const [markError, setMarkError] = useState<string | null>(null);
+  // Ref guard so a second tap before React re-renders cannot start a second write.
+  const markInFlight = useRef(false);
+  const [state, setState] = useState<Omit<DailyState, 'markAsRead' | 'marking' | 'markError'>>({
     devotional: null,
     page: null,
     view: null,
@@ -133,19 +138,29 @@ export function useDevotionalByDay(
   }, [month, day, year, shouldLogView]);
 
   const markAsRead = useCallback(async () => {
-    const { data: auth } = await supabase.auth.getUser();
-    const userId = auth.user?.id;
-    if (!userId || !state.devotional || !state.page) return;
-    setMarking(true);
+    if (markInFlight.current) return;
+    markInFlight.current = true;
     try {
-      const view = await markAsReadQuery(userId, state.devotional.id, state.page.day_of_month);
-      setState((s) => ({ ...s, view }));
+      const { data: auth } = await supabase.auth.getUser();
+      const userId = auth.user?.id;
+      if (!userId || !state.devotional || !state.page) return;
+      setMarking(true);
+      setMarkError(null);
+      try {
+        // Success is only shown once the database has returned the stored view.
+        const view = await markAsReadQuery(userId, state.devotional.id, state.page.day_of_month);
+        setState((s) => ({ ...s, view }));
+      } catch {
+        setMarkError("Couldn't save your reading. Check your connection and try again.");
+      } finally {
+        setMarking(false);
+      }
     } finally {
-      setMarking(false);
+      markInFlight.current = false;
     }
   }, [state.devotional, state.page]);
 
-  return { ...state, markAsRead, marking };
+  return { ...state, markAsRead, marking, markError };
 }
 
 export function useDevotionalByMonth(month: number, year?: number): MonthState {
