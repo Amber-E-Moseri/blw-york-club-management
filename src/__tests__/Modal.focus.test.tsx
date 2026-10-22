@@ -16,6 +16,21 @@ const Harness: React.FC = () => {
   );
 };
 
+// A trigger button opens the modal, and an outside button closes it programmatically.
+const WithTrigger: React.FC = () => {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button id="trigger" type="button" onClick={() => setOpen(true)}>Add Book</button>
+      <button id="force-close" type="button" onClick={() => setOpen(false)}>Force close</button>
+      <Modal isOpen={open} onClose={() => setOpen(false)} title="Add Book">
+        <Input label="Title" value="" onChange={() => {}} />
+        <button id="done" type="button">Done</button>
+      </Modal>
+    </>
+  );
+};
+
 let container: HTMLDivElement;
 let root: ReactDOM.Root;
 
@@ -99,4 +114,78 @@ test('Tab wraps focus from the last focusable element back to the first', () => 
   });
 
   expect(document.activeElement).toBe(first);
+});
+
+const openFromTrigger = () => {
+  const trigger = document.getElementById('trigger') as HTMLButtonElement;
+  act(() => trigger.focus());
+  act(() => trigger.click());
+  return trigger;
+};
+
+const isDialogOpen = () => document.querySelector('[role="dialog"]') !== null;
+
+test('Escape closes the dialog and returns focus to the trigger', () => {
+  act(() => { root.render(<WithTrigger />); });
+  const trigger = openFromTrigger();
+  expect(isDialogOpen()).toBe(true);
+
+  act(() => {
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  });
+
+  expect(isDialogOpen()).toBe(false);
+  expect(document.activeElement).toBe(trigger);
+});
+
+test('the close button closes the dialog and returns focus to the trigger', () => {
+  act(() => { root.render(<WithTrigger />); });
+  const trigger = openFromTrigger();
+
+  act(() => {
+    document.querySelector<HTMLButtonElement>('button[aria-label="Close dialog"]')!.click();
+  });
+
+  expect(isDialogOpen()).toBe(false);
+  expect(document.activeElement).toBe(trigger);
+});
+
+test('a programmatic close returns focus to the trigger', () => {
+  act(() => { root.render(<WithTrigger />); });
+  const trigger = openFromTrigger();
+
+  act(() => {
+    document.getElementById('force-close')!.click();
+  });
+
+  expect(isDialogOpen()).toBe(false);
+  expect(document.activeElement).toBe(trigger);
+});
+
+test('Shift+Tab from the first focusable element wraps to the last', () => {
+  act(() => { root.render(<WithTrigger />); });
+  openFromTrigger();
+
+  const closeButton = document.querySelector<HTMLButtonElement>('button[aria-label="Close dialog"]')!;
+  expect(document.activeElement).toBe(closeButton);
+
+  act(() => {
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true }));
+  });
+
+  expect(document.activeElement).toBe(document.getElementById('done'));
+});
+
+test('Tab pulls focus back into the dialog when it has escaped', () => {
+  act(() => { root.render(<WithTrigger />); });
+  openFromTrigger();
+
+  // Focus something outside the dialog while it is open.
+  act(() => document.getElementById('force-close')!.focus());
+  act(() => {
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+  });
+
+  const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!;
+  expect(dialog.contains(document.activeElement)).toBe(true);
 });

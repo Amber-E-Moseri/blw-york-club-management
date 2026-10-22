@@ -84,10 +84,15 @@ export const Modal: React.FC<ModalProps> = ({
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
     if (e.key === 'Tab') {
-      if (e.shiftKey && document.activeElement === first) {
+      const active = document.activeElement;
+      if (!dialogRef.current.contains(active)) {
+        // Focus escaped the dialog: pull it back in.
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      } else if (e.shiftKey && active === first) {
         e.preventDefault();
         last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
+      } else if (!e.shiftKey && active === last) {
         e.preventDefault();
         first.focus();
       }
@@ -96,6 +101,17 @@ export const Modal: React.FC<ModalProps> = ({
       onCloseRef.current();
     }
   }, [closeOnEscape]);
+
+  // Remember the element that had focus before the dialog opened. Declared before the
+  // focus effect below so it captures the trigger before focus moves into the dialog.
+  // Cleanup runs on every close path (Escape, close button, parent hiding the modal, unmount).
+  useEffect(() => {
+    if (!isOpen) return;
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return () => {
+      if (trigger && document.contains(trigger)) trigger.focus();
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
