@@ -1,66 +1,76 @@
 name: PostgreSQL 17 candidate fingerprint 000-105 (review only)
 
-# Manual only. Certifies one explicitly selected integration commit on the Supabase PostgreSQL 17 image
-# (supabase/config.toml pins major_version = 17) by replaying the complete migration chain 000-105 on a fresh
-# disposable local stack. It writes a CANDIDATE schema fingerprint. It never reads or writes the authoritative golden
+# Certifies the integration commit 26a86e2 on the Supabase PostgreSQL 17 image (supabase/config.toml pins
+# major_version = 17) by replaying the complete migration chain 000-105 on a fresh disposable local stack. It writes a
+# CANDIDATE schema fingerprint labelled with the certified SHA. It never reads or writes the authoritative golden
 # fingerprint, never touches a hosted project, and never asserts equivalence to the golden. A reviewer compares the
 # uploaded candidate to the golden and approves any golden change separately.
 #
-# Selection. The workflow certifies only the commit named in candidate_sha. It fails unless HEAD of that commit is
-# exactly candidate_sha and its supabase/migrations tree equals migrations_tree. Certification tooling (scripts/) is
-# taken from the ref the workflow was dispatched from; the candidate's migrations, verification files and contract are
-# not changed by that overlay.
+# Selection. The certified candidate is pinned to the integration commit, not to the commit that triggers the run. The
+# workflow fails unless HEAD of the candidate is exactly CANDIDATE_SHA and its supabase/migrations tree equals
+# MIGRATIONS_TREE. The push trigger is restricted to ci/pg17-candidate-105. Certification tooling (scripts/) is taken
+# from the triggering commit; the candidate's migrations, verification files and contract are not changed by that overlay.
 #
 # The 000-101 workflow (pg17-candidate-fingerprint.yml, scripts/certify-integrated-101.sh) is kept unchanged for
 # historical verification.
 
 on:
+  push:
+    branches:
+      - ci/pg17-candidate-105
   workflow_dispatch:
     inputs:
       candidate_sha:
-        description: "Integration commit to certify (must equal the checked-out HEAD)"
-        required: true
+        description: "Integration commit to certify (defaults to the pinned integration commit)"
+        required: false
         type: string
+        default: "26a86e2e57e464142efb990a2e8893bd04787f10"
       migrations_tree:
         description: "Git tree of supabase/migrations at candidate_sha (verified before replay)"
-        required: true
+        required: false
         type: string
         default: "3edefbdd4395f937c1b4a0cb98e90c450d965e31"
       history_base:
         description: "Reviewed commit whose 000-103 migrations are the accepted history (must be available)"
-        required: true
+        required: false
         type: string
         default: "2b2e88f285785ce794942cb43d2b95645d23ba36"
 
 permissions:
   contents: read
 
+env:
+  # Pinned: the integration commit under certification and its migrations tree. Changing these is a reviewed change.
+  CANDIDATE_SHA: "26a86e2e57e464142efb990a2e8893bd04787f10"
+  MIGRATIONS_TREE: "3edefbdd4395f937c1b4a0cb98e90c450d965e31"
+  HISTORY_BASE: "2b2e88f285785ce794942cb43d2b95645d23ba36"
+
 jobs:
   pg17-candidate:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
-      - name: Check out the selected integration commit (full history for the immutability check)
+      - name: Check out the pinned integration commit (full history for the immutability check)
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.candidate_sha }}
+          ref: ${{ inputs.candidate_sha || env.CANDIDATE_SHA }}
           fetch-depth: 0
 
-      - name: Verify the selected commit and migration tree
+      - name: Verify the candidate commit, migration tree and history base
         env:
-          EXPECTED_SHA: ${{ inputs.candidate_sha }}
-          EXPECTED_TREE: ${{ inputs.migrations_tree }}
-          HISTORY_BASE: ${{ inputs.history_base }}
+          EXPECTED_SHA: ${{ inputs.candidate_sha || env.CANDIDATE_SHA }}
+          EXPECTED_TREE: ${{ inputs.migrations_tree || env.MIGRATIONS_TREE }}
+          EXPECTED_BASE: ${{ inputs.history_base || env.HISTORY_BASE }}
         run: |
           set -euo pipefail
           HEAD_SHA="$(git rev-parse HEAD)"
           [ "$HEAD_SHA" = "$EXPECTED_SHA" ] || { echo "FAIL: checked out $HEAD_SHA, expected $EXPECTED_SHA"; exit 1; }
           TREE="$(git rev-parse "HEAD:supabase/migrations")"
           [ "$TREE" = "$EXPECTED_TREE" ] || { echo "FAIL: migrations tree $TREE, expected $EXPECTED_TREE"; exit 1; }
-          git cat-file -e "${HISTORY_BASE}^{commit}" || { echo "FAIL: history base $HISTORY_BASE not available"; exit 1; }
-          echo "verified candidate $HEAD_SHA with migrations tree $TREE; history base $HISTORY_BASE"
+          git cat-file -e "${EXPECTED_BASE}^{commit}" || { echo "FAIL: history base $EXPECTED_BASE not available"; exit 1; }
+          echo "verified candidate $HEAD_SHA with migrations tree $TREE; history base $EXPECTED_BASE"
 
-      - name: Overlay certification tooling from the dispatched ref (candidate migrations are not changed)
+      - name: Overlay certification tooling from the triggering commit (candidate migrations are not changed)
         env:
           TOOLING_REF: ${{ github.sha }}
         run: |
@@ -94,15 +104,15 @@ jobs:
         env:
           F2_DB_ADMIN: postgres
           F2_OUT_DIR: ${{ runner.temp }}
-          F2_EXPECTED_SHA: ${{ inputs.candidate_sha }}
-          F2_HISTORY_BASE: ${{ inputs.history_base }}
+          F2_EXPECTED_SHA: ${{ inputs.candidate_sha || env.CANDIDATE_SHA }}
+          F2_HISTORY_BASE: ${{ inputs.history_base || env.HISTORY_BASE }}
         run: scripts/certify-integrated-105.sh
 
-      - name: Upload the candidate fingerprint for review
+      - name: Upload the candidate fingerprint, labelled with the certified SHA
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pg17-candidate-fingerprint-105-${{ inputs.candidate_sha }}
+          name: pg17-candidate-fingerprint-105-${{ inputs.candidate_sha || env.CANDIDATE_SHA }}
           path: |
             ${{ runner.temp }}/schema_fingerprint.candidate-105.json
             ${{ runner.temp }}/contract-check-105.txt
