@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
+import { canUseApp } from './lib/auth';
 import { MainLayout } from './components/layout/MainLayout';
 import { Dashboard } from './pages/Dashboard';
 import { Events } from './pages/Events';
@@ -59,7 +60,8 @@ function AppShell() {
     return <Login onSignIn={signIn} onSignUp={signUp} error={error} loading={loading} />;
   }
 
-  if (user.status === 'pending' || user.status === 'rejected' || user.status === 'inactive') {
+  // Allowlist: only an active account enters the Hub. Pending, rejected, inactive, or any other status is held here.
+  if (!canUseApp(user)) {
     return <PendingApproval user={user} onSignOut={signOut} />;
   }
 
