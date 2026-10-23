@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { ANNOUNCEMENT_PAGE_SIZE, type AnnouncementCursor } from './announcementRules';
 import type { Event, EventAudience, EventCategory, Member, Announcement, PrayerRequest, DashboardStats } from '../types';
 
 // ─── Events ──────────────────────────────────────────────────────────────────
@@ -111,14 +112,60 @@ export async function getMembers(): Promise<Member[]> {
 
 // ─── Announcements ───────────────────────────────────────────────────────────
 
-export async function getAnnouncements(limit = 5): Promise<Announcement[]> {
+export interface AnnouncementPage {
+  items: Announcement[];
+  hasMore: boolean;
+}
+
+/**
+ * One page of announcements, newest first. Ordering is (created_at, id), which is total, so a page never shifts
+ * under the reader. Pass the cursor from the last shown row to get the rows after it.
+ */
+export async function getAnnouncementsPage(
+  after?: AnnouncementCursor,
+  limit = ANNOUNCEMENT_PAGE_SIZE
+): Promise<AnnouncementPage> {
+  let filtered = supabase.from('announcements').select('*');
+  if (after) {
+    filtered = filtered.or(
+      `created_at.lt."${after.created_at}",and(created_at.eq."${after.created_at}",id.lt.${after.id})`
+    );
+  }
+  const { data, error } = await filtered
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(limit + 1);
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as Announcement[];
+  return { items: rows.slice(0, limit), hasMore: rows.length > limit };
+}
+
+/**
+ * Updates the title and message of one announcement. Only those two columns are sent, so author and date are never
+ * changed. RLS decides whether the row may be updated; a row the caller may not change is not returned, so an empty
+ * result is reported as an error rather than a silent success.
+ */
+export async function updateAnnouncement(id: string, title: string, body: string): Promise<Announcement> {
   const { data, error } = await supabase
     .from('announcements')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(limit);
+    .update({ title, body })
+    .eq('id', id)
+    .select('*');
   if (error) throw new Error(error.message);
-  return data ?? [];
+  const row = ((data ?? []) as Announcement[])[0];
+  if (!row) {
+    throw new Error('This announcement was not saved. It may have been removed, or your account cannot edit it.');
+  }
+  return row;
+}
+
+/** Deletes one announcement by id. An empty result means RLS refused it or the row is already gone. */
+export async function deleteAnnouncement(id: string): Promise<void> {
+  const { data, error } = await supabase.from('announcements').delete().eq('id', id).select('id');
+  if (error) throw new Error(error.message);
+  if (!data || data.length === 0) {
+    throw new Error('This announcement was not deleted. It may already be removed, or your account cannot delete it.');
+  }
 }
 
 /** Saves an announcement and returns its id. Nothing is pushed here; see notifyAnnouncementMembers. */
