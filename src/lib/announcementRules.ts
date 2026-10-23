@@ -1,16 +1,36 @@
 import type { Announcement } from '../types';
 
-// Client-side rules for announcements. The database is the authority: RLS policy announcements_manage
-// (migration 031) decides who can insert, update and delete. These helpers only decide what the UI shows
-// and how the list is kept in order.
+// Client-side rules for announcements. The database is the authority: the announcements_insert, _update and _delete
+// policies (migration 043) decide every write, and each request is checked again there. These helpers only decide
+// what the UI shows, so the controls match what the database will accept.
 
 export const ANNOUNCEMENT_PAGE_SIZE = 20;
 
-const MANAGING_ROLES = ['admin', 'coordinator', 'cell_leader'];
+const POSTING_ROLES = ['admin', 'coordinator', 'cell_leader'];
 
-/** Roles that see the edit and delete controls. Mirrors announcements_manage; RLS still applies to each request. */
-export function canManageAnnouncements(role: string | null | undefined): boolean {
-  return !!role && MANAGING_ROLES.includes(role);
+/** The signed-in user, as far as announcement rules need it. */
+export interface AnnouncementActor {
+  id: string;
+  role: string;
+  status: string;
+}
+
+/** Create a post: admins, coordinators and active cell leaders. Pending, rejected and inactive accounts cannot. */
+export function canPostAnnouncements(actor: AnnouncementActor | null | undefined): boolean {
+  return !!actor && actor.status === 'active' && POSTING_ROLES.includes(actor.role);
+}
+
+/**
+ * Edit or delete one post. Admins and coordinators may change any post. An active cell leader may change only the
+ * posts they wrote. Mirrors the announcements_update and announcements_delete policies.
+ */
+export function canChangeAnnouncement(
+  actor: AnnouncementActor | null | undefined,
+  announcement: Pick<Announcement, 'author_id'>
+): boolean {
+  if (!canPostAnnouncements(actor) || !actor) return false;
+  if (actor.role === 'cell_leader') return announcement.author_id === actor.id;
+  return true;
 }
 
 /** Keyset position: the last row shown. The next page starts strictly after it in (created_at, id) order. */

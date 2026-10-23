@@ -1,12 +1,22 @@
 import {
   ANNOUNCEMENT_PAGE_SIZE,
   appendUniqueAnnouncements,
-  canManageAnnouncements,
+  canChangeAnnouncement,
+  canPostAnnouncements,
   cursorAfter,
   removeAnnouncement,
   replaceAnnouncement,
+  type AnnouncementActor,
 } from '../lib/announcementRules';
 import type { Announcement } from '../types';
+
+const ADMIN: AnnouncementActor = { id: 'admin-1', role: 'admin', status: 'active' };
+const COORDINATOR: AnnouncementActor = { id: 'coord-1', role: 'coordinator', status: 'active' };
+const LEADER: AnnouncementActor = { id: 'leader-1', role: 'cell_leader', status: 'active' };
+const MEMBER: AnnouncementActor = { id: 'member-1', role: 'member', status: 'active' };
+const PENDING_LEADER: AnnouncementActor = { id: 'leader-1', role: 'cell_leader', status: 'pending' };
+const REJECTED_LEADER: AnnouncementActor = { id: 'leader-1', role: 'cell_leader', status: 'rejected' };
+const INACTIVE_ADMIN: AnnouncementActor = { id: 'admin-1', role: 'admin', status: 'inactive' };
 
 function announcement(n: number, overrides: Partial<Announcement> = {}): Announcement {
   // Newer rows get larger timestamps, so the list reads newest first when sorted descending.
@@ -22,13 +32,49 @@ function announcement(n: number, overrides: Partial<Announcement> = {}): Announc
   };
 }
 
-describe('canManageAnnouncements', () => {
-  it.each(['admin', 'coordinator', 'cell_leader'])('allows %s', (role) => {
-    expect(canManageAnnouncements(role)).toBe(true);
+describe('canPostAnnouncements', () => {
+  it.each([ADMIN, COORDINATOR, LEADER])('allows an active %s to post', (actor) => {
+    expect(canPostAnnouncements(actor)).toBe(true);
   });
 
-  it.each(['member', 'pending', '', null, undefined])('denies %p', (role) => {
-    expect(canManageAnnouncements(role as string | null | undefined)).toBe(false);
+  it.each([MEMBER, PENDING_LEADER, REJECTED_LEADER, INACTIVE_ADMIN])('denies %p', (actor) => {
+    expect(canPostAnnouncements(actor)).toBe(false);
+  });
+
+  it('denies a signed-out user', () => {
+    expect(canPostAnnouncements(null)).toBe(false);
+    expect(canPostAnnouncements(undefined)).toBe(false);
+  });
+});
+
+describe('canChangeAnnouncement', () => {
+  const byLeader = { author_id: LEADER.id };
+  const byAdmin = { author_id: ADMIN.id };
+
+  it('lets admins and coordinators change any post', () => {
+    expect(canChangeAnnouncement(ADMIN, byLeader)).toBe(true);
+    expect(canChangeAnnouncement(COORDINATOR, byLeader)).toBe(true);
+    expect(canChangeAnnouncement(COORDINATOR, byAdmin)).toBe(true);
+  });
+
+  it('lets an active cell leader change only their own posts', () => {
+    expect(canChangeAnnouncement(LEADER, byLeader)).toBe(true);
+    expect(canChangeAnnouncement(LEADER, byAdmin)).toBe(false);
+  });
+
+  it('denies members any change, even to their own post', () => {
+    expect(canChangeAnnouncement(MEMBER, { author_id: MEMBER.id })).toBe(false);
+    expect(canChangeAnnouncement(MEMBER, byLeader)).toBe(false);
+  });
+
+  it('denies pending, rejected and inactive accounts, even when they wrote the post', () => {
+    expect(canChangeAnnouncement(PENDING_LEADER, byLeader)).toBe(false);
+    expect(canChangeAnnouncement(REJECTED_LEADER, byLeader)).toBe(false);
+    expect(canChangeAnnouncement(INACTIVE_ADMIN, byAdmin)).toBe(false);
+  });
+
+  it('denies a signed-out user', () => {
+    expect(canChangeAnnouncement(null, byLeader)).toBe(false);
   });
 });
 

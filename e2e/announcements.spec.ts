@@ -78,9 +78,30 @@ function json(route: Route, status: number, body: unknown) {
   return route.fulfill({ status, contentType: 'application/json', headers: cors, body: JSON.stringify(body) });
 }
 
-async function setup(page: Page, role: MockRole, rows: Row[]): Promise<Store> {
+type AccountStatus = 'active' | 'pending' | 'inactive' | 'rejected';
+
+async function setup(page: Page, role: MockRole, rows: Row[], status: AccountStatus = 'active'): Promise<Store> {
   const store: Store = { rows, failLoads: false, refuseWrites: false, patches: [], deletes: [], inserts: [] };
   await mockSupabase(page, { role });
+
+  // The mock always reports an active profile. For other statuses, answer the signed-in profile lookup with the
+  // requested status, so the app sees the same account state the database would.
+  if (status !== 'active') {
+    await page.route('**/rest/v1/profiles*', async (route) => {
+      const url = new URL(route.request().url());
+      if (route.request().method() !== 'GET' || url.searchParams.get('id') !== 'eq.e2e-user') return route.fallback();
+      return json(route, 200, {
+        id: 'e2e-user',
+        email: 'leader@yorku.ca',
+        full_name: 'Jordan Leader',
+        role,
+        status,
+        cell_id: null,
+        admin_role: null,
+        joined_at: '2026-01-01T00:00:00.000Z',
+      });
+    });
+  }
 
   await page.route('**/rest/v1/announcements*', async (route) => {
     const request = route.request();
@@ -368,6 +389,64 @@ function registerAnnouncementTests(width: { name: string; viewport: { width: num
       // The label on main; this PR does not change Personal Messages.
       await expect(page.getByRole('button', { name: '+ Personal Note' }).first()).toBeVisible();
     });
+
+    ownershipTests(width.name);
+  });
+}
+
+function ownershipRows(): Row[] {
+  // Rows 1 and 3 were written by the signed-in leader ('e2e-user'); rows 2 and 4 by someone else.
+  return makeRows(4).map((r, i) => (i % 2 === 0 ? r : { ...r, author_id: 'someone-else', author_name: 'Sam Other' }));
+}
+
+function ownershipTests(width: string) {
+  test.describe(`cell leader ownership ${width}`, () => {
+    test('a cell leader sees Edit and Delete only on their own posts', async ({ page }) => {
+      await setup(page, 'cell_leader', ownershipRows());
+      await signInAndOpen(page);
+
+      await expect(page.getByRole('button', { name: 'Edit announcement: Post 01' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Delete announcement: Post 01' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Edit announcement: Post 03' })).toBeVisible();
+
+      await expect(page.getByRole('button', { name: 'Edit announcement: Post 02' })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Delete announcement: Post 02' })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Edit announcement: Post 04' })).toHaveCount(0);
+    });
+
+    test('a cell leader can post, and the post is attributed to them', async ({ page }) => {
+      const store = await setup(page, 'cell_leader', ownershipRows());
+      await signInAndOpen(page);
+
+      await page.getByRole('button', { name: '+ New' }).click();
+      await page.getByLabel('Title').fill('Leader post');
+      await page.getByLabel('Message').fill('Body');
+      await page.getByRole('checkbox', { name: /Send a push notification/i }).uncheck();
+      await page.getByRole('button', { name: 'Post Announcement' }).click();
+
+      await expect(cardTitles(page).first()).toHaveText('Leader post');
+      expect(store.inserts[0]).toMatchObject({ author_id: 'e2e-user' });
+    });
+
+    // The app holds pending and rejected accounts at a gate after sign-in, so they never reach the list. The
+    // database also refuses their writes; announcements_rls_certification.sql certifies that separately.
+    for (const status of ['pending', 'rejected'] as const) {
+      test(`a ${status} cell leader cannot reach announcements or their manage controls`, async ({ page }) => {
+        await setup(page, 'cell_leader', ownershipRows(), status);
+        await page.goto('/');
+        await page.getByLabel('Email').fill('leader@yorku.ca');
+        await page.getByLabel('Password').fill('secret1');
+        await page.getByRole('button', { name: 'Sign In' }).click();
+        await expect(page.getByRole('heading', { name: 'Good to see you', exact: false })).toHaveCount(0);
+
+        await page.goto('/announcements');
+        await expect(page.getByRole('heading', { name: 'Announcements' })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: '+ New' })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: /^Edit announcement/ })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: /^Delete announcement/ })).toHaveCount(0);
+        await expect(page.getByText('Post 01', { exact: true })).toHaveCount(0);
+      });
+    }
   });
 }
 

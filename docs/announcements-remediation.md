@@ -13,9 +13,24 @@ This note records what the Announcements remediation changed, and the decisions 
 
 ## Authorization
 
-- **UI.** Edit and Delete appear for `admin`, `coordinator` and `cell_leader`, the same roles as `canManageAnnouncements`.
-- **Database.** Enforcement is by the existing policy `announcements_manage` (migration 031). It allows `is_admin_or_coordinator()` or an active cell leader. `is_admin_or_coordinator()` reads `current_user_role()`, which requires `status = 'active'`. Table grants (migration 024) give `authenticated` select, insert, update and delete, and give `anon` nothing. No migration was added.
-- **Decision for maintainers.** Under the current policy, any active cell leader can edit or delete any announcement, not only their own. Limiting that to the author or staff would need a new migration and a policy change. This PR does not make that change.
+Migration `043_announcements_author_scoped_manage.sql` replaces the single `FOR ALL` policy from migration 031 with one policy per command. It is additive: historical migrations are not edited.
+
+| Caller | Create | View | Edit / delete |
+|---|---|---|---|
+| admin, coordinator (active) | yes, as themselves | all | any post |
+| cell leader (active) | yes, as themselves | all | only posts where `author_id = auth.uid()` |
+| member (active) | no | all | no |
+| pending, rejected, inactive | no | no | no |
+
+- **Insert** (`announcements_insert`) requires `author_id = auth.uid()`. The author is never taken from the client as a claim of identity: a post is attributed to the caller or refused.
+- **Update** (`announcements_update`) checks the row before and after the change. A cell leader cannot hand one of their posts to someone else, and cannot take a post that is not theirs.
+- **Delete** (`announcements_delete`) uses the same ownership test as update.
+- **Read** (`announcements_read`) is unchanged. It requires an active profile through `is_active_member()`.
+- Table grants (migration 024) are unchanged: `authenticated` has select, insert, update and delete, which RLS narrows; `anon` has none.
+
+**UI.** The page follows the same rules, per row. The composer shows for an active admin, coordinator or cell leader. Edit and Delete show on a post only when the signed-in user may change it. A pending, rejected or inactive account does not reach the list; the app holds it at a gate, and the database refuses its writes regardless.
+
+**Not changed, flagged for follow-up.** Migration 043 does not stop an admin from reassigning an author. That is intentional under the admin hierarchy.
 
 ## Audience
 
@@ -37,4 +52,5 @@ This note records what the Announcements remediation changed, and the decisions 
 
 - **Unit (Jest).** `announcementRules.test.ts` covers role gating, list isolation, de-duplication and a simulated keyset pagination. `announcementQueries.test.ts` covers the exact filters and column lists sent, and treats an empty write result as a refusal.
 - **Browser (Playwright, mock backend).** `e2e/announcements.spec.ts` runs each case at desktop (1280×800) and phone (375×812) widths: empty and failed-load states, Retry, edit, delete (confirm, keep, refusal), Load more with no gaps or duplicates, and the no-horizontal-scroll check. The mock backend lives in the spec and does not prove database behaviour.
-- **Database (real PostgreSQL RLS).** `supabase/verification/announcements_rls_certification.sql` runs the real policies under `SET ROLE` for each role, inside a transaction that is rolled back. It was run against a throwaway PostgreSQL 18 database with migrations 001–031 applied. It has not been run against a Supabase project.
+- **Database (real PostgreSQL RLS).** `supabase/verification/announcements_rls_certification.sql` runs the real policies under `SET ROLE` for each role, inside a transaction that is rolled back. It covers admin, coordinator, active cell leader on their own and another's posts, member, and pending, rejected and inactive accounts, for view, create, edit, reassignment and delete. It was run against a throwaway PostgreSQL 18 database with migrations 001–043 applied. Mutation checks with the old `FOR ALL` policy fail the script. It has not been run against a Supabase project.
+- **Golden schema fingerprint.** `supabase/verification/schema_fingerprint.golden.json` records `announcements_manage`. That policy no longer exists after migration 043. The golden file is the authoritative hosted-schema record and is not edited in this PR. It must be regenerated from the certification project after this migration is applied there, and the hosted fingerprint check will fail until then.

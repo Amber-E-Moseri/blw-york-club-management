@@ -5,7 +5,8 @@ import { Input } from '../components/foundation/Input';
 import { Modal } from '../components/foundation/Modal';
 import {
   appendUniqueAnnouncements,
-  canManageAnnouncements,
+  canChangeAnnouncement,
+  canPostAnnouncements,
   cursorAfter,
   removeAnnouncement,
   replaceAnnouncement,
@@ -53,7 +54,7 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const formRef = useRef<HTMLDivElement>(null);
-  const canManage = canManageAnnouncements(user?.role);
+  const canPost = canPostAnnouncements(user);
 
   const loadFirstPage = useCallback(async () => {
     setLoading(true);
@@ -207,7 +208,7 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-h1">Announcements</h1>
-          {canManage && (
+          {canPost && (
             <Button onClick={() => (formOpen ? closeForm() : openCreate())}>
               {formOpen ? 'Cancel' : '+ New'}
             </Button>
@@ -272,7 +273,7 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-6 py-10 text-center">
             <p className="text-small font-bold text-gray-700">No announcements yet.</p>
             <p className="text-tiny text-gray-500 mt-1">
-              {canManage ? 'Use + New to post the first one.' : 'Announcements from club leaders will appear here.'}
+              {canPost ? 'Use + New to post the first one.' : 'Announcements from club leaders will appear here.'}
             </p>
           </div>
         )}
@@ -284,8 +285,8 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
                 <AnnouncementCard
                   key={a.id}
                   announcement={a}
-                  onEdit={canManage ? startEdit : undefined}
-                  onDelete={canManage ? (target) => { setDeleteError(null); setPendingDelete(target); } : undefined}
+                  onEdit={canChangeAnnouncement(user, a) ? startEdit : undefined}
+                  onDelete={canChangeAnnouncement(user, a) ? (target) => { setDeleteError(null); setPendingDelete(target); } : undefined}
                 />
               ))}
             </div>
