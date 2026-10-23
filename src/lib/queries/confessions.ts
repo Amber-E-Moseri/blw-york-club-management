@@ -6,7 +6,7 @@ export async function fetchConfessionsForDate(date: string): Promise<Confession[
 
   const { data, error } = await supabase
     .from('confessions')
-    .select('*, confession_declarations(id, user_id)')
+    .select('*, confession_declarations(user_id)')
     .eq('scheduled_date', date)
     .eq('is_active', true)
     .order('created_at', { ascending: true });
@@ -30,7 +30,7 @@ export async function fetchUpcomingConfessions(days = 7): Promise<Confession[]> 
 
   const { data, error } = await supabase
     .from('confessions')
-    .select('*, confession_declarations(id, user_id)')
+    .select('*, confession_declarations(user_id)')
     .gte('scheduled_date', today)
     .lte('scheduled_date', until)
     .eq('is_active', true)
