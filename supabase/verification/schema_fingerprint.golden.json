@@ -8,6 +8,15 @@
                 "authenticated": "SELECT"
             },
             "definition_md5": "6d5e8a9986f0ae8bb3e3671afa93f537"
+        },
+        "contacts_bsc_view": {
+            "options": "security_invoker=true",
+            "privileges": {
+                "anon": "",
+                "service_role": "",
+                "authenticated": "SELECT"
+            },
+            "definition_md5": "d3c00e4a08e21745c73b1a74c3da0fd7"
         }
     },
     "tables": {
@@ -267,6 +276,7 @@
                 "profiles_self_onboarding_update | UPDATE | {authenticated} | using=((id = auth.uid()) AND (status = 'pending'::text)) | check=((id = auth.uid()) AND (status = 'pending'::text))"
             ],
             "triggers": [
+                "CREATE TRIGGER profiles_guard_bsc_assignment BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION guard_profile_bsc_assignment()",
                 "CREATE TRIGGER profiles_guard_privileged_columns BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION guard_profile_privileged_columns()",
                 "CREATE TRIGGER profiles_staff_edit_audit AFTER UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION audit_staff_profile_edits()",
                 "CREATE TRIGGER profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
@@ -1993,6 +2003,41 @@
                 "foundation_school_enrollments_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES profiles(id) ON DELETE SET NULL"
             ],
             "maintain_acl": 0
+        },
+        "bscs": {
+            "rls": true,
+            "owner": "postgres",
+            "columns": [
+                "cell_id:uuid:NOT NULL:",
+                "created_at:timestamp with time zone:NOT NULL:now()",
+                "id:uuid:NOT NULL:gen_random_uuid()",
+                "leader_id:uuid:null:",
+                "name:text:NOT NULL:",
+                "updated_at:timestamp with time zone:NOT NULL:now()"
+            ],
+            "indexes": [
+                "bscs_pkey CREATE UNIQUE INDEX bscs_pkey ON public.bscs USING btree (id)"
+            ],
+            "policies": [
+                "bscs_manage | ALL | {authenticated} | using=(is_core_admin() OR is_cell_leader_of(cell_id)) | check=(is_core_admin() OR is_cell_leader_of(cell_id))",
+                "bscs_read | SELECT | {authenticated} | using=is_active_member() | check="
+            ],
+            "triggers": [
+                "CREATE TRIGGER bscs_updated_at BEFORE UPDATE ON public.bscs FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+            ],
+            "force_rls": false,
+            "privileges": {
+                "anon": "",
+                "service_role": "DELETE,INSERT,SELECT,UPDATE",
+                "authenticated": "DELETE,INSERT,SELECT,UPDATE"
+            },
+            "constraints": [
+                "bscs_cell_id_fkey FOREIGN KEY (cell_id) REFERENCES cells(id) ON DELETE CASCADE",
+                "bscs_leader_id_fkey FOREIGN KEY (leader_id) REFERENCES profiles(id) ON DELETE SET NULL",
+                "bscs_name_check CHECK ((char_length(TRIM(BOTH FROM name)) >= 1))",
+                "bscs_pkey PRIMARY KEY (id)"
+            ],
+            "maintain_acl": 0
         }
     },
     "functions": {
@@ -2372,6 +2417,45 @@
             "security": "invoker",
             "volatility": "s",
             "definition_md5": "e9b233196b2ab9ea9d9672f23886e020"
+        },
+        "is_bsc_peer_of_logger(uuid)": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": false,
+                "authenticated": true
+            },
+            "security": "definer",
+            "volatility": "s",
+            "definition_md5": "8c6a56ecee4f1ce8e394e668e9d3da0d"
+        },
+        "guard_profile_bsc_assignment()": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": false,
+                "authenticated": false
+            },
+            "security": "invoker",
+            "volatility": "v",
+            "definition_md5": "fb9f8666418b2075259932940c7cc22d"
+        },
+        "is_bsc_leader_for_logger(uuid)": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": false,
+                "authenticated": true
+            },
+            "security": "definer",
+            "volatility": "s",
+            "definition_md5": "b532cc93e9e5d30171a173cd11ab0571"
         }
     },
     "extensions": [
