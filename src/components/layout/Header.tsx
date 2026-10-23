@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Moon, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { cn, getInitials } from '../../lib/utils';
-import { useTheme } from '../../hooks/useTheme';
 
 export interface HeaderProps {
   userName?: string;
@@ -26,7 +25,6 @@ export const Header: React.FC<HeaderProps> = ({
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -83,22 +81,6 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-2 justify-self-end">
-        {/* Header only offers the switch to dark mode; light mode is not offered here */}
-        {theme !== 'dark' && (
-          <button
-            type="button"
-            onClick={() => setTheme('dark')}
-            aria-label="Switch to dark mode"
-            className={cn(
-              'md:hidden flex items-center justify-center w-9 h-9 rounded-md',
-              'text-gray-600 hover:bg-red-50 hover:text-york-600',
-              'focus:outline-none focus:ring-2 focus:ring-york-600 transition-colors duration-150',
-            )}
-          >
-            <Moon className="w-5 h-5" />
-          </button>
-        )}
-
         {/* Quick Add button */}
         {onQuickAdd && (
           <>

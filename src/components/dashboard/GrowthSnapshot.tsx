@@ -45,7 +45,7 @@ export const GrowthSnapshot: React.FC<GrowthSnapshotProps> = ({
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${devotionalViewed ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-gray-50 dark:bg-slate-700'}`}>
                 <BookOpen className={`w-4 h-4 ${devotionalViewed ? 'text-emerald-600' : 'text-gray-400'}`} />
               </div>
-              <span className="text-sm text-gray-600 dark:text-slate-400">Daily Bread</span>
+              <span className="text-sm text-gray-600 dark:text-slate-400">Rhapsody of Realities</span>
             </div>
             {devotionalViewed ? (
               <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600">
