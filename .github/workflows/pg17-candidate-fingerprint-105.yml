@@ -89,7 +89,7 @@ jobs:
 
       - name: Point the local stack at a per-run disposable project
         run: |
-          ID="pg17cand-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          ID="f2cand105-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           sed -i -E "s/^project_id = \".*\"/project_id = \"$ID\"/" supabase/config.toml
           grep -E '^(project_id|major_version)' supabase/config.toml
           echo "F2_DISPOSABLE_PROJECT_ID=$ID" >> "$GITHUB_ENV"
