@@ -70,6 +70,12 @@ export const Modal: React.FC<ModalProps> = ({
   const generatedId = useId();
   const titleId = `modal-title-${generatedId}`;
 
+  // Callers often pass an inline arrow for onClose, which changes identity on every
+  // parent render. Keep the latest handler in a ref so the listener and focus effect
+  // below don't re-run (and re-steal focus) each time the parent re-renders.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+
   // Focus trap
   const trapFocus = useCallback((e: KeyboardEvent) => {
     if (!dialogRef.current) return;
@@ -78,23 +84,39 @@ export const Modal: React.FC<ModalProps> = ({
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
     if (e.key === 'Tab') {
-      if (e.shiftKey && document.activeElement === first) {
+      const active = document.activeElement;
+      if (!dialogRef.current.contains(active)) {
+        // Focus escaped the dialog: pull it back in.
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      } else if (e.shiftKey && active === first) {
         e.preventDefault();
         last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
+      } else if (!e.shiftKey && active === last) {
         e.preventDefault();
         first.focus();
       }
     }
     if (e.key === 'Escape' && closeOnEscape) {
-      onClose();
+      onCloseRef.current();
     }
-  }, [closeOnEscape, onClose]);
+  }, [closeOnEscape]);
+
+  // Remember the element that had focus before the dialog opened. Declared before the
+  // focus effect below so it captures the trigger before focus moves into the dialog.
+  // Cleanup runs on every close path (Escape, close button, parent hiding the modal, unmount).
+  useEffect(() => {
+    if (!isOpen) return;
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return () => {
+      if (trigger && document.contains(trigger)) trigger.focus();
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
     document.addEventListener('keydown', trapFocus);
-    // Move focus into modal
+    // Move focus into modal (once, when it opens)
     const firstFocusable = dialogRef.current?.querySelector<HTMLElement>(FOCUSABLE);
     firstFocusable?.focus();
     // Prevent background scroll
