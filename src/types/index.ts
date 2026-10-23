@@ -63,7 +63,6 @@ export interface Announcement {
   author_id: string;
   author_name: string;
   created_at: string;
-  is_read?: boolean;
 }
 
 // ─── Prayer Requests ─────────────────────────────────────────────────────────
