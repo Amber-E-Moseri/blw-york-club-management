@@ -102,7 +102,7 @@ jobs:
 
       - name: Validate the chain and replay 000-105, then write the candidate fingerprint (no golden read or written)
         env:
-          F2_DB_ADMIN: postgres
+          F2_DB_ADMIN: supabase_admin
           F2_OUT_DIR: ${{ runner.temp }}
           F2_EXPECTED_SHA: ${{ inputs.candidate_sha || env.CANDIDATE_SHA }}
           F2_HISTORY_BASE: ${{ inputs.history_base || env.HISTORY_BASE }}
