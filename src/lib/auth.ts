@@ -38,6 +38,17 @@ const ROLE_PERMISSIONS: Record<AuthUser['role'], string[]> = {
   member: ['view_events', 'rsvp_events', 'view_announcements', 'submit_prayer_requests'],
 };
 
+const KNOWN_ROLES: readonly AuthUser['role'][] = ['coordinator', 'admin', 'cell_leader', 'member'];
+const KNOWN_STATUSES: readonly AuthUser['status'][] = ['pending', 'active', 'inactive', 'rejected'];
+
+function isKnownRole(value: unknown): value is AuthUser['role'] {
+  return typeof value === 'string' && (KNOWN_ROLES as readonly string[]).includes(value);
+}
+
+function isKnownStatus(value: unknown): value is AuthUser['status'] {
+  return typeof value === 'string' && (KNOWN_STATUSES as readonly string[]).includes(value);
+}
+
 // ─── Auth functions ───────────────────────────────────────────────────────────
 
 export async function signUpWithEmail(
@@ -116,16 +127,27 @@ export async function getUserRole(userId: string): Promise<AuthUser['role']> {
     .eq('id', userId)
     .single();
   if (error) throw new AuthError('Could not fetch role.', error.message);
-  return data.role as AuthUser['role'];
+  // An unrecognised role label grants the least privilege, never the label's nominal rights.
+  return isKnownRole(data?.role) ? data.role : 'member';
 }
 
+/** Only a recognised role has permissions. Unknown labels, including prototype names such as "constructor", get none. */
 export function getUserPermissions(role: AuthUser['role']): string[] {
-  return ROLE_PERMISSIONS[role] ?? [];
+  return isKnownRole(role) ? ROLE_PERMISSIONS[role] : [];
 }
 
 export function hasPermission(role: AuthUser['role'], permission: string): boolean {
-  const perms = ROLE_PERMISSIONS[role] ?? [];
+  const perms = getUserPermissions(role);
   return perms.includes('*') || perms.includes(permission);
+}
+
+/**
+ * The only approval state that may enter the Hub. It is an allowlist: a pending, rejected or inactive account, and any
+ * missing or unrecognised status, is unapproved. The database applies the same rule in current_user_role() and
+ * is_active_member() (migration 022), so this is a UI gate, not the authority.
+ */
+export function canUseApp(user: Pick<AuthUser, 'status'> | null | undefined): boolean {
+  return user?.status === 'active';
 }
 
 /**
@@ -136,9 +158,10 @@ export function hasPermission(role: AuthUser['role'], permission: string): boole
 export function effectiveRole(
   user: Pick<AuthUser, 'role' | 'status' | 'ledCellIds'> | null | undefined,
 ): AuthUser['role'] {
-  if (!user) return 'member';
+  // An account that is not active acts as a plain member, including an admin or coordinator label.
+  if (!user || user.status !== 'active') return 'member';
   if (user.role === 'admin' || user.role === 'coordinator') return user.role;
-  if (user.status === 'active' && (user.ledCellIds?.length ?? 0) > 0) return 'cell_leader';
+  if ((user.ledCellIds?.length ?? 0) > 0) return 'cell_leader';
   return 'member';
 }
 
@@ -160,14 +183,24 @@ function buildAuthUser(supabaseUser: { id: string; email?: string; user_metadata
   };
 }
 
-/** Build an AuthUser from a Supabase `profiles` table row. */
-export function buildProfile(row: Record<string, unknown>): AuthUser {
+/**
+ * Build an AuthUser from a Supabase `profiles` table row. Fails closed:
+ *  - a missing row throws, so no profile means no access;
+ *  - a missing or unrecognised status becomes 'pending', so the account stays unapproved;
+ *  - an unrecognised role becomes 'member', the least-privileged role.
+ * The column is NOT NULL with a CHECK on the same four statuses (migrations 016 and 028), so the status branch is
+ * defence in depth for a malformed or unexpected row.
+ */
+export function buildProfile(row: Record<string, unknown> | null | undefined): AuthUser {
+  if (!row || typeof row['id'] !== 'string' || row['id'] === '') {
+    throw new AuthError('Profile not found.');
+  }
   return {
-    id: row['id'] as string,
+    id: row['id'],
     email: (row['email'] as string) ?? '',
     name: (row['full_name'] as string) ?? '',
-    role: (row['role'] as AuthUser['role']) ?? 'member',
-    status: (row['status'] as AuthUser['status']) ?? 'active',
+    role: isKnownRole(row['role']) ? row['role'] : 'member',
+    status: isKnownStatus(row['status']) ? row['status'] : 'pending',
     cellId: row['cell_id'] as string | undefined,
     adminRole: row['admin_role'] as string | undefined,
     createdAt: new Date((row['joined_at'] as string) ?? Date.now()),
