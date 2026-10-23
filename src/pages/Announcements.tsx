@@ -8,12 +8,31 @@ import type { AuthUser } from '../lib/auth';
 
 interface AnnouncementsProps { user: AuthUser | null; }
 
+/** Explains a failed insert. The announcement was not written when this runs, so the message says nothing was saved. */
+export function describePostError(error: unknown): string {
+  const message = error instanceof Error ? error.message : '';
+  if (/row-level security|permission denied|violates/i.test(message)) {
+    return 'Your account is not allowed to post announcements, so nothing was saved. Ask a coordinator to check your role and approval status.';
+  }
+  if (/jwt|expired|not authenticated|refresh token/i.test(message)) {
+    return 'Your session has expired, so nothing was saved. Sign out, sign in again, and post once more.';
+  }
+  if (/failed to fetch|network/i.test(message)) {
+    return 'Could not reach the server, so nothing was saved. Check your connection and try again.';
+  }
+  return message
+    ? `Could not post the announcement, so nothing was saved: ${message}`
+    : 'Could not post the announcement, so nothing was saved. Try again.';
+}
+
 export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
   const [items, setItems] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [titleError, setTitleError] = useState<string | null>(null);
+  const [bodyError, setBodyError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [postError, setPostError] = useState<string | null>(null);
   const [notify, setNotify] = useState(true);
@@ -23,16 +42,38 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
     getAnnouncements(20).then(setItems).catch(console.error).finally(() => setLoading(false));
   }, []);
 
+  /** Shows a message next to each empty field. Returns true only when both fields have content. */
+  function validate(): boolean {
+    const titleProblem = title.trim() ? null : 'Enter a title for the announcement.';
+    const bodyProblem = body.trim() ? null : 'Enter the message to post.';
+    setTitleError(titleProblem);
+    setBodyError(bodyProblem);
+    return !titleProblem && !bodyProblem;
+  }
+
   async function handlePost() {
-    if (!user || !title.trim() || !body.trim()) return;
+    if (!user) {
+      setPostError('You are not signed in, so nothing was saved. Sign in again and retry.');
+      return;
+    }
+    if (!validate()) return;
+
     setSaving(true);
     setPostError(null);
+    setNotice(null);
     try {
-      const id = await createAnnouncement(title, body, user.id, user.name);
+      let id: string;
+      try {
+        id = await createAnnouncement(title.trim(), body.trim(), user.id, user.name);
+      } catch (e) {
+        // Nothing was written. Keep the author's text so they can retry without retyping.
+        setPostError(describePostError(e));
+        return;
+      }
 
-      // The announcement is saved at this point. A notification failure is reported, not retried by re-posting,
-      // which would create a duplicate announcement.
-      let postNotice: string | null = null;
+      // The announcement is saved from here on. Anything that fails afterwards is reported as a notice, never as a
+      // failed post, so the author does not post again and create a duplicate.
+      let postNotice = 'Announcement posted.';
       if (notify) {
         try {
           const result = await notifyAnnouncementMembers(id);
@@ -45,14 +86,15 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
         }
       }
 
-      const fresh = await getAnnouncements(20);
-      setItems(fresh);
+      try {
+        setItems(await getAnnouncements(20));
+      } catch {
+        postNotice += ' The list did not refresh. Reload the page to see the new announcement.';
+      }
       setTitle('');
       setBody('');
       setShowForm(false);
       setNotice(postNotice);
-    } catch (e) {
-      setPostError(e instanceof Error ? e.message : 'Failed to post.');
     } finally {
       setSaving(false);
     }
@@ -74,8 +116,19 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
 
         {showForm && (
           <div className="card mb-6 space-y-3">
-            <Input label="Title" value={title} onChange={setTitle} />
-            <Input label="Message" type="textarea" value={body} onChange={setBody} />
+            <Input
+              label="Title"
+              value={title}
+              onChange={(v) => { setTitle(v); setTitleError(null); }}
+              error={titleError ?? undefined}
+            />
+            <Input
+              label="Message"
+              type="textarea"
+              value={body}
+              onChange={(v) => { setBody(v); setBodyError(null); }}
+              error={bodyError ?? undefined}
+            />
             <label className="flex items-center gap-2 text-small text-gray-700">
               <input
                 type="checkbox"
