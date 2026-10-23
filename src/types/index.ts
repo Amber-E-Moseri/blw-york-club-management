@@ -62,7 +62,11 @@ export interface Announcement {
   author_id: string;
   author_name: string;
   created_at: string;
-  is_read?: boolean;
+  /** NULL is a fellowship-wide broadcast (staff only). Set when the post is aimed at an audience; never changed after posting. */
+  audience_spec_id?: string | null;
+  /** Soft delete and draft control. Members read only active posts (RLS). */
+  is_active?: boolean;
+  published_at?: string | null;
 }
 
 // ─── Prayer Requests ─────────────────────────────────────────────────────────
