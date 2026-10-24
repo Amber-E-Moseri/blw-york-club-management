@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, 'claude/**']
   pull_request:
-    branches: [main]
+    branches: [main, 'integ/authoritative-104-105']
 
 jobs:
   build-test:
@@ -133,3 +133,24 @@ jobs:
       - name: Stop the local stack
         if: always()
         run: npx supabase stop --no-backup
+
+  # Approval and role fail-closed gate (PR #87 and its integration port). It runs no schema-contract test, so the
+  # certification and build-test jobs above keep reporting the stale golden on their own.
+  auth-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - name: Targeted authentication and authorization suites
+        run: CI=true npx react-scripts test --watchAll=false --testPathPattern='(authFailClosed|effectiveRole|quickAddCellAuthorization|cellsPageRoles|securityAuthorization|memberStatusAuthorization|approvePendingMember|adminPendingPlacement|memberAuthzMigrationContract|releaseHardening|migrationArchitecture)'
+      - run: npx playwright install --with-deps chromium
+      - name: Approval gate in the browser (mocked Supabase, isolated server)
+        env:
+          PLAYWRIGHT_ISOLATED: '1'
+        run: npx playwright test e2e/approval-gate.spec.ts --project=chromium
