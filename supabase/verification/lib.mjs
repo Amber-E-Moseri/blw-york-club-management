@@ -144,3 +144,29 @@ export const TINY_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
   'base64'
 );
+
+
+/**
+ * Read-only owner query for one identity claim. identity_claims is revoked from every API role, so a behavioural check
+ * cannot read it through the API. Local-only, like setProfileAsOwner: the same DSN guard applies, and the id is UUID-checked
+ * before it reaches the SQL text. Resolves { status, candidates } or null when no claim exists.
+ */
+export function ownerIdentityClaim(contactId) {
+  const dsn = process.env.LOCAL_OWNER_DATABASE_URL;
+  if (!dsn) return Promise.reject(new Error('ownerIdentityClaim: LOCAL_OWNER_DATABASE_URL is required'));
+  if (!/^postgres(ql)?:\/\/[^@]*@(127\.0\.0\.1|localhost)[:/]/.test(dsn)) {
+    return Promise.reject(new Error('ownerIdentityClaim: refusing a non-local owner connection'));
+  }
+  if (!UUID.test(contactId)) return Promise.reject(new Error('ownerIdentityClaim: contact id is not a UUID'));
+  const sql = `select status, candidate_person_ids::text from public.identity_claims where contact_id = '${contactId}';`;
+  return new Promise((resolve, reject) => {
+    execFile('psql', [dsn, '-X', '-q', '-At', '-F', '|', '-c', sql], (err, stdout, stderr) => {
+      if (err) return reject(new Error(`ownerIdentityClaim: ${stderr || err.message}`));
+      const line = stdout.trim();
+      if (!line) return resolve(null);
+      const [status, list] = line.split('|');
+      const candidates = (list ?? '{}').replace(/^\{|\}$/g, '').split(',').filter(Boolean);
+      resolve({ status, candidates });
+    });
+  });
+}

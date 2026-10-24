@@ -19,6 +19,7 @@ import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { setProfileAsOwner } from './lib.mjs';
 
 const require = createRequire(import.meta.url);
 const ts = require('typescript');
@@ -214,7 +215,8 @@ async function createUser(label) {
 }
 
 async function setProfile(id, role, status) {
-  await rest('PATCH', `/rest/v1/profiles?id=eq.${id}`, { role, status });
+  // Fixture state is written only through the local owner connection (migration 094 removes it from service_role).
+  await setProfileAsOwner(id, { role, status });
 }
 
 function fakeKeys() {

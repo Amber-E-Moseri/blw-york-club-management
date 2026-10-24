@@ -8,7 +8,7 @@
 // (email-only person match, createPerson, contacts insert, idempotency-key recovery) so that the real database
 // constraints decide the outcome.
 import { createHmac, randomUUID } from 'node:crypto';
-import { harness, setProfileAsOwner } from './lib.mjs';
+import { harness, ownerIdentityClaim, setProfileAsOwner } from './lib.mjs';
 
 const h = harness('p0-behavioural');
 const { admin, expect } = h;
@@ -120,8 +120,8 @@ try {
   expect('A4 two legitimate contacts with the same person on the same day are both recorded', !d1.error && !d2.error && sameDayRows === 2, `rows=${sameDayRows} ${d1.error ?? ''} ${d2.error ?? ''}`);
   // D2 identity review (migration 097): a second contact whose email is already held by another person is stored under its own
   // person with no identity, and an open identity claim lists the existing person for staff review. Nothing merges silently.
-  const d2Claim = await admin.from('identity_claims').select('status, candidate_person_ids').eq('contact_id', d2.contact?.id ?? '00000000-0000-0000-0000-000000000000').maybeSingle();
-  expect('A4b a second contact for an email already held is not merged silently: an open identity claim lists the existing person for review', d2Claim.data?.status === 'open' && (d2Claim.data?.candidate_person_ids ?? []).includes(d1.contact?.person_id), JSON.stringify(d2Claim.data ?? d2Claim.error));
+  const d2Claim = d2.contact?.id ? await ownerIdentityClaim(d2.contact.id) : null;
+  expect('A4b a second contact for an email already held is not merged silently: an open identity claim lists the existing person for review', d2Claim?.status === 'open' && d2Claim.candidates.includes(d1.contact?.person_id), JSON.stringify(d2Claim));
 
   const retryKey = randomUUID();
   const retryEmail = `retry.${rnd()}@example.test`;
