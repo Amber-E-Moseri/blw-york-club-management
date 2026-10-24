@@ -75,8 +75,13 @@ begin
   insert into public.cells (name, leader_id) values ('Cert Guard Cell', leader_id) returning id into cert_cell;
   -- A pending account cannot be placed in a cell (migration 074). Place it while active, then move it to pending.
   update public.profiles set status = 'active' where id = pending_id;
+  -- The reason is consumed by the audit row it describes (migration 093), so each row states its own.
   perform set_config('app.cell_change_reason', 'owner fixture setup', false);
-  update public.profiles set cell_id = cert_cell where id in (leader_id, member_id, pending_id);
+  update public.profiles set cell_id = cert_cell where id = leader_id;
+  perform set_config('app.cell_change_reason', 'owner fixture setup', false);
+  update public.profiles set cell_id = cert_cell where id = member_id;
+  perform set_config('app.cell_change_reason', 'owner fixture setup', false);
+  update public.profiles set cell_id = cert_cell where id = pending_id;
   update public.profiles set status = 'pending' where id = pending_id;
 
   -- ===== DEFENCE IN DEPTH: a permissive rogue policy must not be enough =====================================================
@@ -103,7 +108,10 @@ begin
   exception when others then perform pg_temp.as_postgres(); perform pg_temp.cert_pass('Guard', 'rejected account cannot reactivate itself (rogue policy present)', sqlerrm); end;
 
   perform pg_temp.as_auth(leader_id);
-  select count(*) into visible from public.profiles where id in (member_id, pending_id);
+  -- A pending applicant is not readable through profiles by a cell leader (migration 095). The leader sees the pending
+  -- applicant through the cell roster instead, so the precondition counts the member row plus that roster entry.
+  select (select count(*) from public.profiles where id = member_id)
+       + (select count(*) from public.cell_leader_pending_roster() r where r.id = pending_id) into visible;
   perform pg_temp.as_postgres();
   if visible = 2 then perform pg_temp.cert_pass('Guard', 'precondition: the cell leader can see the rows it tries to change', visible::text);
   else perform pg_temp.cert_fail('Guard', 'precondition: the cell leader can see the rows it tries to change', visible::text); end if;
