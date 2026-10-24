@@ -1,4 +1,4 @@
-// Typed client for the Website Management backend (migrations 104-107). Calls PostgREST RPCs and reads public views.
+// Typed client for the Website Management backend (migrations 107-116). Calls PostgREST RPCs and reads public views.
 // Public reads use only the anon key. Administrative calls send the signed-in user's access token, so the database
 // checks every permission with that user's identity. No service-role key is ever used in the browser.
 

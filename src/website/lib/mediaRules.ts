@@ -1,5 +1,5 @@
 // Client-side checks for media uploads. These only give quick feedback. The signed-upload function and the storage
-// bucket limits enforce the same rules on the server (supabase/functions/_shared/website-guards.ts, migration 107).
+// bucket limits enforce the same rules on the server (supabase/functions/_shared/website-guards.ts, migration 110).
 
 export type MediaBucketName = 'site-media' | 'rhapsody-pdfs';
 
