@@ -403,6 +403,21 @@ verify_jwt = false
 [functions.dispatch-message]
 verify_jwt = true
 
+# Website functions. The two public endpoints run without a JWT: the inquiry and PDF functions check Turnstile,
+# rate limits and published state themselves. Media upload needs a signed-in staff JWT. Cleanup is called by a
+# scheduler with the service-role key as its bearer token, and checks that token itself.
+[functions.website-inquiry]
+verify_jwt = false
+
+[functions.website-rhapsody-pdf]
+verify_jwt = false
+
+[functions.website-media-upload]
+verify_jwt = true
+
+[functions.website-media-cleanup]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 60627
