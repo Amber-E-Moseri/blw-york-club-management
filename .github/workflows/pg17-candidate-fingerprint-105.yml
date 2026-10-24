@@ -24,7 +24,7 @@ on:
         description: "Integration commit to certify (defaults to the pinned integration commit)"
         required: false
         type: string
-        default: "26a86e2e57e464142efb990a2e8893bd04787f10"
+        default: "20d4584d2020eab3ae9c11b08645299f79288133"
       migrations_tree:
         description: "Git tree of supabase/migrations at candidate_sha (verified before replay)"
         required: false
@@ -41,7 +41,7 @@ permissions:
 
 env:
   # Pinned: the integration commit under certification and its migrations tree. Changing these is a reviewed change.
-  CANDIDATE_SHA: "26a86e2e57e464142efb990a2e8893bd04787f10"
+  CANDIDATE_SHA: "20d4584d2020eab3ae9c11b08645299f79288133"
   MIGRATIONS_TREE: "3edefbdd4395f937c1b4a0cb98e90c450d965e31"
   HISTORY_BASE: "2b2e88f285785ce794942cb43d2b95645d23ba36"
 
