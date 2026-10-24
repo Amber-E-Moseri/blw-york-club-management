@@ -13,7 +13,7 @@
 -- through signed upload URLs. PDFs are read only through short-lived signed URLs. site-media is a public bucket, so
 -- published images are served by URL.
 --
--- Forward-only. Depends on 106 (permissions), 109 (media, rate limits) and 110 (editions). Migrations 000-110 are not
+-- Forward-only. Depends on 107 (permissions), 110 (media, rate limits) and 111 (editions). Migrations 000-111 are not
 -- changed.
 -- ---------------------------------------------------------------------------------------------------------------------
 

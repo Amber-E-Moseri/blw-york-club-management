@@ -1,4 +1,4 @@
-// Website Management (Phase D2) database tests. Replays every migration in supabase/migrations (000-115) on a disposable
+// Website Management (Phase D2) database tests. Replays every migration in supabase/migrations (000-116) on a disposable
 // in-process PGlite database, then exercises the website permission model, publishing, versions, blog, events, inquiries,
 // rate limits, media and privacy. Roles are switched with attempt(), which uses the shim's auth.uid() and role settings.
 // No Docker, no network, no production. Fake accounts only. Exit 1 on any failed expectation.
@@ -76,7 +76,7 @@ const crmBefore = (await owner(`select (select count(*)::int from public.people)
 
 // Hub RBAC fixtures. Website roles are the Hub's admin_roles, with the approved built-in grants written as data. Rows are
 // seeded as the core administrator: the owner's session impersonates that account, so the website guard in migration
-// 106 sees a real core administrator. The owner bypasses RLS here, as other fixtures in this suite do.
+// 107 sees a real core administrator. The owner bypasses RLS here, as other fixtures in this suite do.
 const WEB_BUILTIN = {
   [ROLE.admin]: ['Website Administrator', ['website.pages.edit', 'website.pages.publish', 'website.blog.edit', 'website.blog.publish', 'website.events.manage', 'website.events.publish', 'website.rhapsody.manage', 'website.rhapsody.publish', 'website.media.upload', 'website.media.manage', 'website.navigation.edit', 'website.settings.edit', 'website.settings.publish', 'website.analytics.view', 'website.submissions.review']],
   [ROLE.editor]: ['Website Editor', ['website.pages.edit', 'website.blog.edit', 'website.events.manage', 'website.rhapsody.manage', 'website.media.upload', 'website.media.manage', 'website.navigation.edit']],
@@ -427,7 +427,7 @@ check('hub', 'permission constraint lists 25 keys: 10 Hub and 15 website', keyCo
 check('hub', 'no website role-management key exists', !/website\.roles\.manage/.test(hubCheck.rows[0]?.d ?? ''));
 
 // =====================================================================================================================
-// 2b. Page unpublish (migration 115): withdraw from the public site, keep the draft and versions, republish
+// 2b. Page unpublish (migration 116): withdraw from the public site, keep the draft and versions, republish
 // =====================================================================================================================
 r = await as('authenticated', U.editor, `select web_unpublish_content('page','home','Editor tries to withdraw the page')`);
 check('unpublish', 'website editor cannot unpublish a page', refused(r) && /permission/i.test(r.error || ''), r.error || 'UNEXPECTED SUCCESS');
@@ -467,7 +467,7 @@ r = await as('authenticated', U.publisher, `select web_rollback_content('page','
 check('unpublish', 'rollback restores a page after unpublish', r.ok, r.error || '');
 
 // =====================================================================================================================
-// 2c. Anonymous execution and direct reads (migration 114 security remediation, carried into the integrated chain)
+// 2c. Anonymous execution and direct reads (migration 115 security remediation, carried into the integrated chain)
 // =====================================================================================================================
 const SENSITIVE = [
   `select web_list_inquiries(null)`,
@@ -530,8 +530,8 @@ check('security', 'a signed-in member with no website role is refused on every s
 const memberRead = await as('authenticated', U.member, `select count(*)::int n from public.web_content`);
 check('security', 'a signed-in member cannot read draft content', refused(memberRead), memberRead.error || 'UNEXPECTED SUCCESS');
 
-// ---- Rhapsody (migration 108)
-// Rhapsody and analytics checks for migration 108. Spliced into website_d2_pglite_test.mjs before its summary.
+// ---- Rhapsody (migration 111)
+// Rhapsody and analytics checks for migration 111. Spliced into website_d2_pglite_test.mjs before its summary.
 // Uses the same accounts, helpers and role seeds as the main suite.
 
 {
@@ -619,7 +619,7 @@ rr = await as('authenticated', U.editor, `select pdf_path from public.web_list_e
 }
 
 
-// ---------- Edge support (migration 109): client limits, upload permission, PDF resolver
+// ---------- Edge support (migration 112): client limits, upload permission, PDF resolver
 {
   const area = 'edge';
   const CLIENT_A = createHash('sha256').update('client-a').digest('hex');
@@ -683,7 +683,7 @@ rr = await as('authenticated', U.editor, `select pdf_path from public.web_list_e
   await owner(`update public.web_media set status = 'active' where id = $1`, [pdfId]);
 }
 
-// ---------- Content links (migration 105 regex fix): empty, long and unsafe section links
+// ---------- Content links (migration 108, web_content section links): empty, long and unsafe section links
 {
   const area = 'links105';
   const cur = (await as('authenticated', U.editor, `select draft_version from public.web_get_content('page','what_we_do')`)).rows[0];
@@ -700,7 +700,7 @@ rr = await as('authenticated', U.editor, `select pdf_path from public.web_list_e
   check(area, 'a link over 500 characters is refused', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
 }
 
-// ---------- Migration 110: verified registration and orphaned-upload discovery
+// ---------- Migration 113: verified registration and orphaned-upload discovery
 {
   const area = 'media110';
   autoStage = false;
@@ -735,7 +735,7 @@ rr = await as('authenticated', U.editor, `select pdf_path from public.web_list_e
   check(area, 'anon cannot list orphaned uploads', refused(rr), rr.error || 'UNEXPECTED SUCCESS');
 }
 
-// ---------- Migration 111: revalidation before each deletion
+// ---------- Migration 114: revalidation before each deletion
 {
   const area = 'reval111';
   const old = "now() - interval '3 days'";

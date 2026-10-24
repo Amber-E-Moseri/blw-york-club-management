@@ -1,9 +1,9 @@
--- 106_website_authorization.sql
+-- 107_website_authorization.sql
 --
 -- Website Management authorization on the Hub's existing admin RBAC. Replaces the D1/D2 migration 104, which created
 -- a second, independent role system (web_roles, web_role_permissions, web_role_assignments). That system is not created
 -- here. Forward-only: it changes one check constraint on admin_role_permissions (adds website.* keys) and creates new
--- objects. It does not alter any table, policy, grant or function from migrations 000-105.
+-- objects. It does not alter any table, policy, grant or function from migrations 000-106.
 --
 -- Authority model:
 --   * web_is_core_admin(): an ACTIVE profile with role = 'admin' ONLY. Coordinators are excluded on purpose, as in D1.

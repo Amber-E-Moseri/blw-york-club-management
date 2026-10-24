@@ -1,7 +1,7 @@
--- 115_web_unpublish_content.sql
+-- 116_web_unpublish_content.sql
 --
 -- Page unpublish. Adds the one missing content workflow: withdrawing a published page from the public site. Forward-only.
--- Depends on 107 (web_content, web_versions, v_public_content) and 114 (_web_publish_permission). Migrations 000-114
+-- Depends on 108 (web_content, web_versions, v_public_content) and 115 (_web_publish_permission). Migrations 000-115
 -- are not changed.
 --
 -- Behaviour:

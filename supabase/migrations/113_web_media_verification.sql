@@ -6,7 +6,7 @@
 --   * web_orphaned_uploads lists storage objects that nothing references: no web_media row and no mention of the path in
 --     any published or draft website content. Service role only. The cleanup function deletes only what this returns.
 --
--- Forward-only. Depends on 106 (permissions, audit), 107 (content), 109 (media). Migrations 000-111 are not changed.
+-- Forward-only. Depends on 107 (permissions, audit), 108 (content), 110 (media). Migrations 000-112 are not changed.
 -- ---------------------------------------------------------------------------------------------------------------------
 
 create or replace function public.web_register_media(p_bucket text, p_storage_path text, p_mime text, p_bytes bigint, p_alt_text text)

@@ -5,7 +5,7 @@
 -- object or save a draft that mentions it. web_upload_still_unreferenced is asked again for each object immediately
 -- before it is deleted, with the same rules and the same minimum age. Service role only.
 --
--- Forward-only. Depends on 107 (content), 109 (media) and 112 (orphan discovery). Migrations 000-112 are not changed.
+-- Forward-only. Depends on 108 (content), 110 (media) and 113 (orphan discovery). Migrations 000-113 are not changed.
 -- ---------------------------------------------------------------------------------------------------------------------
 
 create or replace function public.web_upload_still_unreferenced(p_bucket text, p_object_name text, p_older_than_minutes integer)

@@ -1,7 +1,7 @@
--- 105_web_content.sql
+-- 108_web_content.sql
 --
 -- Website content: drafts, immutable versions, publication pointers and rollback (Phase D1 section 3 and 8).
--- Forward-only. Depends on 106 (web_has_permission, web_audit_log). Does not alter migrations 000-106.
+-- Forward-only. Depends on 107 (web_has_permission, web_audit_log). Does not alter migrations 000-107.
 --
 -- Model:
 --   web_content (kind, key) holds the DRAFT body and a pointer to the PUBLISHED version. Public readers never see the draft.

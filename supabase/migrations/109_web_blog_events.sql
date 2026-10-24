@@ -1,7 +1,7 @@
--- 106_web_blog_events.sql
+-- 109_web_blog_events.sql
 --
 -- Blog posts (draft, published, scheduled, archived) and public event publication (Phase D1 section 3.5 and 3.6).
--- Forward-only. Depends on 106 (permissions, audit) and on the events table (037 columns, 038, 060, 078).
+-- Forward-only. Depends on 107 (permissions, audit) and on the events table (037 columns, 038, 060, 078).
 -- Does not alter any existing table. Public readers see only published posts and only public events.
 
 -- ---------------------------------------------------------------------------------------------------------------------

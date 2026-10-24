@@ -1,6 +1,6 @@
--- 112_web_security_remediation.sql
+-- 115_web_security_remediation.sql
 --
--- Forward-only correction of confirmed authorization gaps in the website CMS (migrations 106-113). Migrations 000-113
+-- Forward-only correction of confirmed authorization gaps in the website CMS (migrations 107-114). Migrations 000-114
 -- are not changed. Every function below is replaced with create or replace, so existing grants on the function are kept
 -- unless this file states otherwise.
 --

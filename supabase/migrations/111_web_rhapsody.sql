@@ -1,7 +1,7 @@
--- 108_web_rhapsody.sql
+-- 111_web_rhapsody.sql
 --
 -- Rhapsody of Realities library: editions, PDF attachment, authorization, download-click tracking and aggregated
--- analytics (Phase D1 section 3.7 and 3.8). Forward-only. Depends on 106 (permissions, audit) and 109 (web_media).
+-- analytics (Phase D1 section 3.7 and 3.8). Forward-only. Depends on 107 (permissions, audit) and 110 (web_media).
 --
 -- Rules:
 --   * An edition can be published only with a named authorizer and an authorization date, and only with an attached

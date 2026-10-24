@@ -1,7 +1,7 @@
--- 107_web_inquiries_media.sql
+-- 110_web_inquiries_media.sql
 --
 -- Public inquiries (Contact Us, New Here, prayer), rate limiting and spam protection, the media register and the storage
--- bucket definitions (Phase D1 sections 3.4, 3.8, 7). Forward-only. Depends on 106 (permissions, audit).
+-- bucket definitions (Phase D1 sections 3.4, 3.8, 7). Forward-only. Depends on 107 (permissions, audit).
 --
 -- Public submission boundary:
 --   * Anonymous visitors can call web_submit_inquiry only. It writes to web_inbound_submissions, which no client can read.

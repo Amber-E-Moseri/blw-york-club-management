@@ -28,7 +28,7 @@ Keep `website-media-upload` on the default (verified).
 
 ## Database
 
-Migration `109_web_edge_support.sql` adds the per-client limiter (service role only), the upload permission check
+Migration `112_web_edge_support.sql` adds the per-client limiter (service role only), the upload permission check
 (authenticated only) and the PDF path resolver (service role only). No storage policy grants anonymous or signed-in
 users direct object access.
 

@@ -1,4 +1,4 @@
-// Local gate test for the website-inquiry Edge Function (migration 112).
+// Local gate test for the website-inquiry Edge Function (migration 113).
 //
 // The function module is loaded unchanged. Its Deno.serve call is captured, and its outbound calls are routed:
 //   * Turnstile siteverify is answered by the test (only the token "good-token" passes);
@@ -7,7 +7,7 @@
 // Nothing here touches a hosted Supabase project, a production project or real Turnstile.
 //
 // Run: deno test -A supabase/verification/edge/website_inquiry_gate_test.ts
-// Needs: TEST_DB (a database built from migrations 000-112), PSQL_BIN, PG_PORT (default 55417).
+// Needs: TEST_DB (a database built from migrations 000-113), PSQL_BIN, PG_PORT (default 55417).
 
 const SUPABASE_URL = 'http://supabase.gate.invalid';
 const ANON_KEY = 'anon-public-key-for-tests';
