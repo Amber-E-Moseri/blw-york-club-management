@@ -235,6 +235,10 @@ export function createWebsiteApi(config: ApiConfig) {
     rollbackContent(kind: ContentKind, key: string, versionId: string, reason: string): Promise<void> {
       return rpc<void>('web_rollback_content', { p_kind: kind, p_key: key, p_version_id: versionId, p_reason: reason });
     },
+    /** Withdraws a published page from the public site. The draft and every version are kept. */
+    unpublishPage(key: string, reason: string): Promise<void> {
+      return rpc<void>('web_unpublish_content', { p_kind: 'page', p_key: key, p_reason: reason });
+    },
     async listVersions(kind: ContentKind, key: string): Promise<VersionRow[]> {
       const rows = await rpc<Array<{ id: string; version_no: number; note: string; created_at: string; is_published: boolean }>>('web_list_versions', { p_kind: kind, p_key: key });
       return rows.map((r) => ({ id: r.id, versionNo: r.version_no, note: r.note, createdAt: r.created_at, isPublished: r.is_published }));

@@ -57,6 +57,7 @@ export function PagesScreen({ api, perms }: Ctx) {
   const [confirm, setConfirm] = useState<string[] | null>(null);
   const [device, setDevice] = useState<PreviewDevice>('desktop');
   const [rollbackReason, setRollbackReason] = useState('');
+  const [unpublishReason, setUnpublishReason] = useState('');
 
   const load = async (k: string) => {
     try {
@@ -91,6 +92,16 @@ export function PagesScreen({ api, perms }: Ctx) {
       await load(key);
     } catch (e) { setConfirm(null); setNotice({ tone: 'error', text: errorMessage(e) }); }
   };
+  const unpublish = async () => {
+    if (unpublishReason.trim().length < 5) { setNotice({ tone: 'error', text: 'Give a reason of at least 5 characters to unpublish.' }); return; }
+    try {
+      await api.unpublishPage(key, unpublishReason.trim());
+      setUnpublishReason('');
+      setNotice({ tone: 'ok', text: 'Unpublished. The public site no longer shows this page. The draft and versions are kept.' });
+      await load(key);
+    } catch (e) { setNotice({ tone: 'error', text: errorMessage(e) }); }
+  };
+
   const rollback = async (v: VersionRow) => {
     if (rollbackReason.trim().length < 5) { setNotice({ tone: 'error', text: 'Give a reason of at least 5 characters to roll back.' }); return; }
     try {
@@ -171,6 +182,16 @@ export function PagesScreen({ api, perms }: Ctx) {
           {canPublish && <Button onClick={() => setConfirm(publishSummary(draft, loaded.publishedBody))}>Publish…</Button>}
         </div>
       </Card>
+
+      {canPublish && loaded.publishedVersionNo !== null && (
+        <Card title="Unpublish">
+          <p className="text-sm text-ink-soft">Withdraws this page from the public site. The draft and every version are kept, so you can publish it again.</p>
+          <div className="mt-4 grid gap-4 md:max-w-md">
+            <Field label="Reason for unpublishing" hint="Required. At least 5 characters. Recorded in the audit trail.">{(p) => <input {...p} className={inputClass} value={unpublishReason} onChange={(e) => setUnpublishReason(e.target.value)} />}</Field>
+          </div>
+          <div className="mt-4"><Button variant="secondary" disabled={unpublishReason.trim().length < 5} onClick={unpublish}>Unpublish page</Button></div>
+        </Card>
+      )}
 
       <Card title="Preview" actions={
         <Field label="Device">{(p) => (

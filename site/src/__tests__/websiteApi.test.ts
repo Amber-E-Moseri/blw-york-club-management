@@ -85,6 +85,16 @@ describe('administrative calls', () => {
   });
 });
 
+describe('page unpublish', () => {
+  it('calls the unpublish RPC for a page with its reason', async () => {
+    const { calls, impl } = fakeFetch([{ status: 200, body: null }]);
+    const api = createWebsiteApi(config('t', impl));
+    await api.unpublishPage('home', 'Withdrawn for a rewrite');
+    expect(calls[0].url).toContain('/rest/v1/rpc/web_unpublish_content');
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ p_kind: 'page', p_key: 'home', p_reason: 'Withdrawn for a rewrite' });
+  });
+});
+
 describe('public reads', () => {
   it('never sends a user token for public content, even when a user is signed in', async () => {
     const { calls, impl } = fakeFetch([{ status: 200, body: [] }]);
