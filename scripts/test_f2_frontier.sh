@@ -32,7 +32,7 @@ check "count at 103 (historical frontier 000-103)" "$HISTORICAL_103_COUNT" "$(ex
 
 # Current head: the authoritative chain runs 000 through HEAD_VERSION. Update HEAD_VERSION with each forward migration.
 # The check below fails when the repository's last file disagrees, so the constant cannot go stale silently.
-HEAD_VERSION=105
+HEAD_VERSION=106
 check "last file is the current head" "$HEAD_VERSION" "$((10#$(ls "$MIG_DIR" | tail -1 | cut -c1-3)))"
 check "count at head (whole chain)" "$TOTAL" "$(expected_count "$(printf '%03d' "$HEAD_VERSION")")"
 check "chain holds head+1 files (000 to head)" "$((HEAD_VERSION + 1))" "$TOTAL"

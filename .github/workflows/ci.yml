@@ -99,15 +99,13 @@ jobs:
         if: always()
         run: npx supabase stop --no-backup
 
-  # CURRENT-HEAD gate: a fresh stack replays EVERY migration (000-105) and certifies the 105 frontier against the CURRENT
-  # contract. Migrations 000-103 must be byte-identical to the reviewed history base (2b2e88f). Independent of the 101 gate.
+  # HISTORICAL integrated gate (105): the chain through 105, with migrations above 105 held aside for the replay. It checks
+  # the 105 frontier and the candidate fingerprint against the 105-era contract. Kept as evidence; the current head is 106.
   f2-integrated-105:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -123,13 +121,46 @@ jobs:
         run: bash scripts/test_f2_target_guard.sh
       - name: Start the disposable local stack
         run: npx supabase start
-      - name: Integrated 105 certification (current head, full chain, membership suite, candidate fingerprint)
+      - name: "Integrated 105 certification (historical: chain through 105, 105-era contract)"
+        env:
+          F2_DB_ADMIN: supabase_admin
+          F2_OUT_DIR: ${{ runner.temp }}
+        run: scripts/certify-integrated-105.sh
+      - name: Stop the local stack
+        if: always()
+        run: npx supabase stop --no-backup
+
+  # CURRENT-HEAD gate: a fresh stack replays EVERY migration (000-106) and certifies the 105 frontier against the CURRENT
+  # contract. Migrations 000-103 must be byte-identical to the reviewed history base (2b2e88f). Independent of the 101 gate.
+  f2-integrated-106:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Point the local stack at a per-run disposable project
+        run: |
+          ID="f2i106-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          sed -i -E "s/^project_id = \".*\"/project_id = \"$ID\"/" supabase/config.toml
+          grep -E '^project_id' supabase/config.toml
+          echo "F2_DISPOSABLE_PROJECT_ID=$ID" >> "$GITHUB_ENV"
+      - name: Target guard self-test
+        run: bash scripts/test_f2_target_guard.sh
+      - name: Start the disposable local stack
+        run: npx supabase start
+      - name: "Integrated 106 certification (current head, full chain, membership suite, candidate fingerprint)"
         env:
           F2_DB_ADMIN: supabase_admin
           F2_OUT_DIR: ${{ runner.temp }}
           F2_EXPECTED_SHA: ${{ github.sha }}
           F2_HISTORY_BASE: 2b2e88f285785ce794942cb43d2b95645d23ba36
-        run: scripts/certify-integrated-105.sh
+        run: scripts/certify-integrated-106.sh
       - name: Stop the local stack
         if: always()
         run: npx supabase stop --no-backup
