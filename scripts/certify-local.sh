@@ -30,7 +30,10 @@ psql_harness() {
 step "Start local stack"
 npx supabase start
 
-eval "$(npx supabase status -o env | grep -E '^(ANON_KEY|SERVICE_ROLE_KEY|API_URL)=')"
+eval "$(npx supabase status -o env | grep -E '^(ANON_KEY|SERVICE_ROLE_KEY|API_URL|DB_URL)=')"
+# The authorization workflow harness needs a local-only owner login for fixture state (supabase/verification/lib.mjs).
+# It is the local stack's own database URL; the lib refuses any host other than 127.0.0.1 or localhost.
+export LOCAL_OWNER_DATABASE_URL="$DB_URL"
 export SUPABASE_URL="$API_URL" SUPABASE_ANON_KEY="$ANON_KEY" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
 export SUPABASE_FUNCTIONS_URL="$API_URL/functions/v1"
 DB="$(docker ps --format '{{.Names}}' | grep '^supabase_db_' | head -1)"
@@ -75,13 +78,20 @@ if [[ "$booted" -ne 1 ]]; then
 fi
 
 step "6. Behavioural harnesses (real API, throwaway accounts)"
+# Every harness runs even when an earlier one reports failures, so each result is visible. The step still fails if any did.
+behavioural_failed=0
 for harness in auth_workflow_certification authorization_certification email_push_certification \
   storage_certification p0_behavioural_certification p0_boundary_certification edge_function_security_certification; do
-  node "supabase/verification/$harness.mjs"
+  node "supabase/verification/$harness.mjs" || { echo "FAILED: $harness" >&2; behavioural_failed=1; }
 done
 
 # notify-event runs from the transpiled source against the local database and a localhost push mock, so it does not
 # need the edge runtime and runs here as well as in CI.
-node supabase/verification/notify_event_certification.mjs
+node supabase/verification/notify_event_certification.mjs || { echo "FAILED: notify_event_certification" >&2; behavioural_failed=1; }
+
+if [[ "$behavioural_failed" -ne 0 ]]; then
+  echo "Behavioural harnesses failed. Every harness ran; see the FAILED lines above." >&2
+  exit 1
+fi
 
 step "Certification complete"

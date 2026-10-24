@@ -91,8 +91,15 @@ begin
   on conflict (id) do update set status = excluded.status, role = excluded.role, cell_id = excluded.cell_id, full_name = excluded.full_name;
 
   insert into public.cells (id, name, leader_id) values (cell_a, 'Cert Cell A', leader_a), (cell_b, 'Cert Cell B', leader_b);
+  -- The reason is consumed by the audit row it describes (migration 093), so each row states its own.
   perform set_config('app.cell_change_reason', 'owner fixture setup', false);
-  update public.profiles set cell_id = cell_a where id in (a1, a2, a3, a4);
+  update public.profiles set cell_id = cell_a where id = a1;
+  perform set_config('app.cell_change_reason', 'owner fixture setup', false);
+  update public.profiles set cell_id = cell_a where id = a2;
+  perform set_config('app.cell_change_reason', 'owner fixture setup', false);
+  update public.profiles set cell_id = cell_a where id = a3;
+  perform set_config('app.cell_change_reason', 'owner fixture setup', false);
+  update public.profiles set cell_id = cell_a where id = a4;
   perform set_config('app.cell_change_reason', 'owner fixture setup', false);
   update public.profiles set cell_id = cell_b where id = b1;
 

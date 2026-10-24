@@ -8,7 +8,7 @@
 // (email-only person match, createPerson, contacts insert, idempotency-key recovery) so that the real database
 // constraints decide the outcome.
 import { createHmac, randomUUID } from 'node:crypto';
-import { harness, setProfileAsOwner } from './lib.mjs';
+import { harness, ownerIdentityClaim, setProfileAsOwner } from './lib.mjs';
 
 const h = harness('p0-behavioural');
 const { admin, expect } = h;
@@ -25,65 +25,37 @@ const rnd = () => randomUUID().replace(/-/g, '').slice(0, 10);
 const phoneOf = () => `+1416${String(Math.floor(Math.random() * 9000000) + 1000000)}`;
 
 /**
- * Mirrors src/lib/queries/people.ts createContactPerson() statement for statement (exact email match through the
- * find_person_by_email RPC, create person, race retry, explicit ambiguous-phone error, contact insert, idempotency
- * recovery). The AUTHORITATIVE proof of the shipped code is src/__tests__/quickAddRealCode.integration.test.ts,
- * which runs the real function; this mirror exists so the database-level behaviour is also visible in this report.
+ * The shipped path: src/lib/queries/contacts.ts createContact() makes one submit_contact call per contact (migration 097).
+ * The database resolves the person from the normalised email or phone, applies cell authorization, records
+ * logged_by = auth.uid(), and returns the original contact for a repeated idempotency key. No direct INSERT on contacts
+ * and no client access to find_person_by_email exist (migrations 097 and 098), so this helper performs neither.
  */
 async function quickAdd(client, input) {
-  const findByEmail = async (email) => {
-    const { data, error } = await client.rpc('find_person_by_email', { p_email: email });
-    if (error) throw new Error(error.message);
-    return data ?? null;
-  };
-  let personId = null;
-  if (input.email) personId = await findByEmail(input.email);
-  if (!personId) {
-    const { data, error } = await client
-      .from('people')
-      .insert({ full_name: input.fullName.trim(), email: input.email?.trim() || null, phone: input.phone?.trim() || null })
-      .select('id')
-      .single();
-    if (error) {
-      if (/duplicate key|violates unique/i.test(error.message ?? '')) {
-        if (input.email && /email/i.test(error.message ?? '')) {
-          const retried = await findByEmail(input.email);
-          if (retried) personId = retried;
-          else return { error: error.message, stage: 'person' };
-        } else if (/phone/i.test(error.message ?? '')) {
-          return { error: 'ambiguous-phone: a person with this phone number already exists and requires staff review', stage: 'person' };
-        } else {
-          return { error: error.message, stage: 'person' };
-        }
-      } else {
-        return { error: error.message, stage: 'person' };
-      }
-    } else {
-      personId = data.id;
-      createdPeople.push(personId);
-    }
-  }
-  const { data: contactRow, error: contactErr } = await client
+  const { data, error } = await client.rpc('submit_contact', {
+    p_contact_name: input.fullName.trim(),
+    p_cell_id: input.cellId ?? null,
+    p_contact_phone: input.phone?.trim() || null,
+    p_email: input.email?.trim() || null,
+    p_phone_hidden: false,
+    p_tag: null,
+    p_notes: null,
+    p_follow_up_status: null,
+    p_follow_up_assignee: null,
+    p_date_contacted: input.dateContacted ?? new Date().toISOString().split('T')[0],
+    p_is_member: false,
+    p_idempotency_key: input.idempotencyKey ?? null,
+  });
+  if (error) return { error: error.message, stage: 'contact' };
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row?.contact_id) return { error: 'The contact could not be saved.', stage: 'contact' };
+  const { data: contact, error: readErr } = await client
     .from('contacts')
-    .insert({
-      person_id: personId,
-      contact_name: input.fullName.trim(),
-      contact_phone: input.phone?.trim() || null,
-      email: input.email?.trim() || null,
-      cell_id: input.cellId,
-      logged_by: input.loggedBy,
-      date_contacted: input.dateContacted ?? new Date().toISOString().split('T')[0],
-      idempotency_key: input.idempotencyKey ?? null,
-    })
-    .select('id, person_id')
-    .single();
-  if (contactErr && input.idempotencyKey && /duplicate key|unique/i.test(contactErr.message ?? '')) {
-    const { data: again } = await client.from('contacts').select('id, person_id')
-      .eq('logged_by', input.loggedBy).eq('idempotency_key', input.idempotencyKey).maybeSingle();
-    if (again) return { contact: again, replay: true, personId };
-  }
-  if (contactErr) return { error: contactErr.message, stage: 'contact' };
-  return { contact: contactRow, personId };
+    .select('id, person_id, logged_by')
+    .eq('id', row.contact_id)
+    .maybeSingle();
+  if (readErr) return { error: readErr.message, stage: 'read' };
+  if (contact?.person_id) createdPeople.push(contact.person_id);
+  return { contact, personId: contact?.person_id ?? null };
 }
 
 const mintUnsubToken = (userId, notifType, ttl = 3600) => {
@@ -146,14 +118,17 @@ try {
   const d2 = await quickAdd(coordinator.client, { fullName: 'Same Day', email: sameDayEmail, cellId: cellA, loggedBy: coordinator.id, idempotencyKey: randomUUID(), dateContacted: today });
   const { count: sameDayRows } = await admin.from('contacts').select('id', { count: 'exact', head: true }).eq('email', sameDayEmail).eq('date_contacted', today);
   expect('A4 two legitimate contacts with the same person on the same day are both recorded', !d1.error && !d2.error && sameDayRows === 2, `rows=${sameDayRows} ${d1.error ?? ''} ${d2.error ?? ''}`);
-  expect('A4b both contacts point at one person', d1.contact?.person_id && d1.contact.person_id === d2.contact?.person_id);
+  // D2 identity review (migration 097): a second contact whose email is already held by another person is stored under its own
+  // person with no identity, and an open identity claim lists the existing person for staff review. Nothing merges silently.
+  const d2Claim = d2.contact?.id ? await ownerIdentityClaim(d2.contact.id) : null;
+  expect('A4b a second contact for an email already held is not merged silently: an open identity claim lists the existing person for review', d2Claim?.status === 'open' && d2Claim.candidates.includes(d1.contact?.person_id), JSON.stringify(d2Claim));
 
   const retryKey = randomUUID();
   const retryEmail = `retry.${rnd()}@example.test`;
   const r1 = await quickAdd(coordinator.client, { fullName: 'Retry Person', email: retryEmail, cellId: cellA, loggedBy: coordinator.id, idempotencyKey: retryKey });
   const r2 = await quickAdd(coordinator.client, { fullName: 'Retry Person', email: retryEmail, cellId: cellA, loggedBy: coordinator.id, idempotencyKey: retryKey });
   const { count: retryRows } = await admin.from('contacts').select('id', { count: 'exact', head: true }).eq('idempotency_key', retryKey);
-  expect('A5 retry with the identical idempotency key creates exactly one contact and returns the original', retryRows === 1 && r2.replay === true && r2.contact?.id === r1.contact?.id, `rows=${retryRows} replay=${r2.replay} err=${r2.error ?? ''}`);
+  expect('A5 retry with the identical idempotency key creates exactly one contact and returns the original', retryRows === 1 && r2.contact?.id === r1.contact?.id, `rows=${retryRows} replay=${r2.replay} err=${r2.error ?? ''}`);
 
   const raceKey = randomUUID();
   const raceEmail = `race.${rnd()}@example.test`;
@@ -170,12 +145,19 @@ try {
 
   const lead1Ok = await quickAdd(leader1.client, { fullName: 'Leader Contact', email: `l1.${rnd()}@example.test`, cellId: cellA, loggedBy: leader1.id, idempotencyKey: randomUUID() });
   const lead1Bad = await quickAdd(leader1.client, { fullName: 'Wrong Cell', email: `l1b.${rnd()}@example.test`, cellId: cellB, loggedBy: leader1.id, idempotencyKey: randomUUID() });
-  const memberTry = await quickAdd(member.client, { fullName: 'Member Try', email: `m.${rnd()}@example.test`, cellId: cellA, loggedBy: member.id, idempotencyKey: randomUUID() });
+  const memberTry = await quickAdd(member.client, { fullName: 'Member Try', email: `m.${rnd()}@example.test`, cellId: cellB, loggedBy: member.id, idempotencyKey: randomUUID() });
+  const memberOwnCell = await quickAdd(member.client, { fullName: 'Member Own Cell', email: `mo.${rnd()}@example.test`, cellId: cellA, loggedBy: member.id, idempotencyKey: randomUUID() });
   const spoof = await quickAdd(leader1.client, { fullName: 'Spoof', email: `sp.${rnd()}@example.test`, cellId: cellA, loggedBy: coordinator.id, idempotencyKey: randomUUID() });
   expect('A8a cell leader can log a contact in the cell they lead', !lead1Ok.error, lead1Ok.error);
   expect('A8b cell leader cannot log a contact into another cell', !!lead1Bad.error && lead1Bad.stage === 'contact', lead1Bad.error ?? 'succeeded');
-  expect('A8c ordinary member cannot log a contact', !!memberTry.error, memberTry.error ?? 'succeeded');
-  expect('A8d EXPECTED: a leader cannot attribute a contact to another user (logged_by spoofing)', !!spoof.error, 'spoofed logged_by accepted');
+  expect('A8c an ordinary member cannot log a contact into a cell they do not belong to (migration 097 scope)', !!memberTry.error, memberTry.error ?? 'succeeded');
+  expect('A8e an active member can log a contact into their own cell (migration 092)', !memberOwnCell.error, memberOwnCell.error);
+  expect('A8d a contact is attributed to the caller: submit_contact has no logged_by parameter (spoofing is not expressible)', !spoof.error && spoof.contact?.logged_by === leader1.id, JSON.stringify(spoof.contact ?? spoof.error));
+  // Security intent (migrations 097 and 098): a client cannot look a person up by email, and cannot write a contact directly.
+  const lookupAsMember = await member.client.rpc('find_person_by_email', { p_email: `s1.${rnd()}@example.test` });
+  expect('S1 an authenticated member cannot call find_person_by_email (revoked from client roles, migration 098)', !!lookupAsMember.error, JSON.stringify(lookupAsMember.data));
+  const directInsert = await member.client.from('contacts').insert({ contact_name: 'Direct Write', cell_id: cellA, logged_by: member.id, date_contacted: new Date().toISOString().split('T')[0] });
+  expect('S2 an authenticated member cannot INSERT into contacts directly (writes go through submit_contact)', !!directInsert.error, JSON.stringify(directInsert.data));
   for (const [label, u] of [['pending', pending], ['rejected', rejected], ['inactive', inactive]]) {
     const r = await quickAdd(u.client, { fullName: `${label} try`, email: `${label}.${rnd()}@example.test`, cellId: cellA, loggedBy: u.id, idempotencyKey: randomUUID() });
     expect(`A9 ${label} account cannot create people or contacts`, !!r.error, 'succeeded');

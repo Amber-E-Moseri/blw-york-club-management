@@ -41,6 +41,7 @@ declare
   event_id_v          uuid := '30000000-0000-0000-0000-000000000030';
   confession_id_v     uuid := '30000000-0000-0000-0000-000000000040';
   row_count           int;
+  announce_spec       uuid;
 begin
   -- Seed: auth + profiles
   insert into auth.users (id, email, role, aud, raw_user_meta_data, created_at, updated_at, confirmation_token, email_confirmed_at)
@@ -84,11 +85,20 @@ begin
   -- BLOCK A: announcements_manage — migration 031
   --------------------------------------------------------------------------
 
-  -- A1: active cell leader CAN manage announcements
+  -- A1: active cell leader CAN post to an audience for a cell they lead. Since migration 075 a leader posts only with a
+  -- single-cell audience for their own cell; broadcasts (no audience) are staff-only.
+  insert into public.cells (id, name, leader_id) values ('31000000-0000-0000-0000-000000000031'::uuid, 'Cert 031 Cell', active_leader_id) on conflict (id) do nothing;
+  -- A cell audience must resolve to at least one active member, so one active member is placed in the cell.
+  perform set_config('app.cell_change_reason', 'owner fixture setup', false);
+  update public.profiles set cell_id = '31000000-0000-0000-0000-000000000031'::uuid where id = active_member_id;
   perform pg_temp.as_auth(active_leader_id);
+  -- The spec is created in its own statement: a row written by a function inside the same INSERT is not yet visible to the
+  -- policy check that follows it.
+  announce_spec := public.create_audience_spec('cells', array['31000000-0000-0000-0000-000000000031'::uuid]);
   begin
-    insert into public.announcements (id, title, body, author_id, author_name, created_at)
-    values ('30000000-0000-0000-0000-000000000021'::uuid, 'Cell Leader Insert Test', 'test body', active_leader_id, 'Cert Active Leader', now());
+    insert into public.announcements (id, title, body, author_id, author_name, created_at, audience_spec_id)
+    values ('30000000-0000-0000-0000-000000000021'::uuid, 'Cell Leader Insert Test', 'test body', active_leader_id, 'Cert Active Leader', now(),
+            announce_spec);
     get diagnostics row_count = row_count;
     if row_count = 1 then
       perform pg_temp.cert_pass('031 announcements', 'active cell_leader can insert announcement', row_count::text);

@@ -113,8 +113,13 @@ begin
 
   insert into public.cells (name, leader_id) values ('Cert Cell A', leader_a_id) returning id into cell_a;
   insert into public.cells (name, leader_id) values ('Cert Cell B', leader_b_id) returning id into cell_b;
+  -- The reason is consumed by the audit row it describes (migration 093), so each row states its own.
   perform set_config('app.cell_change_reason', 'owner fixture setup', false);
-  update public.profiles set cell_id = cell_a where id in (member_id, leader_a_id, custom_id);
+  update public.profiles set cell_id = cell_a where id = member_id;
+  perform set_config('app.cell_change_reason', 'owner fixture setup', false);
+  update public.profiles set cell_id = cell_a where id = leader_a_id;
+  perform set_config('app.cell_change_reason', 'owner fixture setup', false);
+  update public.profiles set cell_id = cell_a where id = custom_id;
   perform set_config('app.cell_change_reason', 'owner fixture setup', false);
   update public.profiles set cell_id = cell_b where id = leader_b_id;
 
@@ -430,7 +435,8 @@ begin
 
   begin
     perform pg_temp.as_auth(admin_id);
-    insert into public.memberships (person_id, status, role, cell_id) values (person_contact, 'pending', 'member', cell_a);
+    -- Direct membership writes are revoked from authenticated (migration 100). Staff use the membership RPCs.
+    perform public.establish_membership(person_contact, 'pending', 'member', cell_a, 'cert contact to pending member');
     select count(*) into same_person_count from public.memberships where person_id = person_contact and status = 'pending';
     perform pg_temp.as_postgres();
     if same_person_count = 1 then
@@ -445,9 +451,7 @@ begin
 
   begin
     perform pg_temp.as_auth(admin_id);
-    update public.memberships set status = 'active' where person_id = person_contact and status = 'pending';
-    insert into public.membership_transitions (person_id, from_type, to_type, performed_by, notes)
-    values (person_contact, 'pending', 'active', admin_id, 'cert approval');
+    perform public.transition_membership((select m.id from public.memberships m where m.person_id = person_contact and m.status = 'pending'), 'active', 'cert approval');
     select count(*) into transition_count from public.contacts where person_id = person_contact;
     perform pg_temp.as_postgres();
     if transition_count = 1 then
@@ -463,9 +467,9 @@ begin
   insert into public.people (full_name, email, phone) values ('Cert Reject/Reapply', 'cert.reject-reapply@example.test', '+14165550777') returning id into person_rejected;
   begin
     perform pg_temp.as_auth(admin_id);
-    insert into public.memberships (person_id, status, role, cell_id) values (person_rejected, 'pending', 'member', cell_a);
-    update public.memberships set status = 'rejected' where person_id = person_rejected and status = 'pending';
-    insert into public.memberships (person_id, status, role, cell_id) values (person_rejected, 'pending', 'member', cell_a);
+    perform public.establish_membership(person_rejected, 'pending', 'member', cell_a, 'cert first application');
+    perform public.transition_membership((select m.id from public.memberships m where m.person_id = person_rejected and m.status = 'pending'), 'rejected', 'cert reject');
+    perform public.establish_membership(person_rejected, 'pending', 'member', cell_a, 'cert reapply');
     perform pg_temp.as_postgres();
     perform pg_temp.cert_pass('People Lifecycle', 'rejected person can reapply without duplicate human', 'same person has rejected and pending membership history');
   exception when others then

@@ -72,16 +72,23 @@ begin
   insert into public.cells (id, name, leader_id)
   values (test_cell_id, 'Attendance Test Cell', leader_id);
 
+  -- The reason is consumed by the audit row it describes (migration 093), so each row states its own.
   perform set_config('app.cell_change_reason', 'owner fixture setup', false);
-  update public.profiles set cell_id = test_cell_id where id in (leader_id, active_member_id);
+  update public.profiles set cell_id = test_cell_id where id = leader_id;
+  perform set_config('app.cell_change_reason', 'owner fixture setup', false);
+  update public.profiles set cell_id = test_cell_id where id = active_member_id;
 
   insert into public.meetings (id, title, date, time, visibility, cell_id, created_by)
   values (test_meeting_id, 'Attendance Test Meeting', current_date, '19:00', 'public', test_cell_id, meeting_owner_id);
 
+  -- The audience trigger (migration 082) resolves the meeting audience only for a meeting manager. The cell leader of
+  -- the meeting's cell is a manager (is_cell_leader_of), so the fixture records attendance as that leader.
+  perform pg_temp.as_auth(leader_id);
   insert into public.meeting_attendances (id, meeting_id, user_id, user_name)
   values
     (gen_random_uuid(),    test_meeting_id, active_member_id,    'Attendance Active'),
     (other_attendance_id,  test_meeting_id, unrelated_member_id, 'Attendance Unrelated');
+  perform pg_temp.as_postgres();
 
   -- Active member: sees only their own row; meeting itself remains readable.
   perform pg_temp.as_auth(active_member_id);

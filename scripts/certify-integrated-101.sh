@@ -33,17 +33,19 @@ MIG_DIR="supabase/migrations"
 TARGET_VERSION="101"
 MANDATORY_DECLARED=68
 
-version_of() { local base; base="$(basename "$1")"; echo $((10#${base%%_*})); }
-TOTAL=0
-for f in "$MIG_DIR"/*.sql; do TOTAL=$((TOTAL + 1)); done
-[[ "$TOTAL" -gt 0 ]] || { echo "FAIL: no migrations found in $MIG_DIR" >&2; exit 1; }
-LAST_FILE="$(ls "$MIG_DIR" | grep -E '^[0-9]{3}_.*\.sql$' | tail -1)"
-if [[ "${LAST_FILE%%_*}" != "$TARGET_VERSION" ]]; then
-  echo "FAIL: repository's last migration is ${LAST_FILE}, not ${TARGET_VERSION}" >&2
-  exit 1
-fi
+# Historical gate: the chain as it stood at 101. Migrations above 101 are held aside for this replay only, exactly as
+# scripts/certify-f2.sh does, and restored afterwards. The repository's chain is not changed. The current head is certified
+# separately by scripts/certify-integrated-105.sh.
+HOLD_DIR="$(mktemp -d)"
+MOVED=()
+source scripts/f2_frontier_lib.sh
+trap 'restore_moved; rm -rf "$HOLD_DIR"' EXIT
 
-echo "==> 1. Replay the complete chain ($TOTAL files, last $TARGET_VERSION)"
+TOTAL="$(expected_count "$TARGET_VERSION")"
+[[ "$TOTAL" -gt 0 ]] || { echo "FAIL: no migrations at or below $TARGET_VERSION in $MIG_DIR" >&2; exit 1; }
+
+echo "==> 1. Replay the chain through $TARGET_VERSION ($TOTAL files; migrations above $TARGET_VERSION held aside)"
+hold_above "$TARGET_VERSION"
 npx supabase db reset --local
 
 got_max="$("${PSQL[@]}" -d postgres -c "select max(version) from supabase_migrations.schema_migrations")"
@@ -53,6 +55,7 @@ if [[ "$got_max" != "$TARGET_VERSION" || "$got_cnt" != "$TOTAL" ]]; then
   exit 1
 fi
 echo "frontier $TARGET_VERSION verified: $got_cnt migrations applied"
+restore_moved
 
 echo "==> 2. Clone the replay as f2_integrated101"
 bash scripts/f2_clone_db.sh "$C" postgres f2_integrated101
@@ -84,7 +87,9 @@ echo "==> 4. Candidate schema fingerprint and contract check (no golden is read 
 FP="$OUT/schema_fingerprint.candidate-101.json"
 "${PSQL[@]}" -d postgres -q < supabase/verification/schema_fingerprint.sql > "$FP"
 [[ -s "$FP" ]] || { echo "FAIL: fingerprint is empty" >&2; exit 1; }
-node supabase/verification/check_schema_contract.mjs "$FP" > "$OUT/contract-check-101.txt" 2>&1 || {
+# The contract as it stood at 101 (supabase/verification/history/schema_contract.101.json, taken from 4d4eb3d). The current
+# contract covers 102-105 and would reject a correct 101 frontier.
+node supabase/verification/check_schema_contract.mjs "$FP" --contract supabase/verification/history/schema_contract.101.json > "$OUT/contract-check-101.txt" 2>&1 || {
   cat "$OUT/contract-check-101.txt"
   echo "FAIL: schema contract check failed (see $OUT/contract-check-101.txt)" >&2
   exit 1

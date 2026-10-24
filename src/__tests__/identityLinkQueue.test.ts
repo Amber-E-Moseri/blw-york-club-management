@@ -121,9 +121,11 @@ describe('migration 103 text gates (the SQL is NOT executed here)', () => {
     expect(body).not.toMatch(/unique index/i);
   });
 
-  test('103 is the last migration and the only 103', () => {
+  // 103 is an ordinary member of the chain, not its end: later forward migrations (104, 105) are expected. The test
+  // therefore checks that 103 is present exactly once and that the chain is contiguous from 000 through its last file.
+  test('103 is present exactly once in a contiguous chain from 000', () => {
     const files = fs.readdirSync(path.join(root, 'supabase', 'migrations')).filter((f) => f.endsWith('.sql')).sort();
-    expect(files[files.length - 1]).toBe('103_identity_link_queue_and_approval_gate.sql');
-    expect(files.filter((f) => f.startsWith('103_'))).toHaveLength(1);
+    expect(files.filter((f) => f.startsWith('103_'))).toEqual(['103_identity_link_queue_and_approval_gate.sql']);
+    files.forEach((f, i) => expect(Number(f.slice(0, 3))).toBe(i));
   });
 });

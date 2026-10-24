@@ -2,7 +2,7 @@
 // Asserts the reviewed security contract (schema_contract.json) against a schema fingerprint produced by
 // schema_fingerprint.sql, and optionally compares the whole fingerprint to a golden copy.
 //
-//   node check_schema_contract.mjs <fingerprint.json> [--golden <golden.json>] [--same-as <other-fingerprint.json>]
+//   node check_schema_contract.mjs <fingerprint.json> [--contract <contract.json>] [--golden <golden.json>] [--same-as <other-fingerprint.json>]
 //
 // Works offline on a JSON file, so the same check can be run against a local replay or against a fingerprint copied
 // out of a hosted project's SQL Editor (read-only). Exit code is non-zero if any check fails.
@@ -13,13 +13,14 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 if (args.length === 0) {
-  console.error('usage: node check_schema_contract.mjs <fingerprint.json> [--golden <file>] [--same-as <file>]');
+  console.error('usage: node check_schema_contract.mjs <fingerprint.json> [--contract <file>] [--golden <file>] [--same-as <file>]');
   process.exit(2);
 }
 const opt = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : null);
 const load = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 const fp = load(args[0]);
-const contract = load(path.join(here, 'schema_contract.json'));
+// --contract selects a historical snapshot (e.g. the 000-101 contract for the 101 gate). The default is the current reviewed contract.
+const contract = load(opt('--contract') ?? path.join(here, 'schema_contract.json'));
 
 const results = [];
 const check = (name, ok, evidence) => results.push({ name, ok: !!ok, evidence: ok ? '' : String(evidence ?? '') });

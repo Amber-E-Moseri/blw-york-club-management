@@ -59,9 +59,15 @@ verify_frontier() { # frontier, expected count
   echo "frontier $want_version verified: $got_count migrations applied"
 }
 
-clone() { bash scripts/f2_clone_db.sh "$C" postgres "$1"; }
+# Each replay recreates the stack, so a clone made during one replay does not survive the next. Each frontier is therefore
+# STAGED (dumped, with its security fingerprint recorded, outside the stack) and every staged clone is RESTORED after the
+# last replay, before any suite runs. A restored clone is checked against the fingerprint of the source it was taken from.
+STAGE_DIR="$(mktemp -d)"
+trap 'restore_moved; rm -rf "$HOLD_DIR" "$STAGE_DIR"' EXIT
+stage() { bash scripts/f2_stage_clone.sh stage "$C" postgres "$1" "$STAGE_DIR"; }
+restore_clone() { bash scripts/f2_stage_clone.sh restore "$C" "$1" "$STAGE_DIR"; }
 
-# Replays the migration directory to one frontier, verifies it, and clones it under the given name.
+# Replays the migration directory to one frontier, verifies it, and stages each clone under the given name.
 build_frontier() { # frontier, clone name(s)...
   local frontier="$1"; shift
   hold_above "$frontier"
@@ -69,20 +75,23 @@ build_frontier() { # frontier, clone name(s)...
   verify_frontier "$frontier" "$(expected_count "$frontier")"
   restore_moved
   local db
-  for db in "$@"; do clone "$db"; done
+  for db in "$@"; do stage "$db"; done
 }
 
-step "1. Replay to 096 (097 and later held aside), clone f2_baseline"
+step "1. Replay to 096 (097 and later held aside), stage f2_baseline"
 build_frontier 096 f2_baseline
 
-step "2. Replay to 097 (098 and later held aside), clone f2_policy"
+step "2. Replay to 097 (098 and later held aside), stage f2_policy"
 build_frontier 097 f2_policy
 
-step "3. Replay to 098 (099 and later held aside), clone f2_grants and f2_conc"
+step "3. Replay to 098 (099 and later held aside), stage f2_grants and f2_conc"
 build_frontier 098 f2_grants f2_conc
 
-step "3b. Replay to 100 (101 held aside), clone f2_membership (the membership suite calls establish_membership, created by 100)"
+step "3b. Replay to 100 (101 held aside), stage f2_membership (the membership suite calls establish_membership, created by 100)"
 build_frontier 100 f2_membership
+
+step "3c. Restore every staged frontier database after the last replay, each verified against its staged source"
+for db in f2_baseline f2_policy f2_grants f2_conc f2_membership; do restore_clone "$db"; done
 
 step "4. F2 suites, concurrency gate and baseline reproduction"
 export F2_PSQL_CMD="docker exec -i $C psql -U $ADMIN"
