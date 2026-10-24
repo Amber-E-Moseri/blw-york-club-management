@@ -36,6 +36,7 @@ import { usePushNotifications } from './hooks/usePushNotifications';
 import { PendingApproval } from './pages/PendingApproval';
 import { AdminPendingApprovals } from './pages/AdminPendingApprovals';
 import { PersonIdentityReview } from './pages/PersonIdentityReview';
+import { WebsiteManagement } from './website/WebsiteManagement';
 import { VerifyEmail } from './pages/VerifyEmail';
 import { useTheme } from './hooks/useTheme';
 
@@ -87,6 +88,7 @@ function AppShell() {
         <Route path="/admin/email-log" element={<AdminEmailLog user={user} />} />
         <Route path="/admin/pending" element={<AdminPendingApprovals user={user} />} />
         <Route path="/admin/identity-review" element={<PersonIdentityReview user={user} />} />
+        <Route path="/admin/website/*" element={<WebsiteManagement user={user} />} />
         <Route path="/books" element={<BookOfMonthPage user={user} />} />
         <Route path="/contacts" element={<Outreach user={user} />} />
         <Route path="/affirmations" element={<DailyAffirmations user={user} />} />

@@ -3,6 +3,8 @@
   "outputDirectory": "build",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/site", "destination": "https://blw-york-public-site.vercel.app/" },
+    { "source": "/site/(.*)", "destination": "https://blw-york-public-site.vercel.app/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

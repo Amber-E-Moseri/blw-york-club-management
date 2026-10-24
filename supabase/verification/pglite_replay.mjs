@@ -44,7 +44,7 @@ create schema if not exists storage;
 create or replace function storage.filename(name text) returns text language sql as $$ select (string_to_array(name, '/'))[array_length(string_to_array(name, '/'), 1)] $$;
 create or replace function storage.foldername(name text) returns text[] language sql as $$ select string_to_array(name, '/') $$;
 create table if not exists storage.buckets(id text primary key, name text, public boolean default false, file_size_limit bigint, allowed_mime_types text[]);
-create table if not exists storage.objects(id uuid primary key default gen_random_uuid(), bucket_id text, name text, owner uuid, metadata jsonb);
+create table if not exists storage.objects(id uuid primary key default gen_random_uuid(), bucket_id text, name text, owner uuid, metadata jsonb, created_at timestamptz not null default now());
 grant usage on schema storage to anon, authenticated, service_role;
 `;
 
