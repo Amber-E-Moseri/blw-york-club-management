@@ -60,14 +60,15 @@ jobs:
         run: npx supabase start
       - name: F2 certification (frontiers 096, 097 and 098, all mandatory F2 suites, concurrency gate)
         env:
-          F2_DB_ADMIN: postgres
+          F2_DB_ADMIN: supabase_admin
         run: scripts/certify-f2.sh
       - name: Stop the local stack
         if: always()
         run: npx supabase stop --no-backup
 
-  # Integrated chain gate: a fresh stack replays EVERY migration (000-101), verifies the 101 frontier by last version and
-  # count, runs the membership SQL suite (68 checks), and checks a CANDIDATE schema fingerprint against the contract. It
+  # HISTORICAL integrated gate (kept as the 101 certification): a fresh stack replays the chain through 101, with migrations
+  # above 101 held aside for the replay. It verifies the 101 frontier by last version and count, runs the membership SQL suite
+  # (68 checks), and checks the candidate fingerprint against the 101-era contract (history/schema_contract.101.json). It
   # never reads or writes the authoritative golden fingerprint, and it fails on any missing or mismatched result.
   f2-integrated-101:
     runs-on: ubuntu-latest
@@ -91,9 +92,44 @@ jobs:
         run: npx supabase start
       - name: Integrated 101 certification (full chain, membership suite, candidate fingerprint)
         env:
-          F2_DB_ADMIN: postgres
+          F2_DB_ADMIN: supabase_admin
           F2_OUT_DIR: ${{ runner.temp }}
         run: scripts/certify-integrated-101.sh
+      - name: Stop the local stack
+        if: always()
+        run: npx supabase stop --no-backup
+
+  # CURRENT-HEAD gate: a fresh stack replays EVERY migration (000-105) and certifies the 105 frontier against the CURRENT
+  # contract. Migrations 000-103 must be byte-identical to the reviewed history base (2b2e88f). Independent of the 101 gate.
+  f2-integrated-105:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Point the local stack at a per-run disposable project
+        run: |
+          ID="f2i105-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          sed -i -E "s/^project_id = \".*\"/project_id = \"$ID\"/" supabase/config.toml
+          grep -E '^project_id' supabase/config.toml
+          echo "F2_DISPOSABLE_PROJECT_ID=$ID" >> "$GITHUB_ENV"
+      - name: Target guard self-test
+        run: bash scripts/test_f2_target_guard.sh
+      - name: Start the disposable local stack
+        run: npx supabase start
+      - name: Integrated 105 certification (current head, full chain, membership suite, candidate fingerprint)
+        env:
+          F2_DB_ADMIN: supabase_admin
+          F2_OUT_DIR: ${{ runner.temp }}
+          F2_EXPECTED_SHA: ${{ github.sha }}
+          F2_HISTORY_BASE: 2b2e88f285785ce794942cb43d2b95645d23ba36
+        run: scripts/certify-integrated-105.sh
       - name: Stop the local stack
         if: always()
         run: npx supabase stop --no-backup
