@@ -118,7 +118,10 @@ try {
   const d2 = await quickAdd(coordinator.client, { fullName: 'Same Day', email: sameDayEmail, cellId: cellA, loggedBy: coordinator.id, idempotencyKey: randomUUID(), dateContacted: today });
   const { count: sameDayRows } = await admin.from('contacts').select('id', { count: 'exact', head: true }).eq('email', sameDayEmail).eq('date_contacted', today);
   expect('A4 two legitimate contacts with the same person on the same day are both recorded', !d1.error && !d2.error && sameDayRows === 2, `rows=${sameDayRows} ${d1.error ?? ''} ${d2.error ?? ''}`);
-  expect('A4b both contacts point at one person', d1.contact?.person_id && d1.contact.person_id === d2.contact?.person_id);
+  // D2 identity review (migration 097): a second contact whose email is already held by another person is stored under its own
+  // person with no identity, and an open identity claim lists the existing person for staff review. Nothing merges silently.
+  const d2Claim = await admin.from('identity_claims').select('status, candidate_person_ids').eq('contact_id', d2.contact?.id ?? '00000000-0000-0000-0000-000000000000').maybeSingle();
+  expect('A4b a second contact for an email already held is not merged silently: an open identity claim lists the existing person for review', d2Claim.data?.status === 'open' && (d2Claim.data?.candidate_person_ids ?? []).includes(d1.contact?.person_id), JSON.stringify(d2Claim.data ?? d2Claim.error));
 
   const retryKey = randomUUID();
   const retryEmail = `retry.${rnd()}@example.test`;
@@ -142,11 +145,13 @@ try {
 
   const lead1Ok = await quickAdd(leader1.client, { fullName: 'Leader Contact', email: `l1.${rnd()}@example.test`, cellId: cellA, loggedBy: leader1.id, idempotencyKey: randomUUID() });
   const lead1Bad = await quickAdd(leader1.client, { fullName: 'Wrong Cell', email: `l1b.${rnd()}@example.test`, cellId: cellB, loggedBy: leader1.id, idempotencyKey: randomUUID() });
-  const memberTry = await quickAdd(member.client, { fullName: 'Member Try', email: `m.${rnd()}@example.test`, cellId: cellA, loggedBy: member.id, idempotencyKey: randomUUID() });
+  const memberTry = await quickAdd(member.client, { fullName: 'Member Try', email: `m.${rnd()}@example.test`, cellId: cellB, loggedBy: member.id, idempotencyKey: randomUUID() });
+  const memberOwnCell = await quickAdd(member.client, { fullName: 'Member Own Cell', email: `mo.${rnd()}@example.test`, cellId: cellA, loggedBy: member.id, idempotencyKey: randomUUID() });
   const spoof = await quickAdd(leader1.client, { fullName: 'Spoof', email: `sp.${rnd()}@example.test`, cellId: cellA, loggedBy: coordinator.id, idempotencyKey: randomUUID() });
   expect('A8a cell leader can log a contact in the cell they lead', !lead1Ok.error, lead1Ok.error);
   expect('A8b cell leader cannot log a contact into another cell', !!lead1Bad.error && lead1Bad.stage === 'contact', lead1Bad.error ?? 'succeeded');
-  expect('A8c ordinary member cannot log a contact', !!memberTry.error, memberTry.error ?? 'succeeded');
+  expect('A8c an ordinary member cannot log a contact into a cell they do not belong to (migration 097 scope)', !!memberTry.error, memberTry.error ?? 'succeeded');
+  expect('A8e an active member can log a contact into their own cell (migration 092)', !memberOwnCell.error, memberOwnCell.error);
   expect('A8d a contact is attributed to the caller: submit_contact has no logged_by parameter (spoofing is not expressible)', !spoof.error && spoof.contact?.logged_by === leader1.id, JSON.stringify(spoof.contact ?? spoof.error));
   // Security intent (migrations 097 and 098): a client cannot look a person up by email, and cannot write a contact directly.
   const lookupAsMember = await member.client.rpc('find_person_by_email', { p_email: `s1.${rnd()}@example.test` });
