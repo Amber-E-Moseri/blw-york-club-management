@@ -6,6 +6,7 @@ import { MeetingForm } from '../components/feature/MeetingForm';
 import { useMeetings } from '../hooks/useMeetings';
 import type { AuthUser } from '../lib/auth';
 import type { Meeting, MeetingInput, MeetingCategory } from '../types';
+import { formatMonthHeading, groupByMonth } from '../lib/dates';
 
 interface Props { user: AuthUser | null; }
 
@@ -56,16 +57,7 @@ export const Meetings: React.FC<Props> = ({ user }) => {
     return true;
   });
 
-  // Group by month
-  const grouped = filtered.reduce<Record<string, Meeting[]>>((acc, m) => {
-    const key = m.date.slice(0, 7);
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(m);
-    return acc;
-  }, {});
-
-  const monthLabel = (ym: string) =>
-    new Date(ym + '-01').toLocaleDateString('en-CA', { month: 'long', year: 'numeric' });
+  const grouped = groupByMonth(filtered);
 
   return (
     <div className="max-w-3xl mx-auto space-y-5">
@@ -139,7 +131,7 @@ export const Meetings: React.FC<Props> = ({ user }) => {
       {!loading && Object.entries(grouped).map(([month, items]) => (
         <div key={month} className="space-y-3">
           <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider">
-            {monthLabel(month)}
+            {formatMonthHeading(month)}
           </h2>
           {items.map((m) => (
             <MeetingCard
