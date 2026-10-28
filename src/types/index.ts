@@ -84,9 +84,10 @@ export interface DashboardStats {
   member_count: number;
   member_growth: number;
   upcoming_events: number;
-  announcement_count: number;
-  unread_announcements: number;
-  active_prayer_requests: number;
+  // null = the value could not be loaded (or is not computed yet), which is distinct from a real 0.
+  announcement_count: number | null;
+  unread_announcements: number | null;
+  active_prayer_requests: number | null;
 }
 
 // ─── Contacts (CRM) ──────────────────────────────────────────────────────────
@@ -805,10 +806,11 @@ export interface EnhancedDashboardStats extends DashboardStats {
   meetings_this_month: number;
   testimonies_this_month: number;
   contacts_this_week: number;
+  pending_member_count: number;
   cell_contacts_this_week?: number;
-  cell_meeting_attendance_rate?: number;
-  habit_streak_avg?: number;
-  devotional_views_this_month?: number;
+  cell_meeting_attendance_rate?: number | null;
+  habit_streak_avg?: number | null;
+  devotional_views_this_month?: number | null;
   contacts_last_7_days: { date: string; count: number }[];
 }
 
