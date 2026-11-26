@@ -6,7 +6,8 @@
 //
 //   1. SUPABASE_URL is a valid URL whose host is on the allowlist (default: localhost and 127.0.0.1 only).
 //      A hosted test environment must be added explicitly through TEST_SEED_ALLOWED_HOSTS.
-//   2. The URL does not reference any known production project ref. This check is not overridable by env.
+//   2. The URL does not reference either protected BLW York project ref (production or preview). This check is not
+//      overridable by env.
 //   3. NODE_ENV is not 'production'.
 //   4. TEST_SEED_CONFIRM equals the exact confirmation string, so the run is deliberate.
 //   5. TEST_USER_PASSWORD is set and at least 10 characters.
@@ -15,8 +16,13 @@
 
 'use strict';
 
-// Known production project refs. Add to this list when a new production project is created.
-const PRODUCTION_PROJECT_REFS = Object.freeze(['yziuhtxtznginhdpqurb']);
+// The two BLW York project references. Both are refused by name, and neither can be overridden by environment.
+//   rjtstjmtddqhesexltbj  Production. Confirmed from the Vercel Production environment (REACT_APP_SUPABASE_URL) and
+//                         the live production bundle at blwyork.vercel.app.
+//   yziuhtxtznginhdpqurb  Preview. Confirmed from the Vercel Preview environment (REACT_APP_SUPABASE_URL).
+// Until each one's authorized use is verified, neither may receive automated writes, and test accounts are never created
+// in either. Earlier versions of this guard listed only yziu... as "production", which left rjtst... unprotected.
+const PROTECTED_PROJECT_REFS = Object.freeze(['rjtstjmtddqhesexltbj', 'yziuhtxtznginhdpqurb']);
 
 const DEFAULT_ALLOWED_HOSTS = Object.freeze(['localhost', '127.0.0.1']);
 
@@ -47,8 +53,8 @@ function assertSafeSeedTarget(env) {
     errors.push('NODE_ENV=production is refused.');
   }
 
-  if (rawUrl && PRODUCTION_PROJECT_REFS.some((ref) => rawUrl.toLowerCase().includes(ref))) {
-    errors.push('SUPABASE_URL references a production project. Refused, and not overridable.');
+  if (rawUrl && PROTECTED_PROJECT_REFS.some((ref) => rawUrl.toLowerCase().includes(ref))) {
+    errors.push('SUPABASE_URL references a protected BLW York project (production or preview). Refused, and not overridable.');
   }
 
   const allowed = env.TEST_SEED_ALLOWED_HOSTS
@@ -71,7 +77,7 @@ function assertSafeSeedTarget(env) {
 
 module.exports = {
   assertSafeSeedTarget,
-  PRODUCTION_PROJECT_REFS,
+  PROTECTED_PROJECT_REFS,
   DEFAULT_ALLOWED_HOSTS,
   REQUIRED_CONFIRMATION,
   MIN_PASSWORD_LENGTH,

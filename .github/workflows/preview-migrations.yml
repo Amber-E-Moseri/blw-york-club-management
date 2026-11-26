@@ -51,6 +51,9 @@ env:
 jobs:
   dry-run:
     name: Preflight and dry run (read-only)
+    # FROZEN. Both BLW York refs are denied for automated use until their identities and authorized uses are verified.
+    # Every job in this workflow is disabled. Remove this condition only after that verification is recorded.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Preview secrets only. This environment holds no writable approval gate, and the job issues no writes.
@@ -182,7 +185,8 @@ jobs:
     name: Apply migrations 000-103 (writable, approval required)
     needs: dry-run
     # Runs only when the dispatcher typed the exact confirmation. Otherwise the workflow stops after the dry run.
-    if: ${{ inputs.apply_confirmation == 'apply-yziuhtxtznginhdpqurb-000-103' }}
+    # FROZEN with the rest of this workflow. The typed confirmation alone no longer starts a writable push.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # Protected environment. Required reviewers approve this job before any secret is read. Configure in GitHub settings.

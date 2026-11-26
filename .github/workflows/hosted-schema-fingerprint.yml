@@ -21,6 +21,8 @@ permissions:
 
 jobs:
   verify-hosted-fingerprint:
+    # FROZEN. Both BLW York refs are denied for automated use until verified. Disabled.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: Preview

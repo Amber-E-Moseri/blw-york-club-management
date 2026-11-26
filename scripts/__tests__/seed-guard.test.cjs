@@ -5,7 +5,10 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { assertSafeSeedTarget, REQUIRED_CONFIRMATION } = require('../seed-guard.cjs');
 
-const PROD_URL = 'https://yziuhtxtznginhdpqurb.supabase.co';
+// Both BLW York refs. The production ref is rjtstjmtddqhesexltbj (Vercel Production environment, live bundle).
+// The Preview ref is yziuhtxtznginhdpqurb. Neither may receive test accounts.
+const PROD_URL = 'https://rjtstjmtddqhesexltbj.supabase.co';
+const PREVIEW_URL = 'https://yziuhtxtznginhdpqurb.supabase.co';
 const PASSWORD = 'a-long-enough-test-password';
 
 const local = {
@@ -27,17 +30,33 @@ test('accepts localhost by name', () => {
 test('refuses the production project URL', () => {
   const r = assertSafeSeedTarget({ ...local, SUPABASE_URL: PROD_URL });
   assert.equal(r.ok, false);
-  assert.match(r.errors.join('\n'), /production project/);
+  assert.match(r.errors.join('\n'), /protected BLW York project/);
 });
 
 test('refuses the production project even when it is put on the allowlist', () => {
   const r = assertSafeSeedTarget({
     ...local,
     SUPABASE_URL: PROD_URL,
-    TEST_SEED_ALLOWED_HOSTS: 'yziuhtxtznginhdpqurb.supabase.co',
+    TEST_SEED_ALLOWED_HOSTS: 'rjtstjmtddqhesexltbj.supabase.co',
   });
   assert.equal(r.ok, false, 'production must never pass, whatever the allowlist says');
   assert.match(r.errors.join('\n'), /not overridable/);
+});
+
+test('refuses the Preview project URL, with or without the allowlist', () => {
+  assert.equal(assertSafeSeedTarget({ ...local, SUPABASE_URL: PREVIEW_URL }).ok, false);
+  const r = assertSafeSeedTarget({
+    ...local,
+    SUPABASE_URL: PREVIEW_URL,
+    TEST_SEED_ALLOWED_HOSTS: 'yziuhtxtznginhdpqurb.supabase.co',
+  });
+  assert.equal(r.ok, false, 'the Preview project must never pass, whatever the allowlist says');
+  assert.match(r.errors.join('\n'), /not overridable/);
+});
+
+test('refuses a protected ref supplied through REACT_APP_SUPABASE_URL as well', () => {
+  const r = assertSafeSeedTarget({ ...local, SUPABASE_URL: '', REACT_APP_SUPABASE_URL: PROD_URL });
+  assert.equal(r.ok, false);
 });
 
 test('refuses a hosted host that is not on the allowlist', () => {

@@ -25,6 +25,8 @@ concurrency:
 jobs:
   e2e:
     name: Release suite against the isolated project
+    # FROZEN. The Preview ref (yziuhtxtznginhdpqurb) is denied for automated use until verified. Disabled.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     environment: Preview
     timeout-minutes: 60
