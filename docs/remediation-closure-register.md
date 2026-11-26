@@ -1,5 +1,108 @@
 # Remediation closure register: Waves 1–5
 
+## Approved continuation and development certification (2026-11-26)
+
+Directive baseline: `43993e6`. Implementation commit: `bfb1fd0` (`fix(remediation): reconcile membership attendance and certification`).
+This section supersedes the open owner decisions and development blockers recorded later in this historical register.
+Production remains on HOLD: no hosted database was queried or changed, no migration was applied outside isolated replay,
+no deployment was made, and nothing was merged to `main`.
+
+### Implemented resolution
+
+- Account registration/approval and organizational membership are now explicit separate authorities. `profiles` remains
+  authoritative for Hub identity, approval, role/access and account cell assignment. `people` plus `memberships` is the
+  organizational-membership authority.
+- New profile rows that omit status default to `pending`; migration 019's signup trigger already writes `pending`
+  explicitly. No existing profile was bulk-updated, so active, pending, rejected and inactive records retain their state.
+- `organizational_member_directory` reports active organizational memberships and reports linked Hub approval separately.
+  Existing operational account-derived rosters are not abruptly replaced; the UI labels them as approved Hub accounts.
+- `membership_reconciliation_review` preserves and flags unlinked accounts, active membership/account-approval conflicts,
+  role differences and cell differences for administrators. It performs no merge, deletion, activation or reassignment.
+- Active and pending users may update only their own ordinary profile fields. The migration 028 policy/guard mismatch is
+  corrected. The existing trigger still protects email, role, status, cell, admin role, joined date and person link; the
+  application now treats a zero-row profile update as a failed save.
+- Attendance status is authoritative with `invited`, `confirmed`, `attended`, `absent`, and `excused`. The legacy
+  `attended` boolean is trigger-derived for old readers. Historical `attended=false` is migrated to `confirmed`, not
+  inferred as an absence. Members respond through the scoped RPC and cannot certify their own outcome; authorized meeting
+  organizers record outcomes for other people. Zero-row attendance writes are application failures, not silent success.
+- Remaining calendar-date uses in habits, contact and meeting forms, confessions, books and email preview templates use
+  `America/Toronto` day keys and calendar arithmetic. True timestamps remain UTC instants.
+- Communications now labels provider-accepted sends, verified failures, recorded opens, and recorded clicks separately.
+  It states that delivery status is unavailable and absence of a tracking event does not prove non-delivery or non-open.
+  No provider, real send, scheduled delivery, or twice-weekly automation was added.
+
+### Migration inventory, compatibility and rollback
+
+| Migration | Change | Grants, RLS and execution | Compatibility / rollback |
+|---|---|---|---|
+| `045_account_membership_profile_reconciliation.sql` | Pending profile default; active self-edit policy; approval-aware people/membership policies; organizational-member and reconciliation views | Views revoke `public`/`anon`, grant read to `authenticated`/`service_role`, use `security_invoker`; reconciliation rows additionally require admin/coordinator; underlying tables keep RLS | No row rewrite. Roll back only by a new forward migration restoring the prior default/policies and dropping the two views. Records are unaffected. |
+| `046_attendance_status_authority.sql` | Adds `meetings.published_at`, authoritative `attendance_status`, compatibility trigger and response RPC; replaces insert/update attendance policies | Trigger has no API execute grant; RPC revokes `public`/`anon` and grants `authenticated`/`service_role`; RLS permits self confirmation/excusal and manager outcomes for other users | Existing uniqueness and rows are preserved. Do not drop the status column after new states exist; a rollback requires backup plus a forward compatibility migration that maps outcomes deliberately. |
+
+Integration migration 074 was used only as a behavioral reference. Its audience/publication dependency chain was not
+transplanted. Historical migrations 000–044 were not renumbered or rewritten.
+
+### Reviewed schema-contract changes
+
+The previous seven CI failures are resolved: the BSC assertion and six contract/golden discrepancies. Contract additions
+are evidence-backed by the fresh replay:
+
+- `bscs` and its three functions/triggers (`040`, `044`) and `contacts_bsc_view` (`042`) existed in the accepted schema but
+  were absent from the reviewed inventory. Their exact table privileges, function grants, policies and search paths are
+  now asserted.
+- The two migration 045 views and migration 046 trigger/RPC are allow-listed with exact security modes and execution grants.
+- Service-role `SELECT`-only access for `bscs` is represented explicitly instead of being incorrectly compared with the
+  default CRUD expectation.
+- Platform default ACLs remain independently checked for leaks; whole-fingerprint parity ignores the bootstrap-specific
+  default-ACL section because PGlite and Supabase provision it differently.
+- The golden fingerprint was generated only after the full replay, 19 authorization controls, nine attendance controls,
+  seven membership/profile controls, and a second independent replay passed.
+
+### Final verification evidence
+
+| Check | Result |
+|---|---|
+| TypeScript (`npm run typecheck`) | PASS, exit 0 |
+| Complete Jest suite | PASS: 52 suites passed, 1 skipped; 520 passed, 11 skipped; 0 failed |
+| Seed/script safety (`npm run test:scripts`) | PASS: 11/11 |
+| Full migration replay (`000`–`046`, PGlite, twice independently) | PASS: 47 migrations each; byte-identical fingerprints |
+| Database authorization regression | PASS: 19/19 |
+| Attendance read/write authorization and compatibility | PASS: 9/9 |
+| Membership reconciliation and profile authorization | PASS: 7/7 |
+| Schema contract + golden fingerprint | PASS: 31/31 |
+| Main production build | PASS |
+| Public-site Vitest | PASS: 190/190 |
+| Public-site production build | PASS |
+| Mocked Chromium desktop/tablet/mobile regression | PASS: 45/45 (desktop, 768, 390, 375; light/dark; all roles) |
+
+PGlite limitations remain explicit: it uses Supabase auth/storage shims and does not replace a hosted or containerized
+Supabase/PostgREST/GoTrue certification. No Docker was run locally.
+
+### Eleven skipped Jest tests
+
+All 11 skips are the tests in `quickAddRealCode.integration.test.ts`. They are intentionally gated on local-only
+`CERT_SUPABASE_URL`, anon key and service-role key, create throwaway real Auth accounts, exercise PostgREST concurrency and
+clean up afterward. With no local Supabase service and Docker prohibited, skipping is legitimate and is not a hidden
+application failure. It does represent one unavailable real-session release-coverage bundle; PGlite and ordinary Jest
+cover the underlying migration, identity, authorization and query rules, but not real GoTrue/PostgREST concurrency.
+The existing CI/local-Supabase job should run these 11 tests before production deployment.
+
+### Remaining issues and release decisions
+
+- No unresolved independent development repair is known from the approved directive.
+- Dependency audit output still reports inherited package vulnerabilities (root: 54; public site: 3); no forced or
+  breaking dependency upgrade was authorized in this remediation.
+- React test output contains existing `act()`/deprecation warnings; assertions pass and no tests were suppressed.
+- The real local-Supabase release smoke and 11 real-session integration tests require the existing CI/local stack.
+
+**Development release-candidate: GO.** The implementation, isolated database replay, contract certification, builds,
+unit/integration tests and available browser regressions pass.
+
+**Production deployment: NO-GO / HOLD.** Production-only blockers are: identify and verify the correct BLW York hosted
+database and deployment; take a production backup and run a read-only fingerprint comparison; execute migrations 045–046
+first on an isolated production clone/staging environment; run the existing real Supabase/GoTrue/PostgREST and release
+smoke jobs; review the reconciliation queue with authorized operators; approve the deployment and rollback window. No
+production write, migration, deployment or merge is authorized by this certification.
+
 Branch: `remediation/blw-york-wave1-5`. Base: `main` at `9e57c54`. Production: HOLD (no production writes, no migrations
 applied, no deployments, no merge into `main`, no PR merged or closed).
 
