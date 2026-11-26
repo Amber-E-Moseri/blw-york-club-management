@@ -1,19 +1,17 @@
 import { supabase } from '../supabase';
 import type { Meeting, MeetingInput, MeetingAttendance, MeetingAttendanceStatus } from '../../types';
+import { toLocalDateKey } from '../dates';
 
+// Upcoming: meetings dated today or later, soonest first. Past: meetings dated before today, most recent first.
 export async function fetchMeetings(upcoming = true): Promise<Meeting[]> {
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateKey();
   const userId = (await supabase.auth.getUser()).data.user?.id;
 
-  let q = supabase
-    .from('meetings')
-    .select('*')
-    .order('date', { ascending: true })
-    .order('time', { ascending: true });
-
-  if (upcoming) q = q.gte('date', today);
-
-  const { data, error } = await q;
+  const base = supabase.from('meetings').select('*');
+  const dated = upcoming ? base.gte('date', today) : base.lt('date', today);
+  const { data, error } = await dated
+    .order('date', { ascending: upcoming })
+    .order('time', { ascending: upcoming });
   if (error) throw new Error(error.message);
 
   const meetings = (data ?? []) as Meeting[];

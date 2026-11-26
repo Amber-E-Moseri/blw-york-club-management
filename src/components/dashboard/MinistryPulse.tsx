@@ -46,8 +46,14 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
   const leaderMetrics: PulseMetric[] = [
     {
       label: 'Members',
-      value: stats?.member_count ?? 0,
-      sub: stats?.member_growth ? `+${stats.member_growth} this month` : 'Total registered',
+      value: stats ? stats.member_count : '—',
+      sub: !stats
+        ? 'Unavailable'
+        : stats.pending_member_count > 0
+          ? `${stats.pending_member_count} pending approval`
+          : stats.member_growth > 0
+            ? `+${stats.member_growth} this month`
+            : 'Active members',
       icon: Users,
       iconBg: 'bg-blue-50 dark:bg-blue-900/20',
       iconColor: 'text-blue-600',
@@ -55,7 +61,7 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
     },
     {
       label: 'Outreach contacts',
-      value: stats?.contacts_this_week ?? 0,
+      value: stats ? stats.contacts_this_week : '—',
       sub: 'Logged this week',
       icon: ClipboardList,
       iconBg: 'bg-emerald-50 dark:bg-emerald-900/20',
@@ -74,7 +80,7 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
     },
     {
       label: 'Meetings',
-      value: stats?.meetings_this_month ?? 0,
+      value: stats ? stats.meetings_this_month : '—',
       sub: 'This month',
       icon: Calendar,
       iconBg: 'bg-purple-50 dark:bg-purple-900/20',
@@ -86,7 +92,7 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
   const memberMetrics: PulseMetric[] = [
     {
       label: 'Meetings',
-      value: stats?.meetings_this_month ?? 0,
+      value: stats ? stats.meetings_this_month : '—',
       sub: 'This month',
       icon: Calendar,
       iconBg: 'bg-purple-50 dark:bg-purple-900/20',
@@ -95,7 +101,7 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
     },
     {
       label: 'Habit completion',
-      value: stats?.habit_streak_avg ? `${stats.habit_streak_avg}%` : '—',
+      value: stats?.habit_streak_avg == null ? '—' : `${stats.habit_streak_avg}%`,
       sub: '7-day average',
       icon: ({ className }) => (
         <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
