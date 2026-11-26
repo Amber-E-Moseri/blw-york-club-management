@@ -4,6 +4,7 @@ import { cn } from '../../lib/utils';
 import { Badge } from '../foundation/Badge';
 import { Button } from '../foundation/Button';
 import type { Meeting } from '../../types';
+import { isDateKey, shiftDateKey, toLocalDateKey } from '../../lib/dates';
 
 interface Props {
   meeting: Meeting;
@@ -20,15 +21,18 @@ function formatTime(t: string) {
   return `${((h % 12) || 12)}:${m.toString().padStart(2, '0')} ${suffix}`;
 }
 
-function isToday(d: string) { return d === new Date().toISOString().split('T')[0]; }
-function isTomorrow(d: string) {
-  const t = new Date(); t.setDate(t.getDate() + 1);
-  return d === t.toISOString().split('T')[0];
-}
+// Meeting dates are calendar days on the Toronto reporting calendar (src/lib/dates.ts). "Today" is the Toronto day,
+// not the UTC date, so an evening meeting is not labelled as tomorrow's.
+function isToday(d: string) { return d === toLocalDateKey(); }
+function isTomorrow(d: string) { return d === shiftDateKey(toLocalDateKey(), 1); }
 function dayLabel(d: string) {
   if (isToday(d)) return 'Today';
   if (isTomorrow(d)) return 'Tomorrow';
-  return new Date(d + 'T00:00:00').toLocaleDateString('en-CA', { weekday: 'long', month: 'short', day: 'numeric' });
+  if (!isDateKey(d)) return 'No date';
+  const [y, m, day] = d.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, day)).toLocaleDateString('en-CA', {
+    weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC',
+  });
 }
 
 const CAT_BADGE: Record<string, { variant: string; label: string; icon: LucideIcon }> = {
