@@ -24,8 +24,14 @@ export async function fetchMeetings(upcoming = true): Promise<Meeting[]> {
     .in('meeting_id', meetings.map((meeting) => meeting.id));
 
   if (attendanceError) {
+    // Not "not confirmed": the status is unknown. The UI shows it as unavailable instead of offering to confirm.
     console.warn('Unable to load meeting attendance status', attendanceError.message);
-    return meetings.map((meeting) => ({ ...meeting, user_confirmed: false }));
+    return meetings.map((meeting) => ({
+      ...meeting,
+      user_attendance_status: null,
+      user_confirmed: false,
+      attendance_status_unavailable: true,
+    }));
   }
 
   const attendanceByMeetingId = new Map(

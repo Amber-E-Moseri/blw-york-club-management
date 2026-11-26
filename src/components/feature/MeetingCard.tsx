@@ -128,13 +128,19 @@ export const MeetingCard: React.FC<Props> = ({
       <p className="text-xs text-gray-400">
         {typeof m.attendance_count === 'number' ? `${m.attendance_count} confirmed` : 'Attendance'}
       </p>
-      <Button
-        size="small"
-        variant={m.user_confirmed ? 'secondary' : 'primary'}
-        onClick={() => m.user_confirmed ? onCancel(m.id) : onConfirm(m.id)}
-      >
-        {m.user_confirmed ? '✓ Confirmed' : 'Confirm Attendance'}
-      </Button>
+      {m.attendance_status_unavailable ? (
+        <p className="text-xs text-gray-500 dark:text-slate-400" role="status">
+          Your attendance status is unavailable right now.
+        </p>
+      ) : (
+        <Button
+          size="small"
+          variant={m.user_confirmed ? 'secondary' : 'primary'}
+          onClick={() => m.user_confirmed ? onCancel(m.id) : onConfirm(m.id)}
+        >
+          {m.user_confirmed ? '✓ Confirmed' : 'Confirm Attendance'}
+        </Button>
+      )}
     </div>
   </div>
 );

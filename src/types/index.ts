@@ -387,6 +387,11 @@ export interface Meeting {
   user_confirmed?: boolean;
   /** The signed-in user's own attendance state for this meeting, if they have one. */
   user_attendance_status?: MeetingAttendanceStatus | null;
+  /**
+   * True when the viewer's attendance could not be loaded. user_confirmed is then false only because it is unknown,
+   * so the UI must say the status is unavailable rather than offer "Confirm Attendance".
+   */
+  attendance_status_unavailable?: boolean;
 }
 
 export interface MeetingInput {
