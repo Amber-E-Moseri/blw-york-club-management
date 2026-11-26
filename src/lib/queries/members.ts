@@ -64,14 +64,36 @@ export interface MemberFilters {
 }
 
 export async function assignMemberToCell(memberId: string, cellId: string | null): Promise<void> {
-  const { error } = await supabase.from('profiles').update({ cell_id: cellId }).eq('id', memberId);
+  const { data, error } = await supabase.from('profiles').update({ cell_id: cellId }).eq('id', memberId).select('id').maybeSingle();
   if (error) throw new Error(error.message ?? 'Failed to assign member to cell.');
+  if (!data) throw new Error('Cell assignment was not changed. The account may be missing or outside your authority.');
+}
+
+export interface MembershipAuthoritySummary {
+  approvedHubAccounts: number;
+  verifiedOrganizationalMembers: number | null;
+  reconciliationIssues: number | null;
+}
+
+/** Counts the two authorities separately. Null means the membership/review data was unavailable, never zero. */
+export async function fetchMembershipAuthoritySummary(): Promise<MembershipAuthoritySummary> {
+  const [accounts, members, discrepancies] = await Promise.all([
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', APPROVED_STATUS),
+    supabase.from('organizational_member_directory').select('person_id', { count: 'exact', head: true }),
+    supabase.from('membership_reconciliation_review').select('person_id', { count: 'exact', head: true }),
+  ]);
+  if (accounts.error) throw new Error(accounts.error.message ?? 'Failed to count approved Hub accounts.');
+  return {
+    approvedHubAccounts: accounts.count ?? 0,
+    verifiedOrganizationalMembers: members.error ? null : (members.count ?? 0),
+    reconciliationIssues: discrepancies.error ? null : (discrepancies.count ?? 0),
+  };
 }
 
 /**
- * Approved members only. Pending and rejected accounts are registered but not members, so they are not listed in the
- * directory, the cell rosters, the unassigned count or the weekly audience. Pending accounts are handled by the
- * approvals screen (AdminPendingApprovals). This does not change any record.
+ * Approved Hub accounts only. Organizational membership is a separate authority and is reported through
+ * organizational_member_directory. Keeping this operational list account-based avoids abruptly replacing established
+ * rosters while reconciliation issues remain reviewable.
  */
 export async function fetchMembersFiltered(filters: MemberFilters = {}): Promise<Member[]> {
   let q = supabase

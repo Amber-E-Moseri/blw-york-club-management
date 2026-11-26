@@ -60,7 +60,7 @@ async function openDrawer(page: Page) {
 }
 
 async function drawerLabels(page: Page) {
-  return (await drawer(page).getByRole('button').allTextContents()).map((text) => text.trim());
+  return (await drawer(page).locator('button:not([aria-label="Toggle dark mode"])').allTextContents()).map((text) => text.trim());
 }
 
 async function sidebarLabels(page: Page) {

@@ -3,6 +3,7 @@ import { Input } from '../foundation/Input';
 import { Button } from '../foundation/Button';
 import { cn } from '../../lib/utils';
 import type { ContactFilters as Filters, ContactTag, ContactStatus } from '../../types';
+import { localMonthRange, shiftDateKey, toLocalDateKey } from '../../lib/dates';
 
 interface Props {
   filters: Filters;
@@ -17,12 +18,12 @@ const DATE_PRESETS = [
   { label: 'All time',    from: '',                                   to: '' },
   { label: 'Last 7 days', from: daysAgo(7),                           to: today() },
   { label: 'Last 30 days',from: daysAgo(30),                          to: today() },
-  { label: 'This month',  from: new Date().toISOString().slice(0, 7) + '-01', to: today() },
+  { label: 'This month',  from: localMonthRange().start,               to: today() },
 ];
 
-function today() { return new Date().toISOString().split('T')[0]; }
+function today() { return toLocalDateKey(); }
 function daysAgo(n: number) {
-  return new Date(Date.now() - n * 86400000).toISOString().split('T')[0];
+  return shiftDateKey(toLocalDateKey(), -n);
 }
 
 function activeCount(f: Filters) {

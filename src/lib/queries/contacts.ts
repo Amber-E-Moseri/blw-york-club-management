@@ -5,6 +5,7 @@ import type {
   Cell, ContactTagRelation, ContactFollowUp, ContactAuditLogEntry,
   BulkImportRow, ImportResult,
 } from '../../types';
+import { toLocalDateKey } from '../dates';
 
 export async function fetchContacts(filters: ContactFilters = {}): Promise<Contact[]> {
   let q = supabase
@@ -307,7 +308,7 @@ export async function bulkImportContacts(
         email: row.email || undefined,
         tag: '',
         follow_up_status: 'new',
-        date_contacted: new Date().toISOString().split('T')[0],
+        date_contacted: toLocalDateKey(),
         notes: row.notes || undefined,
         is_member: false,
         logged_by: importedBy,

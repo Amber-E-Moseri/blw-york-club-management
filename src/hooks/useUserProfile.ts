@@ -168,15 +168,18 @@ export function useUserProfile(userId: string | undefined): UseUserProfileReturn
         if (fullName.length < 2) throw new Error('Full name must be at least 2 characters.');
 
         if (isOwnProfile || isCoordinator) {
-          const { error: profileErr } = await supabase
+          const { data: updatedProfile, error: profileErr } = await supabase
             .from('profiles')
             .update({
               full_name: fullName,
               student_number: payload.studentNumber ?? null,
               avatar_url: payload.avatarUrl ?? null,
             })
-            .eq('id', userId);
+            .eq('id', userId)
+            .select('id')
+            .maybeSingle();
           if (profileErr) throw new Error(profileErr.message);
+          if (!updatedProfile) throw new Error('Profile was not updated. Your account may not have permission to edit it.');
         }
 
         if (isOwnProfile || isCoordinator) {

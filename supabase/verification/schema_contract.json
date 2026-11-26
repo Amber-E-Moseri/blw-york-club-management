@@ -8,11 +8,11 @@
     "email_templates", "event_rsvps", "events", "foundation_school_classes", "foundation_school_enrollments",
     "foundation_school_progress", "habit_entries", "habit_templates", "meeting_attendances", "meetings",
     "membership_transitions", "memberships", "monthly_devotionals", "people", "prayer_requests", "profiles",
-    "push_notification_log", "push_subscriptions", "scheduled_emails", "staff_profile_edit_audit", "status_settings", "tags_settings",
+    "push_notification_log", "push_subscriptions", "scheduled_emails", "staff_profile_edit_audit", "status_settings", "tags_settings", "bscs",
     "testimonies", "testimony_comments", "testimony_reactions", "user_profiles", "weekly_messages",
     "zoom_attendance", "zoom_settings"
   ],
-  "views": ["member_directory"],
+  "views": ["contacts_bsc_view", "member_directory", "membership_reconciliation_review", "organizational_member_directory"],
   "authenticatedPrivileges": {
     "DELETE,INSERT,SELECT,UPDATE": [
       "admin_role_assignments", "admin_role_permissions", "admin_roles", "announcements", "attendance_imports",
@@ -21,7 +21,7 @@
       "foundation_school_classes", "foundation_school_enrollments", "foundation_school_progress", "habit_entries",
       "habit_templates", "meeting_attendances", "meetings", "monthly_devotionals", "people", "prayer_requests", "profiles",
       "push_subscriptions", "status_settings", "tags_settings", "testimonies", "user_profiles", "weekly_messages",
-      "zoom_settings"
+      "zoom_settings", "bscs"
     ],
     "INSERT,SELECT": ["contact_audit_log", "email_notification_log", "membership_transitions"],
     "INSERT,SELECT,UPDATE": ["contact_follow_ups", "email_preferences", "memberships"],
@@ -30,6 +30,7 @@
     "": ["admin_bootstrap_audit", "scheduled_emails"]
   },
   "serviceRoleNoAccess": ["admin_bootstrap_audit"],
+  "serviceRolePrivileges": { "bscs": "SELECT" },
   "forbiddenPrivileges": ["TRUNCATE", "REFERENCES", "TRIGGER"],
   "profilePolicyAllowList": {
     "profiles": ["profiles_coordinator_administer", "profiles_select_scoped", "profiles_self_onboarding_update"],
@@ -70,6 +71,11 @@
     "get_ror_streak(uuid,text,text)": { "security": "definer", "execute": ["authenticated"] },
     "get_cell_ror_progress(text,text)": { "security": "definer", "execute": ["authenticated"] },
     "get_org_ror_progress(text,text)": { "security": "definer", "execute": ["authenticated"] }
+    ,"is_bsc_peer_of_logger(uuid)": { "security": "definer", "execute": ["authenticated"] }
+    ,"is_bsc_leader_for_logger(uuid)": { "security": "definer", "execute": ["authenticated"] }
+    ,"guard_profile_bsc_assignment()": { "security": "invoker", "execute": [] }
+    ,"meeting_attendance_normalise()": { "security": "invoker", "execute": [] }
+    ,"respond_to_meeting_invitation(uuid,text)": { "security": "definer", "execute": ["authenticated", "service_role"] }
   },
   "definerSearchPath": "search_path=public, pg_temp",
   "storage": {

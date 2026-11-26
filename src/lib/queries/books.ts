@@ -1,8 +1,9 @@
 import { supabase } from '../supabase';
 import type { BookOfMonth, BookOfMonthInput } from '../../types';
+import { toLocalDateKey } from '../dates';
 
 export async function getCurrentBook(): Promise<BookOfMonth | null> {
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateKey();
   const { data, error } = await supabase
     .from('books_of_month')
     .select('*')

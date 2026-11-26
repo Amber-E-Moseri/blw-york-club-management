@@ -1,5 +1,6 @@
 import { buildUnsubscribeUrl, getAppOrigin } from './emailService';
 import type { EmailTemplateType } from '../../types';
+import { toLocalDateKey } from '../dates';
 
 interface TemplateOutput {
   subject: string;
@@ -298,7 +299,7 @@ export function renderSampleEmailTemplate(type: EmailTemplateType): TemplateOutp
         memberId: 'preview',
         memberName: 'Member',
         meetingName: 'Cell Fellowship',
-        date: new Date().toISOString().split('T')[0],
+        date: toLocalDateKey(),
         time: '6:00 PM',
         endTime: '8:00 PM',
         location: 'York Lanes',
@@ -309,7 +310,7 @@ export function renderSampleEmailTemplate(type: EmailTemplateType): TemplateOutp
         memberId: 'preview',
         memberName: 'Member',
         meetingName: 'Cell Fellowship',
-        date: new Date().toISOString().split('T')[0],
+        date: toLocalDateKey(),
         time: '6:00 PM',
         endTime: '8:00 PM',
         location: 'York Lanes',

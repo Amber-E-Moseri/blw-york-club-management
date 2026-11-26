@@ -27,6 +27,8 @@ describe('open and click rates use sent messages as the denominator', () => {
     expect(s.sent).toBe(4);
     expect(s.opened).toBe(2);
     expect(s.openRate).toBe(50);
+    expect(s.trackingStatus).toBe('recorded-events-only');
+    expect(s.deliveryStatus).toBe('unavailable');
   });
 
   it('does not let failed or queued messages lower the open rate', () => {
@@ -73,6 +75,7 @@ describe('rates are unavailable when nothing was sent', () => {
     expect(s.sent).toBe(0);
     expect(s.openRate).toBeNull();
     expect(s.clickRate).toBeNull();
+    expect(s.trackingStatus).toBe('unavailable');
     expect(formatRate(s.openRate)).toBe('—');
     expect(formatRate(s.clickRate)).toBe('—');
   });

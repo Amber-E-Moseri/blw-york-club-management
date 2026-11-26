@@ -7,6 +7,12 @@ import { useBooks } from '../hooks/useBookOfMonth';
 import type { AuthUser } from '../lib/auth';
 import type { BookOfMonth, BookOfMonthInput } from '../types';
 import { format } from 'date-fns';
+import { toLocalDateKey } from '../lib/dates';
+
+function dateKeyAsUtc(value: string): Date {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+}
 
 interface Props { user: AuthUser | null; }
 
@@ -24,7 +30,7 @@ export const BookOfMonthPage: React.FC<Props> = ({ user }) => {
   const [form, setForm]         = useState<BookOfMonthInput>(EMPTY);
   const [formErrors, setFormErrors] = useState<Partial<BookOfMonthInput>>({});
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateKey();
   const currentBook = books.find((b) => b.active_from <= today && b.active_until >= today);
   const pastBooks   = books.filter((b) => b.id !== currentBook?.id);
 
@@ -124,7 +130,7 @@ export const BookOfMonthPage: React.FC<Props> = ({ user }) => {
                 )}
               </div>
               <p className="text-xs opacity-60 mt-3">
-                Active: {format(new Date(currentBook.active_from), 'MMM d')} – {format(new Date(currentBook.active_until), 'MMM d, yyyy')}
+                Active: {format(dateKeyAsUtc(currentBook.active_from), 'MMM d')} – {format(dateKeyAsUtc(currentBook.active_until), 'MMM d, yyyy')}
               </p>
             </div>
           </div>
@@ -150,7 +156,7 @@ export const BookOfMonthPage: React.FC<Props> = ({ user }) => {
                   <h3 className="font-bold text-gray-900 text-sm">{b.title}</h3>
                   <p className="text-xs text-gray-500">by {b.author}</p>
                   <p className="text-xs text-gray-400 mt-1">
-                    {format(new Date(b.active_from), 'MMM yyyy')} – {format(new Date(b.active_until), 'MMM yyyy')}
+                    {format(dateKeyAsUtc(b.active_from), 'MMM yyyy')} – {format(dateKeyAsUtc(b.active_until), 'MMM yyyy')}
                   </p>
                   <div className="flex gap-2 mt-2">
                     <a

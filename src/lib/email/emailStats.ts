@@ -25,6 +25,10 @@ export interface DeliverySummary {
   openRate: number | null;
   /** Whole-number percent of sent messages clicked, or null when nothing was sent. */
   clickRate: number | null;
+  /** Provider acceptance is not verified inbox delivery in the current send path. */
+  deliveryStatus: 'unavailable';
+  /** The system can report recorded events, but cannot prove a non-event. */
+  trackingStatus: 'recorded-events-only' | 'unavailable';
 }
 
 function percentOf(part: number, whole: number): number | null {
@@ -45,6 +49,8 @@ export function summarizeDelivery(logs: readonly DeliveryLogLike[]): DeliverySum
     clicked,
     openRate: percentOf(opened, sent),
     clickRate: percentOf(clicked, sent),
+    deliveryStatus: 'unavailable',
+    trackingStatus: sent > 0 ? 'recorded-events-only' : 'unavailable',
   };
 }
 

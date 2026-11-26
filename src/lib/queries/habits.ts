@@ -1,9 +1,6 @@
 import { supabase } from '../supabase';
 import type { HabitTemplate, HabitTemplateInput, HabitEntry, HabitMemberAnalytics } from '../../types';
-
-function toDate(d: Date): string {
-  return d.toISOString().split('T')[0];
-}
+import { shiftDateKey, toLocalDateKey } from '../dates';
 
 export async function fetchHabitTemplates(): Promise<HabitTemplate[]> {
   const { data, error } = await supabase
@@ -112,8 +109,8 @@ export async function deleteHabitEntry(
 }
 
 export async function fetchHabitAnalytics(): Promise<HabitMemberAnalytics[]> {
-  const today = toDate(new Date());
-  const sevenDaysAgo = toDate(new Date(Date.now() - 6 * 86400000));
+  const today = toLocalDateKey();
+  const sevenDaysAgo = shiftDateKey(today, -6);
 
   const [templates, entriesResult] = await Promise.all([
     fetchAllHabitTemplates(),

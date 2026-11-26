@@ -170,16 +170,16 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
 
         <div className="space-y-2">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Card><Metric label="Sent" value={stats.sent} /></Card>
-            <Card><Metric label="Failed" value={stats.failed} /></Card>
-            <Card><Metric label="Open Rate" value={formatRate(stats.openRate)} /></Card>
-            <Card><Metric label="Click Rate" value={formatRate(stats.clickRate)} /></Card>
+            <Card><Metric label="Provider accepted" value={stats.sent} /></Card>
+            <Card><Metric label="Verified failures" value={stats.failed} /></Card>
+            <Card><Metric label="Recorded opens" value={stats.opened} /></Card>
+            <Card><Metric label="Recorded clicks" value={stats.clicked} /></Card>
           </div>
           <p className="text-xs text-gray-400" data-testid="delivery-stats-caption">
             Figures cover the {stats.windowSize} most recent messages shown below (at most 200, after any status filter).
-            Rates are based on sent messages: {stats.opened} of {stats.sent} opened, {stats.clicked} of {stats.sent} clicked.
-            Open tracking uses an image, so opens are undercounted when a mail app blocks images. A dash means no message
-            in this window was sent.
+            Recorded-event rates are {formatRate(stats.openRate)} opens and {formatRate(stats.clickRate)} clicks among provider-accepted sends.
+            Tracking is {stats.trackingStatus === 'unavailable' ? 'unavailable for this window' : 'event-only'}: no event does not prove a message was unopened.
+            Delivery status is unavailable; provider acceptance is not verified inbox delivery. Only rows explicitly marked failed are verified failures.
           </p>
         </div>
 

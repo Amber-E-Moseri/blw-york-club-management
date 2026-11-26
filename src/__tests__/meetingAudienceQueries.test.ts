@@ -164,14 +164,17 @@ describe('attendance states', () => {
   });
 
   test('staff outcomes are written as a status, and the boolean form maps onto it', async () => {
+    fake.queue('meeting_attendances', { data: { id: 'attendance-1' }, error: null });
     await meetings.markAttendanceStatus(MEETING_ID, USER_ID, 'excused');
     expect(fake.log.find((e) => e.op === 'update')!.args[0]).toEqual({ attendance_status: 'excused' });
 
     fake.reset();
+    fake.queue('meeting_attendances', { data: { id: 'attendance-1' }, error: null });
     await meetings.markAttended(MEETING_ID, USER_ID, true);
     expect(fake.log.find((e) => e.op === 'update')!.args[0]).toEqual({ attendance_status: 'attended' });
 
     fake.reset();
+    fake.queue('meeting_attendances', { data: { id: 'attendance-1' }, error: null });
     await meetings.markAttended(MEETING_ID, USER_ID, false);
     expect(fake.log.find((e) => e.op === 'update')!.args[0]).toEqual({ attendance_status: 'absent' });
   });

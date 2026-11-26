@@ -6,13 +6,14 @@ import { Input } from '../components/foundation/Input';
 import { Modal } from '../components/foundation/Modal';
 import { useConfessions } from '../hooks/useConfessions';
 import type { AuthUser } from '../lib/auth';
+import { shiftDateKey, toLocalDateKey } from '../lib/dates';
 
 interface Props { user: AuthUser | null; }
 
 const canManage = (role: string) => ['coordinator', 'admin'].includes(role);
 
 export const DailyConfessions: React.FC<Props> = ({ user }) => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateKey();
   const [viewDate, setViewDate] = useState(today);
   const { confessions, loading, error, declare, undeclare, add, remove } = useConfessions(viewDate);
 
@@ -61,9 +62,7 @@ export const DailyConfessions: React.FC<Props> = ({ user }) => {
           aria-label="Previous day"
           className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl border border-gray-200 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-300"
           onClick={() => {
-            const d = new Date(viewDate);
-            d.setDate(d.getDate() - 1);
-            setViewDate(d.toISOString().split('T')[0]);
+            setViewDate(shiftDateKey(viewDate, -1));
           }}
         >
           <ChevronLeft className="w-4 h-4" />
@@ -99,9 +98,7 @@ export const DailyConfessions: React.FC<Props> = ({ user }) => {
           aria-label="Next day"
           className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl border border-gray-200 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-300"
           onClick={() => {
-            const d = new Date(viewDate);
-            d.setDate(d.getDate() + 1);
-            setViewDate(d.toISOString().split('T')[0]);
+            setViewDate(shiftDateKey(viewDate, 1));
           }}
         >
           <ChevronRight className="w-4 h-4" />

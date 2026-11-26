@@ -5,7 +5,7 @@ import { PeopleFilters } from '../components/people/PeopleFilters';
 import { PersonCard } from '../components/people/PersonCard';
 import { PersonDetailPanel } from '../components/people/PersonDetailPanel';
 import { Skeleton } from '../components/dashboard/DashboardCard';
-import { fetchMembersFiltered } from '../lib/queries/members';
+import { fetchMembersFiltered, fetchMembershipAuthoritySummary, type MembershipAuthoritySummary } from '../lib/queries/members';
 import { fetchCells } from '../lib/queries/contacts';
 import type { AuthUser } from '../lib/auth';
 import type { Cell, Member } from '../types';
@@ -35,6 +35,7 @@ export const Members: React.FC<Props> = ({ user }) => {
   const [cells, setCells] = useState<Cell[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [authoritySummary, setAuthoritySummary] = useState<MembershipAuthoritySummary | null>(null);
 
   // Filters (live state — debounced before fetching)
   const [search, setSearch] = useState('');
@@ -76,6 +77,13 @@ export const Members: React.FC<Props> = ({ user }) => {
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
 
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetchMembershipAuthoritySummary().then(setAuthoritySummary).catch(() => {
+      setAuthoritySummary({ approvedHubAccounts: 0, verifiedOrganizationalMembers: null, reconciliationIssues: null });
+    });
+  }, [isAdmin]);
+
   // Load cells once
   const cellsLoaded = useRef(false);
   useEffect(() => {
@@ -104,17 +112,24 @@ export const Members: React.FC<Props> = ({ user }) => {
         <p className="text-[11px] font-bold text-york-600 uppercase tracking-wider">Community</p>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-1">People</h1>
         <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
-          Your ministry directory: members, leaders and cells.
+          Approved Hub accounts are shown below. Organizational membership is tracked separately.
         </p>
       </div>
 
       {/* Stats strip */}
       {!loading && (
-        <div className="grid grid-cols-3 gap-2.5">
-          <StatChip label="Members" value={totalMembers} />
+        <div className={`grid gap-2.5 ${isAdmin ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
+          <StatChip label="Approved accounts shown" value={totalMembers} />
           <StatChip label="Leaders" value={leaderCount} />
           <StatChip label="Cells" value={cells.length} />
+          {isAdmin && <StatChip label="Verified org members" value={authoritySummary?.verifiedOrganizationalMembers ?? '—'} />}
         </div>
+      )}
+
+      {isAdmin && authoritySummary?.reconciliationIssues !== null && authoritySummary?.reconciliationIssues !== undefined && authoritySummary.reconciliationIssues > 0 && (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
+          {authoritySummary.reconciliationIssues} account/membership {authoritySummary.reconciliationIssues === 1 ? 'difference needs' : 'differences need'} administrative review. No records were changed automatically.
+        </p>
       )}
 
       {error && (
@@ -242,7 +257,7 @@ export const Members: React.FC<Props> = ({ user }) => {
   );
 };
 
-const StatChip: React.FC<{ label: string; value: number }> = ({ label, value }) => (
+const StatChip: React.FC<{ label: string; value: number | string }> = ({ label, value }) => (
   <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm px-3.5 py-3">
     <p className="text-xs text-gray-500 dark:text-slate-400">{label}</p>
     <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-1">{value}</p>

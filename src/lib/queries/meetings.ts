@@ -120,11 +120,14 @@ export async function markAttended(
   userId: string,
   attended: boolean
 ): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('meeting_attendances')
     .update({ attendance_status: attended ? 'attended' : 'absent' })
-    .match({ meeting_id: meetingId, user_id: userId });
+    .match({ meeting_id: meetingId, user_id: userId })
+    .select('id')
+    .maybeSingle();
   if (error) throw new Error(error.message);
+  if (!data) throw new Error('Attendance was not updated. The record may be missing or outside your authority.');
 }
 
 export async function markAttendanceStatus(
@@ -132,9 +135,12 @@ export async function markAttendanceStatus(
   userId: string,
   status: MeetingAttendanceStatus
 ): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('meeting_attendances')
     .update({ attendance_status: status })
-    .match({ meeting_id: meetingId, user_id: userId });
+    .match({ meeting_id: meetingId, user_id: userId })
+    .select('id')
+    .maybeSingle();
   if (error) throw new Error(error.message);
+  if (!data) throw new Error('Attendance was not updated. The record may be missing or outside your authority.');
 }

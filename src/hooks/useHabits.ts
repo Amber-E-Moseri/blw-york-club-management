@@ -17,9 +17,11 @@ import type {
   HabitTemplateInput,
   HabitMemberAnalytics,
 } from '../types';
+import { shiftDateKey, toLocalDateKey } from '../lib/dates';
 
-function toDate(d: Date): string {
-  return d.toISOString().split('T')[0];
+function weekdayOf(dateKey: string): number {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
 }
 
 function computeStreak(
@@ -27,7 +29,7 @@ function computeStreak(
   templateId: string,
   targetDays: number[] | null,
 ): number {
-  const today = new Date();
+  const today = toLocalDateKey();
   const byDate = new Map(
     entries
       .filter((e) => e.template_id === templateId)
@@ -36,12 +38,11 @@ function computeStreak(
 
   let streak = 0;
   for (let i = 0; i <= 90; i++) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    const isTarget = targetDays === null || targetDays.includes(d.getDay());
+    const dateKey = shiftDateKey(today, -i);
+    const isTarget = targetDays === null || targetDays.includes(weekdayOf(dateKey));
     if (!isTarget) continue;
 
-    const status = byDate.get(toDate(d));
+    const status = byDate.get(dateKey);
     if (status === 'done') {
       streak++;
     } else if (status === 'skipped') {
@@ -60,7 +61,7 @@ function computeRate7d(
   templateId: string,
   targetDays: number[] | null,
 ): number {
-  const today = new Date();
+  const today = toLocalDateKey();
   const byDate = new Map(
     entries
       .filter((e) => e.template_id === templateId)
@@ -69,11 +70,10 @@ function computeRate7d(
   let target = 0;
   let done = 0;
   for (let i = 1; i <= 7; i++) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    if (targetDays !== null && !targetDays.includes(d.getDay())) continue;
+    const dateKey = shiftDateKey(today, -i);
+    if (targetDays !== null && !targetDays.includes(weekdayOf(dateKey))) continue;
     target++;
-    if (byDate.get(toDate(d)) === 'done') done++;
+    if (byDate.get(dateKey) === 'done') done++;
   }
   return target > 0 ? done / target : 0;
 }
@@ -89,9 +89,8 @@ export function useHabits(userId: string | undefined) {
     setLoading(true);
     setError(null);
     try {
-      const today = new Date();
-      const dateTo = toDate(today);
-      const dateFrom = toDate(new Date(today.getTime() - 90 * 86400000));
+      const dateTo = toLocalDateKey();
+      const dateFrom = shiftDateKey(dateTo, -90);
       const [t, e] = await Promise.all([
         fetchHabitTemplates(),
         fetchHabitEntries(userId, dateFrom, dateTo),
@@ -108,16 +107,14 @@ export function useHabits(userId: string | undefined) {
   useEffect(() => { load(); }, [load]);
 
   const habitsWithStats: HabitWithStats[] = templates.map((t) => {
-    const todayStr = toDate(new Date());
+    const todayStr = toLocalDateKey();
     const todayEntry = entries.find(
       (e) => e.template_id === t.id && e.entry_date === todayStr,
     );
 
     const past14: Record<string, 'done' | 'skipped' | undefined> = {};
     for (let i = 0; i < 14; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const ds = toDate(d);
+      const ds = shiftDateKey(todayStr, -i);
       const found = entries.find((e) => e.template_id === t.id && e.entry_date === ds);
       past14[ds] = found?.status;
     }
@@ -134,7 +131,7 @@ export function useHabits(userId: string | undefined) {
   const checkIn = useCallback(
     async (templateId: string, status: 'done' | 'skipped') => {
       if (!userId) return;
-      const todayStr = toDate(new Date());
+      const todayStr = toLocalDateKey();
       const existing = entries.find(
         (e) => e.template_id === templateId && e.entry_date === todayStr,
       );

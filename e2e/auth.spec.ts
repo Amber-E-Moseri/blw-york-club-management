@@ -32,7 +32,8 @@ test('submits an access request', async ({ page }) => {
   await page.getByLabel('Confirm Password').fill('secret1');
   await page.getByRole('button', { name: 'Submit Request' }).click();
 
-  await expect(page.getByRole('heading', { name: 'Application submitted!' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
+  await expect(page.getByText(/6-digit code/)).toBeVisible();
 });
 
 test('signs in and reaches the dashboard', async ({ page }) => {

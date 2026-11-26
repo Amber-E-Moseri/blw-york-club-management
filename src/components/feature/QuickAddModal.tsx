@@ -5,6 +5,7 @@ import { useTagsAndStatuses, useCells } from '../../hooks/useContacts';
 import { createContact } from '../../lib/queries/contacts';
 import { createMeeting } from '../../lib/queries/meetings';
 import type { AuthUser } from '../../lib/auth';
+import { toLocalDateKey } from '../../lib/dates';
 
 const ROLE_LEVEL: Record<AuthUser['role'], number> = {
   member: 0, cell_leader: 1, admin: 2, coordinator: 3,
@@ -13,7 +14,7 @@ const ROLE_LEVEL: Record<AuthUser['role'], number> = {
 type Tab = 'contact' | 'meeting';
 
 function today() {
-  return new Date().toISOString().split('T')[0];
+  return toLocalDateKey();
 }
 
 interface QuickAddContentProps {
