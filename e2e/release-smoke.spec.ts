@@ -73,7 +73,7 @@ function trackErrors(page: Page) {
 }
 
 async function signIn(page: Page, email: string, pw = password, expected: 'success' | 'failure' = 'success') {
-  await page.goto('/');
+  await page.goto('/hub');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(pw);
   const [authResponse] = await Promise.all([
@@ -117,13 +117,13 @@ test('member signs in and every primary page loads without crashing', async ({ p
   await expectNoHorizontalOverflow(page);
 
   const pages: Array<[string, string]> = [
-    ['/', 'Dashboard'],
-    ['/members', 'People'],
-    ['/contacts', 'Contacts'],
-    ['/meetings', 'Meetings'],
-    ['/events', 'Events'],
-    ['/books', 'Resources: books'],
-    ['/devotionals', 'Resources: devotionals'],
+    ['/hub', 'Dashboard'],
+    ['/hub/members', 'People'],
+    ['/hub/contacts', 'Contacts'],
+    ['/hub/meetings', 'Meetings'],
+    ['/hub/events', 'Events'],
+    ['/hub/books', 'Resources: books'],
+    ['/hub/devotionals', 'Resources: devotionals'],
   ];
   for (const [path, label] of pages) {
     await page.goto(path);
@@ -175,6 +175,6 @@ test('signed-in user can sign out and the session is gone', async ({ page }) => 
   }
   await page.getByRole('button', { name: 'Sign out' }).first().click();
   await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
-  await page.goto('/members');
+  await page.goto('/hub/members');
   await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
 });

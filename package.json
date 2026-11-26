@@ -1,5 +1,6 @@
 {
   "name": "blw-york-portal",
+  "homepage": "/hub",
   "version": "1.0.0",
   "private": true,
   "dependencies": {
@@ -33,17 +34,21 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "npm run build:unified",
     "test": "react-scripts test --watchAll=false --coverage --collectCoverageFrom='src/**/*.{ts,tsx}' --collectCoverageFrom='!src/**/__tests__/**' --collectCoverageFrom='!src/**/*.d.ts' --collectCoverageFrom='!src/index.tsx'",
     "test:watch": "react-scripts test",
     "typecheck": "tsc --noEmit",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
     "eject": "react-scripts eject",
-    "test:scripts": "node --test scripts/__tests__/seed-guard.test.cjs",
+    "test:scripts": "node --test \"scripts/__tests__/*.cjs\"",
     "test:db:authz": "node supabase/verification/remediation_wave1_authz_pglite.mjs",
     "test:db:attendance": "node supabase/verification/attendance_schema_pglite.mjs",
-    "test:db:membership": "node supabase/verification/membership_reconciliation_pglite.mjs"
+    "test:db:membership": "node supabase/verification/membership_reconciliation_pglite.mjs",
+    "build:hub": "react-scripts build",
+    "build:site": "npm --prefix site install --no-audit --no-fund && npm --prefix site run build",
+    "build:unified": "npm run build:site && npm run build:hub && node scripts/assemble-unified.mjs",
+    "verify:routes": "node scripts/verify-unified-routes.mjs"
   },
   "eslintConfig": {
     "extends": [

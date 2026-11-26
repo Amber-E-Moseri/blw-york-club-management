@@ -26,7 +26,7 @@ export const BookWidget: React.FC = () => {
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden dark:bg-slate-800 dark:border-slate-700">
       <div className="section-header px-6 pt-5 pb-0">
         <h2 className="text-h3">Book of the Month</h2>
-        <button onClick={() => navigate('/books')} className="see-all-link">Archive →</button>
+        <button onClick={() => navigate('/hub/books')} className="see-all-link">Archive →</button>
       </div>
       <div className="divider mx-6" />
 

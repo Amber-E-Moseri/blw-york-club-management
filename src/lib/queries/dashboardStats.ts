@@ -132,7 +132,7 @@ export async function getRecentActivity(
       title: row.title,
       actor: row.author_name,
       timestamp: row.created_at,
-      href: '/announcements',
+      href: '/hub/announcements',
     })),
     ...(testimonies.data ?? []).map((row) => ({
       id: `testimony-${row.id}`,
@@ -140,21 +140,21 @@ export async function getRecentActivity(
       title: row.title,
       actor: row.author_name,
       timestamp: row.created_at,
-      href: '/testimonies',
+      href: '/hub/testimonies',
     })),
     ...(meetings.data ?? []).map((row) => ({
       id: `meeting-${row.id}`,
       type: 'meeting' as const,
       title: row.title,
       timestamp: row.created_at,
-      href: '/meetings',
+      href: '/hub/meetings',
     })),
     ...(contacts.data ?? []).map((row) => ({
       id: `contact-${row.id}`,
       type: 'contact' as const,
       title: row.contact_name,
       timestamp: row.created_at,
-      href: '/contacts',
+      href: '/hub/contacts',
     })),
   ]
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())

@@ -8,23 +8,23 @@ import { mockSupabase, type MockRole } from './supabaseMock';
 
 type NavEntry = { label: string; path: string };
 
-const OVERVIEW: NavEntry[] = [{ label: 'Dashboard', path: '/' }];
+const OVERVIEW: NavEntry[] = [{ label: 'Dashboard', path: '/hub' }];
 const PEOPLE: NavEntry[] = [
-  { label: 'People', path: '/members' },
-  { label: 'Cells', path: '/cells' },
-  { label: 'Outreach', path: '/contacts' },
+  { label: 'People', path: '/hub/members' },
+  { label: 'Cells', path: '/hub/cells' },
+  { label: 'Outreach', path: '/hub/contacts' },
 ];
 const APPROVALS: NavEntry[] = [{ label: 'Approvals', path: '/admin/pending' }];
 const MINISTRY: NavEntry[] = [
-  { label: 'Meetings', path: '/meetings' },
-  { label: 'Events', path: '/events' },
-  { label: 'Growth', path: '/growth' },
+  { label: 'Meetings', path: '/hub/meetings' },
+  { label: 'Events', path: '/hub/events' },
+  { label: 'Growth', path: '/hub/growth' },
 ];
 const RESOURCES: NavEntry[] = [
-  { label: 'Devotionals', path: '/devotionals' },
-  { label: 'Messages', path: '/messages' },
-  { label: 'Books', path: '/books' },
-  { label: 'Testimonies', path: '/testimonies' },
+  { label: 'Devotionals', path: '/hub/devotionals' },
+  { label: 'Messages', path: '/hub/messages' },
+  { label: 'Books', path: '/hub/books' },
+  { label: 'Testimonies', path: '/hub/testimonies' },
 ];
 const ADMINISTRATION: NavEntry[] = [
   { label: 'Admin', path: '/admin' },
@@ -45,7 +45,7 @@ const labelsOf = (entries: NavEntry[]) => entries.map((entry) => entry.label);
 
 async function signIn(page: Page, role: MockRole) {
   await mockSupabase(page, { role });
-  await page.goto('/');
+  await page.goto('/hub');
   await page.getByLabel('Email').fill('leader@yorku.ca');
   await page.getByLabel('Password').fill('secret1');
   await page.getByRole('button', { name: 'Sign In' }).click();
@@ -190,7 +190,7 @@ test.describe('closing the drawer', () => {
     await signIn(page, 'admin');
     await openDrawer(page);
     await drawer(page).getByRole('button', { name: 'Events', exact: true }).click();
-    await expect.poll(() => new URL(page.url()).pathname).toBe('/events');
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/hub/events');
     await expect(drawer(page)).toHaveCount(0);
   });
 
@@ -198,15 +198,15 @@ test.describe('closing the drawer', () => {
     await signIn(page, 'admin');
     await openDrawer(page);
     await drawer(page).getByRole('button', { name: 'Events', exact: true }).click();
-    await expect.poll(() => new URL(page.url()).pathname).toBe('/events');
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/hub/events');
 
     await openDrawer(page);
     await page.goBack();
-    await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/hub');
     await expect(drawer(page)).toHaveCount(0);
 
     await page.goForward();
-    await expect.poll(() => new URL(page.url()).pathname).toBe('/events');
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/hub/events');
     await expect(drawer(page)).toHaveCount(0);
   });
 });

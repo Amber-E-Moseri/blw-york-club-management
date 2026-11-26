@@ -24,7 +24,7 @@ if (typeof twemoji !== 'undefined') {
 // causing stale bundles after HMR recompiles).
 if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
   navigator.serviceWorker
-    .register('/service-worker.js')
+    .register(`${process.env.PUBLIC_URL}/service-worker.js`)
     .then((reg) => console.log('[Push SW] Registered, scope:', reg.scope))
     .catch((err) => console.warn('[Push SW] Registration failed:', err));
 }

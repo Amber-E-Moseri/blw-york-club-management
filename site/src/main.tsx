@@ -9,7 +9,7 @@ import './index.css';
 const AdminApp = lazy(() => import('./admin/AdminApp'));
 
 const config = readApiConfig(import.meta.env);
-// Vite's BASE_URL is '/site/'. The router basename is '/site' so every link stays under the public path.
+// Vite's BASE_URL is '/' in the unified platform, so the router has no basename and public links stay at the root.
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 const onAdmin = window.location.pathname.startsWith(`${basePath}/admin`);
 

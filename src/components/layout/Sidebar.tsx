@@ -42,7 +42,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className={cn('border-b border-gray-100 dark:border-slate-700', collapsed ? 'px-3 py-5' : 'px-5 py-5')}>
         {collapsed ? (
           <div className="flex flex-col items-center gap-2">
-            <img src="/logo.png" alt="BLW York" className="w-8 h-8 object-contain" />
+            <img src={`${process.env.PUBLIC_URL}/logo.png`} alt="BLW York" className="w-8 h-8 object-contain" />
             {onToggleCollapse && (
               <button onClick={onToggleCollapse} aria-label="Expand sidebar" title="Expand" className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-slate-200">
                 <ChevronRight className="w-4 h-4" aria-hidden="true" />
@@ -52,7 +52,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ) : (
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <img src="/logo.png" alt="BLW York" className="w-8 h-8 rounded-md shrink-0" />
+              <img src={`${process.env.PUBLIC_URL}/logo.png`} alt="BLW York" className="w-8 h-8 rounded-md shrink-0" />
               <div>
                 <p className="text-sm font-bold text-gray-900 leading-tight dark:text-slate-100">BLW York Hub</p>
                 <p className="text-xs text-gray-400">York University</p>

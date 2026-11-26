@@ -19,17 +19,17 @@ interface TabItem {
 }
 
 const LEADER_TABS: TabItem[] = [
-  { label: 'Home',     path: '/',         icon: LayoutGrid,    minRole: 0 },
-  { label: 'Outreach', path: '/contacts', icon: ClipboardList, minRole: 1 },
-  { label: 'Meetings', path: '/meetings', icon: Calendar,      minRole: 0 },
-  { label: 'Growth',   path: '/growth',   icon: Sparkles,      minRole: 0 },
+  { label: 'Home',     path: '/hub',      icon: LayoutGrid,    minRole: 0 },
+  { label: 'Outreach', path: '/hub/contacts', icon: ClipboardList, minRole: 1 },
+  { label: 'Meetings', path: '/hub/meetings', icon: Calendar,      minRole: 0 },
+  { label: 'Growth',   path: '/hub/growth',   icon: Sparkles,      minRole: 0 },
 ];
 
 const MEMBER_TABS: TabItem[] = [
-  { label: 'Home',     path: '/',         icon: LayoutGrid,    minRole: 0 },
-  { label: 'Meetings', path: '/meetings', icon: Calendar,      minRole: 0 },
-  { label: 'Events',   path: '/events',   icon: CalendarDays,  minRole: 0 },
-  { label: 'Growth',   path: '/growth',   icon: Sparkles,      minRole: 0 },
+  { label: 'Home',     path: '/hub',      icon: LayoutGrid,    minRole: 0 },
+  { label: 'Meetings', path: '/hub/meetings', icon: Calendar,      minRole: 0 },
+  { label: 'Events',   path: '/hub/events',   icon: CalendarDays,  minRole: 0 },
+  { label: 'Growth',   path: '/hub/growth',   icon: Sparkles,      minRole: 0 },
 ];
 
 export interface NavigationProps {

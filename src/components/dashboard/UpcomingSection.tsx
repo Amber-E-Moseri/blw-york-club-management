@@ -24,7 +24,7 @@ function mergeAndSort(events: Event[], meetings: Meeting[]): UpcomingItem[] {
     time: e.time,
     location: e.location,
     category: e.category,
-    href: '/events',
+    href: '/hub/events',
   }));
 
   const meetingItems: UpcomingItem[] = meetings.map((m) => ({
@@ -35,7 +35,7 @@ function mergeAndSort(events: Event[], meetings: Meeting[]): UpcomingItem[] {
     time: m.time,
     location: m.location,
     category: m.category,
-    href: '/meetings',
+    href: '/hub/meetings',
   }));
 
   return [...eventItems, ...meetingItems]
@@ -85,7 +85,7 @@ export const UpcomingSection: React.FC<UpcomingSectionProps> = ({ events, meetin
   return (
     <DashboardCard
       title="Upcoming"
-      action={{ label: 'View calendar', onClick: () => navigate('/events') }}
+      action={{ label: 'View calendar', onClick: () => navigate('/hub/events') }}
       noPadding
     >
       {loading ? (

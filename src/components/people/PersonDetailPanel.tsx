@@ -241,7 +241,7 @@ export const PersonDetailPanel: React.FC<PersonDetailPanelProps> = ({
               {isAdmin && !isOwnProfile && (
                 <section className="pt-2 border-t border-gray-100 dark:border-slate-700">
                   <a
-                    href="/contacts"
+                    href="/hub/contacts"
                     className="flex items-center gap-2 text-xs font-semibold text-york-600 dark:text-york-400 hover:underline"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />

@@ -207,7 +207,7 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
             <p className="text-small font-bold uppercase text-york-600">Coordinator</p>
             <h1 className="text-h1">Daily Bread Upload</h1>
           </div>
-          <Button variant="ghost" onClick={() => navigate('/devotionals')} className="w-fit">
+          <Button variant="ghost" onClick={() => navigate('/hub/devotionals')} className="w-fit">
             View Devotional
           </Button>
         </div>
@@ -340,7 +340,7 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
               Members see Day 1 on {format(new Date(year, month - 1, 1), 'MMMM d, yyyy')}.
             </p>
             <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
-              <Button onClick={() => navigate('/devotionals')}>View Report</Button>
+              <Button onClick={() => navigate('/hub/devotionals')}>View Report</Button>
               <Button variant="secondary" onClick={() => {
                 setMonth(month === 12 ? 1 : month + 1);
                 setYear(month === 12 ? year + 1 : year);

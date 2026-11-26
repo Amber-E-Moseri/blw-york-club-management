@@ -127,7 +127,7 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
         {/* Logo */}
         <div className="flex justify-center mb-8">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="BLW York" className="w-14 h-14 object-contain" />
+            <img src={`${process.env.PUBLIC_URL}/logo.png`} alt="BLW York" className="w-14 h-14 object-contain" />
             <div>
               <p className="text-lg font-bold text-gray-900">BLW York Hub</p>
               <p className="text-sm text-gray-400">York University</p>
