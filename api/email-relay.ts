@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import nodemailer from 'nodemailer';
+import { createHash, timingSafeEqual } from 'crypto';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -57,6 +58,17 @@ export async function sendViaGmail(
   return { messageId: info.messageId };
 }
 
+/**
+ * Compares a presented secret with the configured one in constant time. Both values are hashed first so the
+ * comparison always runs over equal-length buffers, and the time taken does not reveal how much of the secret matched.
+ */
+export function secretsMatch(presented: string, expected: string): boolean {
+  if (!presented || !expected) return false;
+  const a = createHash('sha256').update(presented, 'utf8').digest();
+  const b = createHash('sha256').update(expected, 'utf8').digest();
+  return timingSafeEqual(a, b);
+}
+
 export function validateRequest(
   req: Pick<VercelRequest, 'method' | 'headers' | 'body'>,
   config: ReturnType<typeof getConfig>,
@@ -71,7 +83,7 @@ export function validateRequest(
   }
   const auth = req.headers['authorization'] ?? '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-  if (!token || token !== config.relaySecret) {
+  if (!token || !secretsMatch(token, config.relaySecret)) {
     return { code: 'UNAUTHORIZED', message: 'Invalid or missing relay secret', status: 401 };
   }
 

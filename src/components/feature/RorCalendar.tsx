@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { cn } from '../../lib/utils';
+import { ROR_SELF_REPORTED_NOTE, rorToday } from '../../lib/rorDates';
 
 interface Props {
   /** Days in the month's devotional (1..total_days). */
@@ -19,9 +20,9 @@ const MONTH_NAMES = [
 
 export const RorCalendar: React.FC<Props> = ({ totalDays, readDates, month, year, className }) => {
   const readSet = useMemo(() => new Set(readDates), [readDates]);
-  const today = new Date();
-  const isCurrentMonth = today.getFullYear() === year && today.getMonth() + 1 === month;
-  const todayDay = today.getDate();
+  // Today on the Toronto reporting calendar: "upcoming" days are later than the Toronto day.
+  const [todayYear, todayMonth, todayDay] = rorToday().split('-').map(Number);
+  const isCurrentMonth = todayYear === year && todayMonth === month;
 
   const days = Array.from({ length: totalDays }, (_, i) => i + 1);
 
@@ -70,6 +71,7 @@ export const RorCalendar: React.FC<Props> = ({ totalDays, readDates, month, year
         <span className="inline-block w-2.5 h-2.5 rounded bg-gray-200 dark:bg-slate-700 mr-1 align-middle ml-2" aria-hidden="true" />
         Not yet read
       </p>
+      <p className="mt-2 text-[11px] text-gray-400 dark:text-slate-500">{ROR_SELF_REPORTED_NOTE}</p>
     </div>
   );
 };

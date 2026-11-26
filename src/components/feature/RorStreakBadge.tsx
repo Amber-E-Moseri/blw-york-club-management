@@ -2,6 +2,7 @@ import React from 'react';
 import { Flame, Trophy, Calendar, CheckCircle } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { RorStreak } from '../../lib/queries/rorStreaks';
+import { ROR_SELF_REPORTED_NOTE } from '../../lib/rorDates';
 
 interface Props {
   streak: RorStreak;
@@ -16,7 +17,7 @@ export const RorStreakBadge: React.FC<Props> = ({ streak, className, compact = f
 
   if (compact) {
     return (
-      <div className={cn('flex items-center gap-3', className)}>
+      <div className={cn('flex items-center gap-3', className)} title={ROR_SELF_REPORTED_NOTE}>
         <span className="flex items-center gap-1 text-sm font-semibold text-orange-500">
           <Flame className="w-4 h-4" aria-hidden="true" />
           {streak.current_streak}d
@@ -30,7 +31,8 @@ export const RorStreakBadge: React.FC<Props> = ({ streak, className, compact = f
   }
 
   return (
-    <div className={cn('grid grid-cols-2 gap-3 sm:grid-cols-4', className)}>
+    <div className={className}>
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       <StatTile
         icon={<Flame className="w-5 h-5 text-orange-500" aria-hidden="true" />}
         label="Current streak"
@@ -53,6 +55,8 @@ export const RorStreakBadge: React.FC<Props> = ({ streak, className, compact = f
         value={`${pct}%`}
         highlight={pct >= 80}
       />
+    </div>
+    <p className="mt-2 text-[11px] text-gray-400 dark:text-slate-500">{ROR_SELF_REPORTED_NOTE}</p>
     </div>
   );
 };

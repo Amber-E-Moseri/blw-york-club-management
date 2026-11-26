@@ -9,28 +9,36 @@ import { Button } from '../components/foundation/Button';
 import { useDevotional, useDevotionalByDay } from '../hooks/useDevotional';
 import { useRorStreak } from '../hooks/useRorStreak';
 import type { AuthUser } from '../lib/auth';
+import { toLocalDateKey } from '../lib/dates';
 
 interface DevotionalViewerProps {
   user: AuthUser | null;
 }
 
+// Today on the Toronto reporting calendar, the same day useDevotional() loads. The browser's own clock can disagree
+// with it near midnight.
+function torontoToday(): { year: number; month: number; day: number } {
+  const [year, month, day] = toLocalDateKey().split('-').map(Number);
+  return { year, month, day };
+}
+
 function getInitialDay(): number {
   const day = new URLSearchParams(window.location.search).get('day');
   const parsed = Number(day);
-  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 31 ? parsed : new Date().getDate();
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 31 ? parsed : torontoToday().day;
 }
 
 export const DevotionalViewer: React.FC<DevotionalViewerProps> = ({ user }) => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const today = useMemo(() => new Date(), []);
+  const today = useMemo(() => torontoToday(), []);
   const [selectedDay, setSelectedDay] = useState(getInitialDay);
-  const selectedMonth = Number(searchParams.get('month')) || today.getMonth() + 1;
-  const selectedYear = Number(searchParams.get('year')) || today.getFullYear();
+  const selectedMonth = Number(searchParams.get('month')) || today.month;
+  const selectedYear = Number(searchParams.get('year')) || today.year;
   const isToday =
-    selectedDay === today.getDate() &&
-    selectedMonth === today.getMonth() + 1 &&
-    selectedYear === today.getFullYear();
+    selectedDay === today.day &&
+    selectedMonth === today.month &&
+    selectedYear === today.year;
 
   const todayState = useDevotional();
   const selectedState = useDevotionalByDay(selectedMonth, selectedDay, selectedYear, false);
@@ -155,7 +163,7 @@ export const DevotionalViewer: React.FC<DevotionalViewerProps> = ({ user }) => {
 
             {/* Stats */}
             <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-              <p className="text-xs text-gray-500 dark:text-slate-400">Read today</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400">Read this day</p>
               <p className="mt-1 text-3xl font-bold text-gray-900 dark:text-slate-100">{state.stats?.viewed_count ?? 0}</p>
               <p className="text-sm text-gray-500 dark:text-slate-400">members</p>
 
@@ -175,7 +183,7 @@ export const DevotionalViewer: React.FC<DevotionalViewerProps> = ({ user }) => {
             {streak && (
               <div>
                 <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-600 dark:text-slate-400">
-                  Your reading streak
+                  Your reading streak <span className="normal-case tracking-normal font-normal">(self-reported)</span>
                 </h2>
                 <RorStreakBadge streak={streak} />
               </div>

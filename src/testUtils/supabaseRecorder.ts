@@ -25,7 +25,7 @@ function take(key: string): RecorderResponse {
 
 function builder(table: string) {
   const chain: Record<string, unknown> = {};
-  const ops = ['select', 'insert', 'update', 'delete', 'eq', 'in', 'match', 'order', 'gte', 'lt', 'lte', 'neq', 'or', 'limit'];
+  const ops = ['select', 'insert', 'update', 'upsert', 'delete', 'eq', 'in', 'match', 'order', 'gte', 'lt', 'lte', 'neq', 'or', 'limit'];
   for (const op of ops) {
     chain[op] = (...args: unknown[]) => {
       log.push({ target: table, op, args });

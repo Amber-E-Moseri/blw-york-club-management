@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import { rorMonthYear, rorToday } from '../rorDates';
 
 export interface RorStreak {
   current_streak: number;
@@ -20,15 +21,9 @@ export interface CellMemberRorRow {
   last_completed: string | null;
 }
 
-function todayIso(): string {
-  return new Date().toISOString().split('T')[0];
-}
-
-function monthYearIso(date = new Date()): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  return `${y}-${m}`;
-}
+// Reporting dates are the Toronto calendar day (src/lib/rorDates.ts), not the UTC day or the browser's local day.
+const todayIso = (): string => rorToday();
+const monthYearIso = (): string => rorMonthYear();
 
 export async function fetchRorStreak(
   memberId: string,

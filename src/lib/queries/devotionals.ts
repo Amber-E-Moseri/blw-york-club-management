@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import { toLocalDateKey } from '../dates';
 import type {
   DevotionalDailyPage,
   DevotionalEngagementStats,
@@ -26,7 +27,20 @@ export interface CreateDailyPageInput {
 }
 
 function normalizeYear(year?: number): number {
-  return year ?? new Date().getFullYear();
+  return year ?? Number(toLocalDateKey().slice(0, 4));
+}
+
+/**
+ * The calendar date a devotional page belongs to, as YYYY-MM-DD, or null when month, day or year is not a real date.
+ * View rows are keyed by this date, so the page date (not the time of the click) decides which day a read counts for.
+ */
+export function devotionalDateKey(year: number, month: number, day: number): string | null {
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null;
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const key = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const probe = new Date(Date.UTC(year, month - 1, day));
+  const roundTrips = probe.getUTCFullYear() === year && probe.getUTCMonth() === month - 1 && probe.getUTCDate() === day;
+  return roundTrips ? key : null;
 }
 
 export async function getMonthlyDevotional(month: number, year?: number): Promise<MonthlyDevotional | null> {
@@ -121,11 +135,12 @@ export async function createDailyPage(data: CreateDailyPageInput): Promise<Devot
   return row;
 }
 
+/** Records a view for the page's calendar date. viewedDate defaults to today on the Toronto reporting calendar. */
 export async function logView(
   memberId: string,
   devotionalId: string,
   dayOfMonth: number,
-  viewedDate = new Date().toISOString().split('T')[0]
+  viewedDate: string = toLocalDateKey()
 ): Promise<DevotionalView> {
   const { data, error } = await supabase
     .from('devotional_views')
@@ -156,7 +171,7 @@ export async function getViewForDay(
   memberId: string,
   devotionalId: string,
   dayOfMonth: number,
-  viewedDate = new Date().toISOString().split('T')[0]
+  viewedDate: string = toLocalDateKey()
 ): Promise<DevotionalView | null> {
   const { data, error } = await supabase
     .from('devotional_views')

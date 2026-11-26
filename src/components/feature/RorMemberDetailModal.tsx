@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { RorStreakBadge } from './RorStreakBadge';
 import { RorCalendar } from './RorCalendar';
 import { fetchMemberReadDates, fetchRorStreak } from '../../lib/queries/rorStreaks';
+import { rorToday } from '../../lib/rorDates';
 import type { CellMemberRorRow, RorStreak } from '../../lib/queries/rorStreaks';
 
 interface Props {
@@ -24,7 +25,7 @@ export const RorMemberDetailModal: React.FC<Props> = ({
   useEffect(() => {
     let mounted = true;
     setLoading(true);
-    const today = new Date().toISOString().split('T')[0];
+    const today = rorToday();
     const monthYear = `${devotionalYear}-${String(devotionalMonth).padStart(2, '0')}`;
 
     Promise.all([
