@@ -77,6 +77,7 @@ export function randomPassword() {
 // so a mistyped secret or variable cannot point a hosted run at it. The Preview certification project is approved.
 export const DENIED_PROJECT_REFS = [
   'rjtstjmtddqhesexltbj', // protected production project
+  'yziuhtxtznginhdpqurb', // BLW York production project (repo reference). Added in remediation Wave 1.
 ];
 
 /** The certification project reference for hosted runs. Must be set explicitly; there is no default. */

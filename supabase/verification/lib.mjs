@@ -20,6 +20,12 @@ export function harness(name) {
   if (!url || !anonKey || !serviceRoleKey) {
     throw new Error('SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY are required');
   }
+  // Protected production projects are refused by name and cannot be overridden. This harness creates and deletes
+  // accounts, so a non-local run must never reach production, whatever ALLOW_NON_LOCAL_CERTIFICATION says.
+  const PROTECTED_PROJECT_REFS = ['rjtstjmtddqhesexltbj', 'yziuhtxtznginhdpqurb'];
+  if (PROTECTED_PROJECT_REFS.some((ref) => url.toLowerCase().includes(ref))) {
+    throw new Error(`${name}: refusing to run against a protected production project`);
+  }
   if (!/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url) && process.env.ALLOW_NON_LOCAL_CERTIFICATION !== '1') {
     throw new Error(`${name}: refusing to run against a non-local Supabase URL`);
   }
