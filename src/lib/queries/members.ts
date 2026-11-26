@@ -2,6 +2,7 @@ import { supabase } from '../supabase';
 import { sendEmail, getAppOrigin } from '../email/emailService';
 import { accountApprovedTemplate } from '../email/emailTemplates';
 import type { Member } from '../../types';
+import { APPROVED_STATUS } from '../membership';
 
 export interface ApprovalResult {
   approval: 'success' | 'not_pending' | 'not_found';
@@ -67,10 +68,16 @@ export async function assignMemberToCell(memberId: string, cellId: string | null
   if (error) throw new Error(error.message ?? 'Failed to assign member to cell.');
 }
 
+/**
+ * Approved members only. Pending and rejected accounts are registered but not members, so they are not listed in the
+ * directory, the cell rosters, the unassigned count or the weekly audience. Pending accounts are handled by the
+ * approvals screen (AdminPendingApprovals). This does not change any record.
+ */
 export async function fetchMembersFiltered(filters: MemberFilters = {}): Promise<Member[]> {
   let q = supabase
     .from('member_directory')
     .select('id, full_name, email, avatar_url, role, joined_at, cell_id, bsc_id, bsc_name')
+    .eq('status', APPROVED_STATUS)
     .order('full_name', { ascending: true });
 
   if (filters.search) {

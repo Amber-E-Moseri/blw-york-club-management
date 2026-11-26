@@ -4,6 +4,7 @@
 //   * get_ror_streak (043): a caller may read a streak only when they are the member (active), an active devotional
 //     admin, or an active cell leader of an active member in their cell.
 //   * bscs_read and the BSC helpers (044): only active accounts read BSC rows or pass BSC helper checks.
+//   * profiles (022, 028): a pending account cannot change its own status, role or cell; a rejected account cannot edit.
 //
 // Limits: PGlite is not a Supabase stack. This certifies the SQL, RLS and SECURITY DEFINER behaviour, not PostgREST or
 // GoTrue. It does not replace the Docker/hosted certification harnesses.
@@ -169,6 +170,86 @@ async function run() {
     'bsc: pending account cannot assign itself to a BSC',
     pendingBscAfter.rows[0].bsc_id === null,
     `update ok=${pendingSetsBsc.ok} code=${pendingSetsBsc.code ?? ''} bsc_id=${pendingBscAfter.rows[0].bsc_id}`,
+  );
+
+  // ── Pending account self-edits (022 guard, 028 onboarding policy) ─────────
+  // A pending account may edit ordinary fields on its own row (028 policy). The guard blocks status, role, cell_id,
+  // admin_role, joined_at, person_id and email. Each negative check reads the row back as owner. The positive control
+  // shows the update path is open, so the negative checks are not passing only because every write is rejected.
+  const readProfile = async (id) =>
+    (await db.query('select full_name, status, role, cell_id from public.profiles where id = $1', [id])).rows[0];
+
+  const beforePending = await readProfile(ids.memberPending);
+
+  const pendingSetsCell = await attempt(
+    db,
+    'authenticated',
+    ids.memberPending,
+    'update public.profiles set cell_id = $1 where id = $2',
+    [cellB, ids.memberPending],
+  );
+  const afterPendingCell = await readProfile(ids.memberPending);
+  check(
+    'profiles: pending account cannot move itself to another cell',
+    afterPendingCell.cell_id === beforePending.cell_id,
+    `ok=${pendingSetsCell.ok} code=${pendingSetsCell.code ?? ''} cell_id=${afterPendingCell.cell_id}`,
+  );
+
+  const pendingApprovesSelf = await attempt(
+    db,
+    'authenticated',
+    ids.memberPending,
+    "update public.profiles set status = 'active' where id = $1",
+    [ids.memberPending],
+  );
+  const afterPendingStatus = await readProfile(ids.memberPending);
+  check(
+    'profiles: pending account cannot approve itself (status)',
+    afterPendingStatus.status === 'pending',
+    `ok=${pendingApprovesSelf.ok} code=${pendingApprovesSelf.code ?? ''} status=${afterPendingStatus.status}`,
+  );
+
+  const pendingPromotesSelf = await attempt(
+    db,
+    'authenticated',
+    ids.memberPending,
+    "update public.profiles set role = 'coordinator' where id = $1",
+    [ids.memberPending],
+  );
+  const afterPendingRole = await readProfile(ids.memberPending);
+  check(
+    'profiles: pending account cannot change its own role',
+    afterPendingRole.role === beforePending.role,
+    `ok=${pendingPromotesSelf.ok} code=${pendingPromotesSelf.code ?? ''} role=${afterPendingRole.role}`,
+  );
+
+  const pendingEditsName = await attempt(
+    db,
+    'authenticated',
+    ids.memberPending,
+    'update public.profiles set full_name = $1 where id = $2',
+    ['Pending Member (edited)', ids.memberPending],
+  );
+  const afterPendingName = await readProfile(ids.memberPending);
+  check(
+    'profiles: pending account can still edit its own ordinary fields (positive control)',
+    pendingEditsName.ok && afterPendingName.full_name === 'Pending Member (edited)',
+    `ok=${pendingEditsName.ok} code=${pendingEditsName.code ?? ''} full_name=${afterPendingName.full_name}`,
+  );
+
+  const beforeRejected = await readProfile(ids.memberRejected);
+  await attempt(
+    db,
+    'authenticated',
+    ids.memberRejected,
+    'update public.profiles set full_name = $1 where id = $2',
+    ['Rejected Member (edited)', ids.memberRejected],
+  );
+  const afterRejected = await readProfile(ids.memberRejected);
+  check(
+    'profiles: rejected account cannot edit its own profile',
+    afterRejected.full_name === beforeRejected.full_name,
+    `full_name=${afterRejected.full_name}`,
   );
 
   const failed = results.filter((r) => !r.pass);

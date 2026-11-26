@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import type { Event, EventAudience, EventCategory, Member, Announcement, PrayerRequest, DashboardStats } from '../types';
+import { APPROVED_STATUS } from './membership';
 
 // ─── Events ──────────────────────────────────────────────────────────────────
 
@@ -180,14 +181,15 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
   const [members, newMembers, events, announcements, prayers] = await Promise.all([
-    supabase.from('profiles').select('id', { count: 'exact', head: true }),
-    supabase.from('profiles').select('id', { count: 'exact', head: true }).gte('joined_at', monthAgo),
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', APPROVED_STATUS),
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', APPROVED_STATUS).gte('joined_at', monthAgo),
     supabase.from('events').select('id', { count: 'exact', head: true }).gte('date', today).lte('date', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]),
     supabase.from('announcements').select('id', { count: 'exact', head: true }),
     supabase.from('prayer_requests').select('id', { count: 'exact', head: true }).eq('is_active', true).gte('created_at', weekAgo),
   ]);
 
   return {
+    // Approved members only, to match the dashboard (dashboardStats.ts) and the member directory.
     member_count: members.count ?? 0,
     member_growth: newMembers.count ?? 0,
     upcoming_events: events.count ?? 0,

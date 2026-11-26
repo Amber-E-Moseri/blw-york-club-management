@@ -2,6 +2,7 @@ import { supabase } from '../supabase';
 import type { AuthUser } from '../auth';
 import type { ActivityItem, EnhancedDashboardStats, Meeting } from '../../types';
 import { localMonthInstants, localMonthRange, shiftLocalDays, toLocalDateKey } from '../dates';
+import { APPROVED_STATUS } from '../membership';
 
 export interface AttentionContact {
   id: string;
@@ -44,9 +45,9 @@ export async function getEnhancedDashboardStats(
     personalHabits,
     devotionalViews,
   ] = await Promise.all([
-    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', APPROVED_STATUS),
     supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', 'active')
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', APPROVED_STATUS)
       .gte('joined_at', monthTime.start).lt('joined_at', monthTime.nextStart),
     // Every meeting on the local calendar month, past and future alike.
     supabase.from('meetings').select('id', { count: 'exact', head: true }).gte('date', month.start).lte('date', month.end),
