@@ -500,7 +500,7 @@ Do not run `db push` against it without reviewing the output. Use the read-only 
 
 Built by **Amber Moseri** while serving at BLW York.
 
-- **Profile:** [add your LinkedIn or portfolio link]
+- **Profile:** [LinkedIn — Amber Moseri](https://www.linkedin.com/in/amber-moseri-2a87b5301/)
 
 **What building this taught me:** the most important work was in the requirements. Every screen depended on a rule about who should see what, and those rules were easier to get right by talking to the people who run the ministry than by guessing. Operational workflows, such as approvals, cell assignments and follow-up, shaped the data model more than any framework did. Small changes matter with real users: a missing column can break a page that worked the day before. I also learned to own the whole path, from the migration to the screen to the email that goes out. Each release has revealed a gap that the previous one hid, and the certification job now shows those gaps before they reach production.
 
