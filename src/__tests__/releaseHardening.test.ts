@@ -11,8 +11,10 @@ describe('final release hardening', () => {
     const auth = read('src/lib/auth.ts');
 
     expect(migration).toContain("check (status in ('pending', 'active', 'inactive', 'rejected'))");
-    expect(app).toContain("user.status === 'inactive'");
+    // The app gate is an allowlist (canUseApp), so an inactive account is held because it is not 'active'.
+    expect(app).toContain('canUseApp(user)');
     expect(auth).toContain("'inactive'");
+    expect(auth).toContain("user?.status === 'active'");
   });
 
   test('pending and active accounts may edit ordinary own profile fields only', () => {
