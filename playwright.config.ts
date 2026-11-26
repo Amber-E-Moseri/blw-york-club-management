@@ -20,5 +20,12 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
+    {
+      // WebKit engine with an iPhone viewport. This simulates Safari's engine and layout. It is not a test on a real
+      // iPhone, so real-device Safari still needs a manual check before the production sign-in fix is called verified.
+      name: 'webkit-iphone',
+      testMatch: /login-regression\.spec\.ts/,
+      use: { ...devices['iPhone 13'] },
+    },
   ],
 });

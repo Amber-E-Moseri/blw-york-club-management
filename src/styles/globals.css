@@ -18,6 +18,36 @@
   --color-text-secondary: #94a3b8;
 }
 
+/* Native controls (autofill, scrollbars, date pickers) follow the app theme set on <html> by useTheme. */
+:root {
+  color-scheme: light;
+}
+:root.dark {
+  color-scheme: dark;
+}
+
+/*
+ * Browser autofill paints a pale background and dark text. On the sign-in card that is unreadable in dark mode,
+ * so the card pins both colours for each theme.
+ */
+.login-card input:-webkit-autofill,
+.login-card input:-webkit-autofill:hover,
+.login-card input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+  box-shadow: 0 0 0 1000px #ffffff inset;
+  -webkit-text-fill-color: #111827;
+  caret-color: #111827;
+  transition: background-color 9999s ease-out 0s;
+}
+:root.dark .login-card input:-webkit-autofill,
+:root.dark .login-card input:-webkit-autofill:hover,
+:root.dark .login-card input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #0f172a inset;
+  box-shadow: 0 0 0 1000px #0f172a inset;
+  -webkit-text-fill-color: #f1f5f9;
+  caret-color: #f1f5f9;
+}
+
 :root {
   --sat: env(safe-area-inset-top);
   --sar: env(safe-area-inset-right);

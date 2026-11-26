@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './styles/globals.css';
 import './i18n';
 import App from './App';
+import { registerPushServiceWorker } from './lib/serviceWorker/pushServiceWorker';
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 root.render(
@@ -23,8 +24,5 @@ if (typeof twemoji !== 'undefined') {
 // bundles are served at stable /static/ paths which the SW would cache-first,
 // causing stale bundles after HMR recompiles).
 if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
-  navigator.serviceWorker
-    .register('/service-worker.js')
-    .then((reg) => console.log('[Push SW] Registered, scope:', reg.scope))
-    .catch((err) => console.warn('[Push SW] Registration failed:', err));
+  void registerPushServiceWorker(navigator.serviceWorker);
 }

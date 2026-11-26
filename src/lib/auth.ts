@@ -47,22 +47,30 @@ export async function signUpWithEmail(
     password,
     options: { data: { full_name: fullName, student_number: studentNumber ?? null } },
   });
-  if (error) throw new AuthError(friendlyMessage(error.message), error.message);
-  if (!data.user) throw new AuthError('Sign-up succeeded but no user was returned.');
+  if (error) throw authErrorFrom(error);
+  if (!data.user) throw new AuthError(GENERIC_AUTH_ERROR_MESSAGE, 'no-user');
   console.debug('[auth] signUp:', data.user.id);
 }
 
 export async function signInWithEmail(email: string, password: string): Promise<AuthUser> {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw new AuthError(friendlyMessage(error.message), error.message);
-  if (!data.user) throw new AuthError('Sign-in succeeded but no user was returned.');
+  if (isOffline()) throw new AuthError(NETWORK_ERROR_MESSAGE, 'offline');
+  let result: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>;
+  try {
+    result = await supabase.auth.signInWithPassword({ email, password });
+  } catch (err) {
+    // A thrown fetch failure (for example "Load failed" on iOS Safari) is a connectivity problem, not a raw exception.
+    throw thrownAuthError(err);
+  }
+  const { data, error } = result;
+  if (error) throw authErrorFrom(error);
+  if (!data.user) throw new AuthError(GENERIC_AUTH_ERROR_MESSAGE, 'no-user');
   console.debug('[auth] signIn:', data.user.id);
   return buildAuthUser(data.user);
 }
 
 export async function signOut(): Promise<void> {
   const { error } = await supabase.auth.signOut();
-  if (error) throw new AuthError(friendlyMessage(error.message), error.message);
+  if (error) throw authErrorFrom(error);
   console.debug('[auth] signed out');
 }
 
@@ -70,13 +78,13 @@ export async function resetPassword(email: string): Promise<void> {
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${window.location.origin}/reset-password`,
   });
-  if (error) throw new AuthError(friendlyMessage(error.message), error.message);
+  if (error) throw authErrorFrom(error);
   console.debug('[auth] reset password email sent to', email);
 }
 
 export async function changePassword(newPassword: string): Promise<void> {
   const { error } = await supabase.auth.updateUser({ password: newPassword });
-  if (error) throw new AuthError(friendlyMessage(error.message), error.message);
+  if (error) throw authErrorFrom(error);
   console.debug('[auth] password changed');
 }
 
@@ -116,7 +124,7 @@ export async function establishRecoverySession(link: RecoveryLink): Promise<Reco
 
 export async function resendConfirmation(email: string): Promise<void> {
   const { error } = await supabase.auth.resend({ type: 'signup', email });
-  if (error) throw new AuthError(friendlyMessage(error.message), error.message);
+  if (error) throw authErrorFrom(error);
   console.debug('[auth] confirmation resent to', email);
 }
 
@@ -125,7 +133,7 @@ export async function resendConfirmation(email: string): Promise<void> {
  */
 export async function verifyEmailOtp(email: string, token: string): Promise<void> {
   const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
-  if (error) throw new AuthError(friendlyMessage(error.message), error.message);
+  if (error) throw authErrorFrom(error);
   console.debug('[auth] email OTP verified');
 }
 
@@ -163,7 +171,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 
 export async function verifyEmail(token: string): Promise<void> {
   const { error } = await supabase.auth.verifyOtp({ token_hash: token, type: 'email' });
-  if (error) throw new AuthError(friendlyMessage(error.message), error.message);
+  if (error) throw authErrorFrom(error);
   console.debug('[auth] email verified');
 }
 
@@ -250,13 +258,41 @@ export function buildProfile(row: Record<string, unknown> | null | undefined): A
   };
 }
 
-function friendlyMessage(raw: string): string {
-  const map: Record<string, string> = {
-    'Invalid login credentials': 'Incorrect email or password. Please try again.',
-    'Email not confirmed': 'Please confirm your email address before signing in.',
-    'User already registered': 'An account with this email already exists.',
-    'Password should be at least 6 characters': 'Password must be at least 6 characters long.',
-    'Rate limit exceeded': 'Too many attempts. Please wait a moment and try again.',
-  };
-  return map[raw] ?? raw;
+export const NETWORK_ERROR_MESSAGE =
+  'We could not reach the sign-in service. Check your connection and try again.';
+export const GENERIC_AUTH_ERROR_MESSAGE = 'Something went wrong. Please try again in a moment.';
+
+// Network failures as surfaced by supabase-js and the browser engines (Chromium, Firefox, Safari/WebKit).
+const NETWORK_ERROR_PATTERN =
+  /failed to fetch|load failed|networkerror|network request failed|internet connection|fetch resource|network error/i;
+const RATE_LIMIT_PATTERN = /rate limit|too many|security purposes/i;
+
+const FRIENDLY_MESSAGES: Record<string, string> = {
+  'Invalid login credentials': 'Incorrect email or password. Please try again.',
+  'Email not confirmed': 'Please confirm your email address before signing in.',
+  'User already registered': 'An account with this email already exists.',
+  'Password should be at least 6 characters': 'Password must be at least 6 characters long.',
+};
+
+/** Turns a Supabase error into an AuthError whose message is safe to show. The raw text is kept in `code` only. */
+function authErrorFrom(error: { message: string; status?: number }): AuthError {
+  return new AuthError(friendlyMessage(error.message, error.status), error.message);
+}
+
+/** Maps an exception thrown by the auth client (not a Supabase error object) to a user-facing AuthError. */
+function thrownAuthError(err: unknown): AuthError {
+  if (err instanceof AuthError) return err;
+  const raw = err instanceof Error ? err.message : '';
+  return new AuthError(friendlyMessage(raw, 0), raw || 'unknown');
+}
+
+function isOffline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
+function friendlyMessage(raw: string, status?: number): string {
+  // status 0 is supabase-js's marker for a request that never got a response.
+  if (status === 0 || NETWORK_ERROR_PATTERN.test(raw)) return NETWORK_ERROR_MESSAGE;
+  if (RATE_LIMIT_PATTERN.test(raw)) return 'Too many attempts. Please wait a moment and try again.';
+  return FRIENDLY_MESSAGES[raw] ?? GENERIC_AUTH_ERROR_MESSAGE;
 }

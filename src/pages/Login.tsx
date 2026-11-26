@@ -27,6 +27,14 @@ function isRateLimited(err: unknown): boolean {
   return err instanceof AuthError && /rate limit|security purposes|too many/i.test(err.code ?? err.message);
 }
 
+// Shared colour tokens so every surface of the sign-in card resolves the same way in light and dark mode.
+const PAGE_BG = 'bg-gray-100 dark:bg-slate-950';
+const CARD = 'login-card w-full max-w-sm mx-auto bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-md p-6 sm:p-8';
+const HEADING = 'text-xl font-bold text-center mb-5 text-gray-900 dark:text-slate-100';
+const MUTED = 'text-sm text-gray-500 dark:text-slate-400';
+const LINK = 'text-york-600 dark:text-york-400 font-semibold hover:underline';
+const ERROR_TEXT = 'text-xs text-red-600 dark:text-red-400';
+
 export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading }) => {
   const [mode, setMode] = useState<'signin' | 'signup' | 'verify' | 'done' | 'forgot'>('signin');
   const [email, setEmail] = useState('');
@@ -35,6 +43,7 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
   const [fullName, setFullName] = useState('');
   const [studentNumber, setStudentNumber] = useState('');
   const [localError, setLocalError] = useState('');
+  const [signInBusy, setSignInBusy] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetBusy, setResetBusy] = useState(false);
   const [resetNotice, setResetNotice] = useState<ResetNotice | null>(null);
@@ -69,10 +78,17 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
     }
   };
 
-  const handleSignIn = (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    // A second tap while the request is in flight would send the password twice.
+    if (signInBusy) return;
     setLocalError('');
-    onSignIn(email, password);
+    setSignInBusy(true);
+    try {
+      await onSignIn(email.trim(), password);
+    } finally {
+      setSignInBusy(false);
+    }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -120,8 +136,12 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
     }
   };
 
+  const signInBusyNow = loading || signInBusy;
+
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+    <div
+      className={`min-h-screen ${PAGE_BG} flex items-center justify-center box-border px-4 py-8 sm:px-6 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[max(2rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))]`}
+    >
       <div className="w-full max-w-sm">
 
         {/* Logo */}
@@ -129,26 +149,26 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="BLW York" className="w-14 h-14 object-contain" />
             <div>
-              <p className="text-lg font-bold text-gray-900">BLW York Hub</p>
-              <p className="text-sm text-gray-400">York University</p>
+              <p className="text-lg font-bold text-gray-900 dark:text-slate-100">BLW York Hub</p>
+              <p className="text-sm text-gray-500 dark:text-slate-400">York University</p>
             </div>
           </div>
         </div>
 
         {!isConfigured && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-md px-4 py-3 text-sm text-yellow-800 mb-4">
+          <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-md px-4 py-3 text-sm text-yellow-800 dark:text-yellow-200 mb-4">
             <strong>Setup required.</strong> Add your Supabase URL and anon key to .env
           </div>
         )}
 
-        <div className="bg-white rounded-lg shadow-md p-8">
+        <div className={CARD}>
 
           {/* Email OTP verification */}
           {mode === 'verify' && (
             <>
-              <h2 className="text-xl font-bold text-center mb-2">Check your email</h2>
-              <p className="text-sm text-gray-500 text-center mb-5">
-                We sent a 6-digit code to <strong>{email}</strong>. Enter it below to confirm your address.
+              <h2 className={HEADING}>Check your email</h2>
+              <p className={`${MUTED} text-center mb-5`}>
+                We sent a 6-digit code to <strong className="text-gray-900 dark:text-slate-100">{email}</strong>. Enter it below to confirm your address.
               </p>
               <form className="space-y-4" onSubmit={handleVerify} noValidate>
                 <Input
@@ -162,8 +182,8 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
                 />
                 <Button fullWidth loading={otpBusy} disabled={otpBusy} type="submit">Verify</Button>
               </form>
-              <p className="text-center text-sm text-gray-500 mt-5">
-                <button type="button" onClick={() => { setMode('signin'); setOtpCode(''); setOtpError(''); }} className="text-york-600 font-semibold hover:underline">
+              <p className={`${MUTED} text-center mt-5`}>
+                <button type="button" onClick={() => { setMode('signin'); setOtpCode(''); setOtpError(''); }} className={LINK}>
                   Back to Sign In
                 </button>
               </p>
@@ -174,8 +194,8 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
           {mode === 'done' && (
             <div className="text-center space-y-4">
               <div className="text-4xl">🍁</div>
-              <h2 className="text-xl font-bold text-gray-900">Application submitted!</h2>
-              <p className="text-sm text-gray-500">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Application submitted!</h2>
+              <p className={MUTED}>
                 Your account is pending approval by a leader. You'll be able to log in once you're approved.
               </p>
               <Button variant="ghost" onClick={() => setMode('signin')}>Back to Sign In</Button>
@@ -185,7 +205,7 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
           {/* Sign In */}
           {mode === 'signin' && (
             <>
-              <h2 className="text-xl font-bold text-center mb-5">Sign In</h2>
+              <h2 className={HEADING}>Sign In</h2>
               <form className="space-y-5" onSubmit={handleSignIn} noValidate>
                 <Input label="Email" type="email" value={email} onChange={setEmail} placeholder="you@yorku.ca" autoComplete="email" />
                 <Input label="Password" type="password" value={password} onChange={setPassword} placeholder="••••••••" autoComplete="current-password" />
@@ -196,7 +216,7 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
                 </div>
                 {(error || localError) && (
                   <div>
-                    <p className="text-xs text-red-600" role="alert">{error || localError}</p>
+                    <p className={ERROR_TEXT} role="alert">{error || localError}</p>
                     {isUnconfirmedError(error || localError) && (
                       <button
                         type="button"
@@ -209,11 +229,11 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
                     )}
                   </div>
                 )}
-                <Button fullWidth loading={loading} type="submit">Sign In</Button>
+                <Button fullWidth loading={signInBusyNow} disabled={signInBusyNow} type="submit">Sign In</Button>
               </form>
-              <p className="text-center text-sm text-gray-500 mt-5">
+              <p className={`${MUTED} text-center mt-5`}>
                 New to BLW York?{' '}
-                <button type="button" onClick={() => { setMode('signup'); setLocalError(''); }} className="text-york-600 font-semibold hover:underline">
+                <button type="button" onClick={() => { setMode('signup'); setLocalError(''); }} className={LINK}>
                   Request access
                 </button>
               </p>
@@ -223,8 +243,8 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
           {/* Forgot password */}
           {mode === 'forgot' && (
             <>
-              <h2 className="text-xl font-bold text-center mb-2 text-gray-900 dark:text-slate-100">Reset your password</h2>
-              <p className="text-sm text-gray-500 dark:text-slate-400 text-center mb-4">
+              <h2 className={`${HEADING} mb-2`}>Reset your password</h2>
+              <p className={`${MUTED} text-center mb-4`}>
                 Enter the email address for your account. We will send a link to choose a new password.
               </p>
               <form className="space-y-4" onSubmit={handleForgotPassword} noValidate>
@@ -241,8 +261,8 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
                   <Button fullWidth loading={resetBusy} disabled={resetBusy} type="submit">Send reset link</Button>
                 )}
               </form>
-              <p className="text-center text-sm text-gray-500 dark:text-slate-400 mt-5">
-                <button type="button" onClick={() => { setMode('signin'); setResetNotice(null); }} className="text-york-600 dark:text-york-400 font-semibold hover:underline">
+              <p className={`${MUTED} text-center mt-5`}>
+                <button type="button" onClick={() => { setMode('signin'); setResetNotice(null); }} className={LINK}>
                   Back to Sign In
                 </button>
               </p>
@@ -252,7 +272,7 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
           {/* Sign Up */}
           {mode === 'signup' && (
             <>
-              <h2 className="text-xl font-bold text-center mb-5">Request Access</h2>
+              <h2 className={HEADING}>Request Access</h2>
               <form className="space-y-4" onSubmit={handleSignUp} noValidate>
                 <Input label="Full Name" value={fullName} onChange={setFullName} placeholder="Your full name" autoComplete="name" required />
                 <Input label="Email" type="email" value={email} onChange={setEmail} placeholder="you@yorku.ca" autoComplete="email" />
@@ -260,13 +280,13 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
                 <Input label="Password" type="password" value={password} onChange={setPassword} placeholder="Min. 6 characters" autoComplete="new-password" />
                 <Input label="Confirm Password" type="password" value={confirm} onChange={setConfirm} placeholder="••••••••" autoComplete="new-password" />
                 {(error || localError) && (
-                  <p className="text-xs text-red-600" role="alert">{error || localError}</p>
+                  <p className={ERROR_TEXT} role="alert">{error || localError}</p>
                 )}
                 <Button fullWidth loading={loading} type="submit">Submit Request</Button>
               </form>
-              <p className="text-center text-sm text-gray-500 mt-5">
+              <p className={`${MUTED} text-center mt-5`}>
                 Already have an account?{' '}
-                <button type="button" onClick={() => { setMode('signin'); setLocalError(''); }} className="text-york-600 font-semibold hover:underline">
+                <button type="button" onClick={() => { setMode('signin'); setLocalError(''); }} className={LINK}>
                   Sign in
                 </button>
               </p>
