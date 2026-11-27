@@ -57,9 +57,15 @@ P2 non-blocking improvement; P3 future enhancement. P2 and P3 items go to the po
 
 Requires explicit owner approval after 1 to 4 are closed. No production deployment is authorised by this document.
 
+## P0 finding (owner notice): Production authorization model
+
+- Production's cell-leader helper and profile policies grant access by the `cell_leader` role. Detail: docs/hosted-catalog-gap.md, appendix.
+- Release gate: the reconciled candidate's authorization definitions must be applied to Production, with the owner's approval, before Production can be released. No Production change is authorized here.
+
 ## Genuine release blockers (as of this writing)
 
 1. Authenticated workflow verification against the Preview project (4.5): owner approval of the `Preview` environment and project `yziuhtxtznginhdpqurb` is required.
+0. P0 (above): Production authorization model predates the remediation.
 2. Preview lineage decision (3.2): owner decision on the 19 Preview tables outside the candidate, and the Preview ledger export.
 3. Production ledger export and backup approval (3.3). Production HOLD.
 

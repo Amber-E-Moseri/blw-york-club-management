@@ -232,3 +232,38 @@ Method: object names only, from scripts/hosted-upgrade-plan.mjs --catalog. A led
 - Production lacks the candidate objects from 047 (web tables and routines), 061 (audience and saved groups), 064 (assignments), 069 (announcement dispatch) and the later views. Its path is additive, and the mapping above names the candidate file for each missing object.
 - Preview holds 19 tables that the candidate does not define (communication_*, identity_*, audience_snapshots, fellowships and audit tables). Preview is not an additive target. Its lineage needs an owner decision before any upgrade path is chosen.
 - Ledger need: the catalog cannot say which candidate versions are recorded. One narrow read-only export per project is required: select version, name from supabase_migrations.schema_migrations order by version;
+
+## Findings from the catalog definitions (appendix, added at f47fec8 review)
+
+Method: the supplied exports' own function definitions, policies and triggers, read without any hosted access. These are
+statements about the catalog text, not runtime tests.
+
+### P0 — Production authorization model predates the remediation (owner notice)
+
+- `is_cell_leader_for_profile(target)` in Production grants access when the caller's profile role is `cell_leader` and the
+  caller's cell equals the target's cell. The leadership label alone confers cell authority. The owner decision rejects this.
+- Policies that use this helper: `profiles_select_scoped` and `user_profiles_select_scoped`. Through them, a `cell_leader`
+  account reads the profile of every member of its cell, including student number, and the extra profile fields (phone, bio).
+- Production also has at least 17 policies that check the `cell_leader` role directly (contacts, contact follow-ups,
+  meetings, meeting attendance, BSCs, prayers, announcements, zoom attendance).
+- Preview's helper is assignment-based (`cells.leader_id`), which is the approved model. Its profile policy still shows the
+  remediation as incomplete, since it lacks candidate 065 and later.
+- Action required from the owner: decide whether to take an interim Production mitigation before the reconciled candidate is
+  applied. No Production change has been made.
+
+### Preview: live objects outside the candidate
+
+- The 19 Preview-only tables are referenced by live functions and triggers in the Preview database: `send_message` (communication
+  tables), audience-snapshot functions (`audience_snapshots`, `audience_publications`), `assign_member_to_bsc`
+  (`bsc_assignment_audit`), `release_bsc_leadership_on_deactivation` (`leadership_release_audit`), `set_member_status`
+  (`member_status_audit`), `approve_pending_member` (`profile_approval_audit`), `_f2_submit_contact_row` (`identity_claims`), and
+  `fellowships` (two policies). They are not orphans. They are preserved (see docs/hosted-migration-strategy.md).
+
+### Both hosted lineages differ from each other and from the candidate
+
+- Preview and Production share 29 public functions by name and argument list. All 29 bodies differ by hash. Several of the
+  differences are real: `is_cell_leader_for_profile` (above), and the authorization helpers in general.
+- Eight shared tables have different column sets: `announcements`, `cells`, `confessions`, `events`, `meeting_attendances`,
+  `meetings`, `member_directory`, `weekly_messages`.
+- A hash difference alone is not proof of a semantic difference, since CRLF line endings change hashes (the earlier finding).
+  `is_cell_leader_of` is token-equal in both hosted catalogs after normalization, so it is not a counterexample.
