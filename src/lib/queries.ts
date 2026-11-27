@@ -122,16 +122,21 @@ export async function getAnnouncements(limit = 5): Promise<Announcement[]> {
   return data ?? [];
 }
 
-/** Saves an announcement and returns its id. Nothing is pushed here; see notifyAnnouncementMembers. */
+/**
+ * Saves an announcement and returns its id. Nothing is pushed here; see notifyAnnouncementMembers.
+ * `cellId` is null for an organization-wide announcement (staff only). A cell leader must pass a cell they lead; the
+ * database refuses anything else (migration 066).
+ */
 export async function createAnnouncement(
   title: string,
   body: string,
   authorId: string,
-  authorName: string
+  authorName: string,
+  cellId: string | null = null
 ): Promise<string> {
   const { data, error } = await supabase
     .from('announcements')
-    .insert({ title, body, author_id: authorId, author_name: authorName })
+    .insert({ title, body, author_id: authorId, author_name: authorName, cell_id: cellId })
     .select('id')
     .single();
   if (error) throw new Error(error.message);

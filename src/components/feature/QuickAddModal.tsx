@@ -5,11 +5,9 @@ import { useTagsAndStatuses, useCells } from '../../hooks/useContacts';
 import { createContact } from '../../lib/queries/contacts';
 import { createMeeting } from '../../lib/queries/meetings';
 import type { AuthUser } from '../../lib/auth';
+import { useLeadership } from '../../hooks/useLeadership';
 import { toLocalDateKey } from '../../lib/dates';
 
-const ROLE_LEVEL: Record<AuthUser['role'], number> = {
-  member: 0, cell_leader: 1, admin: 2, coordinator: 3,
-};
 
 type Tab = 'contact' | 'meeting';
 
@@ -23,8 +21,9 @@ interface QuickAddContentProps {
 }
 
 const QuickAddContent: React.FC<QuickAddContentProps> = ({ user, onClose }) => {
-  const level = ROLE_LEVEL[user.role] ?? 0;
-  const canLogContact = level >= 1;
+  // Logging a contact is a leader action: staff, or an assigned cell leader. The role alone is not enough.
+  const { canUseLeaderPages, isStaff, ledCells } = useLeadership();
+  const canLogContact = canUseLeaderPages;
 
   const [tab, setTab] = useState<Tab>(canLogContact ? 'contact' : 'meeting');
   const [saving, setSaving] = useState(false);
@@ -48,11 +47,12 @@ const QuickAddContent: React.FC<QuickAddContentProps> = ({ user, onClose }) => {
   const { tags } = useTagsAndStatuses();
   const { cells } = useCells();
 
+  // Staff manage every cell. A cell leader manages only the cells they lead; the role alone grants nothing.
   const manageableCells = useMemo(() => {
-    if (user.role === 'coordinator' || user.role === 'admin') return cells;
-    if (user.role === 'cell_leader') return cells.filter((cell) => cell.leader_id === user.id);
-    return [];
-  }, [cells, user.id, user.role]);
+    if (isStaff) return cells;
+    const led = new Set(ledCells.map((cell) => cell.id));
+    return cells.filter((cell) => led.has(cell.id));
+  }, [cells, isStaff, ledCells]);
 
   const selectedContactCellIsAllowed = manageableCells.some((cell) => cell.id === contactCellId);
   const selectedMeetingCellIsAllowed = manageableCells.some((cell) => cell.id === meetingCellId);

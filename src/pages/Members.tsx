@@ -92,15 +92,6 @@ export const Members: React.FC<Props> = ({ user }) => {
     fetchCells().then(setCells).catch(console.error);
   }, []);
 
-  // Access gate: cell_leader+
-  if (level < 1) {
-    return (
-      <div className="flex-1 p-8 flex items-center justify-center">
-        <p className="text-sm text-york-600 font-medium">Leaders only — access denied.</p>
-      </div>
-    );
-  }
-
   const totalMembers = members.length;
   const leaderCount = members.filter((m) => m.role !== 'member').length;
   const canSeeContact = isAdmin;

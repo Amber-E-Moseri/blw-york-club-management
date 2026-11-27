@@ -7,6 +7,7 @@ import { GlobalSearch } from '../feature/GlobalSearch';
 import { useTheme } from '../../hooks/useTheme';
 import { useTranslation } from '../../i18n';
 import { getVisibleNavGroups } from './navItems';
+import { useLeadership } from '../../hooks/useLeadership';
 
 function getInitials(name: string) {
   return name.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase();
@@ -27,7 +28,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { theme, setTheme } = useTheme();
   const { t } = useTranslation('nav');
 
-  const visibleGroups = getVisibleNavGroups(user?.role);
+  const { canUseLeaderPages } = useLeadership();
+  const visibleGroups = getVisibleNavGroups(user?.role, canUseLeaderPages);
 
   return (
     <aside

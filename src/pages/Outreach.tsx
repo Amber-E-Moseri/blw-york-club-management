@@ -18,17 +18,11 @@ import {
   useTagsAndStatuses,
 } from '../hooks/useContacts';
 import { exportContactsCSV } from '../lib/queries/contacts';
+import { useLeadership } from '../hooks/useLeadership';
 import type { AuthUser } from '../lib/auth';
 import type { BulkImportRow, Contact, ContactFilters as Filters, ContactInput, ImportResult } from '../types';
 
-const ROLE_LEVEL: Record<AuthUser['role'], number> = {
-  member: 0, cell_leader: 1, admin: 2, coordinator: 3,
-};
-
 interface Props { user: AuthUser | null; }
-
-const canManage = (role: string) => ['coordinator', 'admin', 'cell_leader'].includes(role);
-const canSeePhone = (role: string) => ['coordinator', 'admin', 'cell_leader'].includes(role);
 
 const sevenDaysAgo = (): string => {
   const d = new Date();
@@ -37,7 +31,8 @@ const sevenDaysAgo = (): string => {
 };
 
 export const Outreach: React.FC<Props> = ({ user }) => {
-  const level = ROLE_LEVEL[user?.role ?? 'member'] ?? 0;
+  // Staff, or a leader of an assigned cell. The route guard already admits only these users.
+  const { canUseLeaderPages } = useLeadership();
 
   const [filters, setFilters] = useState<Filters>({});
   const [formOpen, setFormOpen] = useState(false);
@@ -57,9 +52,8 @@ export const Outreach: React.FC<Props> = ({ user }) => {
   const { log: auditLog } = useContactAuditLog(selected?.id ?? null);
   const mutations = useContactMutations(refetch);
 
-  const role = user?.role ?? 'member';
   const cellId = user?.cellId ?? '';
-  const manage = canManage(role);
+  const manage = canUseLeaderPages;
 
   // Derived stats from loaded contacts
   const cutoff = sevenDaysAgo();
@@ -121,14 +115,6 @@ export const Outreach: React.FC<Props> = ({ user }) => {
     a.click();
     URL.revokeObjectURL(url);
   };
-
-  if (level < 1) {
-    return (
-      <div className="flex-1 p-8 flex items-center justify-center">
-        <p className="text-sm text-york-600 font-medium">Leaders only — access denied.</p>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-5 pb-4">
@@ -223,7 +209,7 @@ export const Outreach: React.FC<Props> = ({ user }) => {
           tags={tags}
           statuses={statuses}
           canEdit={manage}
-          showPhone={canSeePhone(role)}
+          showPhone={manage}
           onEdit={handleView}
           onReassign={handleReassign}
           onMove={handleMove}

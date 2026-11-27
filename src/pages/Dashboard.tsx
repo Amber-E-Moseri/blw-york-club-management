@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useDashboardStats } from '../hooks/useDashboardStats';
+import { useLeadership } from '../hooks/useLeadership';
 import { useCurrentWeekMessage } from '../hooks/useWeeklyMessages';
 import { useHabits } from '../hooks/useHabits';
 import { useDevotional } from '../hooks/useDevotional';
@@ -14,9 +15,6 @@ import { GrowthSnapshot } from '../components/dashboard/GrowthSnapshot';
 import type { Event } from '../types';
 import type { AuthUser } from '../lib/auth';
 
-const ROLE_LEVEL: Record<AuthUser['role'], number> = {
-  member: 0, cell_leader: 1, admin: 2, coordinator: 3,
-};
 
 interface DashboardProps {
   user: AuthUser | null;
@@ -35,8 +33,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   }, []);
 
   const role = user?.role ?? 'member';
-  const level = ROLE_LEVEL[role] ?? 0;
-  const isLeader = level >= 1;
+  // Leader views are for staff and assigned cell leaders, decided by the leadership capability.
+  const { canUseLeaderPages } = useLeadership();
+  const isLeader = canUseLeaderPages;
   const firstName = user?.name?.split(' ')[0] ?? 'there';
   const today = format(new Date(), 'EEEE, MMMM d');
 

@@ -41,7 +41,11 @@ describe('event creation', () => {
 
     expect(eventsPage).not.toContain('cellId');
     expect(eventsPage).not.toContain('cell_id');
-    expect(queries).not.toMatch(/createEvent[\s\S]*cell_id/);
+    // Scope to the createEvent function only. createAnnouncement legitimately sets cell_id (migration 066).
+    const start = queries.indexOf('export async function createEvent(');
+    const end = queries.indexOf('\nexport ', start + 1);
+    expect(start).toBeGreaterThan(-1);
+    expect(queries.slice(start, end)).not.toMatch(/cell_id/);
   });
 
   test('Save validates required fields, blocks duplicate submissions, and refreshes after success', () => {

@@ -3,11 +3,9 @@ import { Users, ClipboardList, AlertCircle, Calendar } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { EnhancedDashboardStats } from '../../types';
 import type { AuthUser } from '../../lib/auth';
+import { useLeadership } from '../../hooks/useLeadership';
 import { Skeleton } from './DashboardCard';
 
-const ROLE_LEVEL: Record<AuthUser['role'], number> = {
-  member: 0, cell_leader: 1, admin: 2, coordinator: 3,
-};
 
 interface PulseMetric {
   label: string;
@@ -31,12 +29,12 @@ interface MinistryPulseProps {
 export const MinistryPulse: React.FC<MinistryPulseProps> = ({
   stats, attentionCount, role, loading, onNavigate,
 }) => {
-  const level = ROLE_LEVEL[role] ?? 0;
+  const { canUseLeaderPages: isLeader } = useLeadership();
 
   if (loading) {
     return (
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        {Array.from({ length: level >= 1 ? 4 : 2 }).map((_, i) => (
+        {Array.from({ length: isLeader ? 4 : 2 }).map((_, i) => (
           <Skeleton key={i} className="h-24 rounded-2xl" />
         ))}
       </div>
@@ -114,10 +112,10 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
     },
   ];
 
-  const metrics = level >= 1 ? leaderMetrics : memberMetrics;
+  const metrics = isLeader ? leaderMetrics : memberMetrics;
 
   return (
-    <div className={cn('grid grid-cols-2 gap-3 sm:gap-4', level >= 1 ? 'xl:grid-cols-4' : 'sm:grid-cols-2 max-w-sm')}>
+    <div className={cn('grid grid-cols-2 gap-3 sm:gap-4', isLeader ? 'xl:grid-cols-4' : 'sm:grid-cols-2 max-w-sm')}>
       {metrics.map((m) => {
         const Icon = m.icon;
         return (

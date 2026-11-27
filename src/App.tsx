@@ -36,6 +36,8 @@ import { PendingApproval } from './pages/PendingApproval';
 import { AdminPendingApprovals } from './pages/AdminPendingApprovals';
 import { ResetPassword } from './pages/ResetPassword';
 import { useTheme } from './hooks/useTheme';
+import { LeadershipProvider } from './hooks/useLeadership';
+import { ProtectedRoute } from './components/layout/ProtectedRoute';
 
 function AppShell() {
   useTheme();
@@ -64,12 +66,13 @@ function AppShell() {
   }
 
   return (
+    <LeadershipProvider user={user}>
     <MainLayout user={user} onSignOut={signOut}>
       <Routes>
         <Route path="/hub" element={<Dashboard user={user} />} />
         <Route path="/hub/events" element={<Events user={user} />} />
-        <Route path="/hub/members" element={<Members user={user} />} />
-        <Route path="/hub/cells" element={<Cells user={user} />} />
+        <Route path="/hub/members" element={<ProtectedRoute user={user} requiresLeadership><Members user={user} /></ProtectedRoute>} />
+        <Route path="/hub/cells" element={<ProtectedRoute user={user} requiresLeadership><Cells user={user} /></ProtectedRoute>} />
         <Route path="/hub/announcements" element={<Announcements user={user} />} />
         <Route path="/hub/devotionals" element={<DevotionalViewer user={user} />} />
         <Route path="/hub/profile" element={<UserProfile currentUser={user} />} />
@@ -86,7 +89,7 @@ function AppShell() {
         <Route path="/admin/email-log" element={<AdminEmailLog user={user} />} />
         <Route path="/admin/pending" element={<AdminPendingApprovals user={user} />} />
         <Route path="/hub/books" element={<BookOfMonthPage user={user} />} />
-        <Route path="/hub/contacts" element={<Outreach user={user} />} />
+        <Route path="/hub/contacts" element={<ProtectedRoute user={user} requiresLeadership><Outreach user={user} /></ProtectedRoute>} />
         <Route path="/hub/confessions" element={<DailyConfessions user={user} />} />
         <Route path="/hub/testimonies" element={<TestimonyLog user={user} />} />
         <Route path="/hub/meetings" element={<MeetingsHub user={user} />} />
@@ -103,6 +106,7 @@ function AppShell() {
         />
       )}
     </MainLayout>
+    </LeadershipProvider>
   );
 }
 

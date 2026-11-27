@@ -6,6 +6,7 @@ import type { AuthUser } from '../../lib/auth';
 import { useTheme } from '../../hooks/useTheme';
 import { useTranslation } from '../../i18n';
 import { getVisibleNavGroups } from './navItems';
+import { useLeadership } from '../../hooks/useLeadership';
 
 export interface MobileNavDrawerProps {
   open: boolean;
@@ -23,7 +24,8 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({ open, onClose,
   const location = useLocation();
   const { t } = useTranslation('nav');
   const { theme, setTheme } = useTheme();
-  const groups = getVisibleNavGroups(user?.role);
+  const { canUseLeaderPages } = useLeadership();
+  const groups = getVisibleNavGroups(user?.role, canUseLeaderPages);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') onClose();

@@ -14,6 +14,8 @@ export interface NavItem {
   path: string;
   icon: LucideIcon;
   minRole: number;
+  /** Shown only with the leadership capability (staff, or an assigned cell leader). The role alone does not grant it. */
+  leaderPage?: boolean;
 }
 
 export interface NavGroup {
@@ -31,9 +33,9 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     groupKey: 'People',
     items: [
-      { labelKey: 'people', label: 'Members', path: '/hub/members', icon: Users, minRole: 1 },
-      { labelKey: 'cells', label: 'Cells', path: '/hub/cells', icon: Users, minRole: 1 },
-      { labelKey: 'outreach', label: 'Contacts', path: '/hub/contacts', icon: ClipboardList, minRole: 1 },
+      { labelKey: 'people', label: 'Members', path: '/hub/members', icon: Users, minRole: 0, leaderPage: true },
+      { labelKey: 'cells', label: 'Cells', path: '/hub/cells', icon: Users, minRole: 0, leaderPage: true },
+      { labelKey: 'outreach', label: 'Contacts', path: '/hub/contacts', icon: ClipboardList, minRole: 0, leaderPage: true },
       { labelKey: 'approvals', label: 'Approvals', path: '/admin/pending', icon: ClipboardCheck, minRole: 2 },
     ],
   },
@@ -65,10 +67,16 @@ export const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-/** Nav groups with only the items the given role may see. Shared by the desktop sidebar and mobile drawer. */
-export function getVisibleNavGroups(role: AuthUser['role'] | undefined): NavGroup[] {
+/**
+ * Nav groups with only the items the user may see. Leader pages follow the leadership capability derived from cell
+ * assignments; every other item follows the role level. Shared by the desktop sidebar and mobile drawer.
+ */
+export function getVisibleNavGroups(role: AuthUser['role'] | undefined, canUseLeaderPages: boolean): NavGroup[] {
   const level = ROLE_LEVEL[role ?? 'member'] ?? 0;
   return NAV_GROUPS
-    .map((g) => ({ ...g, items: g.items.filter((item) => level >= item.minRole) }))
+    .map((g) => ({
+      ...g,
+      items: g.items.filter((item) => (item.leaderPage ? canUseLeaderPages : level >= item.minRole)),
+    }))
     .filter((g) => g.items.length > 0);
 }
