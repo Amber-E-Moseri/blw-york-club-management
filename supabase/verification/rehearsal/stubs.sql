@@ -5,6 +5,9 @@ create schema if not exists auth;
 create schema if not exists storage;
 create schema if not exists extensions;
 create table if not exists auth.users (id uuid primary key, email text, phone text, raw_user_meta_data jsonb default '{}', raw_app_meta_data jsonb default '{}', created_at timestamptz default now(), banned_until timestamptz, deleted_at timestamptz);
+-- GoTrue columns read by migrations 099 and 103 (verified email, pending email change).
+alter table if exists auth.users add column if not exists email_confirmed_at timestamptz;
+alter table if exists auth.users add column if not exists email_change text;
 create or replace function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
 create or replace function auth.role() returns text language sql stable as $$ select nullif(current_setting('request.jwt.claim.role', true), '')::text $$;
 create or replace function auth.jwt() returns jsonb language sql stable as $$ select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;

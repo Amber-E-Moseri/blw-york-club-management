@@ -20,7 +20,8 @@ async function run() {
   // 046 (attendance authority) must be in the chain, and only the approved forward website migrations (047-057) may follow it.
   const i046 = applied.indexOf('046_attendance_status_authority.sql');
   const after = i046 >= 0 ? applied.slice(i046 + 1) : [];
-  const approvedAfter = /^(04[7-9]|05[0-8])_(web_|website_)/;
+  // Approved after 046: the website migrations 047-059, plus reviewed reconciliation increments listed by exact name.
+  const approvedAfter = /^((04[7-9]|05[0-9])_(web_|website_)|060_bsc_scoped_policies\.sql$)/;
   check('full migration chain includes the attendance authority migration 046, followed only by the approved website migrations', i046 >= 0 && after.every((f) => approvedAfter.test(f)), after.filter((f) => !approvedAfter.test(f)).join(',') || applied.at(-1));
   const cols = await db.query(`select column_name, data_type, is_nullable from information_schema.columns
     where table_schema='public' and table_name='meeting_attendances'`);
