@@ -34,7 +34,9 @@ written so a cloud coding agent can continue without access to the originating m
    members. Preserve directory functionality without exposing private contact details. `membership_reconciliation_review`
    is admin-only (`security_invoker`), with positive and negative authorization tests.
 9. Edge Functions must not trust `x-forwarded-for` on the hosted lineage. Use `trustedClientAddress(trustedProxy,
-   headers)` with `WEBSITE_TRUSTED_PROXY=cloudflare`. This port is not yet done (see section 6).
+   headers)` with `WEBSITE_TRUSTED_PROXY=cloudflare`. **Complete** at the current checkpoint: `website-inquiry` and
+   `website-rhapsody-pdf` use it, `_shared/website-guards.ts` implements it, and nothing reads `x-forwarded-for` or
+   `x-real-ip` (verified by search). Its Deno tests are in `supabase/functions/_shared/website-guards.test.ts`.
 10. Migrations 000–099 are preserved without modification. New work is forward-only, numbered after the existing
     sequence, and never renumbers history.
 
@@ -106,7 +108,7 @@ Outstanding failures or gaps:
 4. **Production drift.** Production lacks 12 website tables from the golden, lacks the five-state attendance check and
    the active-profile self-edit policy, and lacks the 22 Preview-only tables. The cause of drift behind matching
    ledger hashes is not explained.
-5. **Edge Function port.** Port `trustedClientAddress` into the hosted lineage (not started).
+5. **Edge Function trusted proxy.** Complete (see section 2, item 9). The earlier 'not started' entry is out of date.
 6. **Attendance ambiguous-record report.** Flag rows that cannot satisfy the five-state check. Preserve values. Block the
    migration if constraint validation cannot pass.
 7. **Identity duplicate report.** Detect and report only. No merges.
