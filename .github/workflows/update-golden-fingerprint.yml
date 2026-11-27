@@ -106,6 +106,32 @@ jobs:
             || { echo "FAIL: fingerprint is not valid JSON" >&2; exit 1; }
           echo "Golden fingerprint written ($(wc -c < supabase/verification/schema_fingerprint.golden.json) bytes)"
 
+      - name: Dump public function definitions (evidence only, read-only query)
+        # Lets a reviewer compare the engine's function text with the text a local replay produces, without a local Docker stack.
+        run: |
+          set -euo pipefail
+          echo "Engine: $(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -At -c 'select version()')"
+          docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -q -At -c "
+            select coalesce(json_agg(json_build_object(
+              'name', p.proname,
+              'args', pg_get_function_identity_arguments(p.oid),
+              'md5', md5(pg_get_functiondef(p.oid)),
+              'def', pg_get_functiondef(p.oid)
+            ) order by p.proname, pg_get_function_identity_arguments(p.oid)), '[]'::json)
+            from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+            where n.nspname = 'public'" > "$RUNNER_TEMP/function_defs.json"
+          node -e "JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8'))" "$RUNNER_TEMP/function_defs.json" \
+            || { echo "FAIL: function dump is not valid JSON" >&2; exit 1; }
+          echo "PASS: function dump written"
+
+      - name: Upload function definition evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: function-definitions-${{ github.sha }}
+          path: ${{ runner.temp }}/function_defs.json
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Verify new golden passes contract check
         run: |
           set -euo pipefail
