@@ -78,6 +78,10 @@ begin
   end if;
   if old.permission_key like 'website.%' then
     if current_setting('blw.retiring_role', true) is distinct from old.role_id::text then
+      -- Serialise concurrent removals from the same role. Under READ COMMITTED two transactions that each remove a
+      -- different key could otherwise both count the other's key as present and both commit, leaving zero. The row lock
+      -- makes the second removal wait for the first to finish, then count again.
+      perform 1 from public.admin_roles r where r.id = old.role_id for update;
       select count(*) into v_remaining
       from public.admin_role_permissions p
       where p.role_id = old.role_id

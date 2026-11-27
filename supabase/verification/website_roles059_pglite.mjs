@@ -110,6 +110,14 @@ check('positive: the last operational permission of a non-website role can still
 check('audit: no role.created row exists for any refused creation', (await owner(`select count(*)::int as n from public.web_audit_log where action='role.created' and details->>'name' in ('Null set','Empty set','Null key','Bad key')`)).rows[0].n === 0);
 check('audit: the successful revocation is recorded', (await countAudit('role.permission_revoked')) >= 1);
 
+// ---- Unauthorized callers cannot reach the retirement exemption or remove the last key -------------------------------
+r = await as(U.coord, `select public.web_retire_website_role($1,$2)`, [OTHER, REASON]);
+check('authorization: a coordinator cannot retire a website role', !r.ok, r.error ?? 'accepted');
+r = await as(U.coord, `delete from public.admin_role_permissions where role_id=$1 and permission_key='website.pages.edit'`, [OTHER]);
+check('authorization: a coordinator cannot remove a website key directly (no exemption, RLS and core guard)', !r.ok && (await websiteKeys(OTHER)).length === 1, r.error ?? 'accepted');
+r = await as(U.target, `select public.web_retire_website_role($1,$2)`, [OTHER, REASON]);
+check('authorization: an assignee cannot retire the role they hold', !r.ok, r.error ?? 'accepted');
+
 // ---- Existing empty roles: the read-only report finds them, changes nothing, and recovery works -------------------------
 const LEGACY = (await owner(`insert into public.admin_roles (name, description, created_by) values ('Legacy empty', '', $1) returning id`, [U.admin])).rows[0].id;
 const reportSql = io.readFileSync(path.join(here, 'website_empty_roles_report.sql'), 'utf8');
