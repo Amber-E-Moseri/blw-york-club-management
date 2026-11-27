@@ -208,8 +208,10 @@ try {
   expect('B7 coordinator sees every attendance row for a meeting', (coordAll.data ?? []).length === 2, `rows=${(coordAll.data ?? []).length}`);
   const fix = await coordinator.client.from('meeting_attendances').update({ attended: true }).eq('meeting_id', meetA).eq('user_id', member2.id).select();
   expect('B8 coordinator can correct (mark attended) another person', !fix.error && fix.data?.length === 1 && fix.data[0].attended === true, fix.error?.message ?? `rows=${fix.data?.length}`);
-  const unmark = await coordinator.client.from('meeting_attendances').update({ attended: false }).eq('meeting_id', meetA).eq('user_id', member2.id).select();
-  expect('B9 coordinator can reverse a correction', !unmark.error && unmark.data?.[0]?.attended === false);
+  // Migration 046: attended=false is "not verified", normalised to confirmed (attended null). The app reverses a
+  // correction by writing attendance_status (markAttendanceStatus). The reversal must clear the verified outcome.
+  const unmark = await coordinator.client.from('meeting_attendances').update({ attendance_status: 'confirmed' }).eq('meeting_id', meetA).eq('user_id', member2.id).select();
+  expect('B9 coordinator can reverse a correction (attendance_status back to confirmed, verified outcome cleared)', !unmark.error && unmark.data?.[0]?.attendance_status === 'confirmed' && unmark.data?.[0]?.attended === null, unmark.error?.message ?? JSON.stringify(unmark.data?.[0] ?? null));
   const addMissing = await coordinator.client.from('meeting_attendances').insert(attend(meetA, leader2)).select();
   expect('B10 EXPECTED: coordinator can add a person who attended but never confirmed (roster correction)', !addMissing.error, addMissing.error?.message ?? '');
   const removeWrong = await coordinator.client.from('meeting_attendances').delete().eq('meeting_id', meetA).eq('user_id', member2.id).select();
