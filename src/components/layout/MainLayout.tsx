@@ -73,7 +73,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             userRole={user?.role}
             onLogout={onSignOut}
             onQuickAdd={() => setQuickAddOpen(true)}
-            className="hidden md:flex"
+            className="hidden md:grid"
           />
 
           <main
