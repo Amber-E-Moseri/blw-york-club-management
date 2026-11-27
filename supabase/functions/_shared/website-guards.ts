@@ -1,11 +1,12 @@
 // Shared helpers for the website Edge Functions (inquiries, Rhapsody PDF delivery, media upload, media cleanup).
-// Validation uses Zod (AGENTS.md: Zod on every write path), pinned to 3.23.8. Deno fetches the exact version from esm.sh;
-// the Node tests and the type checker map the same URL to site/node_modules/zod.
+// Validation uses Zod (AGENTS.md: Zod on every write path), pinned to 4.6.7. Zod below 4.6.6 has a high-severity advisory
+// (npm audit, GHSA-mrhx-c7xc-m3w5). Deno fetches the exact version from esm.sh; the Node tests and the type checker map
+// the same URL to site/node_modules/zod, which is also 4.6.7.
 //
 // Privacy rules: raw network addresses and user agents never leave these helpers. Only keyed hashes are stored or
 // sent to the database, and the secret that keys them is server-side only.
 
-import { z } from 'https://esm.sh/zod@3.23.8';
+import { z } from 'https://esm.sh/zod@4.6.7';
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
