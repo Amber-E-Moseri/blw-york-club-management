@@ -18,6 +18,26 @@ export function getGoogleDriveFileId(url: string): string | null {
   return null;
 }
 
+/**
+ * A Drive viewer link ("/file/d/ID/view", "/uc?id=ID") is a web page, not an image, so an <img> cannot show it.
+ * Returns a thumbnail address for the same file, which an image element can load. Anything else is returned unchanged.
+ * The file must be shared as "anyone with the link" for the thumbnail to load.
+ */
+export function toDisplayImageUrl(url: string): string {
+  if (!url) return url;
+  let host = '';
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    return url;
+  }
+  if (!host.endsWith('drive.google.com')) return url;
+  if (/\/thumbnail(\?|$)/.test(url)) return url;
+  const fileId = getGoogleDriveFileId(url);
+  if (!fileId) return url;
+  return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w2000`;
+}
+
 export function getDriveResourceType(url: string): DriveLinkMetadata['resource_type'] {
   if (/\/document\/d\//.test(url)) return 'doc';
   if (/\/spreadsheets\/d\//.test(url)) return 'sheet';
