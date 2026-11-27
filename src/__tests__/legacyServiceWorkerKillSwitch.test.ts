@@ -1,9 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 
-// public/sw.js is the retired worker. Browsers that still hold the old registration fetch it on update checks, so this
+// site/public/sw.js is the retired worker. Browsers that still hold the old registration fetch it on update checks, so this
 // file must remove itself and its caches, and must never handle a request.
-const LEGACY_SOURCE = fs.readFileSync(path.resolve(__dirname, '../../public/sw.js'), 'utf8');
+const LEGACY_SOURCE = fs.readFileSync(path.resolve(__dirname, '../../site/public/sw.js'), 'utf8');
 
 type Listener = (event: unknown) => unknown;
 

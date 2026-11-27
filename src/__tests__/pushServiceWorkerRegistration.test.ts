@@ -35,9 +35,9 @@ describe('push service worker registration', () => {
     jest.restoreAllMocks();
   });
 
-  it('removes a registration that runs the legacy /sw.js, even if it is only waiting', async () => {
+  it('removes a root-scope registration that runs the legacy /sw.js, even if it is only waiting', async () => {
     const legacy = registration('/', null, { scriptURL: `${ORIGIN}/sw.js` });
-    const push = registration('/', { scriptURL: `${ORIGIN}/service-worker.js` });
+    const push = registration('/hub/', { scriptURL: `${ORIGIN}/hub/service-worker.js` });
     const sw = container([legacy, push]);
 
     const removed = await removeLegacyServiceWorkers(sw);
@@ -48,7 +48,7 @@ describe('push service worker registration', () => {
   });
 
   it('leaves the push worker registered and registers it at the same URL', async () => {
-    const push = registration('/', { scriptURL: `${ORIGIN}/service-worker.js` });
+    const push = registration('/hub/', { scriptURL: `${ORIGIN}/hub/service-worker.js` });
     const sw = container([push]);
 
     const result = await registerPushServiceWorker(sw);
@@ -78,5 +78,18 @@ describe('push service worker registration', () => {
 
   it('does nothing when the browser has no service worker container', async () => {
     await expect(registerPushServiceWorker(undefined)).resolves.toBeNull();
+  });
+
+  it('never removes the Hub registration at /hub/ even if it runs a legacy script name', async () => {
+    const hubOldName = registration('/hub/', { scriptURL: `${ORIGIN}/hub/sw.js` });
+    const sw = container([hubOldName]);
+    expect(await removeLegacyServiceWorkers(sw)).toBe(0);
+    expect(hubOldName.unregister).not.toHaveBeenCalled();
+  });
+
+  it('removes the first Hub worker registered at the root scope', async () => {
+    const first = registration('/', { scriptURL: `${ORIGIN}/service-worker.js` });
+    expect(await removeLegacyServiceWorkers(container([first]))).toBe(1);
+    expect(first.unregister).toHaveBeenCalledTimes(1);
   });
 });

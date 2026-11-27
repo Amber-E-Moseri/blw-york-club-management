@@ -3,8 +3,8 @@ import react from '@vitejs/plugin-react';
 import { applyIndexingDirective, indexingDirective } from './src/lib/indexing';
 
 // Standalone public site. It imports nothing from the private Hub under ../src.
-// The site is served at /site/ on the Hub's domain: the Hub's vercel.json strips the /site prefix before the request
-// reaches this project, so the built asset paths carry the /site/ base.
+// Unified platform: the public website is served at the domain root (/). The repository-root build copies this app's
+// dist/ to the root of the deployment, and the Hub is copied beside it at /hub. Base '/' keeps asset paths root-relative.
 
 // Read without @types/node, which this app does not install. Vercel injects its variables into the build environment.
 const buildEnv = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
@@ -29,7 +29,7 @@ function indexingPolicy(): Plugin {
 
 export default defineConfig({
   plugins: [react(), indexingPolicy()],
-  base: '/site/',
+  base: '/',
   server: { port: 5173, strictPort: true },
   build: { outDir: 'dist', sourcemap: true },
 });

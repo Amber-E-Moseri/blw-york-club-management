@@ -41,7 +41,7 @@ test.describe('sign-in card in light and dark themes', () => {
     test(`heading and field label are readable in ${scheme} mode`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: scheme });
       await mockSupabase(page);
-      await page.goto('/');
+      await page.goto('/hub');
 
       await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
 
@@ -54,7 +54,7 @@ test.describe('sign-in card in light and dark themes', () => {
     await mockSupabase(page);
     for (const width of [320, 375]) {
       await page.setViewportSize({ width, height: 640 });
-      await page.goto('/');
+      await page.goto('/hub');
       const box = await page.locator('.login-card').boundingBox();
       expect(box).not.toBeNull();
       expect(box!.x).toBeGreaterThanOrEqual(12);
@@ -67,7 +67,7 @@ test.describe('sign-in messages', () => {
   test('a network failure shows a plain message, never the browser exception', async ({ page }) => {
     await mockSupabase(page);
     await page.route('**/auth/v1/token*', (route) => route.abort('failed'));
-    await page.goto('/');
+    await page.goto('/hub');
 
     await page.getByLabel('Email').fill('leader@yorku.ca');
     await page.getByLabel('Password').fill('secret1');
@@ -87,7 +87,7 @@ test.describe('sign-in messages', () => {
         body: JSON.stringify({ code: 400, error_code: 'invalid_credentials', msg: 'Invalid login credentials' }),
       }),
     );
-    await page.goto('/');
+    await page.goto('/hub');
 
     await page.getByLabel('Email').fill('leader@yorku.ca');
     await page.getByLabel('Password').fill('wrong-password');

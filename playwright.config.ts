@@ -11,7 +11,7 @@ export default defineConfig({
   },
   webServer: {
     command: 'set PORT=3100&&node node_modules/react-scripts/scripts/start.js',
-    url: 'http://localhost:3100',
+    url: 'http://localhost:3100/hub',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

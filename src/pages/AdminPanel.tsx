@@ -12,9 +12,9 @@ interface AdminPanelProps { user: AuthUser | null; }
 
 const ADMIN_ITEMS: { label: string; desc: string; icon: LucideIcon; path?: string }[] = [
   { label: 'Pending Approvals',    desc: 'Review and approve new member sign-up requests',             icon: Clock,         path: '/admin/pending' },
-  { label: 'Manage Members',       desc: 'View, promote, or remove members',                           icon: Users,         path: '/members' },
-  { label: 'Manage Events',        desc: 'Schedule or archive club events',                            icon: CalendarDays,  path: '/events' },
-  { label: 'Manage Announcements', desc: 'Post or archive announcements',                              icon: Megaphone,     path: '/announcements' },
+  { label: 'Manage Members',       desc: 'View, promote, or remove members',                           icon: Users,         path: '/hub/members' },
+  { label: 'Manage Events',        desc: 'Schedule or archive club events',                            icon: CalendarDays,  path: '/hub/events' },
+  { label: 'Manage Announcements', desc: 'Post or archive announcements',                              icon: Megaphone,     path: '/hub/announcements' },
   { label: 'Daily Bread Upload',   desc: 'Convert monthly PDFs into daily images',                     icon: BookMarked,    path: '/admin/devotionals' },
   { label: 'Testimony Moderation', desc: 'Approve or reject submitted testimonies & prophecies',       icon: CheckSquare,   path: '/admin/testimonies' },
   { label: 'Devotional Reports',   desc: 'View daily devotional engagement stats',                     icon: BarChart2,     path: '/admin/reports' },

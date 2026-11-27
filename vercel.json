@@ -1,10 +1,53 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build",
-  "outputDirectory": "build",
+  "outputDirectory": "dist",
+  "redirects": [
+    { "source": "/members", "destination": "/hub/members", "permanent": false },
+    { "source": "/cells", "destination": "/hub/cells", "permanent": false },
+    { "source": "/announcements", "destination": "/hub/announcements", "permanent": false },
+    { "source": "/devotionals", "destination": "/hub/devotionals", "permanent": false },
+    { "source": "/profile", "destination": "/hub/profile", "permanent": false },
+    { "source": "/email-preferences", "destination": "/hub/email-preferences", "permanent": false },
+    { "source": "/books", "destination": "/hub/books", "permanent": false },
+    { "source": "/contacts", "destination": "/hub/contacts", "permanent": false },
+    { "source": "/confessions", "destination": "/hub/confessions", "permanent": false },
+    { "source": "/testimonies", "destination": "/hub/testimonies", "permanent": false },
+    { "source": "/meetings", "destination": "/hub/meetings", "permanent": false },
+    { "source": "/messages", "destination": "/hub/messages", "permanent": false },
+    { "source": "/habits", "destination": "/hub/habits", "permanent": false },
+    { "source": "/growth", "destination": "/hub/growth", "permanent": false },
+    { "source": "/login", "destination": "/hub/login", "permanent": false },
+    { "source": "/reset-password", "destination": "/hub/reset-password", "permanent": false }
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/site", "destination": "https://blw-york-public-site.vercel.app/" },
-    { "source": "/site/(.*)", "destination": "https://blw-york-public-site.vercel.app/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/hub", "destination": "/hub/index.html" },
+    { "source": "/hub/((?!static/).*)", "destination": "/hub/index.html" },
+    { "source": "/admin", "destination": "/hub/index.html" },
+    { "source": "/admin/(.*)", "destination": "/hub/index.html" },
+    { "source": "/((?!hub(?:/|$)|admin(?:/|$)|api/|assets/).*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/((?!hub(?:/|$)|admin(?:/|$)|api/).*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; object-src 'self' https://*.supabase.co; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), payment=()" },
+        { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains" }
+      ]
+    }
   ]
 }

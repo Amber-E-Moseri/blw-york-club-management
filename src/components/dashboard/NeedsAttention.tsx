@@ -24,7 +24,7 @@ export const NeedsAttention: React.FC<NeedsAttentionProps> = ({ contacts, loadin
   return (
     <DashboardCard
       title="Needs Attention"
-      action={{ label: 'Open CRM', onClick: () => navigate('/contacts') }}
+      action={{ label: 'Open CRM', onClick: () => navigate('/hub/contacts') }}
       noPadding
     >
       {loading ? (
@@ -49,7 +49,7 @@ export const NeedsAttention: React.FC<NeedsAttentionProps> = ({ contacts, loadin
               <li key={contact.id}>
                 <button
                   type="button"
-                  onClick={() => navigate('/contacts')}
+                  onClick={() => navigate('/hub/contacts')}
                   className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors text-left group"
                 >
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${urgent ? 'bg-york-100 text-york-700 dark:bg-york-900/30 dark:text-york-300' : 'bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-slate-400'}`}>

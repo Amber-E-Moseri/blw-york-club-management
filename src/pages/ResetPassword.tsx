@@ -46,7 +46,7 @@ export const ResetPassword: React.FC = () => {
     } catch {
       // Nothing to end if there is no session.
     }
-    navigate('/', { replace: true });
+    navigate('/hub', { replace: true });
   };
 
   const submit = async (event: React.FormEvent) => {
@@ -133,7 +133,7 @@ export const ResetPassword: React.FC = () => {
             <p role="status" className="text-sm text-gray-700 dark:text-slate-200">
               Your password has been updated. Sign in with your new password.
             </p>
-            <Button type="button" fullWidth onClick={() => navigate('/', { replace: true })}>
+            <Button type="button" fullWidth onClick={() => navigate('/hub', { replace: true })}>
               Go to sign in
             </Button>
           </div>

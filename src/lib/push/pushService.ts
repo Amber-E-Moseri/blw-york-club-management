@@ -33,7 +33,7 @@ export async function subscribeToPush(): Promise<PushSubscription | null> {
     return null;
   }
 
-  const registration = await navigator.serviceWorker.register('/service-worker.js');
+  const registration = await navigator.serviceWorker.register(`${process.env.PUBLIC_URL}/service-worker.js`);
   await navigator.serviceWorker.ready;
 
   const existing = await registration.pushManager.getSubscription();
@@ -50,7 +50,7 @@ export async function subscribeToPush(): Promise<PushSubscription | null> {
 /** Unsubscribe the current browser from push notifications. */
 export async function unsubscribeFromPush(): Promise<void> {
   if (!('serviceWorker' in navigator)) return;
-  const registration = await navigator.serviceWorker.getRegistration('/service-worker.js');
+  const registration = await navigator.serviceWorker.getRegistration(`${process.env.PUBLIC_URL}/service-worker.js`);
   const subscription = await registration?.pushManager.getSubscription();
   await subscription?.unsubscribe();
 }
@@ -58,7 +58,7 @@ export async function unsubscribeFromPush(): Promise<void> {
 /** Get the active push subscription for this browser (without subscribing). */
 export async function getActivePushSubscription(): Promise<PushSubscription | null> {
   if (!('serviceWorker' in navigator)) return null;
-  const registration = await navigator.serviceWorker.getRegistration('/service-worker.js');
+  const registration = await navigator.serviceWorker.getRegistration(`${process.env.PUBLIC_URL}/service-worker.js`);
   return registration?.pushManager.getSubscription() ?? null;
 }
 

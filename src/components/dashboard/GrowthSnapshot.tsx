@@ -27,7 +27,7 @@ export const GrowthSnapshot: React.FC<GrowthSnapshotProps> = ({
   return (
     <DashboardCard
       title="Growth Snapshot"
-      action={{ label: 'Go to Growth', onClick: () => navigate('/growth') }}
+      action={{ label: 'Go to Growth', onClick: () => navigate('/hub/growth') }}
     >
       {loading ? (
         <div className="space-y-3">
@@ -38,7 +38,7 @@ export const GrowthSnapshot: React.FC<GrowthSnapshotProps> = ({
         <div className="space-y-3">
           <button
             type="button"
-            onClick={() => navigate('/devotionals')}
+            onClick={() => navigate('/hub/devotionals')}
             className="w-full flex items-center justify-between group"
           >
             <div className="flex items-center gap-2">
@@ -59,7 +59,7 @@ export const GrowthSnapshot: React.FC<GrowthSnapshotProps> = ({
           {habitsTotal > 0 && (
             <button
               type="button"
-              onClick={() => navigate('/habits')}
+              onClick={() => navigate('/hub/habits')}
               className="w-full"
             >
               <div className="flex items-center justify-between mb-1">
@@ -80,7 +80,7 @@ export const GrowthSnapshot: React.FC<GrowthSnapshotProps> = ({
           {weeklyMessageTitle && (
             <button
               type="button"
-              onClick={() => navigate('/messages')}
+              onClick={() => navigate('/hub/messages')}
               className="w-full flex items-center justify-between group"
             >
               <span className="text-sm text-gray-600 dark:text-slate-400 truncate text-left pr-2">

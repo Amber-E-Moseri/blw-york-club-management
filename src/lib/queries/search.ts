@@ -56,28 +56,28 @@ export async function globalSearch(
       type: 'contact' as const,
       title: row.contact_name,
       subtitle: row.contact_phone || 'Contact',
-      href: '/contacts',
+      href: '/hub/contacts',
     })),
     ...((testimonyRows.data ?? []) as any[]).map((row) => ({
       id: row.id,
       type: 'testimony' as const,
       title: row.title,
       subtitle: `By ${row.author_name}`,
-      href: '/testimonies',
+      href: '/hub/testimonies',
     })),
     ...((memberRows.data ?? []) as any[]).map((row) => ({
       id: row.id,
       type: 'member' as const,
       title: row.full_name || row.email,
       subtitle: row.role,
-      href: `/profile?id=${row.id}`,
+      href: `/hub/profile?id=${row.id}`,
     })),
     ...((meetingRows.data ?? []) as any[]).map((row) => ({
       id: row.id,
       type: 'meeting' as const,
       title: row.title,
       subtitle: `${row.date} ${row.time}`,
-      href: '/meetings',
+      href: '/hub/meetings',
     })),
   ];
 

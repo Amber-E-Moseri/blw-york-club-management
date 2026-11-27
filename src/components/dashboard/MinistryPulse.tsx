@@ -57,7 +57,7 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
       icon: Users,
       iconBg: 'bg-blue-50 dark:bg-blue-900/20',
       iconColor: 'text-blue-600',
-      onClick: () => onNavigate('/members'),
+      onClick: () => onNavigate('/hub/members'),
     },
     {
       label: 'Outreach contacts',
@@ -66,7 +66,7 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
       icon: ClipboardList,
       iconBg: 'bg-emerald-50 dark:bg-emerald-900/20',
       iconColor: 'text-emerald-600',
-      onClick: () => onNavigate('/contacts'),
+      onClick: () => onNavigate('/hub/contacts'),
     },
     {
       label: 'Needs follow-up',
@@ -75,7 +75,7 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
       icon: AlertCircle,
       iconBg: attentionCount > 0 ? 'bg-york-50 dark:bg-york-900/20' : 'bg-gray-50 dark:bg-slate-700',
       iconColor: attentionCount > 0 ? 'text-york-600' : 'text-gray-400',
-      onClick: () => onNavigate('/contacts'),
+      onClick: () => onNavigate('/hub/contacts'),
       urgent: attentionCount > 0,
     },
     {
@@ -85,7 +85,7 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
       icon: Calendar,
       iconBg: 'bg-purple-50 dark:bg-purple-900/20',
       iconColor: 'text-purple-600',
-      onClick: () => onNavigate('/meetings'),
+      onClick: () => onNavigate('/hub/meetings'),
     },
   ];
 
@@ -97,7 +97,7 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
       icon: Calendar,
       iconBg: 'bg-purple-50 dark:bg-purple-900/20',
       iconColor: 'text-purple-600',
-      onClick: () => onNavigate('/meetings'),
+      onClick: () => onNavigate('/hub/meetings'),
     },
     {
       label: 'Habit completion',
@@ -110,7 +110,7 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
       ),
       iconBg: 'bg-emerald-50 dark:bg-emerald-900/20',
       iconColor: 'text-emerald-600',
-      onClick: () => onNavigate('/habits'),
+      onClick: () => onNavigate('/hub/habits'),
     },
   ];
 

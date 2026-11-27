@@ -77,7 +77,7 @@ export const Growth: React.FC<GrowthProps> = ({ user }) => {
 
       <div className="space-y-3">
         <GrowthCard
-          to="/devotionals"
+          to="/hub/devotionals"
           iconBg="bg-amber-50 dark:bg-amber-900/20"
           icon={<BookMarked className="w-6 h-6 text-amber-600" />}
           title="Daily Bread"
@@ -86,7 +86,7 @@ export const Growth: React.FC<GrowthProps> = ({ user }) => {
         />
 
         <GrowthCard
-          to="/habits"
+          to="/hub/habits"
           iconBg="bg-emerald-50 dark:bg-emerald-900/20"
           icon={<CheckSquare className="w-6 h-6 text-emerald-600" />}
           title="Habits"
@@ -103,7 +103,7 @@ export const Growth: React.FC<GrowthProps> = ({ user }) => {
         />
 
         <GrowthCard
-          to="/confessions"
+          to="/hub/confessions"
           iconBg="bg-rose-50 dark:bg-rose-900/20"
           icon={<Heart className="w-6 h-6 text-rose-600" />}
           title="Confessions"
@@ -111,7 +111,7 @@ export const Growth: React.FC<GrowthProps> = ({ user }) => {
         />
 
         <GrowthCard
-          to="/testimonies"
+          to="/hub/testimonies"
           iconBg="bg-yellow-50 dark:bg-yellow-900/20"
           icon={<Star className="w-6 h-6 text-yellow-600" />}
           title="Testimonies"
@@ -119,7 +119,7 @@ export const Growth: React.FC<GrowthProps> = ({ user }) => {
         />
 
         <GrowthCard
-          to="/messages"
+          to="/hub/messages"
           iconBg="bg-blue-50 dark:bg-blue-900/20"
           icon={<MessageCircle className="w-6 h-6 text-blue-600" />}
           title="Messages"
@@ -127,7 +127,7 @@ export const Growth: React.FC<GrowthProps> = ({ user }) => {
         />
 
         <GrowthCard
-          to="/books"
+          to="/hub/books"
           iconBg="bg-purple-50 dark:bg-purple-900/20"
           icon={<Book className="w-6 h-6 text-purple-600" />}
           title="Book of the Month"

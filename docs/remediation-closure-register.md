@@ -315,3 +315,64 @@ pre-fix code. A browser check in the Toronto evening was not run.
 - No PR merged or closed. No merge into `main`. Nothing pushed.
 - No change to certification assertions, the schema contract or the golden fingerprint.
 - No test users created.
+
+## Unified platform consolidation (2026-11-27)
+
+The unified platform (`f4972e0`, from `claude/youthful-heisenberg-a2a3mu`) is consolidated into this branch by a merge
+commit. Nothing was force-pushed. The merge reconciles the interrupted Safari repair (`b8c0232`) with the unified
+service worker. The Safari repair's fetch policy, legacy cleanup, login fixes and tests are kept. The unified work adds
+the `/hub` scope, the public root, and the root retirement workers.
+
+### Decisions applied
+
+| ID | Decision | Applied in |
+|---|---|---|
+| U1 | `/` public website; `/events` public events; `/hub` member Hub; `/hub/login` sign-in; `/hub/events` internal Hub events; `/admin` administration; `/api/*` approved endpoints | `vercel.json`, `src/App.tsx`, email and Edge Function links |
+| U2 | Public `/events` takes precedence over the historical internal `/events` route; it is not a legacy redirect | `vercel.json` (no `/events` redirect); route check |
+| U3 | Other compatible legacy redirects preserved (307): members, cells, announcements, devotionals, profile, email-preferences, books, contacts, confessions, testimonies, meetings, messages, habits, growth, login, reset-password | `vercel.json`; `scripts/verify-unified-routes.mjs` |
+| U4 | Hub service worker scoped to `/hub/`; root-scope legacy workers (`/sw.js`, `/service-worker.js`) retired; Hub caches only | `public/service-worker.js`, `site/public/sw.js`, `pushServiceWorker.ts` |
+| U5 | Retirement deletes only Hub-owned caches (`blw-hub-*`, `blw-york-*`, `cc-portal-*`). Origin caches owned by other features are not deleted | `site/public/sw.js`, Hub worker activate |
+
+### Verification (local, on the consolidated tree)
+
+| Check | Result |
+|---|---|
+| Hub TypeScript | Pass |
+| Hub Jest (CRA, CI=true) | 540 pass, 11 skipped (the real-Supabase tests, unchanged) |
+| Public site Vitest | 190 pass |
+| Script tests (`npm run test:scripts`) | 21 pass, including 8 Hub service-worker tests |
+| Production build (CI=true) | Pass |
+| Route verification (`npm run verify:routes`) | All pass |
+| Unified browser suite, Chromium desktop and iPhone-sized viewport, production-style routing | 20 pass |
+| Existing e2e: login regression, auth, mobile navigation (Chromium) | 50 pass |
+| Database authorization (PGlite) | 19 pass (from the unified commit; the Hub database code was not changed here) |
+
+### WebKit and real-device status
+
+- WebKit is not installed in this environment. Only Chromium is available, and the environment forbids reinstalling
+  Playwright. The `webkit-iphone` project in `playwright.config.ts` therefore did not run here.
+- The Chromium iPhone-viewport tests simulate layout and rendering only. They are not Safari.
+- Real iPhone Safari has not been tested. The iPhone sign-in failure stays unverified on a real device until someone
+  signs in on an iPhone and confirms the failure is gone.
+
+### Blockers for production (unchanged or new)
+
+1. **Connected Preview not opened.** No Vercel access exists in this environment (no CLI, token, or connector). Environment
+   isolation cannot be verified. The PR #97 body records that the Preview currently embeds the production Supabase URL, and
+   that the committed workflows label `yziuhtxtznginhdpqurb` as Preview while the production guards name it as BLW York
+   production. This must be resolved before any connected Preview is opened.
+2. **Vercel routing not tested on a live deployment.** The routing rules are verified through a model of the documented
+   `vercel.json` rules and a local server. Confirm on a Preview deployment once item 1 is resolved.
+3. **Supabase Auth redirect URLs.** Add `<origin>/hub/reset-password` and `<origin>/hub/**` to Supabase URL configuration.
+   Keep the legacy `/reset-password` if emails already sent must work.
+4. **Edge Function redeploy.** `supabase/functions/_shared/event-notification.ts` now emits `/hub/events`. It is not deployed.
+5. **Still open from earlier waves:** D3 (attendance model), D4 (self-service profile edits), D6 (certification
+   assertions), D8 (hosted production schema check). Unchanged by this consolidation.
+6. **Not run here:** the 11 environment-gated real-Supabase tests, the remote schema comparison, the migration rehearsal
+   on isolated staging, and backup or PITR readiness. Each needs isolated infrastructure.
+
+### Not done in this consolidation
+
+- No production write, migration, deployment or merge into `main`.
+- No domain purchase. No deletion or retirement of either Vercel project.
+- No new branch, worktree or PR (PR #97 is updated by the push to its branch).

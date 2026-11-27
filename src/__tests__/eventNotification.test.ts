@@ -17,7 +17,7 @@ describe('buildEventPushPayload', () => {
     expect(JSON.parse(buildEventPushPayload(event))).toEqual({
       title: 'New event: Bible Study',
       body: '2026-10-18 at 19:00 · Room 2',
-      url: '/events',
+      url: '/hub/events',
       type: 'event',
       eventId: 'e1',
     });
@@ -57,7 +57,7 @@ describe('buildDeliveryLogRows', () => {
       status: 'sent',
       error_message: null,
       notification_type: 'event',
-      target_url: '/events',
+      target_url: '/hub/events',
     });
     expect(rows.find((r) => r.user_id === 'u2')).toMatchObject({
       status: 'failed',

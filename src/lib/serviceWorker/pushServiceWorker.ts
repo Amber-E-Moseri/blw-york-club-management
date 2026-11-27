@@ -1,11 +1,17 @@
-/** The one service worker the app registers: push notifications plus the narrow static cache in public/service-worker.js. */
-export const PUSH_SERVICE_WORKER_URL = '/service-worker.js';
+/**
+ * The one service worker the Hub registers: push notifications plus the narrow static cache in public/service-worker.js.
+ * In the unified deployment the Hub is served under PUBLIC_URL (/hub), so the worker is /hub/service-worker.js and its
+ * scope is /hub/. The public website and administration are outside that scope.
+ */
+export const PUSH_SERVICE_WORKER_URL = `${process.env.PUBLIC_URL ?? ''}/service-worker.js`;
 
 /**
- * Earlier builds registered /sw.js at the same "/" scope. A browser keeps that registration until something removes
- * it, so a device that installed it keeps running the old fetch handler. That handler is what this cleanup removes.
+ * Earlier builds registered workers at the site root with scope "/": /service-worker.js (the first Hub worker) and
+ * /sw.js (its successor). A browser keeps those registrations until something removes them, so a device that installed
+ * one keeps running an old fetch handler. Only root-scope registrations running these scripts are removed. The Hub's
+ * own /hub/ registration is never removed.
  */
-export const LEGACY_SERVICE_WORKER_PATH = '/sw.js';
+export const LEGACY_SERVICE_WORKER_PATHS = ['/sw.js', '/service-worker.js'];
 
 type ServiceWorkerContainerLike = Pick<ServiceWorkerContainer, 'register' | 'getRegistrations'>;
 
@@ -18,13 +24,23 @@ function scriptPath(worker: ServiceWorker | null | undefined): string | null {
   }
 }
 
-/** Unregisters every registration that runs the legacy /sw.js script. Returns how many were removed. */
+function isRootScope(scope: string): boolean {
+  try {
+    return new URL(scope, 'https://origin.invalid').pathname === '/';
+  } catch {
+    return false;
+  }
+}
+
+/** Unregisters every root-scope registration that runs a legacy worker script. Returns how many were removed. */
 export async function removeLegacyServiceWorkers(container: ServiceWorkerContainerLike): Promise<number> {
   const registrations = await container.getRegistrations();
   let removed = 0;
   for (const registration of registrations) {
+    if (!isRootScope(registration.scope)) continue;
     const paths = [registration.active, registration.waiting, registration.installing].map(scriptPath);
-    if (paths.includes(LEGACY_SERVICE_WORKER_PATH) && (await registration.unregister())) {
+    const legacy = paths.some((p) => p !== null && LEGACY_SERVICE_WORKER_PATHS.includes(p));
+    if (legacy && (await registration.unregister())) {
       removed += 1;
     }
   }
@@ -32,8 +48,8 @@ export async function removeLegacyServiceWorkers(container: ServiceWorkerContain
 }
 
 /**
- * Registers the push service worker. Cleanup of the legacy worker runs first, and its failure never blocks the push
- * registration. Registration failures are logged, never thrown, so they cannot break the app shell.
+ * Registers the Hub push service worker. Cleanup of legacy registrations runs first, and its failure never blocks the
+ * push registration. Registration failures are logged, never thrown, so they cannot break the app shell.
  */
 export async function registerPushServiceWorker(
   container: ServiceWorkerContainerLike | undefined,

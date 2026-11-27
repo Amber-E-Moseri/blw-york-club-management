@@ -23,7 +23,7 @@ export const ConfirmEmail: React.FC = () => {
     establishConfirmSession(confirmLink).then(setStage, () => setStage('invalid'));
   }, []);
 
-  const goToSignIn = () => { window.location.replace('/'); };
+  const goToSignIn = () => { window.location.replace('/hub/login'); };
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-slate-950 flex items-center justify-center p-4">

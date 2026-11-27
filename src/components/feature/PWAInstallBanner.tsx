@@ -10,7 +10,7 @@ export const PWAInstallBanner: React.FC = () => {
     <div className="fixed bottom-0 inset-x-0 z-50 p-4 sm:p-0 sm:bottom-4 sm:right-4 sm:left-auto">
       <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-4 flex items-start gap-3 max-w-sm">
         <div className="flex-shrink-0 w-10 h-10 rounded-lg overflow-hidden">
-          <img src="/logo.png" alt="BLW York" className="w-full h-full" />
+          <img src={`${process.env.PUBLIC_URL}/logo.png`} alt="BLW York" className="w-full h-full" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-sm text-gray-900">Add to Home Screen</p>

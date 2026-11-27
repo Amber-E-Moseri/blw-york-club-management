@@ -52,7 +52,7 @@ function AppShell() {
   }
 
   // Public, and checked before the sign-in gate: a recovery session must not fall through to the main app.
-  if (window.location.pathname === '/reset-password') return <ResetPassword />;
+  if (window.location.pathname === '/hub/reset-password') return <ResetPassword />;
 
   if (!user) {
     return <Login onSignIn={signIn} onSignUp={signUp} error={error} loading={loading} />;
@@ -66,14 +66,14 @@ function AppShell() {
   return (
     <MainLayout user={user} onSignOut={signOut}>
       <Routes>
-        <Route path="/" element={<Dashboard user={user} />} />
-        <Route path="/events" element={<Events user={user} />} />
-        <Route path="/members" element={<Members user={user} />} />
-        <Route path="/cells" element={<Cells user={user} />} />
-        <Route path="/announcements" element={<Announcements user={user} />} />
-        <Route path="/devotionals" element={<DevotionalViewer user={user} />} />
-        <Route path="/profile" element={<UserProfile currentUser={user} />} />
-        <Route path="/email-preferences" element={<EmailPreferences user={user} />} />
+        <Route path="/hub" element={<Dashboard user={user} />} />
+        <Route path="/hub/events" element={<Events user={user} />} />
+        <Route path="/hub/members" element={<Members user={user} />} />
+        <Route path="/hub/cells" element={<Cells user={user} />} />
+        <Route path="/hub/announcements" element={<Announcements user={user} />} />
+        <Route path="/hub/devotionals" element={<DevotionalViewer user={user} />} />
+        <Route path="/hub/profile" element={<UserProfile currentUser={user} />} />
+        <Route path="/hub/email-preferences" element={<EmailPreferences user={user} />} />
         <Route path="/admin" element={<AdminHub user={user} />} />
         <Route path="/admin/devotionals" element={<AdminDevotionalUpload user={user} />} />
         <Route path="/admin/testimonies" element={<AdminTestimonies user={user} />} />
@@ -85,15 +85,15 @@ function AppShell() {
         <Route path="/admin/exports" element={<AdminDataExport user={user} />} />
         <Route path="/admin/email-log" element={<AdminEmailLog user={user} />} />
         <Route path="/admin/pending" element={<AdminPendingApprovals user={user} />} />
-        <Route path="/books" element={<BookOfMonthPage user={user} />} />
-        <Route path="/contacts" element={<Outreach user={user} />} />
-        <Route path="/confessions" element={<DailyConfessions user={user} />} />
-        <Route path="/testimonies" element={<TestimonyLog user={user} />} />
-        <Route path="/meetings" element={<MeetingsHub user={user} />} />
-        <Route path="/messages" element={<WeeklyMessages user={user} />} />
-        <Route path="/habits" element={<HabitTracker user={user} />} />
-        <Route path="/growth" element={<Growth user={user} />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/hub/books" element={<BookOfMonthPage user={user} />} />
+        <Route path="/hub/contacts" element={<Outreach user={user} />} />
+        <Route path="/hub/confessions" element={<DailyConfessions user={user} />} />
+        <Route path="/hub/testimonies" element={<TestimonyLog user={user} />} />
+        <Route path="/hub/meetings" element={<MeetingsHub user={user} />} />
+        <Route path="/hub/messages" element={<WeeklyMessages user={user} />} />
+        <Route path="/hub/habits" element={<HabitTracker user={user} />} />
+        <Route path="/hub/growth" element={<Growth user={user} />} />
+        <Route path="*" element={<Navigate to="/hub" replace />} />
       </Routes>
 
       {showPushPrompt && (

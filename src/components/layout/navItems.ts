@@ -25,33 +25,33 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     groupKey: 'Overview',
     items: [
-      { labelKey: 'dashboard', label: 'Overview', path: '/', icon: LayoutDashboard, minRole: 0 },
+      { labelKey: 'dashboard', label: 'Overview', path: '/hub', icon: LayoutDashboard, minRole: 0 },
     ],
   },
   {
     groupKey: 'People',
     items: [
-      { labelKey: 'people', label: 'Members', path: '/members', icon: Users, minRole: 1 },
-      { labelKey: 'cells', label: 'Cells', path: '/cells', icon: Users, minRole: 1 },
-      { labelKey: 'outreach', label: 'Contacts', path: '/contacts', icon: ClipboardList, minRole: 1 },
+      { labelKey: 'people', label: 'Members', path: '/hub/members', icon: Users, minRole: 1 },
+      { labelKey: 'cells', label: 'Cells', path: '/hub/cells', icon: Users, minRole: 1 },
+      { labelKey: 'outreach', label: 'Contacts', path: '/hub/contacts', icon: ClipboardList, minRole: 1 },
       { labelKey: 'approvals', label: 'Approvals', path: '/admin/pending', icon: ClipboardCheck, minRole: 2 },
     ],
   },
   {
     groupKey: 'Ministry',
     items: [
-      { labelKey: 'meetings', label: 'Meetings', path: '/meetings', icon: Calendar,     minRole: 0 },
-      { labelKey: 'events',   label: 'Events',   path: '/events',   icon: CalendarDays, minRole: 0 },
-      { labelKey: 'growth',   label: 'Growth',   path: '/growth',   icon: Sparkles,     minRole: 0 },
+      { labelKey: 'meetings', label: 'Meetings', path: '/hub/meetings', icon: Calendar,     minRole: 0 },
+      { labelKey: 'events',   label: 'Events',   path: '/hub/events',   icon: CalendarDays, minRole: 0 },
+      { labelKey: 'growth',   label: 'Growth',   path: '/hub/growth',   icon: Sparkles,     minRole: 0 },
     ],
   },
   {
     groupKey: 'Resources',
     items: [
-      { labelKey: 'devotionals', label: 'Devotionals', path: '/devotionals', icon: BookOpen, minRole: 0 },
-      { labelKey: 'messages', label: 'Weekly Messages', path: '/messages', icon: MessageSquareText, minRole: 0 },
-      { labelKey: 'books', label: 'Books', path: '/books', icon: FileText, minRole: 0 },
-      { labelKey: 'testimonies', label: 'Testimonies', path: '/testimonies', icon: Sparkles, minRole: 0 },
+      { labelKey: 'devotionals', label: 'Devotionals', path: '/hub/devotionals', icon: BookOpen, minRole: 0 },
+      { labelKey: 'messages', label: 'Weekly Messages', path: '/hub/messages', icon: MessageSquareText, minRole: 0 },
+      { labelKey: 'books', label: 'Books', path: '/hub/books', icon: FileText, minRole: 0 },
+      { labelKey: 'testimonies', label: 'Testimonies', path: '/hub/testimonies', icon: Sparkles, minRole: 0 },
     ],
   },
   {

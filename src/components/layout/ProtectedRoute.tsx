@@ -29,7 +29,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to="/hub/login" state={{ from: location }} replace />;
   }
 
   if (requiredRole) {
@@ -37,12 +37,12 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     const userLevel = roleOrder.indexOf(user.role);
     const requiredLevel = roleOrder.indexOf(requiredRole);
     if (userLevel < requiredLevel) {
-      return <Navigate to="/" replace />;
+      return <Navigate to="/hub" replace />;
     }
   }
 
   if (requiredPermission && !hasPermission(user.role, requiredPermission)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/hub" replace />;
   }
 
   return <>{children}</>;

@@ -24,16 +24,16 @@ const TOOL_GROUPS: {
   {
     title: 'People',
     items: [
-      { label: 'Members', desc: 'Directory, roles, cells, and member details', icon: Users, path: '/members' },
-      { label: 'Contacts', desc: 'Outreach pipeline, handoffs, and follow-ups', icon: ClipboardList, path: '/contacts' },
+      { label: 'Members', desc: 'Directory, roles, cells, and member details', icon: Users, path: '/hub/members' },
+      { label: 'Contacts', desc: 'Outreach pipeline, handoffs, and follow-ups', icon: ClipboardList, path: '/hub/contacts' },
       { label: 'Approvals', desc: 'Review pending and rejected sign-up requests', icon: ClipboardCheck, path: '/admin/pending' },
     ],
   },
   {
     title: 'Ministry',
     items: [
-      { label: 'Events', desc: 'Schedule public ministry events', icon: CalendarDays, path: '/events' },
-      { label: 'Announcements', desc: 'Publish club-wide updates', icon: Megaphone, path: '/announcements' },
+      { label: 'Events', desc: 'Schedule public ministry events', icon: CalendarDays, path: '/hub/events' },
+      { label: 'Announcements', desc: 'Publish club-wide updates', icon: Megaphone, path: '/hub/announcements' },
       { label: 'Zoom Integration', desc: 'Configure meeting video automation', icon: Video, path: '/admin/zoom' },
     ],
   },
@@ -53,7 +53,7 @@ const TOOL_GROUPS: {
       { label: 'Website Management', desc: 'Edit public website pages, events, Rhapsody and menus', icon: Globe, path: '/admin/website' },
       { label: 'Communications', desc: 'Email delivery and failure log', icon: Mail, path: '/admin/email-log' },
       { label: 'Data Export', desc: 'Download members, contacts, and attendance', icon: Download, path: '/admin/exports' },
-      { label: 'Settings', desc: 'Profile and account preferences', icon: Settings, path: '/profile' },
+      { label: 'Settings', desc: 'Profile and account preferences', icon: Settings, path: '/hub/profile' },
     ],
   },
 ];
@@ -117,7 +117,7 @@ export const AdminHub: React.FC<Props> = ({ user }) => {
       label: 'Overdue follow-ups',
       value: counts?.overdueFollowUps ?? 0,
       icon: AlertCircle,
-      path: '/contacts',
+      path: '/hub/contacts',
       tone: 'orange',
     },
     {
@@ -131,7 +131,7 @@ export const AdminHub: React.FC<Props> = ({ user }) => {
       label: 'Incomplete meetings',
       value: counts?.incompleteMeetings ?? 0,
       icon: CalendarDays,
-      path: '/meetings',
+      path: '/hub/meetings',
       tone: 'slate',
     },
   ], [counts]);

@@ -19,6 +19,9 @@ jobs:
       - run: npm run typecheck
       - run: npm test -- --watchAll=false
       - run: npm run build
+      - run: npm run verify:routes
+      - run: npm --prefix site ci && npm --prefix site test
+      - run: npm run test:scripts
 
   certification:
     runs-on: ubuntu-latest

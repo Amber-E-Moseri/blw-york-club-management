@@ -23,7 +23,7 @@ export function buildEventPushPayload(event: NotifiableEvent): string {
   return JSON.stringify({
     title: `New event: ${event.title}`,
     body: `${when}${where}`,
-    url: '/events',
+    url: '/hub/events',
     type: 'event',
     eventId: event.id,
   });
@@ -66,7 +66,7 @@ export function buildDeliveryLogRows(
     notification_type: 'event',
     title: `New event: ${event.title}`,
     body: `${event.date}${event.location ? ` · ${event.location}` : ''}`,
-    target_url: '/events',
+    target_url: '/hub/events',
     status: result.sent ? 'sent' : 'failed',
     error_message: result.sent ? null : result.error,
   }));
