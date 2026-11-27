@@ -48,3 +48,25 @@ test('fingerprint diff lists objects present on one side only, per kind', async 
   assert.deepEqual(d.tables, { onlyInGolden: ['b'], onlyInHosted: ['c'] });
   assert.deepEqual(d.functions, { onlyInGolden: [], onlyInHosted: ['g'] });
 });
+
+test('a hosted catalog gap lists missing and extra objects by name, and maps a missing object to its candidate migration', async () => {
+  const { catalogGap, creatingMigration } = await mod;
+  const golden = { tables: { a: {}, b: {} }, views: { v1: {} }, functions: { 'f(uuid)': {} } };
+  const catalog = {
+    server_version: '17.11',
+    relations: [
+      { kind: 'r', schema: 'public', name: 'a' },
+      { kind: 'r', schema: 'public', name: 'extra_t' },
+      { kind: 'v', schema: 'public', name: 'v1' },
+    ],
+    functions_summary: [],
+  };
+  const gap = catalogGap(golden, catalog);
+  assert.deepEqual(gap.tables, { missingInHosted: ['b'], extraInHosted: ['extra_t'] });
+  assert.deepEqual(gap.functions, { missingInHosted: ['f'], extraInHosted: [] });
+  assert.equal(gap.serverVersion, '17.11');
+  const files = { '/m/060_x.sql': 'create table if not exists public.b (id int);' };
+  const chain = [{ file: '060_x.sql', version: '060', stem: 'x' }];
+  assert.equal(creatingMigration('b', chain, '/m', (f) => files[f]), '060_x.sql');
+  assert.equal(creatingMigration('zzz', chain, '/m', (f) => files[f]), null);
+});

@@ -14,7 +14,7 @@ P2 non-blocking improvement; P3 future enhancement. P2 and P3 items go to the po
 | 1.3 | Attendance trigger does not rewrite historical attended values | attendance_preservation 20/20 (includes the rolled-back control) | Done |
 | 1.4 | Unified production build assembles | `npm run build:unified` exit 0 | Done |
 | 1.5 | Route verification | `scripts/verify-unified-routes.mjs`: 69 pass, 0 fail | Done |
-| 1.6 | Golden fingerprint matches the checkpoint (contract test green) | Golden run for the checkpoint completes; artifact digest recorded; contract test 18/18 | Pending (run for b458a5c queued at time of writing) |
+| 1.6 | Golden fingerprint matches the checkpoint (contract test green) | Artifact 15211979794 (b458a5c, 074 migrations through 073) verified: ZIP sha256 05dde6dc…0191, JSON c7d8782c…8a5; installed in 3a36803; contract 18/18 | Done |
 
 ## Milestone 2 — Reconciliation of originally approved functionality
 
@@ -39,8 +39,8 @@ P2 non-blocking improvement; P3 future enhancement. P2 and P3 items go to the po
 | # | Item | Acceptance criterion | Status |
 |---|------|----------------------|--------|
 | 3.1 | Candidate chain separated from hosted ledgers | `docs/hosted-migration-strategy.md` | Done |
-| 3.2 | Preview upgrade path against existing ledger and evidence | Owner-supplied ledger and catalog evidence reviewed against candidate 060–073 | Pending owner-supplied review |
-| 3.3 | Production upgrade path | Same, plus backup and explicit approval | Pending; HOLD |
+| 3.2 | Preview upgrade path against existing ledger and evidence | Catalog gap (docs/hosted-catalog-gap.md): Preview holds 19 tables outside the candidate lineage. Lineage decision and the ledger export are required | BLOCKER (owner decision on lineage; ledger export) |
+| 3.3 | Production upgrade path | Catalog gap: 17 tables, 10 views and 75 routines absent, each mapped to a candidate file (047–073). Ledger export required to confirm recorded versions; backup and explicit approval before any write | Gap analysed; ledger export required; HOLD |
 
 ## Milestone 4 — Release certification
 
@@ -48,8 +48,8 @@ P2 non-blocking improvement; P3 future enhancement. P2 and P3 items go to the po
 |---|------|----------------------|--------|
 | 4.1 | Desktop Chromium smoke (public site, Hub login) | No page errors, no horizontal scroll | Done (local build) |
 | 4.2 | Mobile Chromium smoke (375px) | Same | Done (local build) |
-| 4.3 | Desktop WebKit | Renders and logs in without the service-worker stall | BLOCKER: WebKit not installed in this environment; owner-classified release blocker |
-| 4.4 | Mobile WebKit | As 4.3 | BLOCKER (same) |
+| 4.3 | Desktop WebKit (mocked suite) | Login regression passes on desktop WebKit | Done: run 46034125597 (ab818a1), 66 passed across Chromium, WebKit iPhone and desktop. Physical Safari not verified |
+| 4.4 | Mobile WebKit (mocked suite) | As 4.3 on the iPhone 13 WebKit project | Done (same run). Physical iPhone not verified |
 | 4.5 | Authenticated workflows: Members, Cells, Assignments, ROR, Announcements, Attendance | Run against a Preview backend with a test account | BLOCKER for Preview acceptance (no authenticated backend here) |
 | 4.6 | Three-path certification (fresh install, Preview, Production starting states) | Evidence per path | Pending |
 
@@ -59,10 +59,11 @@ Requires explicit owner approval after 1 to 4 are closed. No production deployme
 
 ## Genuine release blockers (as of this writing)
 
-1. Desktop WebKit (and mobile WebKit) verification: owner-classified blocker; engine unavailable here.
-2. Authenticated workflow verification against a Preview backend (4.5).
-3. Hosted Preview and Production upgrade review (3.2, 3.3).
-4. Golden artifact for the final checkpoint (1.6).
+1. Authenticated workflow verification against the Preview project (4.5): owner approval of the `Preview` environment and project `yziuhtxtznginhdpqurb` is required.
+2. Preview lineage decision (3.2): owner decision on the 19 Preview tables outside the candidate, and the Preview ledger export.
+3. Production ledger export and backup approval (3.3). Production HOLD.
+
+Resolved since the previous version: golden fingerprint (1.6), mocked-browser certification (4.3, 4.4), upgrade gap analysis (3.2, 3.3).
 
 ## Post-release backlog (P2 and P3, not implemented)
 

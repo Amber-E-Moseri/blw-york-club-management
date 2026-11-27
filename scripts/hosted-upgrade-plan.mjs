@@ -63,6 +63,56 @@ export function fingerprintDiff(golden, hosted) {
   return result;
 }
 
+/**
+ * Adapter for a catalog export (the format supplied as blwyork-{preview,production}-evidence.json). The export holds
+ * relations, routine summaries and policies, with no migration ledger. Object identity is by name. Routine identity is
+ * by name only, since the export's argument types are not normalised to the golden's signature form.
+ */
+export function catalogObjects(catalog) {
+  const rel = catalog.relations ?? [];
+  return {
+    tables: new Set(rel.filter((r) => r.kind === 'r' && r.schema === 'public').map((r) => r.name)),
+    views: new Set(rel.filter((r) => r.kind === 'v' && r.schema === 'public').map((r) => r.name)),
+    functions: new Set((catalog.functions_summary ?? []).filter((f) => f.schema === 'public').map((f) => f.name)),
+    serverVersion: catalog.server_version ?? null,
+  };
+}
+
+export function goldenObjects(golden) {
+  return {
+    tables: new Set(Object.keys(golden.tables ?? {})),
+    views: new Set(Object.keys(golden.views ?? {})),
+    functions: new Set(Object.keys(golden.functions ?? {}).map((sig) => sig.split('(')[0])),
+  };
+}
+
+/** Name-level gap between the golden (candidate chain) and a hosted catalog, for each object kind. */
+export function catalogGap(golden, catalog) {
+  const g = goldenObjects(golden);
+  const h = catalogObjects(catalog);
+  const gap = {};
+  for (const kind of ['tables', 'views', 'functions']) {
+    gap[kind] = {
+      missingInHosted: [...g[kind]].filter((x) => !h[kind].has(x)).sort(),
+      extraInHosted: [...h[kind]].filter((x) => !g[kind].has(x)).sort(),
+    };
+  }
+  gap.serverVersion = h.serverVersion;
+  return gap;
+}
+
+/**
+ * For each object missing from the hosted catalog, the first candidate migration that creates it (by name). This maps a
+ * gap to the migration files a per-project upgrade plan would have to consider. It is a name search, not a parse.
+ */
+export function creatingMigration(name, chain, migrationsDir, readFile) {
+  const pattern = new RegExp(`\\b(table|view|function|trigger|policy)\\b[^;]*?\\b${name}\\b`, 'i');
+  for (const m of chain) {
+    if (pattern.test(readFile(join(migrationsDir, m.file)))) return m.file;
+  }
+  return null;
+}
+
 function main(argv) {
   const args = Object.fromEntries(argv.reduce((acc, a, i, arr) => {
     if (a.startsWith('--')) acc.push([a.slice(2), arr[i + 1]]);
@@ -70,17 +120,37 @@ function main(argv) {
   }, []));
   const label = args.label ?? 'project';
   const root = process.cwd();
-  if (!args.ledger) throw new Error('--ledger is required');
-  const ledger = parseLedger(readFileSync(resolve(args.ledger), 'utf8'));
+  if (!args.ledger && !args.catalog) throw new Error('--ledger or --catalog is required');
   const chain = candidateChain(join(root, 'supabase', 'migrations'));
-  const p = plan({ chain, ledger });
-  const counts = p.rows.reduce((acc, r) => ({ ...acc, [r.status]: (acc[r.status] ?? 0) + 1 }), {});
-  console.log(`[${label}] ledger rows: ${ledger.length}; candidate files: ${chain.length}`);
-  console.log(`[${label}] candidate status: ${JSON.stringify(counts)}`);
-  for (const r of p.rows.filter((x) => x.status !== 'recorded')) {
-    console.log(`[${label}] ${r.version} ${r.stem}: ${r.status}${r.ledgerName ? ` (ledger name: ${r.ledgerName})` : ''}`);
+  if (args.ledger) {
+    const ledger = parseLedger(readFileSync(resolve(args.ledger), 'utf8'));
+    const p = plan({ chain, ledger });
+    const counts = p.rows.reduce((acc, r) => ({ ...acc, [r.status]: (acc[r.status] ?? 0) + 1 }), {});
+    console.log(`[${label}] ledger rows: ${ledger.length}; candidate files: ${chain.length}`);
+    console.log(`[${label}] candidate status: ${JSON.stringify(counts)}`);
+    for (const r of p.rows.filter((x) => x.status !== 'recorded')) {
+      console.log(`[${label}] ${r.version} ${r.stem}: ${r.status}${r.ledgerName ? ` (ledger name: ${r.ledgerName})` : ''}`);
+    }
+    console.log(`[${label}] ledger versions outside the candidate chain: ${p.extraInLedger.map((r) => r.version).join(' ') || 'none'}`);
+  } else {
+    console.log(`[${label}] no ledger supplied: recorded-migration status is unknown, object gap only`);
   }
-  console.log(`[${label}] ledger versions outside the candidate chain: ${p.extraInLedger.map((r) => r.version).join(' ') || 'none'}`);
+  if (args.catalog) {
+    const catalog = JSON.parse(readFileSync(resolve(args.catalog), 'utf8'));
+    const golden = JSON.parse(readFileSync(join(root, 'supabase/verification/schema_fingerprint.golden.json'), 'utf8'));
+    const gap = catalogGap(golden, catalog);
+    console.log(`[${label}] catalog server ${gap.serverVersion}`);
+    for (const kind of ['tables', 'views', 'functions']) {
+      console.log(`[${label}] ${kind}: missing ${gap[kind].missingInHosted.length}, extra ${gap[kind].extraInHosted.length}`);
+      for (const name of gap[kind].missingInHosted) {
+        const file = creatingMigration(name, chain, join(root, 'supabase', 'migrations'), (f) => readFileSync(f, 'utf8'));
+        console.log(`[${label}]   missing ${kind.slice(0, -1)} ${name} -> ${file ?? 'no candidate file creates it'}`);
+      }
+    }
+    for (const kind of ['tables', 'views', 'functions']) {
+      if (gap[kind].extraInHosted.length) console.log(`[${label}]   extra ${kind} (not in candidate chain): ${gap[kind].extraInHosted.join(', ')}`);
+    }
+  }
   if (args.fingerprint) {
     const hosted = JSON.parse(readFileSync(resolve(args.fingerprint), 'utf8'));
     const golden = existsSync(args.golden ?? '') ? JSON.parse(readFileSync(resolve(args.golden), 'utf8')) : JSON.parse(readFileSync(join(root, 'supabase/verification/schema_fingerprint.golden.json'), 'utf8'));
