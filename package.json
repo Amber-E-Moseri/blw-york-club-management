@@ -41,7 +41,7 @@
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
     "eject": "react-scripts eject",
-    "test:scripts": "node --test \"scripts/__tests__/*.cjs\"",
+    "test:scripts": "node --test scripts/__tests__/seed-guard.test.cjs scripts/__tests__/hub-service-worker.test.cjs",
     "test:db:authz": "node supabase/verification/remediation_wave1_authz_pglite.mjs",
     "test:db:attendance": "node supabase/verification/attendance_schema_pglite.mjs",
     "test:db:membership": "node supabase/verification/membership_reconciliation_pglite.mjs",
