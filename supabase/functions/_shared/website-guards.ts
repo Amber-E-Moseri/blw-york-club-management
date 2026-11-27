@@ -105,7 +105,7 @@ function firstMessage(error: z.ZodError, friendly: Record<string, string>, fallb
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// Media upload rules. These mirror the storage bucket limits and the web_media constraints in migration 107.
+// Media upload rules. These mirror the storage bucket limits and the web_media constraints in migrations 050 to 058.
 // ---------------------------------------------------------------------------------------------------------------------
 
 export type MediaBucket = 'site-media' | 'rhapsody-pdfs';

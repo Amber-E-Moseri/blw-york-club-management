@@ -28,7 +28,7 @@ Keep `website-media-upload` on the default (verified).
 
 ## Database
 
-Migration `112_web_edge_support.sql` adds the per-client limiter (service role only), the upload permission check
+Migration `052_web_edge_support.sql` adds the per-client limiter (service role only), the upload permission check
 (authenticated only) and the PDF path resolver (service role only). No storage policy grants anonymous or signed-in
 users direct object access.
 
@@ -41,4 +41,12 @@ check does the authorisation.
 
 ## Validation
 
-Request bodies are validated with Zod (`zod@3.23.8`, pinned). Deno resolves `zod` through `supabase/functions/import_map.json`.
+Request bodies are validated with Zod (`zod@4.6.7`, pinned, the same version as `site/package.json`). `_shared/website-guards.ts` imports it from `https://esm.sh/zod@4.6.7`; there is no import map.
+
+## Tests
+
+- `deno test -A _shared/website-guards.test.ts`: unit tests for validation, path, URL, CORS and hashing helpers.
+- `deno test -A website-functions.test.ts`: runs each function as a child process against an in-process stub of the
+  Supabase REST, Auth and Storage endpoints. Covers the refusal paths, signing, cleanup and PDF redirection. It does not
+  reach Cloudflare Turnstile, so a successful inquiry is still untested offline; that is part of the live gate.
+- Typecheck: `deno check <function>/index.ts` for each of the four functions.
