@@ -17,7 +17,11 @@ const check = (name, pass, detail = '') => results.push({ name, pass, detail });
 
 async function run() {
   const { db, applied } = await openReplay(MIGRATIONS);
-  check('full migration chain includes attendance authority migration', applied.at(-1) === '046_attendance_status_authority.sql', applied.at(-1));
+  // 046 (attendance authority) must be in the chain, and only the approved forward website migrations (047-057) may follow it.
+  const i046 = applied.indexOf('046_attendance_status_authority.sql');
+  const after = i046 >= 0 ? applied.slice(i046 + 1) : [];
+  const approvedAfter = /^(04[7-9]|05[0-7])_(web_|website_)/;
+  check('full migration chain includes the attendance authority migration 046, followed only by the approved website migrations', i046 >= 0 && after.every((f) => approvedAfter.test(f)), after.filter((f) => !approvedAfter.test(f)).join(',') || applied.at(-1));
   const cols = await db.query(`select column_name, data_type, is_nullable from information_schema.columns
     where table_schema='public' and table_name='meeting_attendances'`);
   const status = cols.rows.find((row) => row.column_name === 'attendance_status');

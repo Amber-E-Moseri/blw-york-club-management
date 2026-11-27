@@ -1,98 +1,106 @@
-# Website administration: verification and functionality matrix
+# Website administration: integration and verification
 
-Scope: the existing Website Management in the Hub (`src/website`, `/admin/website/*`) and the public website
-(`site/`). No duplicate CMS, database or auth system. Production HOLD: no production write, migration or deployment.
+Scope: the existing Website Management in the Hub (`src/website`, `/admin/website/*`), the public website (`site/`), and
+the shared Supabase database. One CMS, one database, one authentication system. Production HOLD.
 
-## Summary
+## Migrations added (forward-only, after 046)
 
-**The website backend is not on this branch.** This branch's migrations stop at `046`. The Hub and public clients
-call `web_*` RPCs and `v_public_*` views that are defined only on another lineage, `origin/feat/website-cms-integ-106`
-(migrations `107`-`116`, which diverge from this branch's `045`/`046`). Until that lineage is merged or otherwise
-reconciled (decision D5), the Website Management screens and the public content connection have no backend here.
-
-Live end-to-end tests against an isolated backend were **not run**. None is available in this session (no Supabase
-project, no Docker, no connector). The database results below are from PGlite (in-process Postgres) on the CMS lineage.
-
-## Build-time environment guard (item 1)
-
-`scripts/check-supabase-config.mjs` runs before every unified build. It fails the build when:
-
-- `VITE_SUPABASE_URL` and `REACT_APP_SUPABASE_URL` name different projects, or the anon keys differ
-- one URL is set without its anon key (for either app)
-- a Preview build points at the protected production project `rjtstjmtddqhesexltbj`
-- a Preview build names an `EXPECTED_PREVIEW_SUPABASE_REF` that it does not use
-- `VITE_PREVIEW_DEMO=true` is set in a production build
-
-Tests: `scripts/__tests__/supabase-config.test.cjs` (8 cases). `npm run test:scripts`: 29 passing.
-
-## Required objects (item 2)
-
-| Object | On this branch | On the CMS lineage (`107`-`116`) |
+| File | Source (CMS lineage `feat/website-cms-integ-106`) | Change on the remediation lineage |
 |---|---|---|
-| Website tables and views (`web_*`, `v_public_*`) | Missing | Defined |
-| RPCs the Hub client calls (15 of 20 by name and argument keys) | Missing | Defined, argument keys match |
-| RPCs the Hub client calls for roles (5) | Missing | **Missing**: the client calls `web_create_role`, `web_set_role_permissions`, `web_archive_role`, `web_assign_role`, `web_revoke_assignment`. The backend has `web_create_website_role`, `web_set_website_permission`, `web_unassign_website_role` and `web_assign_website_role` with a different model (per-permission grants, no versioning, no archive). |
-| Storage buckets `site-media` (public images), `rhapsody-pdfs` (private PDFs) | Missing | Defined in `110` |
+| `047_website_authorization.sql` | 107 | Uses the Hub's existing `admin_roles`, `admin_role_permissions`, `admin_role_assignments`. No second role system. |
+| `048_web_content.sql` | 108 | Unchanged. Pages, settings, navigation: drafts, publication, versions, rollback. |
+| `049_web_blog_events.sql` | 109 | Adapted: the remediation events table has `audience` ('all' or 'meeting') and no `audience_spec_id`. Only open, untargeted events can be public. |
+| `050_web_inquiries_media.sql` | 110 | Unchanged. Inquiries, media register, buckets `site-media` (public images) and `rhapsody-pdfs` (private PDF). |
+| `051_web_rhapsody.sql` | 111 | Unchanged. |
+| `052_web_edge_support.sql` | 112 | Unchanged. Service-role functions for the intake and download edge functions. |
+| `053_web_media_verification.sql` | 113 | Unchanged except the pinned search path (`public, pg_temp`). |
+| `054_web_cleanup_revalidation.sql` | 114 | Unchanged except the pinned search path. |
+| `055_web_security_remediation.sql` | 115 | Adapted: removed the `audience_spec_id` references (the column is not in this schema). |
+| `056_web_unpublish_content.sql` | 116 | Unchanged. |
+| `057_web_retire_role.sql` | new | `web_retire_website_role`: retires an unused, non-built-in role. Refuses while anyone holds it. Audited. |
 
-## Database results (PGlite replay of the CMS lineage, 000-116)
+No earlier migration was edited, renumbered or removed. The CMS branch's other history (its 000–106 lineage) was not imported.
 
-`supabase/verification/website_cms_integ_test.mjs`: **216 of 216 passed.** This tests the backend's permission model,
-not this branch. Results by area:
+Test harness change (not a migration): the PGlite storage shim now includes Supabase's `storage.objects` timestamp columns.
 
-| Area | Checks | Result |
+## Frontend contract (Hub and public site, kept identical)
+
+The client called five role RPCs that did not exist. It now calls the backend's RPCs, and the role screens are adapted:
+
+| Client method | RPC |
+|---|---|
+| `listRoles` | `web_list_website_roles` |
+| `listAssignments` | `web_list_website_assignments` |
+| `createRole(name, description, permissions, reason)` | `web_create_website_role` |
+| `setRolePermissions(roleId, desired, current, reason)` | `web_set_website_permission`, one call per changed key |
+| `retireRole` | `web_retire_website_role` (new) |
+| `assignRole` | `web_assign_website_role` |
+| `revokeAssignment` | `web_unassign_website_role` |
+
+UI rules: a role needs at least one permission (the list shows only roles that hold a website permission, so a
+permissionless role would be unreachable). Every role change needs a reason of at least 5 characters, which the audit
+log records. Retirement is refused while anyone holds the role.
+
+## Database verification
+
+| Suite | Command | Result |
 |---|---|---|
-| Content (page drafts, publish, versions, rollback, optimistic concurrency) | 26 | Pass |
-| Settings | 9 | Pass |
-| Navigation (via settings and content kinds) | counted in content and settings | Pass |
-| Blog posts | 10 | Pass |
-| Events (public publication, featuring, meeting-targeted events refused) | 8 | Pass |
-| Unpublish | 14 | Pass |
-| Inquiries (intake, consent, honeypot, rate limit, no CRM rows, reviewer access) | 16 | Pass |
-| Media (alt text, MIME and bucket rules, upload permission, orphan detection) | 16 | Pass |
-| Roles and revocation (core-admin only; no self-grant) | 31 | Pass |
-| Coordinator and audit | 14 | Pass |
-| Privacy and authority | 5 | Pass |
-| Rhapsody, edge functions, link rules | 56 | Pass |
+| CMS authorization (the 216 tests from the CMS lineage, unchanged, on the combined chain 000–057) | `npm run test:db:website` | 216/216 |
+| Website role lifecycle (new): create, reason, non-core refusal, grant, unknown key, escalation, assign, self-assign, pending account, effective permissions, held-role retirement, revoke, retire, built-in protection, audit | `npm run test:db:website` | 26/26 |
+| Remediation authorization (Wave 1) | `npm run test:db:authz` | 19/19 |
+| Attendance authority (046 retained; only the approved forward migrations may follow it) | `supabase/verification/attendance_schema_pglite.mjs` | 9/9 |
+| Membership reconciliation | `supabase/verification/membership_reconciliation_pglite.mjs` | 7/7 |
+| Schema contract against the full chain (PGlite fingerprint) | `npm run test:db:contract` | 29/29 |
 
-## Functionality matrix
+The 216 CMS tests cover public reads, published versus draft visibility, administrator and staff permissions, cross-role
+denial, revocation, media rules, inquiry privacy, audit integrity, and Hub authorization. Each area has positive and
+negative controls.
 
-Status key. **DB** = database test on the CMS lineage. **Live** = verified end-to-end in a browser against a backend.
-Nothing is marked Live.
+PGlite is an in-process PostgreSQL. It is not PostgreSQL 17, and the Supabase platform (GoTrue, PostgREST, storage
+service) is shimmed. These results do not replace the PostgreSQL 17 certification.
 
-| Admin capability | Backend (CMS lineage) | Hub client contract | Appears on public site after publish | Live E2E | Notes |
-|---|---|---|---|---|---|
-| Edit page text (save draft) | DB pass | Argument keys match | Not tested | No | Drafts are invisible to anonymous visitors (DB pass). |
-| Publish page | DB pass | Argument keys match | Not tested live (DB: public body updates) | No | Editor cannot publish (DB pass). |
-| Rollback | DB pass | Argument keys match | DB: public body restored | No | |
-| Settings and contact details | DB pass | Via settings kind | DB: published link reaches public view | No | |
-| Navigation | DB pass via settings and content | Via content kind | Not tested | No | |
-| Blog posts (draft, publish, unpublish) | DB pass | Argument keys match | DB: published post visible, draft hidden | No | |
-| Events (public event, featured) | DB pass | Argument keys match | DB: listed in public events view | No | Meeting-targeted events cannot be published (DB pass). |
-| Images and media (upload, alt text) | DB pass | `web_register_media` match | Not tested | No | Storage buckets missing on this branch. |
-| Media replacement and removal | Orphan detection only | Not checked | Not tested | No | Explicit removal path not verified. |
-| Inquiries inbox (receive, review, status) | DB pass | Argument keys match | Not applicable | No | Submission through the edge function is covered by a Deno test not run here. |
-| Role management (create, assign, revoke, permissions) | Functions exist under other names | **Mismatch** | Not applicable | No | Cannot succeed as written. |
+## Schema contract and golden fingerprint
 
-## Other checks
+`schema_contract.json` now describes the new objects, reviewed from the migrations and the observed grants:
 
-- **Members cannot edit website content:** DB pass (analyst, editor, contributor and anonymous denied on drafts,
-  publish, media and inquiries).
-- **Unpublished content inaccessible to the public:** DB pass (anonymous reads of drafts, unpublished posts and
-  unpublished events are denied or absent).
-- **Hub authentication session and staff permissions preserved:** not verified live. The Hub's session code is
-  unchanged by this work.
+- Tables: the 12 `web_*` tables. Owner-only. No service-role access (they are reached only through definer functions).
+- Authenticated: SELECT only on `web_audit_log` (core administrators, by RLS) and `web_permission_catalogue`.
+- Views: the four `v_public_*` views. They are the only views anonymous visitors may read (published rows only, with
+  `security_barrier`). The contract rule is now an explicit allowlist, not a blanket "no anon view" rule.
+- Functions: every `web_*` and `_web_*` function, with its security mode and EXECUTE roles. Anonymous visitors and PUBLIC
+  execute none. Service-role execute is limited to the intake, download logging and storage housekeeping functions.
+- Storage buckets: `site-media` and `rhapsody-pdfs`, with their size and MIME limits.
 
-## What must happen before any of this can be verified live
+`check_schema_contract.mjs` passes 29/29 on the full chain. The committed PostgreSQL 17 golden (`schema_fingerprint.golden.json`)
+still describes 000–046 and must be regenerated on PostgreSQL 17. This cannot be done here (no Docker, and PGlite reports
+NOT NULL constraints differently from PostgreSQL 17). It is done by the manual workflow `update-golden-fingerprint.yml`,
+which now expects 58 migrations ending at 057. The workflow uploads a candidate for review, and the golden is committed
+after review.
 
-1. Decide D5: how the CMS lineage (`107`-`116`) relates to this branch's `045`/`046`. Merging it changes the schema
-   fingerprint and the migration inventory, so it is an owner decision, not a silent merge.
-2. Align the five role RPCs. Either the client adapts to the backend's model (grant/unassign per permission, no
-   versioning or archive) or the backend gains the functions the client expects. Both are owner decisions because the
-   role model changes.
-3. Provide an isolated Supabase project for the Preview (never the protected production project) and set
-   `EXPECTED_PREVIEW_SUPABASE_REF` to its ref. Then run the live matrix above.
+## Storage
+
+- `site-media`: public, images only, 5 MB, JPEG/PNG/WebP. Registration requires alt text. Public access is via the
+  published views only.
+- `rhapsody-pdfs`: private, PDF only, 25 MB. Read through the edition functions only.
+- Orphan detection (`web_orphaned_uploads`) and removal of unreferenced uploads (`web_upload_still_unreferenced`) are
+  service-role only. Media that a page or post still references is never removed.
+
+## Environment
+
+`scripts/check-supabase-config.mjs` runs before every unified build. It fails when the public site (`VITE_SUPABASE_URL`)
+and the Hub (`REACT_APP_SUPABASE_URL`) name different projects or keys, when a Preview points at the protected production
+project `rjtstjmtddqhesexltbj`, when `EXPECTED_PREVIEW_SUPABASE_REF` is set and not matched, and when demo content is enabled
+in production. Preview ref `yziuhtxtznginhdpqurb` is named in `.env.example` only as a placeholder. No service-role key
+appears in any frontend code.
+
+## Live end-to-end acceptance (not run)
+
+The acceptance steps (sign in, edit and publish the homepage, upload and replace an image, create and publish an
+event, submit an inquiry and see it in the inbox, confirm that an ordinary member cannot edit, assign and revoke a role)
+need an authorised isolated Supabase project and test accounts. None is available in this session, so they are
+**not run**. The database-level equivalents above pass.
 
 ## Not done here
 
-- No merge of the CMS lineage. No change to the role contract. No production write, migration or deployment.
-- No new CMS, database or auth system.
+- No merge of the CMS lineage. No production write, migration or deployment. No new CMS, database or auth system.
+- The PostgreSQL 17 golden fingerprint, the hosted storage certification, and the live acceptance run.

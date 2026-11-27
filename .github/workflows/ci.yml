@@ -22,6 +22,8 @@ jobs:
       - run: npm run verify:routes
       - run: npm --prefix site ci && npm --prefix site test
       - run: npm run test:scripts
+      - run: npm run test:db:website
+      - run: npm run test:db:contract
 
   certification:
     runs-on: ubuntu-latest

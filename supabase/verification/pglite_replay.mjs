@@ -45,6 +45,10 @@ create or replace function storage.filename(name text) returns text language sql
 create or replace function storage.foldername(name text) returns text[] language sql as $$ select string_to_array(name, '/') $$;
 create table if not exists storage.buckets(id text primary key, name text, public boolean default false, file_size_limit bigint, allowed_mime_types text[]);
 create table if not exists storage.objects(id uuid primary key default gen_random_uuid(), bucket_id text, name text, owner uuid, metadata jsonb);
+-- Supabase's storage.objects also carries these columns; migrations read them (for example 113 orders uploads by created_at).
+alter table storage.objects add column if not exists created_at timestamptz default now();
+alter table storage.objects add column if not exists updated_at timestamptz default now();
+alter table storage.objects add column if not exists last_accessed_at timestamptz default now();
 grant usage on schema storage to anon, authenticated, service_role;
 `;
 

@@ -76,12 +76,52 @@ describe('administrative calls', () => {
     expect(await api.myPermissions()).toEqual(['website.pages.edit', 'website.blog.edit']);
   });
 
-  it('maps role rows from the table read into the client shape', async () => {
-    const { calls, impl } = fakeFetch([{ status: 200, body: [{ id: 'r1', name: 'Editor', description: 'd', is_builtin: true, status: 'active', version: 3 }] }]);
+  it('lists roles through the role RPC and maps them to the client shape', async () => {
+    const { calls, impl } = fakeFetch([{ status: 200, body: [{ id: 'r1', name: 'Editor', description: 'd', permissions: ['website.pages.edit'] }] }]);
     const api = createWebsiteApi(config('t', impl));
     const roles = await api.listRoles();
-    expect(calls[0].url).toContain('/rest/v1/web_roles?');
-    expect(roles).toEqual([{ id: 'r1', name: 'Editor', description: 'd', isBuiltin: true, status: 'active', version: 3 }]);
+    expect(calls[0].url).toContain('/rest/v1/rpc/web_list_website_roles');
+    expect(roles).toEqual([{ id: 'r1', name: 'Editor', description: 'd', permissions: ['website.pages.edit'] }]);
+  });
+
+  it('lists assignments through the assignment RPC', async () => {
+    const { calls, impl } = fakeFetch([{ status: 200, body: [{ id: 'a1', role_id: 'r1', profile_id: 'p1', assigned_at: '2026-11-01T00:00:00Z' }] }]);
+    const api = createWebsiteApi(config('t', impl));
+    const rows = await api.listAssignments();
+    expect(calls[0].url).toContain('/rest/v1/rpc/web_list_website_assignments');
+    expect(rows).toEqual([{ id: 'a1', roleId: 'r1', profileId: 'p1', assignedAt: '2026-11-01T00:00:00Z' }]);
+  });
+
+  it('creates a role with its audit reason', async () => {
+    const { calls, impl } = fakeFetch([{ status: 200, body: 'role-id' }]);
+    const api = createWebsiteApi(config('t', impl));
+    await api.createRole('Editor', 'd', ['website.pages.edit'], 'Approved for the website team');
+    expect(calls[0].url).toContain('/rest/v1/rpc/web_create_website_role');
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ p_name: 'Editor', p_description: 'd', p_permissions: ['website.pages.edit'], p_reason: 'Approved for the website team' });
+  });
+
+  it('updates permissions by granting and revoking only the keys that changed', async () => {
+    const { calls, impl } = fakeFetch([{ status: 200, body: null }, { status: 200, body: null }]);
+    const api = createWebsiteApi(config('t', impl));
+    await api.setRolePermissions('r1', ['website.pages.edit', 'website.events.manage'], ['website.pages.edit', 'website.blog.edit'], 'Adjust the team scope');
+    const bodies = calls.map((c) => JSON.parse(String(c.init.body)));
+    expect(bodies).toEqual([
+      { p_role_id: 'r1', p_permission: 'website.events.manage', p_grant: true, p_reason: 'Adjust the team scope' },
+      { p_role_id: 'r1', p_permission: 'website.blog.edit', p_grant: false, p_reason: 'Adjust the team scope' },
+    ]);
+  });
+
+  it('retires a role through the retirement RPC and assigns or revokes through the backend names', async () => {
+    const { calls, impl } = fakeFetch([{ status: 200, body: null }, { status: 200, body: 'a-id' }, { status: 200, body: null }]);
+    const api = createWebsiteApi(config('t', impl));
+    await api.retireRole('r1', 'No longer needed');
+    await api.assignRole('p1', 'r1', 'Joins the team');
+    await api.revokeAssignment('a1', 'Leaves the team');
+    expect(calls.map((c) => c.url)).toEqual([
+      expect.stringContaining('/rest/v1/rpc/web_retire_website_role'),
+      expect.stringContaining('/rest/v1/rpc/web_assign_website_role'),
+      expect.stringContaining('/rest/v1/rpc/web_unassign_website_role'),
+    ]);
   });
 });
 

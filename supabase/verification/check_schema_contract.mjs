@@ -41,7 +41,13 @@ check('RLS: enabled on every public table', tableNames.every((t) => fp.tables[t]
 // --- privileges -------------------------------------------------------------------------------------------------
 const anonTables = tableNames.filter((t) => fp.tables[t].privileges.anon !== '');
 check('grants: anon holds no privilege on any table', anonTables.length === 0, anonTables.join(','));
-check('grants: anon holds no privilege on any view', Object.values(fp.views).every((v) => v.privileges.anon === ''), 'view');
+// Anonymous visitors may read only the reviewed public website views (published rows only, security_barrier). Every
+// other view is closed to anon.
+const anonViewsAllowed = contract.anonViews ?? [];
+const anonViewProblems = Object.entries(fp.views).filter(([name, v]) => (v.privileges.anon !== '') !== anonViewsAllowed.includes(name)
+  || (anonViewsAllowed.includes(name) && (v.privileges.anon !== 'SELECT' || !String(v.options ?? '').includes('security_barrier=true'))))
+  .map(([name]) => name);
+check('grants: anon holds SELECT only on the reviewed public views (security_barrier), and nothing else', anonViewProblems.length === 0, anonViewProblems.join(','));
 const forbidden = [];
 for (const t of tableNames) {
   for (const role of ['anon', 'authenticated', 'service_role']) {
