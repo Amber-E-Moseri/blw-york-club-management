@@ -1,0 +1,38 @@
+# Manual verification of the mocked end-to-end suites in Chromium and WebKit. Uses the GitHub runner only.
+# The suites run against the local dev server with the mocked Supabase client (e2e/supabaseMock.ts). No hosted project,
+# no real credentials and no hosted writes are involved.
+name: E2E mocked browsers (Chromium and WebKit)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CI: 'true'
+      PORT: '3100'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci --no-audit --no-fund
+      - name: Install Playwright browsers (Chromium and WebKit) on the runner
+        run: npx playwright install --with-deps chromium webkit
+      - name: Chromium, WebKit iPhone and WebKit desktop
+        run: npx playwright test --project=chromium --project=webkit-iphone --project=webkit-desktop --trace off
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore

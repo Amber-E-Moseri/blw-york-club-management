@@ -27,5 +27,11 @@ export default defineConfig({
       testMatch: /login-regression\.spec\.ts/,
       use: { ...devices['iPhone 13'] },
     },
+    {
+      // Desktop Safari engine (WebKit) at a desktop viewport. Same sign-in regression, not a physical Safari run.
+      name: 'webkit-desktop',
+      testMatch: /login-regression\.spec\.ts/,
+      use: { ...devices['Desktop Safari'] },
+    },
   ],
 });
