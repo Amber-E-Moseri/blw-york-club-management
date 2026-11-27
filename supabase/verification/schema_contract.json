@@ -76,7 +76,9 @@
     "member_directory",
     "membership_reconciliation_review",
     "organizational_member_directory",
+    "v_announcement_dispatch_attention",
     "v_cell_member_directory",
+    "v_meeting_attendance_classification",
     "v_prayer_requests_visible",
     "v_public_content",
     "v_public_editions",
@@ -300,6 +302,12 @@
         "authenticated"
       ]
     },
+    "assign_contact_follow_up(uuid,text)": {
+      "security": "definer",
+      "execute": [
+        "authenticated"
+      ]
+    },
     "assignments_completed_at_stamp()": {
       "security": "definer",
       "execute": []
@@ -312,6 +320,12 @@
       "security": "definer",
       "execute": []
     },
+    "begin_announcement_send(uuid,uuid)": {
+      "security": "definer",
+      "execute": [
+        "service_role"
+      ]
+    },
     "bootstrap_first_administrator(text,text)": {
       "security": "definer",
       "execute": []
@@ -321,6 +335,16 @@
       "execute": [
         "service_role"
       ]
+    },
+    "complete_announcement_dispatch(uuid,uuid,integer,integer)": {
+      "security": "definer",
+      "execute": [
+        "service_role"
+      ]
+    },
+    "contacts_guard_follow_up_assignee()": {
+      "security": "definer",
+      "execute": []
     },
     "current_user_role()": {
       "security": "definer",
@@ -343,6 +367,12 @@
     },
     "get_cell_member_profile(text)": {
       "security": "invoker",
+      "execute": [
+        "authenticated"
+      ]
+    },
+    "get_cell_member_read_dates(text,uuid)": {
+      "security": "definer",
       "execute": [
         "authenticated"
       ]
@@ -530,6 +560,10 @@
         "authenticated",
         "service_role"
       ]
+    },
+    "resolve_cell_member_user(text,uuid)": {
+      "security": "definer",
+      "execute": []
     },
     "respond_to_meeting_invitation(uuid,text)": {
       "security": "definer",

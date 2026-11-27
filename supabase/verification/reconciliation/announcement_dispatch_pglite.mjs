@@ -154,6 +154,45 @@ check('direct table: no authenticated role can read dispatch claims', !r.ok, r.o
 r = await as(null, `select public.claim_announcement_dispatch($1,$2)`, [ANN.cellA, U.leaderA], 'anon');
 check('direct RPC: anonymous callers cannot claim', !r.ok, r.ok ? 'executed' : r.error);
 
+// ── Lifecycle (071): claimed -> sending -> completed | partial; partial is never reported as complete ────────────────────
+const LIFE = { partial: P(208), completed: P(209), stuck: P(210), beforeSend: P(211) };
+await owner(`insert into public.announcements (id,title,body,author_id,author_name,cell_id) values
+  ($1,'Lifecycle partial','x',$4,'Leader A',$5),($2,'Lifecycle complete','x',$4,'Leader A',$5),($3,'Lifecycle stuck','x',$4,'Leader A',$5),($6,'Lifecycle early','x',$4,'Leader A',$5)`,
+  [LIFE.partial, LIFE.completed, LIFE.stuck, U.leaderA, CELL.A, LIFE.beforeSend]);
+const lifeStatus = async (ann) => (await owner(`select status, sent_count, failed_count from public.announcement_dispatches where announcement_id=$1`, [ann])).rows[0];
+await claim(U.leaderA, LIFE.partial);
+r = await svc(`select public.begin_announcement_send($1,$2) ok`, [LIFE.partial, U.leaderA]);
+check('a claimed dispatch moves to sending before the first push', r.ok && r.rows[0].ok === true && (await lifeStatus(LIFE.partial)).status === 'sending', r.error);
+r = await svc(`select public.release_announcement_dispatch($1,$2)`, [LIFE.partial, U.leaderA]);
+check('negative: a dispatch that is sending cannot be released (no second broadcast after pushes began)', (await lifeStatus(LIFE.partial))?.status === 'sending', JSON.stringify(await lifeStatus(LIFE.partial)));
+r = await svc(`select public.complete_announcement_dispatch($1,$2,2,1) st`, [LIFE.partial, U.leaderA]);
+check('partial delivery is recorded as partial, with counts, never as complete', r.ok && r.rows[0].st === 'partial' && (await lifeStatus(LIFE.partial)).failed_count === 1, r.error ?? JSON.stringify(r.rows));
+r = await claim(U.leaderA, LIFE.partial);
+check('a partial dispatch is not re-broadcast automatically (a second claim is refused)', r.ok && r.rows[0].ok === false, r.error ?? JSON.stringify(r.rows));
+r = await as(U.admin, `select announcement_id, status from public.v_announcement_dispatch_attention`);
+check('staff see partial deliveries for review', r.ok && r.rows.some((x) => x.announcement_id === LIFE.partial && x.status === 'partial'), r.error ?? JSON.stringify(r.rows));
+r = await as(U.memberA1, `select announcement_id from public.v_announcement_dispatch_attention`);
+check('negative: ordinary members see no dispatch attention rows', r.ok && r.rows.length === 0, r.error ?? r.rows.length);
+
+await claim(U.leaderA, LIFE.completed);
+await svc(`select public.begin_announcement_send($1,$2)`, [LIFE.completed, U.leaderA]);
+r = await svc(`select public.complete_announcement_dispatch($1,$2,2,0) st`, [LIFE.completed, U.leaderA]);
+check('a fully successful dispatch is completed', r.ok && r.rows[0].st === 'completed', r.error);
+
+await claim(U.leaderA, LIFE.stuck);
+await svc(`select public.begin_announcement_send($1,$2)`, [LIFE.stuck, U.leaderA]);
+await owner(`update public.announcement_dispatches set sending_at = now() - interval '1 hour' where announcement_id=$1`, [LIFE.stuck]);
+r = await as(U.admin, `select announcement_id, status from public.v_announcement_dispatch_attention`);
+check('a delivery left in sending by a terminated process is reported for review, not retried', r.ok && r.rows.some((x) => x.announcement_id === LIFE.stuck && x.status === 'sending'), r.error ?? JSON.stringify(r.rows));
+r = await claim(U.leaderA, LIFE.stuck);
+check('a stuck sending dispatch is not re-claimed automatically', r.ok && r.rows[0].ok === false, r.error);
+
+await claim(U.leaderA, LIFE.beforeSend);
+r = await svc(`select public.complete_announcement_dispatch($1,$2,1,0) st`, [LIFE.beforeSend, U.leaderA, 1, 0]);
+check('negative: completion without a begun send is refused', !r.ok, r.ok ? 'completed' : r.error);
+r = await svc(`select public.release_announcement_dispatch($1,$2)`, [LIFE.beforeSend, U.leaderA]);
+check('a claim that never began sending can be released before any push', (await owner(`select count(*)::int n from public.announcement_dispatches where announcement_id=$1`, [LIFE.beforeSend])).rows[0].n === 0);
+
 // ── Authority helper is not callable directly by clients ─────────────────────────────────────────────────────────────
 r = await as(U.leaderA, `select public.announcement_dispatch_authorised($1,$2)`, [ANN.cellA, U.leaderA]);
 check('the authority helper is not executable by authenticated clients', !r.ok, r.ok ? 'executed' : r.error);

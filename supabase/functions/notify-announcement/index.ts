@@ -122,6 +122,13 @@ Deno.serve(async (req) => {
     }
 
     const payload = buildAnnouncementPushPayload(announcement);
+    // Record that delivery has begun before the first push. From here on the claim is never released, so a crash or a
+    // partial failure cannot lead to a second broadcast.
+    const { data: began, error: beginError } = await supabase.rpc('begin_announcement_send', {
+      p_announcement_id: announcementId,
+      p_actor: actorId,
+    });
+    if (beginError || began !== true) throw new HttpError('Could not start notification delivery', 500);
     pushStarted = true;
     const outcomes: Array<DeliveryOutcome & { endpointId: string }> = await Promise.all(
       subscriptions.map(async (sub) => {
@@ -144,6 +151,17 @@ Deno.serve(async (req) => {
       })
     );
 
+    const sentCount = outcomes.filter((o) => o.status === 'sent').length;
+    const failedCount = outcomes.filter((o) => o.status === 'failed').length;
+    // Partial delivery is recorded as partial, never as complete. A partial dispatch is not retried automatically.
+    const { error: completeError } = await supabase.rpc('complete_announcement_dispatch', {
+      p_announcement_id: announcementId,
+      p_actor: actorId,
+      p_sent: sentCount,
+      p_failed: failedCount,
+    });
+    if (completeError) console.error('complete_announcement_dispatch failed', completeError.message);
+
     const logRows = buildAnnouncementDeliveryLogRows(announcement, outcomes);
     if (logRows.length > 0) {
       const { error: logError } = await supabase.from('push_notification_log').insert(logRows);
@@ -154,8 +172,8 @@ Deno.serve(async (req) => {
       announcement_id: announcementId,
       recipients: recipientCount,
       devices: subscriptions.length,
-      sent: outcomes.filter((o) => o.status === 'sent').length,
-      failed: outcomes.filter((o) => o.status === 'failed').length,
+      sent: sentCount,
+      failed: failedCount,
       expired: outcomes.filter((o) => o.status === 'expired').length,
     });
   } catch (err) {
