@@ -5,6 +5,7 @@
     "admin_role_assignments",
     "admin_role_permissions",
     "admin_roles",
+    "announcement_dispatches",
     "announcements",
     "assignments",
     "attendance_imports",
@@ -150,6 +151,7 @@
     ],
     "": [
       "admin_bootstrap_audit",
+      "announcement_dispatches",
       "scheduled_emails",
       "web_client_rate_limits",
       "web_content",
@@ -165,6 +167,7 @@
   },
   "serviceRoleNoAccess": [
     "admin_bootstrap_audit",
+    "announcement_dispatches",
     "assignments",
     "audience_specs",
     "saved_group_members",
@@ -286,6 +289,10 @@
       "security": "invoker",
       "execute": []
     },
+    "announcement_dispatch_authorised(uuid,uuid)": {
+      "security": "definer",
+      "execute": []
+    },
     "approve_pending_member(uuid)": {
       "security": "definer",
       "execute": [
@@ -307,6 +314,12 @@
     "bootstrap_first_administrator(text,text)": {
       "security": "definer",
       "execute": []
+    },
+    "claim_announcement_dispatch(uuid,uuid)": {
+      "security": "definer",
+      "execute": [
+        "service_role"
+      ]
     },
     "current_user_role()": {
       "security": "definer",
@@ -484,6 +497,18 @@
       "security": "definer",
       "execute": [
         "authenticated"
+      ]
+    },
+    "release_announcement_dispatch(uuid,uuid)": {
+      "security": "definer",
+      "execute": [
+        "service_role"
+      ]
+    },
+    "resolve_announcement_recipients(uuid,uuid)": {
+      "security": "definer",
+      "execute": [
+        "service_role"
       ]
     },
     "resolve_audience(uuid)": {
