@@ -98,12 +98,18 @@ const fixtures: Record<string, unknown[]> = {
 
 export type MockRole = 'admin' | 'coordinator' | 'cell_leader' | 'member';
 
-export async function mockSupabase(page: Page, options: { role?: MockRole } = {}) {
+/**
+ * `leadsCell` models the cell assignment (cells.leader_id). A cell_leader account leads a cell by default, which is the
+ * assigned-leader case. Pass leadsCell: false for the role-only account, which must see no leader pages.
+ */
+export async function mockSupabase(page: Page, options: { role?: MockRole; leadsCell?: boolean } = {}) {
   const activeProfile = { ...profile, role: options.role ?? profile.role };
+  const leadsCell = options.leadsCell ?? (activeProfile.role === 'cell_leader');
   const activeFixtures: Record<string, unknown[]> = {
     ...fixtures,
     profiles: [activeProfile],
     member_directory: [{ ...activeProfile, avatar_url: null, student_number: '900000001' }],
+    cells: leadsCell ? [{ id: 'cell-a', name: 'Cell A', leader_id: activeProfile.id }] : [],
   };
 
   await page.route('**/*', async (route) => {

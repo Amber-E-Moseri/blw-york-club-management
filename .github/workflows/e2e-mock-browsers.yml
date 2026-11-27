@@ -16,6 +16,7 @@ jobs:
     env:
       CI: 'true'
       PORT: '3100'
+      BROWSER: 'none'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
