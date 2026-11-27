@@ -120,7 +120,7 @@ Only rows marked "CI" or "PGlite" were executed. Everything else is NOT RUN.
 
 | Capability | Verification | Status |
 |---|---|---|
-| PostgreSQL 17 golden fingerprint | update-golden-fingerprint on `22899ee` (migrations 000-059), committed in `db433f1` | Committed; CI parity passes; contract 30/30 |
+| PostgreSQL 17 golden fingerprint | update-golden-fingerprint on `22899ee` (migrations 000-059), committed in `db433f1` | Committed; CI parity passes; contract 29/29 |
 | 11 previously skipped Supabase integration tests (`quickAddRealCode`) | CI `certification` job, local Supabase stack | PASS 11/11 on `de0aa29` |
 | Storage certification (local stack) | CI `certification` job | PASS 30/30 on `de0aa29` |
 | Storage certification (hosted Preview) | `storage_certification.mjs` against the Preview project | NOT RUN: `hosted-certification.yml` is frozen (`if: false`) and the Preview project is not visible to this account |
