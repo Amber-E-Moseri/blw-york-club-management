@@ -376,3 +376,55 @@ the `/hub` scope, the public root, and the root retirement workers.
 - No production write, migration, deployment or merge into `main`.
 - No domain purchase. No deletion or retirement of either Vercel project.
 - No new branch, worktree or PR (PR #97 is updated by the push to its branch).
+
+## Preview and release gates (2026-11-27, continuation)
+
+### Vercel Preview (PR #97)
+
+- A Vercel Preview exists for PR #97: project `blwyork`, state Ready, built from `remediation/blw-york-wave1-5`.
+  Preview URL: `https://blwyork-git-remediation-blw-yor-484c51-amber-e-moseris-projects.vercel.app`. It was reported
+  by the Vercel bot on the PR at 2026-11-27 00:20 UTC. It has not been verified in this environment (see below).
+- **Environment isolation is not verified.** The PR body states the Preview currently embeds the production Supabase
+  URL. The sandbox cannot read the deployed bundle, so the backend for this Preview is unknown. Do not use this
+  Preview for authentication, forms, or any write until its Supabase URL and anon key are confirmed to be an
+  isolated project. Confirm in the Vercel project's Preview environment variables.
+- The sandbox egress policy refuses CONNECT to `*.vercel.app` (HTTP 403). No route checks, browser tests or
+  WebKit runs against the Preview were possible from here. Run the route checks in `docs/unified-platform.md`
+  section 3 from a machine that can reach the Preview.
+- No Vercel or Supabase connector is installed in this session. Both were offered for installation. Connecting
+  them would allow the Vercel and Supabase mappings to be checked directly.
+
+### Remote CI on the consolidated head
+
+| Commit | Check | Result | Cause |
+|---|---|---|---|
+| `1833ab8` | `build-test` | Failure | `test:scripts` used a glob that Node 20 does not expand. Fixed in `85c31de`. |
+| `1833ab8` | `certification` | Failure, 115/123 | See below. |
+| `1833ab8` | `Vercel Preview Comments` | Success | Preview deployed. |
+
+`certification` (`p0-behavioural`, 115/123) fails on these checks. Each maps to an open decision, so this is not a
+regression from the merge:
+
+- B7, B8, B9, B11 (coordinator attendance rows, correction, reversal, removal): **D3**. The attendance write path
+  still uses `attendance_status`, which the decision has not settled.
+- C4 (active member has no direct UPDATE on `profiles`): **D4 / gap 3.4**. Active self-edit is not yet implemented,
+  and the policy still allows a direct UPDATE that the design forbids.
+
+The certification assertions are not changed to make the run green, because the governance rules forbid it. Turning
+the job green requires a decision on D3 and D4.
+
+### Other gates (status in this environment)
+
+| Gate | Status |
+|---|---|
+| 11 real Supabase integration tests | Not run. Require an isolated Supabase project. None is authorized in this environment. |
+| Production read-only schema comparison | Not run. No production access. |
+| Migration inventory and rehearsal | Not run. Requires isolated staging. |
+| Backup and PITR readiness | Not verified here. Requires owner confirmation of the production plan. |
+| Dependency disposition | Not re-audited here (the owner asked not to repeat audits). Earlier waves record the state. |
+| WebKit and iPhone Safari | Not run. WebKit is not installed here. A real iPhone test is still required. |
+
+### Production decision
+
+**NO-GO.** The blockers are: the Preview's Supabase isolation is unverified; the certification job is red on
+decisions D3 and D4; the release gates above are not run; and no real-device Safari sign-in has been tested.

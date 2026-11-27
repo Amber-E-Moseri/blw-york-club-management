@@ -162,3 +162,14 @@ Do not delete anything until the owner approves each step.
   later cleanup.
 - The Hub's `remediation/blw-york-wave1-5` branch is the base of this work. PR #97 has not been updated in this pass
   (see the commit message and summary).
+
+
+## 10. Preview status (2026-11-27)
+
+- Vercel Preview for PR #97: `https://blwyork-git-remediation-blw-yor-484c51-amber-e-moseris-projects.vercel.app`
+  (project `blwyork`, Ready). Its Supabase backend is **not verified** as isolated. The PR states it embeds the
+  production URL. Do not use this Preview for authentication, forms or writes until that is confirmed.
+- Routes on that Preview were not checked from the build sandbox: egress returns 403 for `*.vercel.app`. Run section 3's
+  checks from a machine that can reach the Preview.
+- Vercel and Supabase connectors are not installed in this session, so the environment mappings could not be read
+  from those integrations.
