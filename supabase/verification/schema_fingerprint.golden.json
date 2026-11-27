@@ -305,6 +305,7 @@
             ],
             "triggers": [
                 "CREATE TRIGGER contacts_guard_follow_up_assignee BEFORE INSERT OR UPDATE OF follow_up_assignee ON public.contacts FOR EACH ROW EXECUTE FUNCTION contacts_guard_follow_up_assignee()",
+                "CREATE TRIGGER contacts_resolve_person BEFORE INSERT OR UPDATE OF person_id ON public.contacts FOR EACH ROW EXECUTE FUNCTION contacts_resolve_person()",
                 "CREATE TRIGGER contacts_updated_at BEFORE UPDATE ON public.contacts FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
             ],
             "force_rls": false,
@@ -3116,6 +3117,19 @@
             "volatility": "s",
             "definition_md5": "4987aa877bc11fa83b02bd182acd6e8b"
         },
+        "contacts_resolve_person()": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": false,
+                "authenticated": false
+            },
+            "security": "definer",
+            "volatility": "v",
+            "definition_md5": "6f333626db7d8900b6d42763b8902089"
+        },
         "is_admin_or_coordinator()": {
             "owner": "postgres",
             "config": "search_path=public, pg_temp",
@@ -3583,19 +3597,6 @@
             "security": "definer",
             "volatility": "v",
             "definition_md5": "6bb1998e09f3670d5745b8f6aeb5a673"
-        },
-        "find_person_id_for_contact(text)": {
-            "owner": "postgres",
-            "config": "search_path=public, pg_temp",
-            "execute": {
-                "anon": false,
-                "public": false,
-                "service_role": false,
-                "authenticated": true
-            },
-            "security": "definer",
-            "volatility": "s",
-            "definition_md5": "140c58589aabb35086c2c334761fd736"
         },
         "get_cell_ror_progress(text,text)": {
             "owner": "postgres",
