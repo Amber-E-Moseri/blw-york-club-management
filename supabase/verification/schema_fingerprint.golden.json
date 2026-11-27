@@ -25,7 +25,7 @@
                 "service_role": "",
                 "authenticated": "SELECT"
             },
-            "definition_md5": "3e060d0c66224beb3010e397ded4495d"
+            "definition_md5": "cd5c060a72172d41de56c68e3b207c25"
         },
         "v_public_content": {
             "options": "security_barrier=true",
@@ -54,6 +54,24 @@
             },
             "definition_md5": "44b4f9277eaefcae527d0c9539d02fb1"
         },
+        "v_cell_member_directory": {
+            "options": "security_barrier=true",
+            "privileges": {
+                "anon": "",
+                "service_role": "",
+                "authenticated": "SELECT"
+            },
+            "definition_md5": "6643e333299ba620178aa670abc384cb"
+        },
+        "v_prayer_requests_visible": {
+            "options": "security_barrier=true",
+            "privileges": {
+                "anon": "",
+                "service_role": "",
+                "authenticated": "SELECT"
+            },
+            "definition_md5": "6eb97eeb1c4382eaf7fce610920d9884"
+        },
         "organizational_member_directory": {
             "options": "security_invoker=true",
             "privileges": {
@@ -61,7 +79,7 @@
                 "service_role": "SELECT",
                 "authenticated": "SELECT"
             },
-            "definition_md5": "5144792b02f5daac01401f8b65ee2dcd"
+            "definition_md5": "5b20654855970d4ea7a7192133868906"
         },
         "membership_reconciliation_review": {
             "options": "security_invoker=true",
@@ -71,6 +89,24 @@
                 "authenticated": "SELECT"
             },
             "definition_md5": "4b48274050c60b719d068a65aaa1d0f5"
+        },
+        "v_announcement_dispatch_attention": {
+            "options": "",
+            "privileges": {
+                "anon": "",
+                "service_role": "",
+                "authenticated": "SELECT"
+            },
+            "definition_md5": "69f64d66516d0ffbb802b31d358a1063"
+        },
+        "v_meeting_attendance_classification": {
+            "options": "security_invoker=true",
+            "privileges": {
+                "anon": "",
+                "service_role": "",
+                "authenticated": "SELECT"
+            },
+            "definition_md5": "db7d3bbc03d2ebd37637dc3e262c4fdf"
         }
     },
     "tables": {
@@ -89,8 +125,10 @@
                 "bscs_pkey CREATE UNIQUE INDEX bscs_pkey ON public.bscs USING btree (id)"
             ],
             "policies": [
-                "bscs_manage | ALL | {authenticated} | using=(is_core_admin() OR is_cell_leader_of(cell_id)) | check=(is_core_admin() OR is_cell_leader_of(cell_id))",
-                "bscs_read | SELECT | {authenticated} | using=is_active_member() | check="
+                "bscs_delete_staff | DELETE | {authenticated} | using=(is_core_admin() OR is_admin_or_coordinator()) | check=",
+                "bscs_insert_scoped | INSERT | {authenticated} | using= | check=(is_core_admin() OR is_admin_or_coordinator() OR is_cell_leader_of(cell_id))",
+                "bscs_read | SELECT | {authenticated} | using=is_active_member() | check=",
+                "bscs_update_scoped | UPDATE | {authenticated} | using=(is_core_admin() OR is_admin_or_coordinator() OR is_cell_leader_of(cell_id)) | check=(is_core_admin() OR is_admin_or_coordinator() OR is_cell_leader_of(cell_id))"
             ],
             "triggers": [
                 "CREATE TRIGGER bscs_updated_at BEFORE UPDATE ON public.bscs FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
@@ -206,7 +244,7 @@
             "policies": [
                 "people_delete | DELETE | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'coordinator'::text)))) | check=",
                 "people_insert | INSERT | {authenticated} | using= | check=is_active_member()",
-                "people_read | SELECT | {authenticated} | using=(is_active_member() OR (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.person_id = people.id))))) | check=",
+                "people_read | SELECT | {authenticated} | using=(is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.person_id = people.id))))) | check=",
                 "people_update | UPDATE | {public} | using=is_core_admin() | check=is_core_admin()"
             ],
             "triggers": [
@@ -266,6 +304,7 @@
                 "contacts_update_scoped | UPDATE | {public} | using=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id)) | check=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id))"
             ],
             "triggers": [
+                "CREATE TRIGGER contacts_guard_follow_up_assignee BEFORE INSERT OR UPDATE OF follow_up_assignee ON public.contacts FOR EACH ROW EXECUTE FUNCTION contacts_guard_follow_up_assignee()",
                 "CREATE TRIGGER contacts_updated_at BEFORE UPDATE ON public.contacts FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
             ],
             "force_rls": false,
@@ -317,8 +356,8 @@
             ],
             "policies": [
                 "meetings_cell_read | SELECT | {public} | using=((visibility = 'cell'::text) AND (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.cell_id = meetings.cell_id))))) | check=",
-                "meetings_leaders_read | SELECT | {public} | using=((visibility = 'leaders'::text) AND (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['cell_leader'::text, 'admin'::text, 'coordinator'::text])))))) | check=",
-                "meetings_manage_scoped | ALL | {public} | using=(is_admin_or_coordinator() OR ((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'cell_leader'::text)))) AND ((created_by = auth.uid()) OR is_cell_leader_of(cell_id)))) | check=(is_admin_or_coordinator() OR ((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'cell_leader'::text)))) AND (created_by = auth.uid()) AND is_cell_leader_of(cell_id)))",
+                "meetings_leaders_read | SELECT | {authenticated} | using=((visibility = 'leaders'::text) AND (is_admin_or_coordinator() OR is_cell_leader_of(cell_id))) | check=",
+                "meetings_manage_scoped | ALL | {authenticated} | using=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id)) | check=(is_admin_or_coordinator() OR is_cell_leader_of(cell_id))",
                 "meetings_public_read | SELECT | {public} | using=(is_active_member() AND (visibility = 'public'::text)) | check="
             ],
             "triggers": [
@@ -363,12 +402,13 @@
             ],
             "policies": [
                 "profiles_coordinator_administer | ALL | {public} | using=is_coordinator() | check=is_coordinator()",
-                "profiles_select_scoped | SELECT | {public} | using=((id = auth.uid()) OR is_admin_or_coordinator() OR is_cell_leader_for_profile(id)) | check=",
+                "profiles_select_scoped | SELECT | {authenticated} | using=((id = auth.uid()) OR is_admin_or_coordinator()) | check=",
                 "profiles_self_onboarding_update | UPDATE | {authenticated} | using=((id = auth.uid()) AND (status = ANY (ARRAY['pending'::text, 'active'::text]))) | check=((id = auth.uid()) AND (status = ANY (ARRAY['pending'::text, 'active'::text])))"
             ],
             "triggers": [
                 "CREATE TRIGGER profiles_guard_bsc_assignment BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION guard_profile_bsc_assignment()",
                 "CREATE TRIGGER profiles_guard_privileged_columns BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION guard_profile_privileged_columns()",
+                "CREATE TRIGGER profiles_mirror_shared_fields AFTER UPDATE OF student_number, avatar_url ON public.profiles FOR EACH ROW EXECUTE FUNCTION _mirror_profile_to_user_profiles()",
                 "CREATE TRIGGER profiles_staff_edit_audit AFTER UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION audit_staff_profile_edits()",
                 "CREATE TRIGGER profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
             ],
@@ -565,6 +605,53 @@
             ],
             "maintain_acl": 0
         },
+        "assignments": {
+            "rls": true,
+            "owner": "postgres",
+            "columns": [
+                "assigned_by:uuid:NOT NULL:",
+                "assigned_to:uuid:NOT NULL:",
+                "completed_at:timestamp with time zone:null:",
+                "created_at:timestamp with time zone:NOT NULL:now()",
+                "description:text:null:",
+                "due_date:date:null:",
+                "id:uuid:NOT NULL:gen_random_uuid()",
+                "status:text:NOT NULL:'pending'::text",
+                "title:text:NOT NULL:",
+                "updated_at:timestamp with time zone:NOT NULL:now()"
+            ],
+            "indexes": [
+                "assignments_assigned_by_idx CREATE INDEX assignments_assigned_by_idx ON public.assignments USING btree (assigned_by)",
+                "assignments_assigned_to_idx CREATE INDEX assignments_assigned_to_idx ON public.assignments USING btree (assigned_to)",
+                "assignments_pkey CREATE UNIQUE INDEX assignments_pkey ON public.assignments USING btree (id)",
+                "assignments_status_idx CREATE INDEX assignments_status_idx ON public.assignments USING btree (status)"
+            ],
+            "policies": [
+                "assignments_insert | INSERT | {authenticated} | using= | check=(is_active_member() AND (assigned_by = auth.uid()) AND is_active_profile(assigned_to) AND (is_admin_or_coordinator() OR is_cell_leader_of_user(assigned_to)))",
+                "assignments_select | SELECT | {authenticated} | using=(is_active_member() AND ((assigned_to = auth.uid()) OR is_admin_or_coordinator() OR is_cell_leader_of_user(assigned_to))) | check=",
+                "assignments_update_manager | UPDATE | {authenticated} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
+                "assignments_update_own_status | UPDATE | {authenticated} | using=(is_active_member() AND (assigned_to = auth.uid()) AND (status <> ALL (ARRAY['completed'::text, 'cancelled'::text]))) | check=((assigned_to = auth.uid()) AND (status = ANY (ARRAY['pending'::text, 'in_progress'::text, 'completed'::text])))"
+            ],
+            "triggers": [
+                "CREATE TRIGGER assignments_completed_at BEFORE UPDATE ON public.assignments FOR EACH ROW EXECUTE FUNCTION assignments_completed_at_stamp()",
+                "CREATE TRIGGER assignments_guard_assignee_update BEFORE UPDATE ON public.assignments FOR EACH ROW EXECUTE FUNCTION assignments_guard_assignee_update()",
+                "CREATE TRIGGER assignments_updated_at BEFORE UPDATE ON public.assignments FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+            ],
+            "force_rls": false,
+            "privileges": {
+                "anon": "",
+                "service_role": "",
+                "authenticated": "INSERT,SELECT,UPDATE"
+            },
+            "constraints": [
+                "assignments_assigned_by_fkey FOREIGN KEY (assigned_by) REFERENCES profiles(id)",
+                "assignments_assigned_to_fkey FOREIGN KEY (assigned_to) REFERENCES profiles(id) ON DELETE CASCADE",
+                "assignments_pkey PRIMARY KEY (id)",
+                "assignments_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'in_progress'::text, 'completed'::text, 'cancelled'::text])))",
+                "assignments_title_check CHECK ((char_length(title) >= 1))"
+            ],
+            "maintain_acl": 0
+        },
         "confessions": {
             "rls": true,
             "owner": "postgres",
@@ -652,7 +739,7 @@
             ],
             "policies": [
                 "memberships_insert | INSERT | {public} | using= | check=is_core_admin()",
-                "memberships_read | SELECT | {authenticated} | using=(is_active_member() OR (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.person_id = memberships.person_id))))) | check=",
+                "memberships_read | SELECT | {authenticated} | using=(is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.person_id = memberships.person_id))))) | check=",
                 "memberships_update | UPDATE | {public} | using=is_core_admin() | check=is_core_admin()"
             ],
             "triggers": [
@@ -835,6 +922,41 @@
             ],
             "maintain_acl": 0
         },
+        "saved_groups": {
+            "rls": true,
+            "owner": "postgres",
+            "columns": [
+                "created_at:timestamp with time zone:NOT NULL:now()",
+                "created_by:uuid:NOT NULL:",
+                "description:text:null:",
+                "id:uuid:NOT NULL:gen_random_uuid()",
+                "is_active:boolean:NOT NULL:true",
+                "name:text:NOT NULL:",
+                "updated_at:timestamp with time zone:NOT NULL:now()"
+            ],
+            "indexes": [
+                "saved_groups_pkey CREATE UNIQUE INDEX saved_groups_pkey ON public.saved_groups USING btree (id)"
+            ],
+            "policies": [
+                "saved_groups_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
+                "saved_groups_read | SELECT | {public} | using=(is_active_member() AND (is_active = true)) | check="
+            ],
+            "triggers": [
+                "CREATE TRIGGER saved_groups_updated_at BEFORE UPDATE ON public.saved_groups FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+            ],
+            "force_rls": false,
+            "privileges": {
+                "anon": "",
+                "service_role": "",
+                "authenticated": "SELECT"
+            },
+            "constraints": [
+                "saved_groups_created_by_fkey FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE CASCADE",
+                "saved_groups_name_check CHECK ((char_length(name) >= 1))",
+                "saved_groups_pkey PRIMARY KEY (id)"
+            ],
+            "maintain_acl": 0
+        },
         "web_versions": {
             "rls": true,
             "owner": "postgres",
@@ -881,15 +1003,18 @@
                 "author_id:uuid:NOT NULL:",
                 "author_name:text:NOT NULL:",
                 "body:text:NOT NULL:",
+                "cell_id:uuid:null:",
                 "created_at:timestamp with time zone:NOT NULL:now()",
                 "id:uuid:NOT NULL:gen_random_uuid()",
                 "title:text:NOT NULL:"
             ],
             "indexes": [
+                "announcements_cell_id_idx CREATE INDEX announcements_cell_id_idx ON public.announcements USING btree (cell_id)",
                 "announcements_pkey CREATE UNIQUE INDEX announcements_pkey ON public.announcements USING btree (id)"
             ],
             "policies": [
-                "announcements_manage | ALL | {public} | using=(is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'cell_leader'::text) AND (profiles.status = 'active'::text))))) | check=(is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'cell_leader'::text) AND (profiles.status = 'active'::text)))))",
+                "announcements_manage_cell_leader | ALL | {authenticated} | using=((cell_id IS NOT NULL) AND is_cell_leader_of(cell_id)) | check=((cell_id IS NOT NULL) AND is_cell_leader_of(cell_id))",
+                "announcements_manage_staff | ALL | {authenticated} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
                 "announcements_read | SELECT | {public} | using=is_active_member() | check="
             ],
             "triggers": [
@@ -902,6 +1027,7 @@
             },
             "constraints": [
                 "announcements_author_id_fkey FOREIGN KEY (author_id) REFERENCES profiles(id)",
+                "announcements_cell_id_fkey FOREIGN KEY (cell_id) REFERENCES cells(id) ON DELETE SET NULL",
                 "announcements_pkey PRIMARY KEY (id)"
             ],
             "maintain_acl": 0
@@ -998,11 +1124,12 @@
                 "profiles_delete | DELETE | {authenticated} | using=((auth.uid() = user_id) AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.status = 'active'::text))))) | check=",
                 "profiles_insert | INSERT | {authenticated} | using= | check=((auth.uid() = user_id) AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.status = ANY (ARRAY['pending'::text, 'active'::text]))))))",
                 "profiles_update | UPDATE | {authenticated} | using=((auth.uid() = user_id) AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.status = ANY (ARRAY['pending'::text, 'active'::text])))))) | check=((auth.uid() = user_id) AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.status = ANY (ARRAY['pending'::text, 'active'::text]))))))",
-                "user_profiles_select_scoped | SELECT | {public} | using=((user_id = auth.uid()) OR is_admin_or_coordinator() OR is_cell_leader_for_profile(user_id)) | check=",
+                "user_profiles_select_scoped | SELECT | {authenticated} | using=((user_id = auth.uid()) OR is_admin_or_coordinator()) | check=",
                 "user_profiles_staff_insert | INSERT | {authenticated} | using= | check=is_admin_or_coordinator()",
                 "user_profiles_staff_update | UPDATE | {authenticated} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()"
             ],
             "triggers": [
+                "CREATE TRIGGER user_profiles_mirror_shared_fields AFTER UPDATE OF student_number, avatar_url ON public.user_profiles FOR EACH ROW EXECUTE FUNCTION _mirror_user_profile_to_profiles()",
                 "CREATE TRIGGER user_profiles_staff_edit_audit AFTER UPDATE ON public.user_profiles FOR EACH ROW EXECUTE FUNCTION audit_staff_profile_edits()",
                 "CREATE TRIGGER user_profiles_updated_at BEFORE UPDATE ON public.user_profiles FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
             ],
@@ -1085,6 +1212,43 @@
             "constraints": [
                 "zoom_settings_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES profiles(id) ON DELETE SET NULL",
                 "zoom_settings_pkey PRIMARY KEY (id)"
+            ],
+            "maintain_acl": 0
+        },
+        "audience_specs": {
+            "rls": true,
+            "owner": "postgres",
+            "columns": [
+                "cell_ids:uuid[]:null:",
+                "created_at:timestamp with time zone:NOT NULL:now()",
+                "created_by:uuid:NOT NULL:",
+                "group_ids:uuid[]:null:",
+                "id:uuid:NOT NULL:gen_random_uuid()",
+                "mode:text:NOT NULL:",
+                "profile_ids:uuid[]:null:"
+            ],
+            "indexes": [
+                "audience_specs_pkey CREATE UNIQUE INDEX audience_specs_pkey ON public.audience_specs USING btree (id)"
+            ],
+            "policies": [
+                "audience_specs_insert | INSERT | {public} | using= | check=is_admin_or_coordinator()",
+                "audience_specs_read | SELECT | {public} | using=is_admin_or_coordinator() | check="
+            ],
+            "triggers": [
+            ],
+            "force_rls": false,
+            "privileges": {
+                "anon": "",
+                "service_role": "",
+                "authenticated": "SELECT"
+            },
+            "constraints": [
+                "audience_cells_requires_ids CHECK (((mode <> 'cells'::text) OR ((cell_ids IS NOT NULL) AND (array_length(cell_ids, 1) > 0))))",
+                "audience_explicit_requires_ids CHECK (((mode <> 'explicit'::text) OR ((profile_ids IS NOT NULL) AND (array_length(profile_ids, 1) > 0))))",
+                "audience_groups_requires_ids CHECK (((mode <> 'saved_groups'::text) OR ((group_ids IS NOT NULL) AND (array_length(group_ids, 1) > 0))))",
+                "audience_specs_created_by_fkey FOREIGN KEY (created_by) REFERENCES profiles(id)",
+                "audience_specs_mode_check CHECK ((mode = ANY (ARRAY['all'::text, 'cells'::text, 'saved_groups'::text, 'explicit'::text])))",
+                "audience_specs_pkey PRIMARY KEY (id)"
             ],
             "maintain_acl": 0
         },
@@ -1227,9 +1391,8 @@
             ],
             "policies": [
                 "prayers_coordinator_manage | UPDATE | {public} | using=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['coordinator'::text, 'admin'::text]))))) | check=(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['coordinator'::text, 'admin'::text])))))",
-                "prayers_leadership_read | SELECT | {public} | using=((visibility = ANY (ARRAY['leadership'::text, 'shared'::text])) AND (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = ANY (ARRAY['coordinator'::text, 'admin'::text, 'cell_leader'::text])))))) | check=",
-                "prayers_own | ALL | {public} | using=(auth.uid() = author_id) | check=",
-                "prayers_shared_read | SELECT | {public} | using=((visibility = 'shared'::text) AND is_active_member()) | check="
+                "prayers_leadership_staff | SELECT | {authenticated} | using=((visibility = ANY (ARRAY['leadership'::text, 'shared'::text])) AND is_admin_or_coordinator()) | check=",
+                "prayers_own | ALL | {public} | using=(auth.uid() = author_id) | check="
             ],
             "triggers": [
                 "CREATE TRIGGER prayer_requests_updated_at BEFORE UPDATE ON public.prayer_requests FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
@@ -1608,6 +1771,7 @@
                 "contact_follow_ups_update_scoped | UPDATE | {public} | using=(is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_follow_ups.contact_id) AND is_cell_leader_of(c.cell_id))))) | check=(is_admin_or_coordinator() OR (EXISTS ( SELECT 1\n   FROM contacts c\n  WHERE ((c.id = contact_follow_ups.contact_id) AND is_cell_leader_of(c.cell_id)))))"
             ],
             "triggers": [
+                "CREATE TRIGGER contact_follow_ups_guard_assignee BEFORE INSERT ON public.contact_follow_ups FOR EACH ROW EXECUTE FUNCTION contact_follow_ups_guard_assignee()"
             ],
             "force_rls": false,
             "privileges": {
@@ -1826,6 +1990,40 @@
                 "monthly_devotionals_total_days_check CHECK (((total_days >= 28) AND (total_days <= 31)))",
                 "monthly_devotionals_total_pages_check CHECK ((total_pages > 0))",
                 "monthly_devotionals_year_check CHECK (((year >= 2000) AND (year <= 2100)))"
+            ],
+            "maintain_acl": 0
+        },
+        "saved_group_members": {
+            "rls": true,
+            "owner": "postgres",
+            "columns": [
+                "added_at:timestamp with time zone:NOT NULL:now()",
+                "added_by:uuid:NOT NULL:",
+                "group_id:uuid:NOT NULL:",
+                "profile_id:uuid:NOT NULL:"
+            ],
+            "indexes": [
+                "saved_group_members_pkey CREATE UNIQUE INDEX saved_group_members_pkey ON public.saved_group_members USING btree (group_id, profile_id)",
+                "sgm_group_idx CREATE INDEX sgm_group_idx ON public.saved_group_members USING btree (group_id)",
+                "sgm_profile_idx CREATE INDEX sgm_profile_idx ON public.saved_group_members USING btree (profile_id)"
+            ],
+            "policies": [
+                "saved_group_members_manage | ALL | {public} | using=is_admin_or_coordinator() | check=is_admin_or_coordinator()",
+                "saved_group_members_read | SELECT | {public} | using=is_admin_or_coordinator() | check="
+            ],
+            "triggers": [
+            ],
+            "force_rls": false,
+            "privileges": {
+                "anon": "",
+                "service_role": "",
+                "authenticated": "SELECT"
+            },
+            "constraints": [
+                "saved_group_members_added_by_fkey FOREIGN KEY (added_by) REFERENCES profiles(id)",
+                "saved_group_members_group_id_fkey FOREIGN KEY (group_id) REFERENCES saved_groups(id) ON DELETE CASCADE",
+                "saved_group_members_pkey PRIMARY KEY (group_id, profile_id)",
+                "saved_group_members_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE"
             ],
             "maintain_acl": 0
         },
@@ -2269,6 +2467,42 @@
             ],
             "maintain_acl": 0
         },
+        "announcement_dispatches": {
+            "rls": true,
+            "owner": "postgres",
+            "columns": [
+                "announcement_id:uuid:NOT NULL:",
+                "claimed_at:timestamp with time zone:NOT NULL:now()",
+                "claimed_by:uuid:null:",
+                "failed_count:integer:NOT NULL:0",
+                "finished_at:timestamp with time zone:null:",
+                "sending_at:timestamp with time zone:null:",
+                "sent_count:integer:NOT NULL:0",
+                "status:text:NOT NULL:'claimed'::text"
+            ],
+            "indexes": [
+                "announcement_dispatches_pkey CREATE UNIQUE INDEX announcement_dispatches_pkey ON public.announcement_dispatches USING btree (announcement_id)"
+            ],
+            "policies": [
+            ],
+            "triggers": [
+            ],
+            "force_rls": false,
+            "privileges": {
+                "anon": "",
+                "service_role": "",
+                "authenticated": ""
+            },
+            "constraints": [
+                "announcement_dispatches_announcement_id_fkey FOREIGN KEY (announcement_id) REFERENCES announcements(id) ON DELETE CASCADE",
+                "announcement_dispatches_claimed_by_fkey FOREIGN KEY (claimed_by) REFERENCES profiles(id) ON DELETE SET NULL",
+                "announcement_dispatches_failed_count_check CHECK ((failed_count >= 0))",
+                "announcement_dispatches_pkey PRIMARY KEY (announcement_id)",
+                "announcement_dispatches_sent_count_check CHECK ((sent_count >= 0))",
+                "announcement_dispatches_status_check CHECK ((status = ANY (ARRAY['claimed'::text, 'sending'::text, 'completed'::text, 'partial'::text])))"
+            ],
+            "maintain_acl": 0
+        },
         "confession_declarations": {
             "rls": true,
             "owner": "postgres",
@@ -2687,6 +2921,19 @@
             "volatility": "s",
             "definition_md5": "a4bceb1a38db1df494e7ac16a42340a9"
         },
+        "list_cell_leaders()": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": false,
+                "authenticated": true
+            },
+            "security": "definer",
+            "volatility": "s",
+            "definition_md5": "2cc5c6bd2563c03f35b3a0a7211a6b02"
+        },
         "web_is_core_admin()": {
             "owner": "postgres",
             "config": "search_path=public, pg_temp",
@@ -2739,6 +2986,32 @@
             "volatility": "s",
             "definition_md5": "7f7f076ca3c97356023d8b2fdf6673a8"
         },
+        "is_bsc_leader_of(uuid)": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": false,
+                "authenticated": true
+            },
+            "security": "definer",
+            "volatility": "s",
+            "definition_md5": "5e6ae6acbe40cfa13e7550b3e9f6f6f8"
+        },
+        "resolve_audience(uuid)": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": true,
+                "authenticated": true
+            },
+            "security": "definer",
+            "volatility": "s",
+            "definition_md5": "a05d72322a10e196841e6c0bb49530a4"
+        },
         "is_active_profile(uuid)": {
             "owner": "postgres",
             "config": "search_path=public, pg_temp",
@@ -2764,6 +3037,19 @@
             "security": "invoker",
             "volatility": "s",
             "definition_md5": "8a096ac7db3bb476066e328419ccce40"
+        },
+        "member_roster_key(uuid)": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": false,
+                "authenticated": true
+            },
+            "security": "invoker",
+            "volatility": "i",
+            "definition_md5": "3a7001615bc115989fd8ee63ccf799c0"
         },
         "web_has_permission(text)": {
             "owner": "postgres",
@@ -3012,6 +3298,19 @@
             "volatility": "v",
             "definition_md5": "6d62dd2dc6795e3b0b3b4a2660a44a63"
         },
+        "is_cell_leader_of_user(uuid)": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": false,
+                "authenticated": true
+            },
+            "security": "definer",
+            "volatility": "s",
+            "definition_md5": "9b76473e4dd25a95c81b6011bc8b6872"
+        },
         "merge_people(uuid,uuid,text)": {
             "owner": "postgres",
             "config": "search_path=public, pg_temp",
@@ -3050,6 +3349,19 @@
             "security": "invoker",
             "volatility": "i",
             "definition_md5": "9b7379dad9cb1b3dbe8319133246af9a"
+        },
+        "get_cell_member_profile(text)": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": false,
+                "authenticated": true
+            },
+            "security": "invoker",
+            "volatility": "s",
+            "definition_md5": "ffc9b1255daef2e3df367cff70e53819"
         },
         "web_list_event_publications()": {
             "owner": "postgres",
@@ -3179,7 +3491,7 @@
             },
             "security": "invoker",
             "volatility": "v",
-            "definition_md5": "4e0efff01b148f1da3a06b75dd078e3f"
+            "definition_md5": "52ee75dd33eeb060fb8f69f4f56b2c3a"
         },
         "normalize_identity_email(text)": {
             "owner": "postgres",
@@ -3259,6 +3571,32 @@
             "volatility": "s",
             "definition_md5": "c9aac55ee963fccb907ebe34f3032229"
         },
+        "assignments_completed_at_stamp()": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": false,
+                "authenticated": false
+            },
+            "security": "definer",
+            "volatility": "v",
+            "definition_md5": "6bb1998e09f3670d5745b8f6aeb5a673"
+        },
+        "find_person_id_for_contact(text)": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": false,
+                "authenticated": true
+            },
+            "security": "definer",
+            "volatility": "s",
+            "definition_md5": "140c58589aabb35086c2c334761fd736"
+        },
         "get_cell_ror_progress(text,text)": {
             "owner": "postgres",
             "config": "search_path=public, pg_temp",
@@ -3270,7 +3608,7 @@
             },
             "security": "definer",
             "volatility": "s",
-            "definition_md5": "5ccb90cfd2a7d96b7194c1c7816c58f2"
+            "definition_md5": "b72f65d2ab00695d11c939428cbbe9fe"
         },
         "is_cell_leader_for_profile(uuid)": {
             "owner": "postgres",
@@ -3283,7 +3621,7 @@
             },
             "security": "definer",
             "volatility": "s",
-            "definition_md5": "9d95dd084f551fb0773c0c3d4658db23"
+            "definition_md5": "68fe19b26d896991fff27c323b5b3b78"
         },
         "web_set_inquiry_status(uuid,text)": {
             "owner": "postgres",
@@ -3297,6 +3635,45 @@
             "security": "definer",
             "volatility": "v",
             "definition_md5": "2d345d65be03fb0dac5922972280a53f"
+        },
+        "_mirror_profile_to_user_profiles()": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": false,
+                "authenticated": false
+            },
+            "security": "definer",
+            "volatility": "v",
+            "definition_md5": "89e2e991c8c8d950cd89a98da5c82cff"
+        },
+        "_mirror_user_profile_to_profiles()": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": false,
+                "authenticated": false
+            },
+            "security": "definer",
+            "volatility": "v",
+            "definition_md5": "919a1ee3f9a9b28e4281ebe5eb4a5c2f"
+        },
+        "begin_announcement_send(uuid,uuid)": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": true,
+                "authenticated": false
+            },
+            "security": "definer",
+            "volatility": "v",
+            "definition_md5": "e4e984b0e17dc6327daa959f47068f13"
         },
         "guard_profile_privileged_columns()": {
             "owner": "postgres",
@@ -3324,6 +3701,84 @@
             "volatility": "v",
             "definition_md5": "b40271fdbca879c70250cfece037624b"
         },
+        "assign_contact_follow_up(uuid,text)": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": false,
+                "authenticated": true
+            },
+            "security": "definer",
+            "volatility": "v",
+            "definition_md5": "83b652639922f0938a471eb4fb60d6b3"
+        },
+        "assignments_guard_assignee_update()": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": false,
+                "authenticated": false
+            },
+            "security": "definer",
+            "volatility": "v",
+            "definition_md5": "8c85bcb6b69bb9088f1dcfdc006e19c4"
+        },
+        "contact_follow_ups_guard_assignee()": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": false,
+                "authenticated": false
+            },
+            "security": "definer",
+            "volatility": "v",
+            "definition_md5": "0aa39583e4232537b9f78c5923bfbbb8"
+        },
+        "contacts_guard_follow_up_assignee()": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": false,
+                "authenticated": false
+            },
+            "security": "definer",
+            "volatility": "v",
+            "definition_md5": "85e10a072804082afcdf2810c90378c6"
+        },
+        "resolve_cell_member_user(text,uuid)": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": false,
+                "authenticated": false
+            },
+            "security": "definer",
+            "volatility": "s",
+            "definition_md5": "2ff842667014d904d0fd17dc683c7f96"
+        },
+        "_resolve_contact_assignee(uuid,text)": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": false,
+                "authenticated": false
+            },
+            "security": "definer",
+            "volatility": "s",
+            "definition_md5": "3d110077348212a7befaf56711b2eef3"
+        },
         "_web_guard_last_website_permission()": {
             "owner": "postgres",
             "config": "search_path=public, pg_temp",
@@ -3350,6 +3805,19 @@
             "volatility": "v",
             "definition_md5": "aab2d29659b7da7dd08eb51d6df67961"
         },
+        "get_cell_member_read_dates(text,uuid)": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": false,
+                "authenticated": true
+            },
+            "security": "definer",
+            "volatility": "s",
+            "definition_md5": "9c418c15d1d111e668e2902bc48c6725"
+        },
         "web_unpublish_content(text,text,text)": {
             "owner": "postgres",
             "config": "search_path=public, pg_temp",
@@ -3375,6 +3843,19 @@
             "security": "invoker",
             "volatility": "i",
             "definition_md5": "49d71588896bd927a642d8f4a4df1969"
+        },
+        "claim_announcement_dispatch(uuid,uuid)": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": true,
+                "authenticated": false
+            },
+            "security": "definer",
+            "volatility": "v",
+            "definition_md5": "0d00a03fdda59f0f58a1bb6ec8f4b34a"
         },
         "web_assign_website_role(uuid,uuid,text)": {
             "owner": "postgres",
@@ -3415,6 +3896,19 @@
             "volatility": "v",
             "definition_md5": "e50c23cd07562908e7486e505a124dec"
         },
+        "release_announcement_dispatch(uuid,uuid)": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": true,
+                "authenticated": false
+            },
+            "security": "definer",
+            "volatility": "v",
+            "definition_md5": "3885323c9f59b4d3cdbaafa6b44326bc"
+        },
         "respond_to_meeting_invitation(uuid,text)": {
             "owner": "postgres",
             "config": "search_path=public, pg_temp",
@@ -3426,7 +3920,7 @@
             },
             "security": "definer",
             "volatility": "v",
-            "definition_md5": "6dc58ce0488470f7689ffd72f46a511b"
+            "definition_md5": "ef8b900f4aa9c25a60919ce98d2bcefd"
         },
         "web_authorize_edition(uuid,text,integer)": {
             "owner": "postgres",
@@ -3466,6 +3960,45 @@
             "security": "definer",
             "volatility": "v",
             "definition_md5": "570a29d8213dea7c4dbb6d15b89ffa30"
+        },
+        "reassign_contact_follow_up(uuid,text,text)": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": false,
+                "authenticated": true
+            },
+            "security": "definer",
+            "volatility": "v",
+            "definition_md5": "2532bdcec7dbea5bfb8b697187652c0e"
+        },
+        "resolve_announcement_recipients(uuid,uuid)": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": true,
+                "authenticated": false
+            },
+            "security": "definer",
+            "volatility": "v",
+            "definition_md5": "06628c66a9bb8405e54d46285f263103"
+        },
+        "announcement_dispatch_authorised(uuid,uuid)": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": false,
+                "authenticated": false
+            },
+            "security": "definer",
+            "volatility": "s",
+            "definition_md5": "e883e13461c7a683909a2ee7e0e16f8b"
         },
         "web_publish_content(text,text,integer,text)": {
             "owner": "postgres",
@@ -3609,6 +4142,19 @@
             "security": "definer",
             "volatility": "v",
             "definition_md5": "825641f53f80c172194b5b867f170877"
+        },
+        "complete_announcement_dispatch(uuid,uuid,integer,integer)": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": true,
+                "authenticated": false
+            },
+            "security": "definer",
+            "volatility": "v",
+            "definition_md5": "a49c546c874b62822b4c08ec7bd219f9"
         },
         "web_save_post(uuid,text,text,text,text,text,text,integer)": {
             "owner": "postgres",
