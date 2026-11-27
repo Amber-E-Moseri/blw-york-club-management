@@ -3,6 +3,12 @@
 Production is on HOLD. Nothing in this document has been applied to production, and nothing here authorises a production
 change. Every production item below needs a separate, explicit owner directive.
 
+## 0. Certified pre-reconciliation checkpoint
+
+Commit `5e8c6bf` (tag `checkpoint/pre-reconciliation-5e8c6bf`). Remote CI: build-test, certification, edge-functions and the
+PR checks all passed. This is a checkpoint, NOT the final production release candidate. Preserved: its commit history and
+the successful regression runs listed in the PR body. Schema reconciliation against the hosted evidence follows.
+
 ## 1. Migration ledger (NOT verified)
 
 Migrations 047-058 are on the remediation branch only. They must not be assumed to exist in production.
