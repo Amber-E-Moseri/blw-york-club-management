@@ -45,6 +45,7 @@ declare
   owner_id  uuid := '20000000-0000-0000-0000-000000000008';
   second_id uuid := '20000000-0000-0000-0000-000000000009';
   visible integer;
+  others integer;
   observed text;
   state text;
   cert_cell uuid;
@@ -150,17 +151,23 @@ begin
   if visible >= 1 then perform pg_temp.cert_pass('Approval', 'an active member can read the people directory', visible::text);
   else perform pg_temp.cert_fail('Approval', 'an active member can read the people directory', visible::text); end if;
 
+  -- Migration 045 lets any signed-in account read its OWN linked person row (people_read: p.person_id = people.id).
+  -- Pending and rejected accounts therefore see at most that one row, and never any other person's row.
   perform pg_temp.as_auth(pending_id);
   select count(*) into visible from public.people;
+  select count(*) into others from public.people p
+    where p.id is distinct from (select pr.person_id from public.profiles pr where pr.id = pending_id);
   perform pg_temp.as_postgres();
-  if visible = 0 then perform pg_temp.cert_pass('Approval', 'a pending account cannot read the people directory', visible::text);
-  else perform pg_temp.cert_fail('Approval', 'a pending account cannot read the people directory', visible::text); end if;
+  if visible <= 1 and others = 0 then perform pg_temp.cert_pass('Approval', 'a pending account reads no other person record (own linked row only)', visible::text);
+  else perform pg_temp.cert_fail('Approval', 'a pending account reads no other person record (own linked row only)', visible::text || '/' || others::text); end if;
 
   perform pg_temp.as_auth(rejected_id);
   select count(*) into visible from public.people;
+  select count(*) into others from public.people p
+    where p.id is distinct from (select pr.person_id from public.profiles pr where pr.id = rejected_id);
   perform pg_temp.as_postgres();
-  if visible = 0 then perform pg_temp.cert_pass('Approval', 'a rejected account cannot read the people directory', visible::text);
-  else perform pg_temp.cert_fail('Approval', 'a rejected account cannot read the people directory', visible::text); end if;
+  if visible <= 1 and others = 0 then perform pg_temp.cert_pass('Approval', 'a rejected account reads no other person record (own linked row only)', visible::text);
+  else perform pg_temp.cert_fail('Approval', 'a rejected account reads no other person record (own linked row only)', visible::text || '/' || others::text); end if;
 
   perform pg_temp.as_auth(pending_id);
   begin insert into public.people (full_name) values ('Written By Pending');
