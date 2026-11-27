@@ -99,6 +99,7 @@ Which tables changed, and how (policies unless stated):
 | 066 | Announcements scoped to cells: `announcements.cell_id`; `announcements_manage` replaced by `announcements_manage_staff` (admin or coordinator) and `announcements_manage_cell_leader` (`cell_id` set and `is_cell_leader_of(cell_id)`) | announcements_scope 17/17 | uncommitted at this entry, committed with 067–068 |
 | 067 | Prayer leadership scope: `prayers_leadership_read` replaced by `prayers_leadership_staff` (admin or coordinator, leadership and shared visibility) and `prayers_leadership_cell` (leadership visibility, active, not anonymous, author in the caller's led cell via `is_cell_leader_of_user`) | prayer_scope 17/17 | as 066 |
 | 068 | Member contacts for leaders: `v_cell_member_contacts` (security_barrier view; active members of cells the caller leads; `member_id, full_name, cell_id, email, phone`); not granted to anon or public | cell_contacts 14/14 | as 066 |
+| 069 | Announcement notification scope. `announcement_dispatches` (service-only claim table). `claim_announcement_dispatch` (authority from live state: staff, or an active leader of the announcement's cell; atomic at-most-once), `release_announcement_dispatch` (claimant only, before any push), `resolve_announcement_recipients` (claim required; cell members or all active members; active devices only). `notify-announcement` no longer reads roles, takes no recipients from the body, returns 409 for an existing claim, and releases a claim only when it created it and before a push | announcement_dispatch 34/34; static dispatcher guard 4/4 | committed 53f6acc |
 
 Golden: the PostgreSQL 17 golden for 061 is the CI artifact of run `45950530304` (artifact `15176716644`), not yet committed.
 The golden guards expect 69 migrations ending at 068. Structural contract on the 068 replay: 29/29. Reconciliation chain (10 suites) passes through 068.
@@ -110,8 +111,8 @@ The authority is `cells.leader_id`. The profile role `cell_leader` confers no ce
 
 ### Pending owner decisions (not cell-specific, left unchanged)
 
-- Announcements (implemented in 066): cell leaders post within their assigned cell; org-wide and cross-cell posting requires admin or coordinator; the `cell_leader` role alone grants nothing. Frontend `canPost` still uses the role and is being moved to the leadership capability.
-- Prayers (implemented in 067): leaders read leadership-visible, non-anonymous prayers only for authors in their led cell. Interpretation to confirm: leaders are excluded from anonymous leadership prayers.
+- Announcements (implemented in 066 and 069): cell leaders post and notify within their assigned cell; org-wide posting and notification require staff authority; the `cell_leader` role alone grants nothing. Frontend uses the leadership capability.
+- Prayers (implemented in 067, owner decision retained): leaders read leadership-visible, non-anonymous prayers only for authors in their led cell. Anonymous prayers stay excluded from leaders (more restrictive) until anonymised visibility can be built without exposing author identity, metadata or joins.
 - `user_profiles` leader visibility includes phone and bio for the cell's members. Decide whether leaders need those fields.
 - Historical records: run `supabase/verification/reconciliation/leadership_inconsistency_report.sql` (read-only) on each target project and review. No roles or leadership assignments are rewritten automatically.
 
