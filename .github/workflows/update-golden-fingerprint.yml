@@ -1,23 +1,23 @@
 name: Update schema golden fingerprint
 
-# Manual only (workflow_dispatch). Replays migrations 000-039 on a disposable
+# Manual only (workflow_dispatch). Replays migrations 000-046 on a disposable
 # local Supabase stack, generates a new schema_fingerprint.golden.json, verifies
-# it passes the contract check, and commits it back to the triggering branch.
+# it passes the contract check, and uploads it for review.
 #
 # - Uses no hosted Supabase credentials and no production access.
 # - Runs entirely on a GitHub-hosted runner (Docker is available on ubuntu-latest).
-# - Requires contents:write permission to commit the updated golden back.
-# - Never writes to any other file in the repository.
+# - The workflow has read-only repository permission and cannot commit or push.
+# - A reviewer compares the artifact with the committed golden and commits it separately, after review.
 
 on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 env:
-  EXPECTED_MIGRATIONS: "40"
-  LAST_MIGRATION: "039"
+  EXPECTED_MIGRATIONS: "47"
+  LAST_MIGRATION: "046"
 
 jobs:
   update-golden:
@@ -131,19 +131,13 @@ jobs:
             console.log('PASS: second replay is byte-identical to the golden');
           " "$RUNNER_TEMP/fp2.json"
 
-      - name: Commit and push updated golden
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add supabase/verification/schema_fingerprint.golden.json
-          if git diff --cached --quiet; then
-            echo "Golden fingerprint is already up to date — no commit needed"
-          else
-            git commit -m "ci: regenerate schema golden fingerprint for migration 039 (two replays byte-identical, contract passes)"
-            git push
-            echo "PASS: updated golden committed and pushed"
-          fi
+      - name: Upload reviewed golden candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: schema-fingerprint-golden-${{ github.sha }}
+          path: supabase/verification/schema_fingerprint.golden.json
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Stop local stack
         if: always()

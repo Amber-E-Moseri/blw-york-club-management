@@ -49,6 +49,14 @@ psql_harness guard_approval_bootstrap_certification "$DB"
 psql_harness cert_031_032_active_guard "$DB"
 psql_harness meeting_attendance_access_certification "$DB"
 
+step "3a. Shipped-code integration tests (real local GoTrue and PostgREST)"
+CI=true \
+CERT_SUPABASE_URL="$SUPABASE_URL" \
+CERT_SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
+CERT_SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY" \
+npx react-scripts test src/__tests__/quickAddRealCode.integration.test.ts \
+  --watchAll=false --runInBand --coverage=false
+
 step "4. Second independent replay must match the first byte for byte"
 npx supabase db reset --local
 docker exec -i "$DB" psql -U postgres -At -q < supabase/verification/schema_fingerprint.sql > "$WORK/fp2.json"
