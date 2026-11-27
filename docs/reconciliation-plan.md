@@ -84,3 +84,27 @@ Which tables changed, and how (policies unless stated):
 
 - No hosted baseline equivalence. No hosted migration, reset or ledger change. No production action.
 - No full convergence yet. Increments 2-6 are open.
+
+## 7. Increment log (authoritative; newest last)
+
+| Migration | Scope | Tests | Status |
+|---|---|---|---|
+| 060 | Scoped BSC write policies; `bscs_manage` removed | bsc_scoped 16/16 | committed |
+| 061 | Shared audience infrastructure; read and resolver restricted | audience 18/18 | committed |
+| 062 | Profile shared-field mirror (student_number, avatar_url) between profiles and user_profiles | profile_sync 8/8; D4 boundary 19/19 | committed |
+| 063 | Scoped `is_bsc_leader_of` (active, leads the BSC, in the BSC's cell) | bsc_leader_scope 7/7 | committed |
+| 064 | Individual assignments; assignee may change only status (guard); cell-leader scope via `is_cell_leader_of_user` | assignments 23/23, including a control that shows the guard is what refuses title, author and due-date changes | committed |
+
+Golden: the PostgreSQL 17 golden for 061 is the CI artifact of run `45950530304` (artifact `15176716644`), not yet committed.
+The golden guards expect 65 migrations ending at 064. Structural contract on the 064 replay: 29/29.
+
+### Open decision: which profile role means "cell leader"
+
+The base has two definitions of a cell leader:
+
+- `is_cell_leader_of(cell_id)` (used by the BSC policies, and now by assignments) is true when `cells.leader_id = auth.uid()`.
+- `is_cell_leader_for_profile(target)` (used by profile and user_profiles visibility) requires `profiles.role = 'cell_leader'`.
+
+A leader who is recorded only in `cells.leader_id` can lead BSCs and assign tasks, but cannot see the members' profile rows.
+Assignments avoid this with the definer helper `is_cell_leader_of_user`. The profile policies are unchanged. Owner decision needed:
+which definition is authoritative, and whether the profile visibility policy should follow `cells.leader_id`.

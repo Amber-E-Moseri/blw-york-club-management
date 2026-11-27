@@ -6,6 +6,7 @@
     "admin_role_permissions",
     "admin_roles",
     "announcements",
+    "assignments",
     "attendance_imports",
     "attendance_member_matches",
     "audience_specs",
@@ -126,6 +127,7 @@
       "membership_transitions"
     ],
     "INSERT,SELECT,UPDATE": [
+      "assignments",
       "contact_follow_ups",
       "email_preferences",
       "memberships"
@@ -162,6 +164,7 @@
   },
   "serviceRoleNoAccess": [
     "admin_bootstrap_audit",
+    "assignments",
     "audience_specs",
     "saved_group_members",
     "saved_groups",
@@ -288,6 +291,14 @@
         "authenticated"
       ]
     },
+    "assignments_completed_at_stamp()": {
+      "security": "definer",
+      "execute": []
+    },
+    "assignments_guard_assignee_update()": {
+      "security": "definer",
+      "execute": []
+    },
     "audit_staff_profile_edits()": {
       "security": "definer",
       "execute": []
@@ -396,6 +407,12 @@
     },
     "is_cell_leader_of(uuid)": {
       "security": "invoker",
+      "execute": [
+        "authenticated"
+      ]
+    },
+    "is_cell_leader_of_user(uuid)": {
+      "security": "definer",
       "execute": [
         "authenticated"
       ]
