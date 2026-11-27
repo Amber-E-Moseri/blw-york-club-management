@@ -96,9 +96,12 @@ Which tables changed, and how (policies unless stated):
 | 064 | Individual assignments; assignee may change only status (guard); cell-leader scope via `is_cell_leader_of_user` | assignments 23/23, including a control that shows the guard is what refuses title, author and due-date changes | committed |
 
 | 065 | Canonical cell leadership: `cells.leader_id` is the authority. `is_cell_leader_for_profile` rewritten (active caller who leads the target's cell; pending and rejected applicants excluded); `meetings_leaders_read` and `meetings_manage_scoped` and `respond_to_meeting_invitation` use the canonical check | leadership_lifecycle 34/34; control without 065: 23/34 | committed |
+| 066 | Announcements scoped to cells: `announcements.cell_id`; `announcements_manage` replaced by `announcements_manage_staff` (admin or coordinator) and `announcements_manage_cell_leader` (`cell_id` set and `is_cell_leader_of(cell_id)`) | announcements_scope 17/17 | uncommitted at this entry, committed with 067–068 |
+| 067 | Prayer leadership scope: `prayers_leadership_read` replaced by `prayers_leadership_staff` (admin or coordinator, leadership and shared visibility) and `prayers_leadership_cell` (leadership visibility, active, not anonymous, author in the caller's led cell via `is_cell_leader_of_user`) | prayer_scope 17/17 | as 066 |
+| 068 | Member contacts for leaders: `v_cell_member_contacts` (security_barrier view; active members of cells the caller leads; `member_id, full_name, cell_id, email, phone`); not granted to anon or public | cell_contacts 14/14 | as 066 |
 
 Golden: the PostgreSQL 17 golden for 061 is the CI artifact of run `45950530304` (artifact `15176716644`), not yet committed.
-The golden guards expect 66 migrations ending at 065. Structural contract on the 065 replay: 29/29.
+The golden guards expect 69 migrations ending at 068. Structural contract on the 068 replay: 29/29. Reconciliation chain (10 suites) passes through 068.
 Schema diff 064 to 065 (PG17): `is_cell_leader_for_profile`, `respond_to_meeting_invitation` (definition), `meetings` (policies). Nothing else.
 
 ### Resolved: cell leadership authority (owner decision, implemented in 065)
@@ -107,8 +110,8 @@ The authority is `cells.leader_id`. The profile role `cell_leader` confers no ce
 
 ### Pending owner decisions (not cell-specific, left unchanged)
 
-- `announcements_manage` grants posting to any active `cell_leader`-role account. Not cell-specific. Application: the nav and `canPost` use the role. Decide whether posting should be coordinator and admin only, or should require a leadership assignment.
-- `prayers_leadership_read` lets any `cell_leader`-role account read leadership-visible prayer requests across cells. Decide whether it should be scoped to the reader's cell.
+- Announcements (implemented in 066): cell leaders post within their assigned cell; org-wide and cross-cell posting requires admin or coordinator; the `cell_leader` role alone grants nothing. Frontend `canPost` still uses the role and is being moved to the leadership capability.
+- Prayers (implemented in 067): leaders read leadership-visible, non-anonymous prayers only for authors in their led cell. Interpretation to confirm: leaders are excluded from anonymous leadership prayers.
 - `user_profiles` leader visibility includes phone and bio for the cell's members. Decide whether leaders need those fields.
 - Historical records: run `supabase/verification/reconciliation/leadership_inconsistency_report.sql` (read-only) on each target project and review. No roles or leadership assignments are rewritten automatically.
 
