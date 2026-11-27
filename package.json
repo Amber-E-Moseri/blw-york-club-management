@@ -52,7 +52,7 @@
     "verify:routes": "node scripts/verify-unified-routes.mjs",
     "test:db:website": "node supabase/verification/website_cms_authz_pglite.mjs && node supabase/verification/website_roles_pglite.mjs && node supabase/verification/website_roles059_pglite.mjs",
     "test:db:contract": "node supabase/verification/generate_pglite_fingerprint.mjs /tmp/blw-fingerprint-pglite.json && node supabase/verification/check_schema_contract.mjs /tmp/blw-fingerprint-pglite.json",
-    "test:db:reconciliation": "node supabase/verification/reconciliation/bsc_scoped_pglite.mjs && node supabase/verification/reconciliation/profile_boundary_pglite.mjs && node supabase/verification/reconciliation/audience_pglite.mjs"
+    "test:db:reconciliation": "node supabase/verification/reconciliation/bsc_scoped_pglite.mjs && node supabase/verification/reconciliation/profile_boundary_pglite.mjs && node supabase/verification/reconciliation/audience_pglite.mjs && node supabase/verification/reconciliation/profile_sync_pglite.mjs"
   },
   "eslintConfig": {
     "extends": [

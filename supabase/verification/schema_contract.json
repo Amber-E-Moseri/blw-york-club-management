@@ -230,6 +230,14 @@
     }
   },
   "functions": {
+    "_mirror_profile_to_user_profiles()": {
+      "security": "definer",
+      "execute": []
+    },
+    "_mirror_user_profile_to_profiles()": {
+      "security": "definer",
+      "execute": []
+    },
     "_web_audit(text,text,jsonb)": {
       "security": "definer",
       "execute": []
