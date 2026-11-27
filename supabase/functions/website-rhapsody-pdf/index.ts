@@ -11,7 +11,7 @@
 //
 // Required secrets: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, CLIENT_HASH_SECRET (32+ characters).
 
-import { buildStorageUrl, cleanLabel, clientAddress, isUuid, keyedHash, missingSecrets } from '../_shared/website-guards.ts';
+import { buildStorageUrl, cleanLabel, isUuid, keyedHash, missingSecrets, trustedClientAddress } from '../_shared/website-guards.ts';
 
 const SIGNED_URL_SECONDS = 120;
 const DOWNLOAD_CLIENT_LIMIT = 30;
@@ -43,16 +43,19 @@ Deno.serve(async (req: Request) => {
     return text(404, 'That document is not available.');
   }
 
-  // 2. Record the download. The visitor is a keyed hash of address and user agent, never stored in the clear.
-  const ip = clientAddress(req.headers);
-  if (!ip) return text(400, 'We could not verify this request. Please try again.');
+  // 2. Record the download. The visitor hash is keyed and never stored in the clear. Without a trusted proxy there is no
+  //    trusted address, so the hash covers the user agent only and the per-client limit is skipped. The database's own
+  //    download throttle is global, and the signed link expires after 120 seconds.
+  const ip = trustedClientAddress(Deno.env.get('WEBSITE_TRUSTED_PROXY'), req.headers);
   const ua = (req.headers.get('user-agent') ?? '').slice(0, 300);
-  const visitorHash = await keyedHash(pepper, `${ip}|${ua}`);
-  const limited = await call(supabaseUrl, serviceKey, 'web_consume_client_limit', {
-    p_client_hash: visitorHash, p_scope: 'download', p_limit: DOWNLOAD_CLIENT_LIMIT, p_window_minutes: 10,
-  });
-  if (!limited.ok) return text(503, 'The document is temporarily unavailable.');
-  if (limited.value !== true) return text(429, 'Too many requests. Please try again in a few minutes.');
+  const visitorHash = await keyedHash(pepper, `${ip ?? 'untrusted-address'}|${ua}`);
+  if (ip) {
+    const limited = await call(supabaseUrl, serviceKey, 'web_consume_client_limit', {
+      p_client_hash: await keyedHash(pepper, ip), p_scope: 'download', p_limit: DOWNLOAD_CLIENT_LIMIT, p_window_minutes: 10,
+    });
+    if (!limited.ok) return text(503, 'The document is temporarily unavailable.');
+    if (limited.value !== true) return text(429, 'Too many requests. Please try again in a few minutes.');
+  }
   const recorded = await call(supabaseUrl, serviceKey, 'web_record_download', {
     p_edition_id: edition,
     p_source: cleanLabel(url.searchParams.get('src')),

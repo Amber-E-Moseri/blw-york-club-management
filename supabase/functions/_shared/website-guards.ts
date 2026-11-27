@@ -18,21 +18,16 @@ const IPV4 = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]
 const IPV6 = /^[0-9a-fA-F:]{2,45}$/;
 
 /**
- * The caller's address as the edge sees it. Cloudflare's header is trusted first because the functions sit behind
- * Cloudflare. Anything that is not a plain IP address is rejected, so a malformed header cannot become a rate-limit key.
+ * The caller's address, but only when the deployment declares that it sits behind Cloudflare
+ * (WEBSITE_TRUSTED_PROXY=cloudflare). Cloudflare overwrites cf-connecting-ip on every request it proxies. Nothing else is
+ * read: x-forwarded-for and x-real-ip are client-controlled on a direct connection, so they are never used for abuse
+ * prevention. Without a trusted proxy this returns null and the per-client limits are skipped. Turnstile (single-use,
+ * verified server-side) and the database's global per-kind limits still apply.
  */
-export function clientAddress(headers: Headers): string | null {
-  const candidates = [
-    headers.get('cf-connecting-ip'),
-    headers.get('x-real-ip'),
-    (headers.get('x-forwarded-for') ?? '').split(',')[0],
-  ];
-  for (const raw of candidates) {
-    const ip = (raw ?? '').trim();
-    if (!ip) continue;
-    if (IPV4.test(ip) || (IPV6.test(ip) && ip.includes(':'))) return ip;
-  }
-  return null;
+export function trustedClientAddress(trustedProxy: string | undefined, headers: Headers): string | null {
+  if (trustedProxy !== 'cloudflare') return null;
+  const ip = (headers.get('cf-connecting-ip') ?? '').trim();
+  return IPV4.test(ip) || (IPV6.test(ip) && ip.includes(':')) ? ip : null;
 }
 
 /** HMAC-SHA256 as lowercase hex. The key is a server secret; the output is what the database stores. */

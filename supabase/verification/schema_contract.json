@@ -237,6 +237,10 @@
       "security": "definer",
       "execute": []
     },
+    "_web_guard_last_website_permission()": {
+      "security": "definer",
+      "execute": []
+    },
     "_web_guard_website_rbac()": {
       "security": "definer",
       "execute": []
@@ -716,6 +720,10 @@
     ]
   },
   "requiredTriggers": {
+    "admin_role_permissions": [
+      "admin_role_permissions_last_website_guard",
+      "admin_role_permissions_website_guard"
+    ],
     "profiles": [
       "profiles_guard_privileged_columns",
       "profiles_staff_edit_audit",

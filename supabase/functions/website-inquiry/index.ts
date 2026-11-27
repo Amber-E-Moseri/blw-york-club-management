@@ -10,11 +10,12 @@
 // Required secrets: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, TURNSTILE_SECRET_KEY,
 // CLIENT_HASH_SECRET (at least 32 random characters), WEBSITE_ALLOWED_ORIGINS (comma-separated https origins).
 
-import { clientAddress, corsHeaders, keyedHash, missingSecrets, turnstilePassed, validateInquiry } from '../_shared/website-guards.ts';
+import { corsHeaders, keyedHash, missingSecrets, trustedClientAddress, turnstilePassed, validateInquiry } from '../_shared/website-guards.ts';
 
 const CLIENT_LIMIT = 5;
 const CLIENT_WINDOW_MINUTES = 10;
-const TURNSTILE_VERIFY = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+// TURNSTILE_SITEVERIFY_URL exists so the test suite can point at a stub. Production leaves it unset.
+const TURNSTILE_DEFAULT = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 
 Deno.serve(async (req: Request) => {
   const allowed = (Deno.env.get('WEBSITE_ALLOWED_ORIGINS') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
@@ -48,25 +49,29 @@ Deno.serve(async (req: Request) => {
   if (!parsed.ok) return reply(400, { error: parsed.message }, cors);
   const input = parsed.value;
 
-  const ip = clientAddress(req.headers);
-  if (!ip) return reply(400, { error: 'We could not verify this request. Please try again from your usual connection.' }, cors);
+  const ip = trustedClientAddress(Deno.env.get('WEBSITE_TRUSTED_PROXY'), req.headers);
 
-  // Turnstile: the token is single-use and bound to this address.
-  const verify = await fetch(TURNSTILE_VERIFY, {
+  // Turnstile: the token is single-use and verified server-side. The address is passed on only when it is trusted.
+  const verifyUrl = Deno.env.get('TURNSTILE_SITEVERIFY_URL') || TURNSTILE_DEFAULT;
+  const verify = await fetch(verifyUrl, {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ secret: turnstileSecret, response: input.turnstileToken, remoteip: ip }),
+    body: new URLSearchParams({
+      secret: turnstileSecret, response: input.turnstileToken, ...(ip ? { remoteip: ip } : {}),
+    }),
   }).then((r) => r.json()).catch(() => null);
   if (!turnstilePassed(verify)) return reply(403, { error: 'Please complete the security check and try again.' }, cors);
 
-  // Per-client limit. Only a keyed hash of the address is sent to the database.
-  const clientHash = await keyedHash(pepper, ip);
-  const limit = await rpc(supabaseUrl, serviceKey, serviceKey, 'web_consume_client_limit', {
-    p_client_hash: clientHash, p_scope: 'inquiry', p_limit: CLIENT_LIMIT, p_window_minutes: CLIENT_WINDOW_MINUTES,
-  });
-  if (!limit.ok) return reply(503, { error: 'The form is temporarily unavailable. Please try again later.' }, cors);
-  if (limit.value !== true) {
-    return reply(429, { error: 'Too many messages were sent from this connection. Please try again in a few minutes.' }, cors);
+  // Per-client limit: only behind a trusted proxy. Only a keyed hash of the address is sent to the database.
+  if (ip) {
+    const clientHash = await keyedHash(pepper, ip);
+    const limit = await rpc(supabaseUrl, serviceKey, serviceKey, 'web_consume_client_limit', {
+      p_client_hash: clientHash, p_scope: 'inquiry', p_limit: CLIENT_LIMIT, p_window_minutes: CLIENT_WINDOW_MINUTES,
+    });
+    if (!limit.ok) return reply(503, { error: 'The form is temporarily unavailable. Please try again later.' }, cors);
+    if (limit.value !== true) {
+      return reply(429, { error: 'Too many messages were sent from this connection. Please try again in a few minutes.' }, cors);
+    }
   }
 
   // The database remains the rule-keeper: consent, honeypot and the global per-kind limit all apply here too. The call is

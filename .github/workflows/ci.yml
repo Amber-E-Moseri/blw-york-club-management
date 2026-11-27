@@ -25,6 +25,23 @@ jobs:
       - run: npm run test:db:website
       - run: npm run test:db:contract
 
+  edge-functions:
+    # The four website Edge Functions: typecheck and runtime tests. The tests run each function as a child process
+    # against an in-process stub of the Supabase endpoints. No secrets and no network to Supabase.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: 2.9.2
+      - name: Typecheck the website functions
+        working-directory: supabase/functions
+        run: deno check website-inquiry/index.ts website-media-upload/index.ts website-media-cleanup/index.ts website-rhapsody-pdf/index.ts
+      - name: Runtime tests (shared helpers and the four functions)
+        working-directory: supabase/functions
+        run: deno test -A _shared/website-guards.test.ts website-functions.test.ts
+
   certification:
     runs-on: ubuntu-latest
     timeout-minutes: 60

@@ -4,7 +4,7 @@ import { assertEquals, assertMatch } from 'jsr:@std/assert@1';
 import {
   buildStorageUrl,
   cleanLabel,
-  clientAddress,
+  trustedClientAddress,
   isUuid,
   keyedHash,
   missingSecrets,
@@ -28,13 +28,19 @@ const VALID_INQUIRY = {
   turnstileToken: 'token-123',
 };
 
-Deno.test('clientAddress prefers the Cloudflare header and rejects malformed values', () => {
-  assertEquals(clientAddress(new Headers({ 'cf-connecting-ip': '203.0.113.7' })), '203.0.113.7');
-  assertEquals(clientAddress(new Headers({ 'x-forwarded-for': '198.51.100.2, 10.0.0.1' })), '198.51.100.2');
-  assertEquals(clientAddress(new Headers({ 'cf-connecting-ip': '2001:db8::1' })), '2001:db8::1');
-  assertEquals(clientAddress(new Headers({ 'cf-connecting-ip': 'not-an-ip' })), null);
-  assertEquals(clientAddress(new Headers({ 'cf-connecting-ip': '999.1.1.1' })), null);
-  assertEquals(clientAddress(new Headers({})), null);
+Deno.test('trustedClientAddress trusts only cf-connecting-ip, and only behind a declared Cloudflare proxy', () => {
+  assertEquals(trustedClientAddress('cloudflare', new Headers({ 'cf-connecting-ip': '203.0.113.7' })), '203.0.113.7');
+  assertEquals(trustedClientAddress('cloudflare', new Headers({ 'cf-connecting-ip': '2001:db8::1' })), '2001:db8::1');
+  assertEquals(trustedClientAddress('cloudflare', new Headers({ 'cf-connecting-ip': 'not-an-ip' })), null);
+  assertEquals(trustedClientAddress('cloudflare', new Headers({ 'cf-connecting-ip': '999.1.1.1' })), null);
+  assertEquals(trustedClientAddress('cloudflare', new Headers({})), null);
+});
+
+Deno.test('trustedClientAddress never reads x-forwarded-for or x-real-ip, even when a proxy is declared', () => {
+  assertEquals(trustedClientAddress('cloudflare', new Headers({ 'x-forwarded-for': '198.51.100.2' })), null);
+  assertEquals(trustedClientAddress('cloudflare', new Headers({ 'x-real-ip': '198.51.100.3' })), null);
+  assertEquals(trustedClientAddress(undefined, new Headers({ 'cf-connecting-ip': '203.0.113.7' })), null);
+  assertEquals(trustedClientAddress('', new Headers({ 'cf-connecting-ip': '203.0.113.7' })), null);
 });
 
 Deno.test('keyedHash is deterministic, keyed and not the raw value', async () => {

@@ -28,6 +28,11 @@ const stub = Deno.serve({ hostname: '127.0.0.1', port: 0, onListen() {} }, async
   const json = (status: number, v: unknown) =>
     new Response(JSON.stringify(v), { status, headers: { 'content-type': 'application/json' } });
   const p = url.pathname;
+  if (p === '/siteverify') {
+    // Turnstile stand-in: succeeds only for the test token, and records the address it was given.
+    const params = new URLSearchParams(body);
+    return json(200, { success: params.get('response') === 'good-token' });
+  }
   if (p === '/auth/v1/user') {
     return req.headers.get('authorization') === 'Bearer user-ok' ? json(200, { id: USER_ID }) : json(401, { msg: 'bad' });
   }
@@ -111,10 +116,14 @@ function resetCalls() {
   calls.length = 0;
 }
 
-const INQUIRY_ENV = { TURNSTILE_SECRET_KEY: 'ts-secret-test', CLIENT_HASH_SECRET: PEPPER };
+const INQUIRY_ENV = {
+  TURNSTILE_SECRET_KEY: 'ts-secret-test',
+  CLIENT_HASH_SECRET: PEPPER,
+  TURNSTILE_SITEVERIFY_URL: `${STUB_URL}/siteverify`,
+};
 const validInquiry = {
   kind: 'contact', name: 'Test Person', email: 'person@example.com', phone: '', message: 'Hi',
-  topic: '', consentVersion: '1', consentTextHash: 'b'.repeat(64), honeypot: '', turnstileToken: 'tok',
+  topic: '', consentVersion: '1', consentTextHash: 'b'.repeat(64), honeypot: '', turnstileToken: 'good-token',
 };
 
 // ===== website-inquiry ==============================================================================================
@@ -170,11 +179,56 @@ Deno.test('website-inquiry: malformed and over-privileged bodies are refused bef
   });
 });
 
-Deno.test('website-inquiry: a request with no usable client address is refused', async () => {
+Deno.test('website-inquiry: an unverified x-forwarded-for does not reach the per-client limiter', async () => {
   await withFunction('website-inquiry', INQUIRY_ENV, async (base) => {
-    const res = await fetch(base, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(validInquiry) });
-    assertEquals(res.status, 400);
+    resetCalls();
+    const res = await fetch(base, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-forwarded-for': '198.51.100.77' },
+      body: JSON.stringify(validInquiry),
+    });
+    assertEquals(res.status, 202, 'accepted on Turnstile and the database rules alone');
     await res.body?.cancel();
+    assertEquals(calls.some((c) => c.path.endsWith('web_consume_client_limit')), false, 'no per-client limit without a trusted proxy');
+    assertEquals(calls.some((c) => c.path.endsWith('web_submit_inquiry')), true);
+    const verify = calls.find((c) => c.path === '/siteverify');
+    assertEquals(new URLSearchParams(verify?.body ?? '').has('remoteip'), false, 'untrusted address is not sent to Turnstile');
+  });
+});
+
+Deno.test('website-inquiry: behind a trusted Cloudflare proxy the per-client limit applies', async () => {
+  await withFunction('website-inquiry', { ...INQUIRY_ENV, WEBSITE_TRUSTED_PROXY: 'cloudflare' }, async (base) => {
+    resetCalls();
+    limitAllowed = false;
+    try {
+      const res = await fetch(base, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.9', 'x-forwarded-for': '198.51.100.1' },
+        body: JSON.stringify(validInquiry),
+      });
+      assertEquals(res.status, 429);
+      await res.body?.cancel();
+      const limit = calls.find((c) => c.path.endsWith('web_consume_client_limit'));
+      assert(limit, 'limiter consulted');
+      assertEquals(JSON.parse(limit.body).p_client_hash.includes('203.0.113.9'), false, 'raw address never sent');
+      assertEquals(calls.some((c) => c.path.endsWith('web_submit_inquiry')), false, 'refused before the database accepts');
+    } finally {
+      limitAllowed = true;
+    }
+  });
+});
+
+Deno.test('website-inquiry: a failed Turnstile check is refused before any database call', async () => {
+  await withFunction('website-inquiry', INQUIRY_ENV, async (base) => {
+    resetCalls();
+    const res = await fetch(base, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.9' },
+      body: JSON.stringify({ ...validInquiry, turnstileToken: 'bad-token' }),
+    });
+    assertEquals(res.status, 403);
+    await res.body?.cancel();
+    assertEquals(calls.some((c) => c.path.startsWith('/rest/v1/rpc/')), false);
   });
 });
 
@@ -326,8 +380,8 @@ Deno.test('website-rhapsody-pdf: a published edition is recorded, then redirecte
   });
 });
 
-Deno.test('website-rhapsody-pdf: the per-client download limit answers 429 without signing a link', async () => {
-  await withFunction('website-rhapsody-pdf', PDF_ENV, async (base) => {
+Deno.test('website-rhapsody-pdf: behind a trusted proxy the per-client download limit answers 429 without signing', async () => {
+  await withFunction('website-rhapsody-pdf', { ...PDF_ENV, WEBSITE_TRUSTED_PROXY: 'cloudflare' }, async (base) => {
     resetCalls();
     limitAllowed = false;
     try {
