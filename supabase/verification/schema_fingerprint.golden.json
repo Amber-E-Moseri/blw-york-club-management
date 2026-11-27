@@ -2070,6 +2070,7 @@
                 "admin_role_permissions_read_explicit | SELECT | {public} | using=is_admin_or_coordinator() | check="
             ],
             "triggers": [
+                "CREATE TRIGGER admin_role_permissions_last_website_guard BEFORE DELETE OR UPDATE ON public.admin_role_permissions FOR EACH ROW EXECUTE FUNCTION _web_guard_last_website_permission()",
                 "CREATE TRIGGER admin_role_permissions_website_guard BEFORE INSERT OR DELETE OR UPDATE ON public.admin_role_permissions FOR EACH ROW EXECUTE FUNCTION _web_guard_website_rbac()"
             ],
             "force_rls": false,
@@ -3321,7 +3322,20 @@
             },
             "security": "definer",
             "volatility": "v",
-            "definition_md5": "66e9b0480b88ccbf05652730ef5bc11a"
+            "definition_md5": "b40271fdbca879c70250cfece037624b"
+        },
+        "_web_guard_last_website_permission()": {
+            "owner": "postgres",
+            "config": "search_path=public, pg_temp",
+            "execute": {
+                "anon": false,
+                "public": false,
+                "service_role": false,
+                "authenticated": false
+            },
+            "security": "definer",
+            "volatility": "v",
+            "definition_md5": "76d5e27570afc155c10b2a62a877d94d"
         },
         "web_unassign_website_role(uuid,text)": {
             "owner": "postgres",
@@ -3503,7 +3517,7 @@
             },
             "security": "definer",
             "volatility": "v",
-            "definition_md5": "f576244d7d020e9d4326d48a73fdcbeb"
+            "definition_md5": "efaaec7170d7c40e423ff47e9df45dee"
         },
         "web_register_media(text,text,text,bigint,text)": {
             "owner": "postgres",
