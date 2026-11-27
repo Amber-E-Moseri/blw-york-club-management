@@ -82,7 +82,7 @@ export const Input: React.FC<InputProps> = ({
 
   const borderClass = error
     ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500'
-    : 'border-gray-200';
+    : 'border-gray-200 dark:border-slate-600';
 
   const paddingClass = cn(
     'py-3',
@@ -113,7 +113,7 @@ export const Input: React.FC<InputProps> = ({
   return (
     <div className="w-full">
       {label && (
-        <label htmlFor={inputId} className="block text-sm font-bold text-gray-800 mb-1.5">
+        <label htmlFor={inputId} className="block text-sm font-bold text-gray-800 dark:text-slate-200 mb-1.5">
           {label}
           {required && <span className="text-york-600 ml-1" aria-hidden="true">*</span>}
         </label>
