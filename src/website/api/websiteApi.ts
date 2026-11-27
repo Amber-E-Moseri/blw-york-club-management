@@ -352,16 +352,9 @@ export function createWebsiteApi(config: ApiConfig) {
     createRole(name: string, description: string, permissions: string[], reason: string): Promise<string> {
       return rpc<string>('web_create_website_role', { p_name: name, p_description: description, p_permissions: permissions, p_reason: reason });
     },
-    /** Grants and revokes permissions one key at a time against the current set, so each change is audited. */
-    async setRolePermissions(roleId: string, desired: string[], current: string[], reason: string): Promise<void> {
-      const want = new Set(desired);
-      const have = new Set(current);
-      for (const key of desired) {
-        if (!have.has(key)) await rpc<void>('web_set_website_permission', { p_role_id: roleId, p_permission: key, p_grant: true, p_reason: reason });
-      }
-      for (const key of current) {
-        if (!want.has(key)) await rpc<void>('web_set_website_permission', { p_role_id: roleId, p_permission: key, p_grant: false, p_reason: reason });
-      }
+    /** Sets the role's complete website permission set in one transaction (migration 058). */
+    setRolePermissions(roleId: string, permissions: string[], reason: string): Promise<void> {
+      return rpc<void>('web_set_website_role_permissions', { p_role_id: roleId, p_permissions: permissions, p_reason: reason });
     },
     retireRole(roleId: string, reason: string): Promise<void> {
       return rpc<void>('web_retire_website_role', { p_role_id: roleId, p_reason: reason });

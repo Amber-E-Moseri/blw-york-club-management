@@ -113,6 +113,36 @@ const actions = r.ok ? r.rows.map((x) => x.action) : [];
 check('lifecycle is audited: created, granted, assigned, removed, retired',
   ['role.created', 'role.permission_granted', 'assignment.created', 'assignment.removed', 'role.retired'].every((a) => actions.includes(a)), JSON.stringify(actions));
 
+// 10. Atomic permission changes: a failed batch leaves the role exactly as it was.
+r = await as(U.admin, `select public.web_create_website_role($1,$2,$3,$4) as id`,
+  ['Atomic role', '', ['website.blog.edit', 'website.pages.edit'], REASON]);
+const ATOM = r.ok ? r.rows[0].id : null;
+const permsOf = async (id) => (await owner(`select permission_key from public.admin_role_permissions where role_id=$1 and permission_key like 'website.%' order by 1`, [id])).rows.map((x) => x.permission_key);
+const before = await permsOf(ATOM);
+r = await as(U.admin, `select public.web_set_website_role_permissions($1,$2,$3)`, [ATOM, ['website.events.manage', 'website.nonsense.key'], REASON]);
+check('a permission batch with one unknown key is refused', !r.ok, r.error ?? 'accepted');
+check('the refused batch changes nothing (no partial configuration)', JSON.stringify(await permsOf(ATOM)) === JSON.stringify(before), JSON.stringify(await permsOf(ATOM)));
+r = await as(U.admin, `select public.web_set_website_role_permissions($1,$2,$3)`, [ATOM, [], REASON]);
+check('a permission batch that empties the role is refused and changes nothing', !r.ok && JSON.stringify(await permsOf(ATOM)) === JSON.stringify(before), r.error ?? 'accepted');
+r = await as(U.coord, `select public.web_set_website_role_permissions($1,$2,$3)`, [ATOM, ['website.pages.publish'], REASON]);
+check('a non-core administrator cannot change a role permission set', !r.ok, r.error ?? 'accepted');
+r = await as(U.admin, `select public.web_set_website_role_permissions($1,$2,$3)`, [ATOM, ['website.events.manage', 'website.pages.edit'], 'no']);
+check('a permission batch without a reason is refused and changes nothing', !r.ok && JSON.stringify(await permsOf(ATOM)) === JSON.stringify(before), r.error ?? 'accepted');
+r = await as(U.admin, `select public.web_set_website_role_permissions($1,$2,$3)`, [ATOM, ['website.events.manage', 'website.pages.edit'], REASON]);
+check('a valid batch sets the exact permission set', r.ok && JSON.stringify(await permsOf(ATOM)) === JSON.stringify(['website.events.manage', 'website.pages.edit']), r.error ?? JSON.stringify(await permsOf(ATOM)));
+const audit = await owner(`select action, details->>'permission' as p from public.web_audit_log where target=$1 order by id`, [ATOM]);
+const granted = audit.rows.filter((x) => x.action === 'role.permission_granted').map((x) => x.p);
+const revoked = audit.rows.filter((x) => x.action === 'role.permission_revoked').map((x) => x.p);
+check('each granted and revoked key is audited', granted.includes('website.events.manage') && revoked.includes('website.blog.edit'), JSON.stringify(audit.rows));
+
+// 11. Operational (non-website) roles are never retired from the website screens.
+const ops = await owner(`insert into public.admin_roles (name, description, is_system, created_by) values ('Operations only','',false,$1) returning id`, [U.admin]);
+await owner(`insert into public.admin_role_permissions (role_id, permission_key) values ($1,'members.manage')`, [ops.rows[0].id]).catch(() => null);
+r = await as(U.admin, `select public.web_retire_website_role($1,$2)`, [ops.rows[0].id, REASON]);
+check('a non-website operational role cannot be retired from the website screens', !r.ok, r.error ?? 'retired');
+const stillThere = await owner(`select count(*)::int n from public.admin_roles where id=$1`, [ops.rows[0].id]);
+check('the operational role is still present after the refused retirement', stillThere.rows[0].n === 1);
+
 const failed = results.filter((x) => !x).length;
 console.log(`\nWEBSITE ROLE TESTS: ${results.length - failed}/${results.length} passed`);
 process.exit(failed === 0 ? 0 : 1);

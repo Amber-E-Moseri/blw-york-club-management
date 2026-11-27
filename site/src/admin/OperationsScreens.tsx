@@ -293,7 +293,7 @@ export function PeopleScreen({ api, perms, isCore }: Ctx & { isCore: boolean }) 
   };
   const savePermissions = async (r: RoleRow, permissions: string[], reason: string) => {
     if (permissions.length === 0) { setMsg({ tone: 'error', text: 'A role needs at least one permission. Retire the role instead.' }); return; }
-    try { await api.setRolePermissions(r.id, permissions, r.permissions, reason.trim()); setMsg({ tone: 'ok', text: 'Permissions saved.' }); await refresh(); }
+    try { await api.setRolePermissions(r.id, permissions, reason.trim()); setMsg({ tone: 'ok', text: 'Permissions saved.' }); await refresh(); }
     catch (e) { setMsg({ tone: 'error', text: errorMessage(e) }); }
   };
 

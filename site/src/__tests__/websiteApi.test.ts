@@ -100,15 +100,13 @@ describe('administrative calls', () => {
     expect(JSON.parse(String(calls[0].init.body))).toEqual({ p_name: 'Editor', p_description: 'd', p_permissions: ['website.pages.edit'], p_reason: 'Approved for the website team' });
   });
 
-  it('updates permissions by granting and revoking only the keys that changed', async () => {
-    const { calls, impl } = fakeFetch([{ status: 200, body: null }, { status: 200, body: null }]);
+  it('sets the complete permission set through one atomic RPC call', async () => {
+    const { calls, impl } = fakeFetch([{ status: 200, body: null }]);
     const api = createWebsiteApi(config('t', impl));
-    await api.setRolePermissions('r1', ['website.pages.edit', 'website.events.manage'], ['website.pages.edit', 'website.blog.edit'], 'Adjust the team scope');
-    const bodies = calls.map((c) => JSON.parse(String(c.init.body)));
-    expect(bodies).toEqual([
-      { p_role_id: 'r1', p_permission: 'website.events.manage', p_grant: true, p_reason: 'Adjust the team scope' },
-      { p_role_id: 'r1', p_permission: 'website.blog.edit', p_grant: false, p_reason: 'Adjust the team scope' },
-    ]);
+    await api.setRolePermissions('r1', ['website.pages.edit', 'website.events.manage'], 'Adjust the team scope');
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toContain('/rest/v1/rpc/web_set_website_role_permissions');
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ p_role_id: 'r1', p_permissions: ['website.pages.edit', 'website.events.manage'], p_reason: 'Adjust the team scope' });
   });
 
   it('retires a role through the retirement RPC and assigns or revokes through the backend names', async () => {

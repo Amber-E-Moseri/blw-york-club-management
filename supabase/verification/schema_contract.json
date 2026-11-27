@@ -660,6 +660,12 @@
         "authenticated"
       ]
     },
+    "web_set_website_role_permissions(uuid,text[],text)": {
+      "security": "definer",
+      "execute": [
+        "authenticated"
+      ]
+    },
     "web_submit_inquiry(text,text,text,text,text,text,text,text,text)": {
       "security": "definer",
       "execute": [
