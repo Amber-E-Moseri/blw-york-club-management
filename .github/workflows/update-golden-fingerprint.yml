@@ -1,6 +1,6 @@
 name: Update schema golden fingerprint
 
-# Manual only (workflow_dispatch). Replays migrations 000-064 on a disposable
+# Manual only (workflow_dispatch). Replays migrations 000-065 on a disposable
 # local Supabase stack, generates a new schema_fingerprint.golden.json, verifies
 # it passes the contract check, and uploads it for review.
 #
@@ -16,8 +16,8 @@ permissions:
   contents: read
 
 env:
-  EXPECTED_MIGRATIONS: "65"
-  LAST_MIGRATION: "064"
+  EXPECTED_MIGRATIONS: "66"
+  LAST_MIGRATION: "065"
 
 jobs:
   update-golden:

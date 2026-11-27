@@ -95,10 +95,24 @@ Which tables changed, and how (policies unless stated):
 | 063 | Scoped `is_bsc_leader_of` (active, leads the BSC, in the BSC's cell) | bsc_leader_scope 7/7 | committed |
 | 064 | Individual assignments; assignee may change only status (guard); cell-leader scope via `is_cell_leader_of_user` | assignments 23/23, including a control that shows the guard is what refuses title, author and due-date changes | committed |
 
-Golden: the PostgreSQL 17 golden for 061 is the CI artifact of run `45950530304` (artifact `15176716644`), not yet committed.
-The golden guards expect 65 migrations ending at 064. Structural contract on the 064 replay: 29/29.
+| 065 | Canonical cell leadership: `cells.leader_id` is the authority. `is_cell_leader_for_profile` rewritten (active caller who leads the target's cell; pending and rejected applicants excluded); `meetings_leaders_read` and `meetings_manage_scoped` and `respond_to_meeting_invitation` use the canonical check | leadership_lifecycle 34/34; control without 065: 23/34 | committed |
 
-### Open decision: which profile role means "cell leader"
+Golden: the PostgreSQL 17 golden for 061 is the CI artifact of run `45950530304` (artifact `15176716644`), not yet committed.
+The golden guards expect 66 migrations ending at 065. Structural contract on the 065 replay: 29/29.
+Schema diff 064 to 065 (PG17): `is_cell_leader_for_profile`, `respond_to_meeting_invitation` (definition), `meetings` (policies). Nothing else.
+
+### Resolved: cell leadership authority (owner decision, implemented in 065)
+
+The authority is `cells.leader_id`. The profile role `cell_leader` confers no cell authority. The earlier open question is closed.
+
+### Pending owner decisions (not cell-specific, left unchanged)
+
+- `announcements_manage` grants posting to any active `cell_leader`-role account. Not cell-specific. Application: the nav and `canPost` use the role. Decide whether posting should be coordinator and admin only, or should require a leadership assignment.
+- `prayers_leadership_read` lets any `cell_leader`-role account read leadership-visible prayer requests across cells. Decide whether it should be scoped to the reader's cell.
+- `user_profiles` leader visibility includes phone and bio for the cell's members. Decide whether leaders need those fields.
+- Historical records: run `supabase/verification/reconciliation/leadership_inconsistency_report.sql` (read-only) on each target project and review. No roles or leadership assignments are rewritten automatically.
+
+### Previously open: which profile role means "cell leader" (closed)
 
 The base has two definitions of a cell leader:
 
