@@ -17,8 +17,7 @@ import { toLocalDateKey } from '../dates';
  * so "john_smith@x.org" would match "johnXsmith@x.org" and silently merge two different people.
  */
 export async function findPersonIdByEmail(email: string): Promise<string | null> {
-  // Authority-checked for active leaders and staff; returns the id only (migration 072).
-  const { data, error } = await supabase.rpc('find_person_id_for_contact', { p_email: email });
+  const { data, error } = await supabase.rpc('find_person_by_email', { p_email: email });
   if (error) throw new Error(error.message);
   return (data as string | null) ?? null;
 }

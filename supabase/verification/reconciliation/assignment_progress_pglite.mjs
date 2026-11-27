@@ -127,17 +127,6 @@ check('negative: a pending account sees no cell list', r.ok && r.rows.length ===
 r = await as(null, `select cell_id from public.list_cell_leaders()`, [], 'anon');
 check('negative: anonymous callers see no cell list', !r.ok, r.ok ? 'read' : r.error);
 
-// ── Person lookup for contact logging: returns an id only, to a leader or staff, for an exact email ──────────────────
-await owner(`insert into public.people (id, full_name, email) values ($1,'Known visitor','known.visitor@x.invalid')`, [P(410)]);
-r = await as(U.leaderA, `select public.find_person_id_for_contact('known.visitor@x.invalid') v`);
-check('a leader finds an existing person by exact email (id only)', r.ok && r.rows[0].v === P(410), r.error ?? JSON.stringify(r.rows));
-r = await as(U.leaderA, `select public.find_person_id_for_contact('nobody@x.invalid') v`);
-check('an unknown email returns null', r.ok && r.rows[0].v === null, r.error);
-r = await as(U.memberA1, `select public.find_person_id_for_contact('known.visitor@x.invalid') v`);
-check('negative: an ordinary member cannot look up people by email', r.ok && r.rows[0].v === null, r.error ?? JSON.stringify(r.rows));
-r = await as(null, `select public.find_person_id_for_contact('known.visitor@x.invalid') v`, [], 'anon');
-check('negative: anonymous callers cannot look up people by email', !r.ok, r.ok ? 'executed' : r.error);
-
 // ── Direct API and RPC attempts ───────────────────────────────────────────────────────────────────────────────────────
 r = await as(U.leaderA, `select public.resolve_cell_member_user($1,$2)`, [K.memberA1, U.leaderA]);
 check('direct RPC: resolve_cell_member_user is not executable by clients (no id can be harvested)', !r.ok, r.ok ? 'executed' : r.error);

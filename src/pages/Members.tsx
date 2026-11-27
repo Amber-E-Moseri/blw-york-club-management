@@ -144,7 +144,7 @@ export const Members: React.FC<Props> = ({ user }) => {
       {/* Filters */}
       <PeopleFilters
         search={search} onSearch={setSearch}
-        role={roleFilter} onRole={setRoleFilter}
+        role={roleFilter} onRole={setRoleFilter} showRole={isStaff}
         cellId={cellFilter} onCellId={setCellFilter}
         cells={cells}
       />

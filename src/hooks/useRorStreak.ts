@@ -73,10 +73,15 @@ interface OrgProgressState {
   error: string | null;
 }
 
-export function useOrgRorProgress(): OrgProgressState {
-  const [state, setState] = useState<OrgProgressState>({ rows: [], loading: true, error: null });
+/** Organization-wide progress is a staff query. When enabled is false nothing is requested and no rows are shown. */
+export function useOrgRorProgress(enabled = true): OrgProgressState {
+  const [state, setState] = useState<OrgProgressState>({ rows: [], loading: enabled, error: null });
 
   useEffect(() => {
+    if (!enabled) {
+      setState({ rows: [], loading: false, error: null });
+      return undefined;
+    }
     let mounted = true;
     fetchOrgRorProgress()
       .then((rows) => { if (mounted) setState({ rows, loading: false, error: null }); })
@@ -85,7 +90,7 @@ export function useOrgRorProgress(): OrgProgressState {
           error: err instanceof Error ? err.message : 'Could not load progress.' });
       });
     return () => { mounted = false; };
-  }, []);
+  }, [enabled]);
 
   return state;
 }

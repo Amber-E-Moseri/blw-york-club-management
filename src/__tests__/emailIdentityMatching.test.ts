@@ -14,7 +14,7 @@ test('findPersonIdByEmail sends the raw address to the exact-match RPC (no patte
   (supabase.rpc as jest.Mock).mockResolvedValue({ data: 'person-1', error: null });
   for (const email of ['john_smith@x.org', '100%@x.org', 'a*b@x.org', 'Mixed.Case@X.ORG', 'back\slash@x.org']) {
     await expect(findPersonIdByEmail(email)).resolves.toBe('person-1');
-    expect(supabase.rpc).toHaveBeenLastCalledWith('find_person_id_for_contact', { p_email: email });
+    expect(supabase.rpc).toHaveBeenLastCalledWith('find_person_by_email', { p_email: email });
   }
   expect(supabase.from).not.toHaveBeenCalled();
 });

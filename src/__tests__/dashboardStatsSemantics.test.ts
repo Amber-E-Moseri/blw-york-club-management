@@ -105,7 +105,7 @@ describe('meeting metrics', () => {
 describe('unavailable versus zero', () => {
   test('a failed optional query is reported as unavailable (null), not zero', async () => {
     fake.queue('announcements', failed());
-    fake.queue('prayer_requests', failed());
+    fake.queue('v_prayer_requests_visible', failed());
     fake.queue('habit_entries', failed());
     fake.queue('devotional_views', failed());
 
@@ -119,7 +119,7 @@ describe('unavailable versus zero', () => {
 
   test('genuinely empty datasets stay at zero', async () => {
     fake.queue('announcements', ok(0));
-    fake.queue('prayer_requests', ok(0));
+    fake.queue('v_prayer_requests_visible', ok(0));
     fake.queue('habit_entries', { data: [], error: null });
     fake.queue('devotional_views', ok(0));
 

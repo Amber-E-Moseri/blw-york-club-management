@@ -32,7 +32,7 @@ export const Cells: React.FC<Props> = ({ user }) => {
   const isLeader = ledCells.length > 0;
   const isCoordinator = user?.role === 'coordinator' || user?.role === 'admin';
   const { rows: rorRows, loading: rorLoading } = useCellRorProgress();
-  const { rows: orgRows, loading: orgLoading } = useOrgRorProgress();
+  const { rows: orgRows, loading: orgLoading } = useOrgRorProgress(isStaff);
   const [rorSelectedMember, setRorSelectedMember] = useState<CellMemberRorRow | null>(null);
   const [currentDevotional, setCurrentDevotional] = useState<MonthlyDevotional | null>(null);
 

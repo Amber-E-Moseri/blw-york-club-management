@@ -57,7 +57,10 @@ export async function getEnhancedDashboardStats(
     // Meetings from today onward, used for the upcoming count.
     supabase.from('meetings').select('id', { count: 'exact', head: true }).gte('date', today),
     supabase.from('announcements').select('id', { count: 'exact', head: true }),
-    supabase.from('prayer_requests').select('id', { count: 'exact', head: true }).eq('is_active', true).gte('created_at', weekAgo),
+    // Staff count the table. Everyone else counts what they may see (v_prayer_requests_visible, migration 070).
+    scope.isStaff
+      ? supabase.from('prayer_requests').select('id', { count: 'exact', head: true }).eq('is_active', true).gte('created_at', weekAgo)
+      : supabase.from('v_prayer_requests_visible').select('id', { count: 'exact', head: true }).gte('created_at', weekAgo),
     supabase.from('testimonies').select('id', { count: 'exact', head: true })
       .gte('created_at', monthTime.start).lt('created_at', monthTime.nextStart),
     supabase.from('contacts').select('id,date_contacted,cell_id', { count: 'exact' }).gte('date_contacted', weekAgo).lte('date_contacted', today).eq('archived', false),
