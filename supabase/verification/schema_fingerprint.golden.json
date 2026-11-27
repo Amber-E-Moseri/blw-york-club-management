@@ -3335,7 +3335,7 @@
             },
             "security": "definer",
             "volatility": "v",
-            "definition_md5": "76d5e27570afc155c10b2a62a877d94d"
+            "definition_md5": "facc44377c881d84ff4f7227f5d5b1f7"
         },
         "web_unassign_website_role(uuid,text)": {
             "owner": "postgres",
