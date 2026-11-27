@@ -150,11 +150,14 @@ begin
   drop policy cert_rogue_select on public.profiles;
 
   -- ===== APPROVAL IS ENFORCED BY THE DATABASE =========================================================================
+  -- Migration 070 closed people to staff and the person's own linked account. The seeded person (line 71) is not
+  -- linked to this member, so any row the member can see from another person is a regression.
   perform pg_temp.as_auth(member_id);
-  select count(*) into visible from public.people;
+  select count(*) into others from public.people p
+    where p.id is distinct from (select pr.person_id from public.profiles pr where pr.id = member_id);
   perform pg_temp.as_postgres();
-  if visible >= 1 then perform pg_temp.cert_pass('Approval', 'an active member can read the people directory', visible::text);
-  else perform pg_temp.cert_fail('Approval', 'an active member can read the people directory', visible::text); end if;
+  if others = 0 then perform pg_temp.cert_pass('Approval', 'an active member cannot read another person''s people record (migration 070 closure)', others::text);
+  else perform pg_temp.cert_fail('Approval', 'an active member cannot read another person''s people record (migration 070 closure)', others::text); end if;
 
   -- Migration 045 lets any signed-in account read its OWN linked person row (people_read: p.person_id = people.id).
   -- Pending and rejected accounts therefore see at most that one row, and never any other person's row.
