@@ -1,48 +1,63 @@
-# Production profile and prayer visibility: emergency mitigation proposal
+# Production profile and prayer visibility: emergency mitigation v2 (compatibility-checked)
 
-Status: PROPOSAL. Not executed. Production HOLD. Owner approval is required before any step is applied.
+Status: PROPOSAL. Not executed. Production HOLD. Owner approval and the two read-only counts are required first.
 
-## Finding
+## Why v1 was withdrawn
 
-Read-only assessment of the Production catalog export (`blwyork-production-evidence.json`). No hosted access was used.
+v1 replaced the profile policies with self-or-staff. That was tested against a local replica and it would have removed access that the deployed Production app relies on. The Production `member_directory` view (`security_invoker`) also calls the same role-based helper, so v1 would have changed the directory as well. v2 is the smallest change that removes the role-based grant and keeps assigned leaders working.
 
-| # | Path | Effective definition (catalog text) | Demonstrated in local replica | Classification |
-|---|------|-------------------------------------|-------------------------------|----------------|
-| 1 | `profiles` and `user_profiles` read | `profiles_select_scoped` and `user_profiles_select_scoped` allow `is_cell_leader_for_profile(id)`. That helper grants access when the caller's **role** is `cell_leader` and shares the target's cell. | Yes. A role-only leader with no assignment reads a same-cell member's profile (student number, email), that member's phone and bio, and a pending applicant's profile. Cross-cell members and ordinary members read nothing. | **Demonstrated unauthorized disclosure path** (given the owner's rule that the role alone confers no cell authority). |
-| 2 | `prayer_requests` read | `prayers_leadership_read` allows any account whose **role** is `cell_leader` to read every leadership or shared request, across cells, with no anonymity exclusion. | Yes. A role-only leader reads leadership requests from another cell and an anonymous leadership request, which exposes its `author_id`. | **Demonstrated unauthorized disclosure path** (identity of anonymous authors). |
-| 3 | Other `cell_leader`-role references (`meetings_manage_scoped`, `prayers`, and others) | Mixed: some are role branches restricted to rows the account created, others use `is_cell_leader_of`. | Not tested. | Outdated-policy review; not in this emergency scope. |
+## Findings (catalog definitions; local replica, not the live database)
 
-Scope limits, stated plainly:
-- The replica is built from the exact helper and policy text in the export. It uses a minimal schema and an approximation of `is_admin_or_coordinator` (the export does not contain its body). Results for leaders do not depend on that approximation.
-- Whether a live Production account currently matches the role-only path depends on data. **Read-only owner check (count only, no personal data):** `select count(*) from public.profiles where role = 'cell_leader' and status = 'active';` and `select count(*) from public.profiles p where p.role = 'cell_leader' and p.status = 'active' and exists (select 1 from public.profiles m where m.cell_id = p.cell_id and m.id <> p.id);`. A count of zero for the second query means path 1 has no current data exposure.
+1. `is_cell_leader_for_profile(target)` grants access when the caller's **role** is `cell_leader` and shares the target's cell. It is called by `profiles_select_scoped`, `user_profiles_select_scoped`, and the `member_directory` view. Demonstrated: a role-only leader with no assignment reads a same-cell member's profile, user profile (phone, bio), and a pending applicant's profile. This is an unauthorized disclosure path under the owner's rule.
+2. `prayers_leadership_read` grants any `cell_leader` account every leadership and shared request across cells. Demonstrated: it exposes an anonymous leadership request with its `author_id`.
 
-## Proposed mitigation
+## v2 change
 
-Files (in the repository, not applied):
-- `supabase/verification/emergency/production_profile_mitigation.sql`
-- `supabase/verification/emergency/production_prayer_mitigation.sql`
+- `supabase/verification/emergency/production_profile_v2_helper.sql`: replaces only the body of `is_cell_leader_for_profile`. The three call sites are unchanged. Access requires the caller to be an active account and `cells.leader_id = caller`, with the target active. Pending, rejected and inactive targets are hidden from leaders. The role label is not consulted.
+- `supabase/verification/emergency/production_prayer_v2.sql`: replaces the role-based prayer read. Staff are unchanged. An assigned leader sees non-anonymous requests only. Leadership requests are limited to members of cells the leader leads. Shared requests are readable by any active assigned leader. Role-only accounts with no assignment see nothing.
 
-Profile part: replaces the two role-based read policies with the self-or-staff policies already defined by candidate migration 070. Prayer part: removes the role-based leadership read and gives staff the same visibility rule.
+## Compatibility (replica results)
 
-Impact:
-- Staff (admin, coordinator): unchanged.
-- Each user's own profile: unchanged.
-- Role-only `cell_leader` accounts: lose reads of other members' profiles and leadership prayers. These reads were not authorized under the owner's rule.
-- Assigned cell leaders with the ordinary member role: no change in Production today, because the Production helper never matched them. They gain nothing from this step; their access comes from the reconciled candidate.
-- Other Production policies are not changed. Those under item 3 remain for the planned upgrade.
-- Application impact: the leader Members list and leader prayer views stop returning other members. Expected, because those reads were not authorized.
+| Reader | Read | Before | v2 | Verdict |
+|---|---|---|---|---|
+| Assigned leader (role `cell_leader`) | cell member directory | 6, including pending | 5, pending hidden | Retained, pending protected |
+| Assigned leader (role `cell_leader`) | member phone (user profile) | 1 | 1 | Retained |
+| Assigned leader (role `member`) | own cell directory | 0 (no access today) | 2 | Access gained, as the approved model grants |
+| Role-only, unassigned | cell directory | 6 (exposed) | 1 (self only) | Unauthorized access removed |
+| Role-only, unassigned | member profile / user profile | 1 / 1 | 0 / 0 | Removed |
+| Any non-admin | pending applicant profile | 1 (exposed) | 0 | Protected |
+| Cross-cell leader | member of other cell | 0 | 0 | Unchanged |
+| Ordinary member | other member | 0 | 0 | Unchanged |
+| Self | own profile | 1 | 1 | Unchanged |
+| Admin | all profiles including pending | 10 | 10 | Unchanged |
+| Assigned leader | leadership prayers | 5 (includes anonymous, cross-cell) | 2 (own cell, non-anonymous) | Anonymous identity protected |
+| Role-only | prayers | 5 (exposed) | 0 | Removed |
+| Assigned leader B | own-cell leadership prayer | 5 | 2 (own cell and shared) | Retained |
+| Admin | prayers | 5 | 5 | Unchanged |
+| Ordinary member | prayers | 0 | 0 | Unchanged |
 
-Tests (local replica, rerunnable):
-- `supabase/verification/emergency/production_profile_replica.test.mjs` (before, after, rolled back).
-- `supabase/verification/emergency/production_prayer_replica.test.mjs` (before, after, rolled back).
+Notes:
+- The existing deployed Production app gates its leader pages by role. The assigned-leader cases above are the data the app's own queries would receive. This emergency step does not change the app.
+- Assigned leaders with the member role now see their cell's directory data. The old UI still hides the Members page from them, so no new page is exposed.
 
-Results recorded during assessment:
-- Profiles: role-only leader reads member profile, user profile and pending applicant before; reads none after; self and admin unchanged; rollback restores the exposure.
-- Prayers: role-only leader sees 4 of 4 before, including the anonymous request with `author_id`; sees none after; admin sees 4 of 4; rollback restores.
+## Residual exposure, not fixed by v2
 
-Rollback:
-- `supabase/verification/emergency/production_profile_rollback.sql`
-- `supabase/verification/emergency/production_prayer_rollback.sql`
-Both restore the exact catalog USING expressions.
+Assigned leaders can still read a member's `student_number`, from both `profiles` and `user_profiles`. The replica confirms this. It is a separate over-disclosure of a protected attribute. A column-level revoke would also break self-profile reads of `student_number`, which the app selects, so it needs a design change. Recorded for the planned upgrade, not part of this emergency step.
 
-Execution (after owner approval only): run the two mitigation files in the Production SQL editor, each inside its own transaction, then run the two owner count queries above, then verify with a staff account and a non-staff account. Keep the rollback files ready.
+## Files
+
+- Mitigation: `supabase/verification/emergency/production_profile_v2_helper.sql`, `supabase/verification/emergency/production_prayer_v2.sql`
+- Rollback: `supabase/verification/emergency/production_profile_v2_rollback.sql` (restores the exported helper body), `supabase/verification/emergency/production_prayer_rollback.sql` (restores the exported policy)
+- Catalog text used by the replica: `production_is_cell_leader_for_profile.catalog.sql`, `production_member_directory.catalog.sql`
+- Replica test: `supabase/verification/emergency/production_mitigation_v2.replica.mjs` (`MODE=current` and `MODE=v2`)
+
+## Owner-run read-only checks (counts only, no personal data)
+
+1. `select count(*) from public.profiles where role = 'cell_leader' and status = 'active';`
+2. `select count(*) from public.profiles p where p.role = 'cell_leader' and p.status = 'active' and not exists (select 1 from public.cells c where c.leader_id = p.id);`
+
+Query 2 is the number of role-only leaders affected by the change. Zero means the change has no current effect on any account, and only prevents future exposure.
+
+## Execution (after approval only)
+
+Run `production_profile_v2_helper.sql` and then `production_prayer_v2.sql`, each in its own transaction, in the Production SQL editor. Verify with one staff account and one assigned leader account. Keep the rollback files ready.
