@@ -73,6 +73,9 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
   const [totalPages, setTotalPages] = useState(0);
   const [file, setFile] = useState<File | null>(null);
   const [ranges, setRanges] = useState<PageRange[]>([]);
+  // What the admin is typing in each Pages field. Kept apart from the saved range so a half-typed value such as "10-"
+  // is shown as typed, and only a valid range reaches the saved state.
+  const [rangeDrafts, setRangeDrafts] = useState<Record<number, string>>({});
   const [provider, setProvider] = useState<UploadProvider>('google-drive');
   const [manualUrlPrefix, setManualUrlPrefix] = useState('');
   const [progress, setProgress] = useState<ConversionProgress | null>(null);
@@ -105,6 +108,7 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
       const analysis = await analyzePdfStructure(nextFile, month, year);
       setTotalPages(analysis.totalPages);
       setRanges(analysis.ranges);
+      setRangeDrafts({});
       setStep('review');
       setProgress(null);
     } catch (err) {
@@ -120,18 +124,27 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
     const pages = Math.max(totalPages || totalDays * 2, totalDays);
     setTotalPages(pages);
     setRanges(detectPageRanges(pages, totalDays));
+    setRangeDrafts({});
     setStep('review');
   }
 
   function updateRange(day: number, field: 'range' | 'title', value: string) {
-    setRanges((items) =>
-      items.map((item) => {
-        if (item.day !== day) return item;
-        if (field === 'title') return { ...item, title: value };
-        const parsed = parseRange(value);
-        return parsed ? { ...item, ...parsed } : item;
-      })
-    );
+    if (field === 'range') {
+      setRangeDrafts((drafts) => ({ ...drafts, [day]: value }));
+      const parsed = parseRange(value);
+      if (!parsed) return;
+      setRanges((items) => items.map((item) => (item.day === day ? { ...item, ...parsed } : item)));
+      return;
+    }
+    setRanges((items) => items.map((item) => (item.day === day ? { ...item, title: value } : item)));
+  }
+
+  function finishRangeEdit(day: number) {
+    setRangeDrafts((drafts) => {
+      const next = { ...drafts };
+      delete next[day];
+      return next;
+    });
   }
 
   async function handleProcess() {
@@ -283,8 +296,9 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
                     <div className="grid grid-cols-[100px_1fr] gap-2">
                       <Input
                         label="Pages"
-                        value={formatPageRange(range)}
+                        value={rangeDrafts[range.day] ?? formatPageRange(range)}
                         onChange={(value) => updateRange(range.day, 'range', value)}
+                        onBlur={() => finishRangeEdit(range.day)}
                       />
                       <Input
                         label="Title"
@@ -347,6 +361,7 @@ export const AdminDevotionalUpload: React.FC<AdminDevotionalUploadProps> = ({ us
                 setStep('upload');
                 setFile(null);
                 setRanges([]);
+                setRangeDrafts({});
                 setTotalPages(0);
                 setSuccessSummary('');
               }}>
