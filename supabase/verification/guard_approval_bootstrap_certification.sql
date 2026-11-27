@@ -76,6 +76,10 @@ begin
   update public.profiles set cell_id = cert_cell where id in (leader_id, member_id, pending_id);
 
   -- ===== DEFENCE IN DEPTH: a permissive rogue policy must not be enough =====================================================
+  -- The rogue read policy models a permissive read path. Since migration 070 narrowed profile reads to self and staff,
+  -- an UPDATE can reach the guard only through a readable row, so the controls below grant that read explicitly.
+  -- The guard trigger must still refuse every protected change.
+  create policy cert_rogue_select on public.profiles for select to authenticated using (true);
   create policy cert_rogue_update on public.profiles for update to authenticated using (true) with check (true);
 
   perform pg_temp.as_auth(member_id);
@@ -143,6 +147,7 @@ begin
   else perform pg_temp.cert_fail('Guard', 'the guard is column-specific: ordinary columns are unaffected', state); end if;
 
   drop policy cert_rogue_update on public.profiles;
+  drop policy cert_rogue_select on public.profiles;
 
   -- ===== APPROVAL IS ENFORCED BY THE DATABASE =========================================================================
   perform pg_temp.as_auth(member_id);
@@ -234,8 +239,9 @@ begin
   -- Regression: active cell leader must still be able to insert announcements.
   perform pg_temp.as_auth(leader_id);
   begin
-    insert into public.announcements (title, body, author_id, author_name)
-      values ('Cert Active Insert', 'cert body', leader_id, 'Cert Leader');
+    -- A cell leader posts within a cell they lead (migration 066). Organization-wide posts are staff only.
+    insert into public.announcements (title, body, author_id, author_name, cell_id)
+      values ('Cert Active Insert', 'cert body', leader_id, 'Cert Leader', cert_cell);
     perform pg_temp.as_postgres();
     perform pg_temp.cert_pass('Announcements', 'active cell leader can still insert announcement (F-1 regression)', 'insert succeeded');
   exception when others then
