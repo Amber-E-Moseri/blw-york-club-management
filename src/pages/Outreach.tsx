@@ -32,7 +32,7 @@ const sevenDaysAgo = (): string => {
 
 export const Outreach: React.FC<Props> = ({ user }) => {
   // Staff, or a leader of an assigned cell. The route guard already admits only these users.
-  const { canUseLeaderPages } = useLeadership();
+  const { canUseLeaderPages, isStaff } = useLeadership();
 
   const [filters, setFilters] = useState<Filters>({});
   const [formOpen, setFormOpen] = useState(false);
@@ -258,7 +258,9 @@ export const Outreach: React.FC<Props> = ({ user }) => {
         users={users}
         onSave={async (assigneeId, reason) => {
           if (!user || !selected) return;
-          await mutations.reassign(selected.id, assigneeId, user.id, reason);
+          // Staff reassign with a user id. A cell leader reassigns by member key, and the database enforces the cell.
+          if (isStaff) await mutations.reassign(selected.id, assigneeId, user.id, reason);
+          else await mutations.reassignByMemberKey(selected.id, assigneeId, reason);
         }}
       />
 

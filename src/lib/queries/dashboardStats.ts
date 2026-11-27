@@ -88,8 +88,9 @@ export async function getEnhancedDashboardStats(
 
   return {
     member_count: activeMembers.count ?? 0,
-    member_growth: newMembers.count ?? 0,
-    pending_member_count: pendingMembers.count ?? 0,
+    // A cell leader cannot count the organization's new members. Unavailable is reported as null, never as zero.
+    member_growth: leadsCells ? null : (newMembers.count ?? 0),
+    pending_member_count: leadsCells ? null : (pendingMembers.count ?? 0),
     upcoming_events: upcomingMeetings.count ?? 0,
     announcement_count: countOrNull(announcements),
     unread_announcements: null,

@@ -82,7 +82,8 @@ export interface PrayerRequest {
 
 export interface DashboardStats {
   member_count: number;
-  member_growth: number;
+  /** Null when the viewer cannot see the organization's new members (a cell leader's view). */
+  member_growth: number | null;
   upcoming_events: number;
   // null = the value could not be loaded (or is not computed yet), which is distinct from a real 0.
   announcement_count: number | null;
@@ -811,7 +812,8 @@ export interface EnhancedDashboardStats extends DashboardStats {
   meetings_this_month: number;
   testimonies_this_month: number;
   contacts_this_week: number;
-  pending_member_count: number;
+  /** Null when the viewer cannot see pending applicants (a cell leader's view). */
+  pending_member_count: number | null;
   cell_contacts_this_week?: number;
   cell_meeting_attendance_rate?: number | null;
   habit_streak_avg?: number | null;

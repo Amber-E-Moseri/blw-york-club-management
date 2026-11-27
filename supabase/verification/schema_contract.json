@@ -248,6 +248,10 @@
       "security": "definer",
       "execute": []
     },
+    "_resolve_contact_assignee(uuid,text)": {
+      "security": "definer",
+      "execute": []
+    },
     "_web_audit(text,text,jsonb)": {
       "security": "definer",
       "execute": []
@@ -342,6 +346,10 @@
         "service_role"
       ]
     },
+    "contact_follow_ups_guard_assignee()": {
+      "security": "definer",
+      "execute": []
+    },
     "contacts_guard_follow_up_assignee()": {
       "security": "definer",
       "execute": []
@@ -363,6 +371,12 @@
       "execute": [
         "authenticated",
         "service_role"
+      ]
+    },
+    "find_person_id_for_contact(text)": {
+      "security": "definer",
+      "execute": [
+        "authenticated"
       ]
     },
     "get_cell_member_profile(text)": {
@@ -492,6 +506,12 @@
         "authenticated"
       ]
     },
+    "list_cell_leaders()": {
+      "security": "definer",
+      "execute": [
+        "authenticated"
+      ]
+    },
     "meeting_attendance_normalise()": {
       "security": "invoker",
       "execute": []
@@ -527,6 +547,12 @@
       "execute": [
         "authenticated",
         "service_role"
+      ]
+    },
+    "reassign_contact_follow_up(uuid,text,text)": {
+      "security": "definer",
+      "execute": [
+        "authenticated"
       ]
     },
     "redacted_profile_changes(jsonb,jsonb,text[])": {

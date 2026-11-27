@@ -105,7 +105,7 @@ export const Members: React.FC<Props> = ({ user }) => {
   }, []);
 
   const totalMembers = members.length;
-  const leaderCount = members.filter((m) => m.role !== 'member').length;
+  const leaderCount = isStaff ? members.filter((m) => m.role !== 'member').length : 0;
   const canSeeContact = isAdmin;
 
   return (
@@ -123,7 +123,7 @@ export const Members: React.FC<Props> = ({ user }) => {
       {!loading && (
         <div className={`grid gap-2.5 ${isAdmin ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
           <StatChip label="Approved accounts shown" value={totalMembers} />
-          <StatChip label="Leaders" value={leaderCount} />
+          {isStaff && <StatChip label="Leaders" value={leaderCount} />}
           <StatChip label="Cells" value={cells.length} />
           {isAdmin && <StatChip label="Verified org members" value={authoritySummary?.verifiedOrganizationalMembers ?? '—'} />}
         </div>
@@ -215,7 +215,7 @@ export const Members: React.FC<Props> = ({ user }) => {
                         </div>
                       </td>
                       <td className="px-5 py-3.5">
-                        <PersonStatusBadge role={m.role} size="xs" />
+                        {isStaff && <PersonStatusBadge role={m.role} size="xs" />}
                       </td>
                       <td className="px-5 py-3.5 text-sm text-gray-500 dark:text-slate-400">
                         {m.cellName ?? <span className="text-gray-300 dark:text-slate-600">—</span>}

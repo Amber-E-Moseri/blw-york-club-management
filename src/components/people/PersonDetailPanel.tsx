@@ -150,10 +150,10 @@ export const PersonDetailPanel: React.FC<PersonDetailPanelProps> = ({
                 <div className="flex-1 min-w-0">
                   <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 truncate">{displayName}</h3>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    <PersonStatusBadge role={profile.role} size="xs" />
-                    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-slate-300 capitalize">
+                    {!leaderView && <PersonStatusBadge role={profile.role} size="xs" />}
+                    {!leaderView && (<span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-slate-300 capitalize">
                       {profile.status}
-                    </span>
+                    </span>)}
                   </div>
                   <div className="mt-2">
                     <span className="text-xs text-gray-400 dark:text-slate-500">
@@ -225,9 +225,9 @@ export const PersonDetailPanel: React.FC<PersonDetailPanelProps> = ({
                   {profile.cellName && (
                     <Detail icon={<Building2 className="w-3.5 h-3.5" />} label="Cell" value={profile.cellName} />
                   )}
-                  <Detail icon={<Building2 className="w-3.5 h-3.5" />} label="Role" value={profile.role.replace('_', ' ')} />
-                  <Detail icon={<Building2 className="w-3.5 h-3.5" />} label="Status" value={profile.status} />
-                  <Detail icon={<Calendar className="w-3.5 h-3.5" />} label="Joined" value={safeFormat(profile.joinedAt)} />
+                  {!leaderView && <Detail icon={<Building2 className="w-3.5 h-3.5" />} label="Role" value={profile.role.replace('_', ' ')} />}
+                  {!leaderView && <Detail icon={<Building2 className="w-3.5 h-3.5" />} label="Status" value={profile.status} />}
+                  {!leaderView && <Detail icon={<Calendar className="w-3.5 h-3.5" />} label="Joined" value={safeFormat(profile.joinedAt)} />}
                   {isAdmin && profile.studentNumber && (
                     <Detail icon={<ExternalLink className="w-3.5 h-3.5" />} label="Student #" value={profile.studentNumber} />
                   )}

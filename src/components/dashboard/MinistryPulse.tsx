@@ -47,9 +47,9 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
       value: stats ? stats.member_count : '—',
       sub: !stats
         ? 'Unavailable'
-        : stats.pending_member_count > 0
+        : stats.pending_member_count !== null && stats.pending_member_count > 0
           ? `${stats.pending_member_count} pending approval`
-          : stats.member_growth > 0
+          : stats.member_growth !== null && stats.member_growth > 0
             ? `+${stats.member_growth} this month`
             : 'Active members',
       icon: Users,

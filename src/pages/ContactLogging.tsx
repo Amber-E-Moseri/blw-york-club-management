@@ -46,7 +46,7 @@ export const ContactLogging: React.FC<Props> = ({ user }) => {
   const mutations = useContactMutations(refetch);
 
   const cellId = user?.cellId ?? '';
-  const { canUseLeaderPages } = useLeadership();
+  const { canUseLeaderPages, isStaff } = useLeadership();
   const manage = canUseLeaderPages;
 
   const handleView = useCallback((contact: Contact) => {
@@ -211,7 +211,9 @@ export const ContactLogging: React.FC<Props> = ({ user }) => {
         users={users}
         onSave={async (assigneeId, reason) => {
           if (!user || !selected) return;
-          await mutations.reassign(selected.id, assigneeId, user.id, reason);
+          // Staff reassign with a user id. A cell leader reassigns by member key, and the database enforces the cell.
+          if (isStaff) await mutations.reassign(selected.id, assigneeId, user.id, reason);
+          else await mutations.reassignByMemberKey(selected.id, assigneeId, reason);
         }}
       />
 

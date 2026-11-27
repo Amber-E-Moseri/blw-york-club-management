@@ -87,3 +87,16 @@ export async function fetchMemberReadDates(
   if (error) throw new Error(error.message);
   return (data ?? []).map((r) => r.viewed_date as string);
 }
+
+/**
+ * Reading dates for one member of a cell the caller leads, by member key (migration 071). Returns only the dates; an
+ * unknown or unauthorised key returns no dates.
+ */
+export async function fetchCellMemberReadDates(memberKey: string, devotionalId: string): Promise<string[]> {
+  const { data, error } = await supabase.rpc('get_cell_member_read_dates', {
+    p_member_key: memberKey,
+    p_devotional_id: devotionalId,
+  });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as Array<{ viewed_date: string }>).map((r) => r.viewed_date);
+}

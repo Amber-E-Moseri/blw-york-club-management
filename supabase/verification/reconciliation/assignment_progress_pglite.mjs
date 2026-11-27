@@ -97,6 +97,47 @@ check('staff review reading progress for any active member by key', r.ok && r.ro
 r = await as(U.memberA1, `select viewed_date from public.devotional_views where member_id=$1`, [U.memberA1]);
 check('self: a member still reads their own reading progress from the table', r.ok && r.rows.length === 2, r.error);
 
+// ── Reassignment (072): one transaction; previous follow-up closed; audit written; same authority ─────────────────────
+await owner(`insert into public.contact_follow_ups (contact_id, assigned_to, assigned_by, status) values ($1,$2,$3,'active')`, [CONTACT.c1, U.memberA1, U.leaderA]).catch(() => null);
+r = await as(U.leaderA, `select public.reassign_contact_follow_up($1,$2,$3) k`, [CONTACT.c1, K.memberA2, 'handover']);
+check('a leader reassigns a cell contact by member key', r.ok && r.rows[0].k === K.memberA2 && (await assignee(CONTACT.c1)) === U.memberA2, r.error);
+const fu = (await owner(`select status, assigned_to from public.contact_follow_ups where contact_id=$1 order by assigned_on`, [CONTACT.c1])).rows;
+check('reassignment closes the previous active follow-up and opens one for the new assignee', fu.some((x) => x.status === 'reassigned') && fu.some((x) => x.status === 'active' && x.assigned_to === U.memberA2), JSON.stringify(fu));
+const audit = (await owner(`select action from public.contact_audit_log where contact_id=$1 and action='reassigned'`, [CONTACT.c1])).rows.length;
+check('reassignment writes an audit entry', audit >= 1, audit);
+check('the reassignment returns the member key, not an auth id', r.ok && !JSON.stringify(r.rows).includes(U.memberA2));
+r = await as(U.leaderA, `select public.reassign_contact_follow_up($1,$2,null)`, [CONTACT.c2, K.memberB]);
+check('negative: a leader cannot reassign a cell B contact', !r.ok, r.ok ? 'reassigned' : r.error);
+r = await as(U.leaderA, `select public.reassign_contact_follow_up($1,$2,null)`, [CONTACT.c1, STALE]);
+check('stale key on reassignment is refused and the follow-up is unchanged', !r.ok && (await assignee(CONTACT.c1)) === U.memberA2, r.error ?? 'changed');
+r = await as(U.memberA1, `select public.reassign_contact_follow_up($1,$2,null)`, [CONTACT.c1, K.memberA2]);
+check('negative: an ordinary member cannot reassign', !r.ok, r.ok ? 'reassigned' : r.error);
+
+// Direct inserts into contact_follow_ups are held to the same boundary.
+r = await as(U.leaderA, `insert into public.contact_follow_ups (contact_id, assigned_to, assigned_by, status) values ($1,$2,$3,'active')`, [CONTACT.c1, U.memberB, U.leaderA]);
+check('direct follow-up insert: a leader cannot assign a member of another cell', !r.ok, r.ok ? 'inserted' : r.error);
+r = await as(U.leaderA, `insert into public.contact_follow_ups (contact_id, assigned_to, assigned_by, status) values ($1,$2,$3,'active')`, [CONTACT.c1, U.memberA1, U.leaderA]);
+check('direct follow-up insert: a leader may assign a member of their own cell', r.ok, r.error);
+
+// ── Cell names and leader names: active members only, no ids beyond the cell ──────────────────────────────────────
+r = await as(U.memberA1, `select cell_id, cell_name, leader_name from public.list_cell_leaders()`);
+check('an active member sees each cell with its leader name', r.ok && r.rows.length === 2 && r.rows.some((x) => x.leader_name), r.error ?? JSON.stringify(r.rows));
+r = await as(U.pendingA, `select cell_id from public.list_cell_leaders()`);
+check('negative: a pending account sees no cell list', r.ok && r.rows.length === 0, r.error ?? r.rows.length);
+r = await as(null, `select cell_id from public.list_cell_leaders()`, [], 'anon');
+check('negative: anonymous callers see no cell list', !r.ok, r.ok ? 'read' : r.error);
+
+// ── Person lookup for contact logging: returns an id only, to a leader or staff, for an exact email ──────────────────
+await owner(`insert into public.people (id, full_name, email) values ($1,'Known visitor','known.visitor@x.invalid')`, [P(410)]);
+r = await as(U.leaderA, `select public.find_person_id_for_contact('known.visitor@x.invalid') v`);
+check('a leader finds an existing person by exact email (id only)', r.ok && r.rows[0].v === P(410), r.error ?? JSON.stringify(r.rows));
+r = await as(U.leaderA, `select public.find_person_id_for_contact('nobody@x.invalid') v`);
+check('an unknown email returns null', r.ok && r.rows[0].v === null, r.error);
+r = await as(U.memberA1, `select public.find_person_id_for_contact('known.visitor@x.invalid') v`);
+check('negative: an ordinary member cannot look up people by email', r.ok && r.rows[0].v === null, r.error ?? JSON.stringify(r.rows));
+r = await as(null, `select public.find_person_id_for_contact('known.visitor@x.invalid') v`, [], 'anon');
+check('negative: anonymous callers cannot look up people by email', !r.ok, r.ok ? 'executed' : r.error);
+
 // ── Direct API and RPC attempts ───────────────────────────────────────────────────────────────────────────────────────
 r = await as(U.leaderA, `select public.resolve_cell_member_user($1,$2)`, [K.memberA1, U.leaderA]);
 check('direct RPC: resolve_cell_member_user is not executable by clients (no id can be harvested)', !r.ok, r.ok ? 'executed' : r.error);

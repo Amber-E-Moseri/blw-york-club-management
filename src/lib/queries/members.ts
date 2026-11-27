@@ -145,6 +145,17 @@ export async function fetchCellMemberProfile(memberKey: string): Promise<CellMem
   return rows[0] ?? null;
 }
 
+/** Leader display name per cell, for active members (migration 072). Null when a cell has no active leader. */
+export async function fetchCellLeaderNames(): Promise<Map<string, string | null>> {
+  const { data, error } = await supabase.rpc('list_cell_leaders');
+  if (error) throw new Error(error.message ?? 'Could not load cell leaders.');
+  const map = new Map<string, string | null>();
+  for (const row of (data ?? []) as Array<{ cell_id: string; leader_name: string | null }>) {
+    map.set(row.cell_id, row.leader_name ?? null);
+  }
+  return map;
+}
+
 /** Converts a leader-directory row into the Member shape the list renders. The role is not part of the leader view. */
 export function cellMemberRowToMember(row: CellMemberRow): Member {
   return {

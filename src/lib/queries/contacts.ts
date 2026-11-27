@@ -234,6 +234,24 @@ export async function reassignFollowUp(
   });
 }
 
+/**
+ * Reassigns a follow-up by member key, for a cell leader or any caller the database authorises. The database resolves the
+ * key to the member, checks authority and cell eligibility, and writes the follow-up, the contact and the audit entry in
+ * one transaction. No auth user id is sent or returned.
+ */
+export async function reassignFollowUpByMemberKey(
+  contactId: string,
+  memberKey: string,
+  notes?: string,
+): Promise<void> {
+  const { error } = await supabase.rpc('reassign_contact_follow_up', {
+    p_contact_id: contactId,
+    p_member_key: memberKey,
+    p_notes: notes ?? null,
+  });
+  if (error) throw new Error(error.message ?? 'Could not reassign this follow-up.');
+}
+
 export async function moveContactToCell(
   contactId: string,
   newCellId: string,

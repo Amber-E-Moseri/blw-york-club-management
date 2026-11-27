@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { RorStreakBadge } from './RorStreakBadge';
 import { RorCalendar } from './RorCalendar';
-import { fetchMemberReadDates, fetchRorStreak } from '../../lib/queries/rorStreaks';
+import { fetchCellMemberReadDates, fetchMemberReadDates, fetchRorStreak } from '../../lib/queries/rorStreaks';
 import { rorToday } from '../../lib/rorDates';
 import type { CellMemberRorRow, RorStreak } from '../../lib/queries/rorStreaks';
 
@@ -24,12 +24,20 @@ export const RorMemberDetailModal: React.FC<Props> = ({
 
   useEffect(() => {
     let mounted = true;
-    // A cell leader has no auth user id for a member, so the per-person detail is not available to them. The progress
-    // row already carries the streak summary.
+    // A cell leader has no auth user id for a member. The streak summary comes from the progress row, and the reading
+    // dates come from the key-based function. Both are scoped by the database.
     if (!member.member_id) {
-      setStreak(null);
-      setReadDates([]);
-      setLoading(false);
+      setStreak({
+        current_streak: member.current_streak,
+        longest_streak: member.longest_streak,
+        monthly_completed: member.monthly_completed,
+        monthly_total: member.monthly_total,
+        last_completed: null,
+      });
+      setLoading(true);
+      (devotionalId ? fetchCellMemberReadDates(member.member_key, devotionalId) : Promise.resolve([] as string[]))
+        .then((d) => { if (mounted) { setReadDates(d); setLoading(false); } })
+        .catch(() => { if (mounted) setLoading(false); });
       return () => { mounted = false; };
     }
     setLoading(true);
@@ -44,7 +52,7 @@ export const RorMemberDetailModal: React.FC<Props> = ({
       if (mounted) { setStreak(s); setReadDates(d); setLoading(false); }
     }).catch(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };
-  }, [member.member_id, devotionalId, devotionalMonth, devotionalYear]);
+  }, [member.member_id, member.member_key, member.current_streak, member.longest_streak, member.monthly_completed, member.monthly_total, devotionalId, devotionalMonth, devotionalYear]);
 
   return (
     <div
