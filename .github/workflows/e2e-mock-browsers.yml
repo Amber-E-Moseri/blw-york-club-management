@@ -29,7 +29,12 @@ jobs:
       - name: Install Playwright browsers (Chromium and WebKit) on the runner
         run: npx playwright install --with-deps chromium webkit
       - name: Chromium, WebKit iPhone and WebKit desktop
-        run: npx playwright test --project=chromium --project=webkit-iphone --project=webkit-desktop --trace off
+        # Only the mocked specs. release-smoke.spec.ts requires a local Supabase stack and throws when loaded,
+        # so it is not part of this workflow.
+        run: >-
+          npx playwright test
+          e2e/auth.spec.ts e2e/login-regression.spec.ts e2e/mobile-navigation.spec.ts e2e/leadership-capability.spec.ts
+          --project=chromium --project=webkit-iphone --project=webkit-desktop --trace off
       - name: Upload report on failure
         if: failure()
         uses: actions/upload-artifact@v4
