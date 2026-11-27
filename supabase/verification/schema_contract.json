@@ -376,6 +376,12 @@
         "authenticated"
       ]
     },
+    "is_bsc_leader_of(uuid)": {
+      "security": "definer",
+      "execute": [
+        "authenticated"
+      ]
+    },
     "is_bsc_peer_of_logger(uuid)": {
       "security": "definer",
       "execute": [
