@@ -16,8 +16,8 @@ permissions:
   contents: read
 
 env:
-  EXPECTED_MIGRATIONS: "69"
-  LAST_MIGRATION: "068"
+  EXPECTED_MIGRATIONS: "71"
+  LAST_MIGRATION: "070"
 
 jobs:
   update-golden:
