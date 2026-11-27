@@ -9,6 +9,27 @@ Commit `5e8c6bf` (tag `checkpoint/pre-reconciliation-5e8c6bf`). Remote CI: build
 PR checks all passed. This is a checkpoint, NOT the final production release candidate. Preserved: its commit history and
 the successful regression runs listed in the PR body. Schema reconciliation against the hosted evidence follows.
 
+## 0a. Prefix-mounted browser verification (unified /hub build)
+
+Run: `playwright.prefix.config.ts` (build served under `/hub`, own ports). Committed WebKit profile: iPhone 13.
+
+- Chromium (desktop) and WebKit (iPhone 13 profile): 18 passed, 2 skipped. The skips are the legacy `/sw.js` upgrade test,
+  which is root-scope only by design.
+- Desktop Safari profile (`devices['Desktop Safari']`): the two service-worker sign-in tests fail. Their page calls
+  time out. This is OPEN. It is not closed by the test profile change.
+
+Findings for the desktop Safari failure (reproduced in a clean environment):
+- Service workers blocked: the Hub page answers at once.
+- Trivial service worker on a blank page: answers.
+- Trivial service worker on the Hub page: the page stops answering in page evaluation.
+- Hub worker with its fetch handler removed: still stops answering.
+- Blocking every external request (the pdf.js CDN script in `index.html`): no change.
+- Chromium and the iPhone 13 WebKit profile: no stall.
+
+Conclusion: an interaction between the Hub page and an active service worker on desktop WebKit. The root cause is not
+isolated. Earlier wording in commit `91d9c94` ("the test environment does not provide a service worker for that profile")
+is NOT supported by these results and is withdrawn. The worker is provided and controls the page.
+
 ## 1. Migration ledger (NOT verified)
 
 Migrations 047-058 are on the remediation branch only. They must not be assumed to exist in production.
