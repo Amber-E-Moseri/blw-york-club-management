@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { X, Mail, Phone, Calendar, Building2, ExternalLink, Edit3, AlertCircle, CheckCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useUserProfile } from '../../hooks/useUserProfile';
+import { useCellMemberProfile } from '../../hooks/useCellMemberProfile';
 import { Button } from '../foundation/Button';
 import { Input } from '../foundation/Input';
 import { PersonStatusBadge } from './PersonStatusBadge';
@@ -16,6 +17,8 @@ interface PersonDetailPanelProps {
   onClose: () => void;
   currentUser: AuthUser;
   onSaved?: () => void;
+  /** True when a cell leader opens a member of a cell they lead. memberId is then a member_key, read-only. */
+  leaderView?: boolean;
 }
 
 function maskPhone(phone?: string): string {
@@ -31,9 +34,11 @@ function safeFormat(dateStr?: string): string {
 }
 
 export const PersonDetailPanel: React.FC<PersonDetailPanelProps> = ({
-  memberId, onClose, currentUser, onSaved,
+  memberId, onClose, currentUser, onSaved, leaderView = false,
 }) => {
-  const { profile, loading, saving, error, notFound, updateProfile } = useUserProfile(memberId ?? undefined);
+  const staffRead = useUserProfile(leaderView ? undefined : memberId ?? undefined);
+  const leaderRead = useCellMemberProfile(leaderView ? memberId ?? undefined : undefined);
+  const { profile, loading, saving, error, notFound, updateProfile } = leaderView ? leaderRead : staffRead;
   const level = ROLE_LEVEL[currentUser.role] ?? 0;
   const isAdmin = level >= 2;
   const isCoordinator = currentUser.role === 'coordinator';

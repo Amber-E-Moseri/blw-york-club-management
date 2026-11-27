@@ -24,13 +24,22 @@ export const RorMemberDetailModal: React.FC<Props> = ({
 
   useEffect(() => {
     let mounted = true;
+    // A cell leader has no auth user id for a member, so the per-person detail is not available to them. The progress
+    // row already carries the streak summary.
+    if (!member.member_id) {
+      setStreak(null);
+      setReadDates([]);
+      setLoading(false);
+      return () => { mounted = false; };
+    }
     setLoading(true);
     const today = rorToday();
     const monthYear = `${devotionalYear}-${String(devotionalMonth).padStart(2, '0')}`;
+    const memberId = member.member_id;
 
     Promise.all([
-      fetchRorStreak(member.member_id, today, monthYear),
-      devotionalId ? fetchMemberReadDates(member.member_id, devotionalId) : Promise.resolve([]),
+      fetchRorStreak(memberId, today, monthYear),
+      devotionalId ? fetchMemberReadDates(memberId, devotionalId) : Promise.resolve([]),
     ]).then(([s, d]) => {
       if (mounted) { setStreak(s); setReadDates(d); setLoading(false); }
     }).catch(() => { if (mounted) setLoading(false); });

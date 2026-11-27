@@ -168,14 +168,30 @@ export async function notifyAnnouncementMembers(announcementId: string): Promise
 
 // ─── Prayer Requests ─────────────────────────────────────────────────────────
 
-export async function getPrayerRequests(): Promise<PrayerRequest[]> {
-  const { data, error } = await supabase
-    .from('prayer_requests')
-    .select('*')
-    .eq('is_active', true)
-    .order('created_at', { ascending: false });
-  if (error) throw new Error(error.message);
-  return data ?? [];
+/**
+ * Staff read the request table. Everyone else reads v_prayer_requests_visible (shared requests, and leadership requests
+ * of their led cells, with an anonymous author never exposed), plus their own requests from the table.
+ */
+export async function getPrayerRequests(userId: string, isStaff: boolean): Promise<PrayerRequest[]> {
+  const order = { ascending: false } as const;
+  if (isStaff) {
+    const { data, error } = await supabase
+      .from('prayer_requests')
+      .select('*')
+      .eq('is_active', true)
+      .order('created_at', order);
+    if (error) throw new Error(error.message);
+    return (data ?? []) as PrayerRequest[];
+  }
+  const [visible, own] = await Promise.all([
+    supabase.from('v_prayer_requests_visible').select('*').order('created_at', order),
+    supabase.from('prayer_requests').select('*').eq('author_id', userId).eq('is_active', true).order('created_at', order),
+  ]);
+  if (visible.error) throw new Error(visible.error.message);
+  if (own.error) throw new Error(own.error.message);
+  const byId = new Map<string, PrayerRequest>();
+  for (const row of [...((own.data ?? []) as PrayerRequest[]), ...((visible.data ?? []) as PrayerRequest[])]) byId.set(row.id, row);
+  return Array.from(byId.values()).sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
 }
 
 // ─── Dashboard Stats ─────────────────────────────────────────────────────────

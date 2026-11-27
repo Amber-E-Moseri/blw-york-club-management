@@ -54,16 +54,21 @@ await owner(`update public.profiles set cell_id=$1 where id=$2`, [CELL.A, U.newL
 await owner(`update public.profiles set cell_id=$1 where id=$2`, [CELL.D, U.leaderRole]);
 await owner(`update public.profiles set cell_id=$1 where id in ($2,$3)`, [CELL.B, U.leaderB, U.memberB]);
 await owner(`update public.profiles set cell_id=$1 where id in ($2,$3)`, [CELL.C, U.inactiveLeader, U.cellC_member]);
-const seeMembers = async (uid) => (await as(uid, `select id from public.profiles where cell_id=$1`, [CELL.A])).rows.map((x) => x.id);
+const seeMembers = async (uid) => (await as(uid, `select member_key from public.v_cell_member_directory`)).rows.map((x) => x.member_key);
+const K = async (id) => (await owner(`select public.member_roster_key($1) k`, [id])).rows[0].k;
 
 // Positive: an active assigned leader with the ordinary member role gets the cell's profile scope.
 let vis = await seeMembers(U.leaderMember);
-check('an assigned leader with the member role sees their cell members', vis.includes(U.memberA) && vis.includes(U.unassignedRole), JSON.stringify(vis));
-check('an assigned leader does not see pending or rejected applicants in their cell', !vis.includes(U.pendingApplicant) && !vis.includes(U.rejectedApplicant), JSON.stringify(vis));
+const kMem = await K(U.memberA), kUnassigned = await K(U.unassignedRole);
+check('an assigned leader with the member role sees their cell members (member_key directory)', vis.includes(kMem) && vis.includes(kUnassigned), JSON.stringify(vis));
+const kPend = await K(U.pendingApplicant), kRej = await K(U.rejectedApplicant);
+check('an assigned leader does not see pending or rejected applicants in their cell', !vis.includes(kPend) && !vis.includes(kRej), JSON.stringify(vis));
 let rpc = await as(U.leaderMember, `select public.is_cell_leader_for_profile($1) v`, [U.memberA]);
 check('direct RPC: assigned leader (member role) is a leader for their member', rpc.ok && rpc.rows[0].v === true, rpc.error);
-const uprof = await as(U.leaderMember, `select user_id from public.user_profiles where user_id=$1`, [U.memberA]);
-check('user_profiles: assigned leader sees the cell member’s extra profile row', uprof.ok && uprof.rows.length === 1, uprof.error);
+const uprof = await as(U.leaderMember, `select phone from public.v_cell_member_directory where member_key=$1`, [kMem]);
+check('directory: assigned leader sees the cell member’s approved contact row', uprof.ok && uprof.rows.length === 1, uprof.error);
+const direct = await as(U.leaderMember, `select user_id from public.user_profiles where user_id=$1`, [U.memberA]);
+check('negative: assigned leader reads no other member’s user_profiles row directly', direct.ok && direct.rows.length === 0, direct.error ?? direct.rows.length);
 
 // Negative: the role alone confers nothing. An unassigned cell_leader-role account has no cell authority.
 rpc = await as(U.unassignedRole, `select public.is_cell_leader_for_profile($1) v`, [U.memberA]);

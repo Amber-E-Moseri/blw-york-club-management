@@ -131,7 +131,7 @@ export const RorProgressTable: React.FC<Props> = ({
                 </td>
               </tr>
             ) : filtered.map((r) => (
-              <tr key={r.member_id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+              <tr key={r.member_key} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
                 <td className="px-4 py-3 font-medium text-gray-900 dark:text-white whitespace-nowrap">{r.full_name}</td>
                 {showCell && <td className="px-4 py-3 text-gray-500 dark:text-slate-400 whitespace-nowrap">{r.cell_name ?? '—'}</td>}
                 <td className="px-4 py-3 text-orange-600 font-semibold">{r.current_streak}d</td>

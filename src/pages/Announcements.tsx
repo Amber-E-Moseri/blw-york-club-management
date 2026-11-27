@@ -4,6 +4,8 @@ import { Button } from '../components/foundation/Button';
 import { Input } from '../components/foundation/Input';
 import { getAnnouncements, createAnnouncement, notifyAnnouncementMembers } from '../lib/queries';
 import { useLeadership } from '../hooks/useLeadership';
+import { fetchCells } from '../lib/queries/contacts';
+import type { Cell } from '../types';
 import type { Announcement } from '../types';
 import type { AuthUser } from '../lib/auth';
 
@@ -23,11 +25,20 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
   // Staff post organization-wide. A cell leader posts to a cell they lead; the role alone grants nothing.
   const { isStaff, ledCells, loading: leadershipLoading } = useLeadership();
   const canPost = isStaff || ledCells.length > 0;
-  const targetCellId = isStaff ? null : (cellChoice || ledCells[0]?.id || null);
+  // Staff choose organization-wide (empty) or any cell. A leader posts to a cell they lead.
+  const [allCells, setAllCells] = useState<Cell[]>([]);
+  const targetCellId = isStaff ? (cellChoice || null) : (cellChoice || ledCells[0]?.id || null);
+  const pickerCells: Array<{ id: string; name: string }> = isStaff ? allCells : ledCells;
+  const targetCellName = pickerCells.find((cell) => cell.id === targetCellId)?.name ?? null;
 
   useEffect(() => {
     getAnnouncements(20).then(setItems).catch(console.error).finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!isStaff) return;
+    fetchCells().then(setAllCells).catch(() => setAllCells([]));
+  }, [isStaff]);
 
   async function handlePost() {
     if (!user || !title.trim() || !body.trim()) return;
@@ -85,15 +96,16 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
           <div className="card mb-6 space-y-3">
             <Input label="Title" value={title} onChange={setTitle} />
             <Input label="Message" type="textarea" value={body} onChange={setBody} />
-            {!isStaff && ledCells.length > 1 && (
+            {(isStaff || ledCells.length > 1) && (
               <label className="block text-small text-gray-700">
-                Cell
+                Audience
                 <select
-                  value={targetCellId ?? ''}
+                  value={isStaff ? (cellChoice) : (targetCellId ?? '')}
                   onChange={(e) => setCellChoice(e.target.value)}
                   className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
                 >
-                  {ledCells.map((cell) => (
+                  {isStaff && <option value="">Organization-wide</option>}
+                  {pickerCells.map((cell) => (
                     <option key={cell.id} value={cell.id}>{cell.name}</option>
                   ))}
                 </select>
@@ -102,7 +114,11 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
             {!isStaff && ledCells.length === 1 && (
               <p className="text-small text-gray-600">Posting to {ledCells[0].name}.</p>
             )}
-            {isStaff && <p className="text-small text-gray-600">Posting organization-wide.</p>}
+            {isStaff && (
+              <p className="text-small text-gray-600">
+                {targetCellName ? `Posting to ${targetCellName} only.` : 'Posting organization-wide to every active member.'}
+              </p>
+            )}
             {!isStaff && leadershipLoading && <p className="text-small text-gray-600">Checking your cell assignment…</p>}
             <label className="flex items-center gap-2 text-small text-gray-700">
               <input

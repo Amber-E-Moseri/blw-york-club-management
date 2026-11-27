@@ -46,7 +46,9 @@ export async function getEnhancedDashboardStats(
     personalHabits,
     devotionalViews,
   ] = await Promise.all([
-    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', APPROVED_STATUS),
+    leadsCells
+      ? supabase.from('v_cell_member_directory').select('member_key', { count: 'exact', head: true })
+      : supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', APPROVED_STATUS),
     supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
     supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', APPROVED_STATUS)
       .gte('joined_at', monthTime.start).lt('joined_at', monthTime.nextStart),

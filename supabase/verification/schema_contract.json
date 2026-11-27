@@ -76,7 +76,8 @@
     "member_directory",
     "membership_reconciliation_review",
     "organizational_member_directory",
-    "v_cell_member_contacts",
+    "v_cell_member_directory",
+    "v_prayer_requests_visible",
     "v_public_content",
     "v_public_editions",
     "v_public_events",
@@ -340,6 +341,12 @@
         "service_role"
       ]
     },
+    "get_cell_member_profile(text)": {
+      "security": "invoker",
+      "execute": [
+        "authenticated"
+      ]
+    },
     "get_cell_ror_progress(text,text)": {
       "security": "definer",
       "execute": [
@@ -458,6 +465,12 @@
     "meeting_attendance_normalise()": {
       "security": "invoker",
       "execute": []
+    },
+    "member_roster_key(uuid)": {
+      "security": "invoker",
+      "execute": [
+        "authenticated"
+      ]
     },
     "merge_people(uuid,uuid,text)": {
       "security": "definer",

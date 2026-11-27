@@ -30,7 +30,9 @@ await ins(PR.leadAnon, U.memberA, 'leadership', true);
 await ins(PR.sharedA, U.memberA, 'shared');
 await ins(PR.leadB, U.memberB, 'leadership');
 await ins(PR.inactiveLeadA, U.memberA, 'leadership', false, false);
-const readIds = async (uid) => { const r = await as(uid, `select id from public.prayer_requests`); return r.ok ? new Set(r.rows.map((x) => x.id)) : { error: r.error }; };
+// Staff read the table (prayers_leadership_staff). Members and leaders read only through v_prayer_requests_visible, which never exposes an anonymous author.
+const STAFF = [U.admin, U.coord];
+const readIds = async (uid) => { const source = STAFF.includes(uid) ? 'prayer_requests' : 'v_prayer_requests_visible'; const r = await as(uid, `select id from public.${source}`); return r.ok ? new Set(r.rows.map((x) => x.id)) : { error: r.error }; };
 
 // Positive
 let s = await readIds(U.leaderA);

@@ -5,7 +5,8 @@ import { PeopleFilters } from '../components/people/PeopleFilters';
 import { PersonCard } from '../components/people/PersonCard';
 import { PersonDetailPanel } from '../components/people/PersonDetailPanel';
 import { Skeleton } from '../components/dashboard/DashboardCard';
-import { fetchMembersFiltered, fetchMembershipAuthoritySummary, type MembershipAuthoritySummary } from '../lib/queries/members';
+import { fetchMembersFiltered, fetchMembershipAuthoritySummary, fetchCellMemberDirectory, cellMemberRowToMember, type MembershipAuthoritySummary } from '../lib/queries/members';
+import { useLeadership } from '../hooks/useLeadership';
 import { fetchCells } from '../lib/queries/contacts';
 import type { AuthUser } from '../lib/auth';
 import type { Cell, Member } from '../types';
@@ -30,6 +31,8 @@ function useDebouncedValue<T>(value: T, delay: number): T {
 export const Members: React.FC<Props> = ({ user }) => {
   const level = ROLE_LEVEL[user?.role ?? 'member'] ?? 0;
   const isAdmin = level >= 2;
+  // Staff read the organization directory. A cell leader reads only the members of the cells they lead.
+  const { isStaff } = useLeadership();
 
   const [members, setMembers] = useState<Member[]>([]);
   const [cells, setCells] = useState<Cell[]>([]);
@@ -62,18 +65,27 @@ export const Members: React.FC<Props> = ({ user }) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchMembersFiltered({
-        search: debouncedSearch || undefined,
-        role: roleFilter || undefined,
-        cellId: cellFilter || undefined,
-      });
-      setMembers(data);
+      if (isStaff) {
+        const data = await fetchMembersFiltered({
+          search: debouncedSearch || undefined,
+          role: roleFilter || undefined,
+          cellId: cellFilter || undefined,
+        });
+        setMembers(data);
+      } else {
+        // Leader view: the cell directory, filtered here. The role is not part of this view, so the role filter does not apply.
+        const needle = debouncedSearch.trim().toLowerCase();
+        const rows = (await fetchCellMemberDirectory())
+          .filter((row) => !cellFilter || row.cell_id === cellFilter)
+          .filter((row) => !needle || (row.full_name ?? '').toLowerCase().includes(needle) || (row.email ?? '').toLowerCase().includes(needle));
+        setMembers(rows.map(cellMemberRowToMember));
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load people.');
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, roleFilter, cellFilter]);
+  }, [debouncedSearch, roleFilter, cellFilter, isStaff]);
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
 
@@ -242,6 +254,7 @@ export const Members: React.FC<Props> = ({ user }) => {
           onClose={() => setSelectedId(null)}
           currentUser={user}
           onSaved={fetchMembers}
+          leaderView={!isStaff}
         />
       )}
     </div>

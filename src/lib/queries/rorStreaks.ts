@@ -10,7 +10,9 @@ export interface RorStreak {
 }
 
 export interface CellMemberRorRow {
-  member_id: string;
+  member_key: string;
+  /** The auth user id. Present for staff only; null for a cell leader. */
+  member_id: string | null;
   full_name: string;
   cell_id: string;
   cell_name: string;
