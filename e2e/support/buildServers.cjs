@@ -40,7 +40,7 @@ function sha256(buffer) {
  * DELETE /__test__/override?path=/sw.js removes it. The upgrade test uses this to serve the legacy worker at /sw.js only
  * while it seeds a device, so the candidate's own /sw.js is served afterwards.
  */
-function startStaticServer({ root, port, overrides = new Map() }) {
+function startStaticServer({ root, port, overrides = new Map(), mount = '' }) {
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, `http://127.0.0.1:${port}`);
     if (url.pathname === '/__test__/override') {
@@ -66,7 +66,15 @@ function startStaticServer({ root, port, overrides = new Map() }) {
       res.writeHead(405).end();
       return;
     }
-    const pathname = decodeURIComponent(url.pathname);
+    let pathname = decodeURIComponent(url.pathname);
+    if (mount) {
+      // A prefix-mounted build (the unified /hub deployment) answers only under its mount, like the real host.
+      if (pathname !== mount && !pathname.startsWith(mount + '/')) {
+        res.writeHead(404).end('not found');
+        return;
+      }
+      pathname = pathname.slice(mount.length) || '/';
+    }
     if (overrides.has(pathname)) {
       res.writeHead(200, { 'Content-Type': TYPES[path.extname(pathname)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
       res.end(overrides.get(pathname));
@@ -119,11 +127,11 @@ function startFakeAuthServer({ port, allowOrigin }) {
 }
 
 /** Hash of the main bundle the static server is about to serve. Lets a run prove which build it tested. */
-function servedBundleFingerprint(root) {
+function servedBundleFingerprint(root, mount = '') {
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-  const match = html.match(/src="(\/static\/js\/main\.[^"]+\.js)"/);
+  const match = html.match(new RegExp('src="(' + mount + '/static/js/main\\.[^"]+\\.js)"'));
   if (!match) throw new Error('index.html does not reference a main bundle');
-  const file = path.join(root, match[1]);
+  const file = path.join(root, match[1].slice(mount.length));
   return { bundle: path.basename(match[1]), sha256: sha256(fs.readFileSync(file)) };
 }
 
@@ -138,9 +146,10 @@ if (require.main === module) {
       console.error(`PROD_BUILD_DIR is not a build: ${root}`);
       process.exit(1);
     }
-    const fingerprint = servedBundleFingerprint(root);
-    startStaticServer({ root, port }).then(() => {
-      console.log(`[static] serving ${root} on 127.0.0.1:${port} bundle=${fingerprint.bundle} sha256=${fingerprint.sha256}`);
+    const mount = process.env.PROD_MOUNT || '';
+    const fingerprint = servedBundleFingerprint(root, mount);
+    startStaticServer({ root, port, mount }).then(() => {
+      console.log(`[static] serving ${root} at ${mount || '/'} on 127.0.0.1:${port} bundle=${fingerprint.bundle} sha256=${fingerprint.sha256}`);
     });
   } else if (mode === 'auth') {
     const port = Number(process.env.PROD_AUTH_PORT || 4174);

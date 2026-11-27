@@ -1,6 +1,9 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { mockSupabase } from './supabaseMock';
 
+// The app root: '/' for the root-mounted build, '/hub/' for the prefix-mounted unified build (PROD_MOUNT=/hub).
+const APP_ROOT = `${process.env.PROD_MOUNT ?? ''}/`;
+
 // Regression coverage for the production sign-in report: an unreadable "Sign In" heading in dark mode, a card touching
 // the screen edges on phones, raw browser exceptions in place of sign-in messages, and a double submit.
 
@@ -63,7 +66,7 @@ test.describe('sign-in card in light and dark themes', () => {
     test(`heading, label, field text and primary button are readable in ${scheme} mode`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: scheme });
       await mockSupabase(page);
-      await page.goto('/');
+      await page.goto(APP_ROOT);
 
       const heading = page.getByRole('heading', { name: 'Sign In' });
       await expect(heading).toBeVisible();
@@ -79,7 +82,7 @@ test.describe('sign-in card in light and dark themes', () => {
     await mockSupabase(page);
     for (const width of [320, 375]) {
       await page.setViewportSize({ width, height: 640 });
-      await page.goto('/');
+      await page.goto(APP_ROOT);
       // The card is the container of the sign-in heading. No marker class is needed to find it.
       const card = page.getByRole('heading', { name: 'Sign In' }).locator('..');
       const box = await card.boundingBox();
@@ -94,7 +97,7 @@ test.describe('sign-in messages and submission', () => {
   test('a network failure shows a plain message, never the browser exception', async ({ page }) => {
     await mockSupabase(page);
     await page.route('**/auth/v1/token*', (route) => route.abort('failed'));
-    await page.goto('/');
+    await page.goto(APP_ROOT);
 
     await page.getByLabel('Email').fill('leader@yorku.ca');
     await page.getByLabel('Password').fill('secret1');
@@ -114,7 +117,7 @@ test.describe('sign-in messages and submission', () => {
         body: JSON.stringify({ code: 400, error_code: 'invalid_credentials', msg: 'Invalid login credentials' }),
       }),
     );
-    await page.goto('/');
+    await page.goto(APP_ROOT);
 
     await page.getByLabel('Email').fill('leader@yorku.ca');
     await page.getByLabel('Password').fill('wrong-password');
@@ -136,7 +139,7 @@ test.describe('sign-in messages and submission', () => {
         body: JSON.stringify({ code: 400, error_code: 'invalid_credentials', msg: 'Invalid login credentials' }),
       });
     });
-    await page.goto('/');
+    await page.goto(APP_ROOT);
 
     await page.getByLabel('Email').fill('leader@yorku.ca');
     await page.getByLabel('Password').fill('secret1');

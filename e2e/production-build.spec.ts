@@ -2,6 +2,9 @@ import { expect, test, type Page } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 
+// The app root: '/' for the root-mounted build, '/hub/' for the prefix-mounted unified build (PROD_MOUNT=/hub).
+const APP_ROOT = `${process.env.PROD_MOUNT ?? ''}/`;
+
 // Runs against a production build served by e2e/support/buildServers.cjs, through playwright.production.config.ts.
 //
 //   PROD_BUILD_KIND=candidate  the hotfix build. It must never produce a null response.
@@ -18,7 +21,7 @@ test.use({ serviceWorkers: 'allow' });
 
 /** Loads the app, waits until a service worker controls the page, and returns the page ready for sign-in. */
 async function openControlledApp(page: Page) {
-  await page.goto('/');
+  await page.goto(APP_ROOT);
   await page.waitForFunction(() => 'serviceWorker' in navigator, undefined, { timeout: 30_000 });
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
@@ -79,7 +82,7 @@ test.describe(`production build (${KIND})`, () => {
 });
 
 test.describe('legacy service worker upgrade', () => {
-  test.skip(KIND !== 'candidate' || !LEGACY_SW_FILE, 'runs only against the candidate with a legacy worker file');
+  test.skip(KIND !== 'candidate' || !LEGACY_SW_FILE || !!process.env.PROD_MOUNT, 'root-scope only: the candidate with a legacy worker file, not the prefix build');
 
   test('a device that holds the retired /sw.js registration moves to the push worker, keeps other caches and sessions', async ({
     browser,
@@ -123,7 +126,7 @@ test.describe('legacy service worker upgrade', () => {
     await fetch(`${origin}/__test__/override?path=${encodeURIComponent('/legacy-seed.html')}`, { method: 'DELETE' });
 
     const page = await context.newPage();
-    await page.goto('/');
+    await page.goto(APP_ROOT);
     const readState = () =>
       page.evaluate(async () => {
         const regs = await navigator.serviceWorker.getRegistrations();
