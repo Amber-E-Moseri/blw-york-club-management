@@ -55,3 +55,19 @@ export function deriveLeadership(user: CapabilityUser | null | undefined, cells:
 
 /** Fail-closed value used when no provider is mounted or while nothing is known. Grants nothing. */
 export const CLOSED_LEADERSHIP: LeadershipCapability = deriveLeadership(null, []);
+
+/**
+ * The scope that data queries apply to the signed-in user. Built from the same capability as the navigation and the
+ * route guards, so display and data never disagree. Staff see everything the database allows; a leader is scoped to
+ * the cells they lead; anyone else is scoped to their own records.
+ */
+export interface LeadershipScope {
+  isStaff: boolean;
+  ledCellIds: string[];
+}
+
+export const NO_SCOPE: LeadershipScope = { isStaff: false, ledCellIds: [] };
+
+export function scopeFrom(capability: LeadershipCapability): LeadershipScope {
+  return { isStaff: capability.isStaff, ledCellIds: capability.ledCells.map((cell) => cell.id) };
+}

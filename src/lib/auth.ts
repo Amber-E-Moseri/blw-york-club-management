@@ -30,7 +30,8 @@ export class AuthError extends Error {
 const ROLE_PERMISSIONS: Record<AuthUser['role'], string[]> = {
   coordinator: ['*'],
   admin: ['manage_members', 'manage_events', 'manage_announcements', 'view_reports', 'manage_cells'],
-  cell_leader: ['manage_cell_members', 'create_events', 'post_announcements', 'view_cell_reports'],
+  // Cell-leader rights come from an active cell assignment (cells.leader_id), not from this role label. See lib/leadership.ts.
+  cell_leader: [],
   member: ['view_events', 'rsvp_events', 'view_announcements', 'submit_prayer_requests'],
 };
 

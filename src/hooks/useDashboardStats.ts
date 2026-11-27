@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ActivityItem, EnhancedDashboardStats, Meeting } from '../types';
 import type { AuthUser } from '../lib/auth';
+import type { LeadershipScope } from '../lib/leadership';
+import { useLeadership } from './useLeadership';
 import {
   getEnhancedDashboardStats,
   getRecentActivity,
@@ -12,6 +14,12 @@ import {
 export type { AttentionContact };
 
 export function useDashboardStats(user: AuthUser | null) {
+  const { isStaff, ledCells, loading: leadershipLoading } = useLeadership();
+  // Data scope comes from the same capability as navigation and routes. It reloads when leadership changes.
+  const scope = useMemo<LeadershipScope>(
+    () => ({ isStaff, ledCellIds: ledCells.map((cell) => cell.id) }),
+    [isStaff, ledCells]
+  );
   const [stats, setStats] = useState<EnhancedDashboardStats | null>(null);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
@@ -24,15 +32,17 @@ export function useDashboardStats(user: AuthUser | null) {
       setLoading(false);
       return;
     }
+    // Wait for the assignment lookup, so the first load is never shown with the wrong scope.
+    if (leadershipLoading) return;
 
     setLoading(true);
     setError(null);
     try {
       const [nextStats, nextActivity, nextMeetings, nextAttention] = await Promise.all([
-        getEnhancedDashboardStats(user.id, user.role, user.cellId),
-        getRecentActivity(user.id, user.role),
+        getEnhancedDashboardStats(user.id, scope),
+        getRecentActivity(user.id, scope),
         getUpcomingMeetings(user.id, user.cellId),
-        getContactsNeedingAttention(user.role, user.id, user.cellId),
+        getContactsNeedingAttention(scope),
       ]);
       setStats(nextStats);
       setActivity(nextActivity);
@@ -43,7 +53,7 @@ export function useDashboardStats(user: AuthUser | null) {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, scope, leadershipLoading]);
 
   useEffect(() => {
     load();

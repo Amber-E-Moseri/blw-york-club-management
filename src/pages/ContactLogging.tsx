@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react';
+import { useLeadership } from '../hooks/useLeadership';
 import { Download, Plus, Upload } from 'lucide-react';
 import { Button } from '../components/foundation/Button';
 import { BulkImportModal } from '../components/feature/BulkImportModal';
@@ -24,8 +25,6 @@ import type { BulkImportRow, Contact, ContactFilters as Filters, ContactInput, I
 
 interface Props { user: AuthUser | null; }
 
-const canManage = (role: string) => ['coordinator', 'admin', 'cell_leader'].includes(role);
-const canSeePhone = (role: string) => ['coordinator', 'admin', 'cell_leader'].includes(role);
 
 export const ContactLogging: React.FC<Props> = ({ user }) => {
   const [filters, setFilters] = useState<Filters>({});
@@ -46,9 +45,9 @@ export const ContactLogging: React.FC<Props> = ({ user }) => {
   const { log: auditLog } = useContactAuditLog(selected?.id ?? null);
   const mutations = useContactMutations(refetch);
 
-  const role = user?.role ?? 'member';
   const cellId = user?.cellId ?? '';
-  const manage = canManage(role);
+  const { canUseLeaderPages } = useLeadership();
+  const manage = canUseLeaderPages;
 
   const handleView = useCallback((contact: Contact) => {
     setSelected(contact);
@@ -156,7 +155,7 @@ export const ContactLogging: React.FC<Props> = ({ user }) => {
           tags={tags}
           statuses={statuses}
           canEdit={manage}
-          showPhone={canSeePhone(role)}
+          showPhone={manage}
           onEdit={handleView}
           onReassign={handleReassign}
           onMove={handleMove}

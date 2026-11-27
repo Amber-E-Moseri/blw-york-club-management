@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLeadership } from '../hooks/useLeadership';import { useNavigate } from 'react-router-dom';
 import {
   Clock, Users, CalendarDays, Megaphone, BookMarked, CheckSquare,
   BarChart2, KeyRound, ClipboardList, Video, Download, Mail, Settings,
@@ -29,8 +29,10 @@ const ADMIN_ITEMS: { label: string; desc: string; icon: LucideIcon; path?: strin
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ user }) => {
   const navigate = useNavigate();
+  // Staff or an assigned cell leader. The role label alone is not enough.
+  const { canUseLeaderPages } = useLeadership();
 
-  if (!['admin', 'coordinator', 'cell_leader'].includes(user?.role ?? '')) {
+  if (!canUseLeaderPages) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
         <p className="text-small text-gray-400">Access denied.</p>

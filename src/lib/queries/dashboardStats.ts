@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import type { AuthUser } from '../auth';
+import { NO_SCOPE, type LeadershipScope } from '../leadership';
 import type { ActivityItem, EnhancedDashboardStats, Meeting } from '../../types';
 import { localMonthInstants, localMonthRange, shiftLocalDays, toLocalDateKey } from '../dates';
 import { APPROVED_STATUS } from '../membership';
@@ -24,9 +24,10 @@ function countOrNull(result: { count: number | null; error: unknown }): number |
 
 export async function getEnhancedDashboardStats(
   userId: string,
-  role: AuthUser['role'],
-  cellId?: string,
+  scope: LeadershipScope = NO_SCOPE,
 ): Promise<EnhancedDashboardStats> {
+  // A leader is someone with led cells and no staff authority. The role label alone does not count.
+  const leadsCells = !scope.isStaff && scope.ledCellIds.length > 0;
   const today = toLocalDateKey();
   const weekAgo = toLocalDateKey(shiftLocalDays(-6));
   const month = localMonthRange();
@@ -94,11 +95,11 @@ export async function getEnhancedDashboardStats(
     meetings_this_month: meetingsThisMonth.count ?? 0,
     testimonies_this_month: testimonies.count ?? 0,
     contacts_this_week: contacts.count ?? 0,
-    cell_contacts_this_week: role === 'cell_leader'
-      ? contactRows.filter((row) => row.cell_id === cellId).length
+    cell_contacts_this_week: leadsCells
+      ? contactRows.filter((row) => row.cell_id !== null && scope.ledCellIds.includes(row.cell_id)).length
       : undefined,
     // Not computed yet for any role, so it is reported as unavailable rather than as a measured 0%.
-    cell_meeting_attendance_rate: role === 'cell_leader' ? null : undefined,
+    cell_meeting_attendance_rate: leadsCells ? null : undefined,
     habit_streak_avg: habitStreakAvg,
     devotional_views_this_month: countOrNull(devotionalViews),
     contacts_last_7_days: Array.from(contactsByDate, ([date, count]) => ({ date, count })),
@@ -107,10 +108,10 @@ export async function getEnhancedDashboardStats(
 
 export async function getRecentActivity(
   userId: string,
-  role: AuthUser['role'],
+  scope: LeadershipScope = NO_SCOPE,
   limit = 10,
 ): Promise<ActivityItem[]> {
-  const isAdmin = role === 'admin' || role === 'coordinator';
+  const isAdmin = scope.isStaff;
   const [announcements, testimonies, meetings, contacts] = await Promise.all([
     supabase.from('announcements').select('id,title,author_name,created_at').order('created_at', { ascending: false }).limit(limit),
     supabase.from('testimonies').select('id,title,author_name,created_at,status').neq('status', 'archived').order('created_at', { ascending: false }).limit(limit),
@@ -162,12 +163,11 @@ export async function getRecentActivity(
 }
 
 export async function getContactsNeedingAttention(
-  role: AuthUser['role'],
-  userId: string,
-  cellId?: string,
+  scope: LeadershipScope = NO_SCOPE,
   limit = 6,
 ): Promise<AttentionContact[]> {
-  if (role === 'member') return [];
+  // Staff see all; a leader sees their led cells; everyone else sees nothing here, as before for members.
+  if (!scope.isStaff && scope.ledCellIds.length === 0) return [];
 
   let query = supabase
     .from('contacts')
@@ -177,8 +177,8 @@ export async function getContactsNeedingAttention(
     .order('date_contacted', { ascending: true })
     .limit(limit);
 
-  if (role === 'cell_leader' && cellId) {
-    query = query.eq('cell_id', cellId);
+  if (!scope.isStaff) {
+    query = query.in('cell_id', scope.ledCellIds);
   }
 
   const { data } = await query;

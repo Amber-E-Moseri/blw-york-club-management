@@ -33,7 +33,7 @@ describe('member metrics', () => {
     fake.queue('profiles', ok(1));
     fake.queue('profiles', ok(0));
 
-    const stats = await getEnhancedDashboardStats('user-1', 'member');
+    const stats = await getEnhancedDashboardStats('user-1');
 
     expect(stats.member_count).toBe(4);
     expect(stats.pending_member_count).toBe(1);
@@ -42,7 +42,7 @@ describe('member metrics', () => {
   });
 
   test('inactive and rejected profiles are never counted', async () => {
-    await getEnhancedDashboardStats('user-1', 'member');
+    await getEnhancedDashboardStats('user-1');
 
     const statuses = argsFor('profiles', 'eq').filter((args) => args[0] === 'status').map((args) => args[1]);
     expect(statuses).not.toContain('inactive');
@@ -50,7 +50,7 @@ describe('member metrics', () => {
   });
 
   test('new-member growth counts active joins between the local month start and the next month start', async () => {
-    await getEnhancedDashboardStats('user-1', 'member');
+    await getEnhancedDashboardStats('user-1');
 
     expect(argsFor('profiles', 'gte')).toContainEqual(['joined_at', new Date('2026-10-01T00:00:00-04:00').toISOString()]);
     expect(argsFor('profiles', 'lt')).toContainEqual(['joined_at', new Date('2026-11-01T00:00:00-04:00').toISOString()]);
@@ -62,7 +62,7 @@ describe('meeting metrics', () => {
     fake.queue('meetings', ok(2));
     fake.queue('meetings', ok(0));
 
-    const stats = await getEnhancedDashboardStats('user-1', 'member');
+    const stats = await getEnhancedDashboardStats('user-1');
 
     expect(stats.meetings_this_month).toBe(2);
     expect(argsFor('meetings', 'gte')).toContainEqual(['date', '2026-10-01']);
@@ -73,7 +73,7 @@ describe('meeting metrics', () => {
     fake.queue('meetings', ok(0));
     fake.queue('meetings', ok(1));
 
-    const stats = await getEnhancedDashboardStats('user-1', 'member');
+    const stats = await getEnhancedDashboardStats('user-1');
 
     expect(stats.upcoming_events).toBe(1);
     expect(argsFor('meetings', 'gte')).toContainEqual(['date', '2026-10-27']);
@@ -82,7 +82,7 @@ describe('meeting metrics', () => {
   test('the month window moves to November on the first local day, even while UTC is still on October 31', async () => {
     jest.setSystemTime(new Date('2026-11-01T00:30:00-04:00'));
 
-    await getEnhancedDashboardStats('user-1', 'member');
+    await getEnhancedDashboardStats('user-1');
 
     expect(argsFor('meetings', 'gte')).toContainEqual(['date', '2026-11-01']);
     expect(argsFor('meetings', 'lte')).toContainEqual(['date', '2026-11-30']);
@@ -95,7 +95,7 @@ describe('meeting metrics', () => {
   });
 
   test('testimonies this month use the local month instants, not a UTC date string', async () => {
-    await getEnhancedDashboardStats('user-1', 'member');
+    await getEnhancedDashboardStats('user-1');
 
     expect(argsFor('testimonies', 'gte')).toContainEqual(['created_at', new Date('2026-10-01T00:00:00-04:00').toISOString()]);
     expect(argsFor('testimonies', 'lt')).toContainEqual(['created_at', new Date('2026-11-01T00:00:00-04:00').toISOString()]);
@@ -109,7 +109,7 @@ describe('unavailable versus zero', () => {
     fake.queue('habit_entries', failed());
     fake.queue('devotional_views', failed());
 
-    const stats = await getEnhancedDashboardStats('user-1', 'member');
+    const stats = await getEnhancedDashboardStats('user-1');
 
     expect(stats.announcement_count).toBeNull();
     expect(stats.active_prayer_requests).toBeNull();
@@ -123,7 +123,7 @@ describe('unavailable versus zero', () => {
     fake.queue('habit_entries', { data: [], error: null });
     fake.queue('devotional_views', ok(0));
 
-    const stats = await getEnhancedDashboardStats('user-1', 'member');
+    const stats = await getEnhancedDashboardStats('user-1');
 
     expect(stats.announcement_count).toBe(0);
     expect(stats.active_prayer_requests).toBe(0);
@@ -142,7 +142,7 @@ describe('unavailable versus zero', () => {
       error: null,
     });
 
-    const stats = await getEnhancedDashboardStats('user-1', 'member');
+    const stats = await getEnhancedDashboardStats('user-1');
 
     expect(stats.habit_streak_avg).toBe(Math.round((3 / 4) * 7));
   });
@@ -150,12 +150,12 @@ describe('unavailable versus zero', () => {
   test('a failed required query fails the whole load instead of showing zeros', async () => {
     fake.queue('meetings', failed('meetings unavailable'));
 
-    await expect(getEnhancedDashboardStats('user-1', 'member')).rejects.toThrow('meetings unavailable');
+    await expect(getEnhancedDashboardStats('user-1')).rejects.toThrow('meetings unavailable');
   });
 
   test('the unread count and cell attendance rate are unavailable, not hardcoded zeros', async () => {
-    const member = await getEnhancedDashboardStats('user-1', 'member');
-    const leader = await getEnhancedDashboardStats('user-1', 'cell_leader', 'cell-1');
+    const member = await getEnhancedDashboardStats('user-1');
+    const leader = await getEnhancedDashboardStats('user-1', { isStaff: false, ledCellIds: ['cell-1'] });
 
     expect(member.unread_announcements).toBeNull();
     expect(leader.cell_meeting_attendance_rate).toBeNull();
