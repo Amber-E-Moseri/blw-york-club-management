@@ -106,6 +106,80 @@ production write, migration, deployment or merge is authorized by this certifica
 Branch: `remediation/blw-york-wave1-5`. Base: `main` at `9e57c54`. Production: HOLD (no production writes, no migrations
 applied, no deployments, no merge into `main`, no PR merged or closed).
 
+## P0: production sign-in failure on iPhone Safari (2026-11-26)
+
+Report: submitting the login form on `https://blwyork.vercel.app` in iPhone Safari produced
+`FetchEvent.respondWith received an error: Returned response is null.` The login card also had a nearly invisible
+"Sign In" heading, inconsistent light and dark colours, poor autofill styling, and a card touching the screen edges.
+
+**Finding.** `public/service-worker.js` (the worker `src/index.tsx` registers at `/service-worker.js`) answered every
+request for a `*.supabase.co` host with `fetch(request).catch(() => caches.match(request))`. The password POST to
+`/auth/v1/token` went through that handler. When the network request failed, `caches.match` resolved to `undefined`, and
+respondWith received no Response. The same handler also covered non-GET requests and HTML navigations.
+
+**Confirmed root cause (by code and by test).** The null response is the `caches.match` fallback. It is not a
+Supabase error. The exact condition that made the Supabase fetch fail on the iPhone was not reproduced, because no device
+or WebKit engine was available here. The fix does not depend on that condition: the worker no longer intercepts those
+requests.
+
+**Other causes, found in the same review.**
+- Dark theme: the app sets `.dark` on `<html>`. The global `h2` rule then applies `dark:text-slate-100` to a white card,
+  so the heading was nearly invisible. The field labels had no dark variant either.
+- Browser autofill painted a pale background with dark text, and no rule covered it.
+- Raw exception text reached the UI: `Load failed` and `Failed to fetch` from the auth client, and the raw `Profile not
+  found` and profile-load messages.
+- A second tap on Sign In sent a second password request, because the form did not block re-submission.
+
+**Implementation.** Commit `b8c0232` on this branch, followed by the `7a37752` dependency commit. The fix is in:
+- `public/service-worker.js`: intercepts only same-origin GET requests for hashed `/static/` bundles (cache-first). Auth,
+  token refresh, every Supabase host, `/api/`, non-GET methods, navigations and any request with an `Authorization` header
+  pass through. A failed static fetch resolves to `Response.error()`. Caches are versioned (`blw-york-v2`), nothing is
+  precached, and activate deletes every other cache, including `blw-york-v1` and `cc-portal-v1`.
+- `public/sw.js`: replaced with a retirement worker with no fetch handler. It deletes caches and unregisters itself, so a
+  device that installed the old `/sw.js` registration drops it on the next update check.
+- `src/lib/serviceWorker/pushServiceWorker.ts`: removes any registration running `/sw.js`, then registers
+  `/service-worker.js`. Registration failures are logged, not thrown.
+- `src/lib/auth.ts`, `src/hooks/useAuth.ts`: network failures map to a plain message. The raw text stays in `AuthError.code`
+  and is not shown. Existing auth messages that `authFailClosed.test.ts` asserts on are unchanged. The fail-closed
+  behaviour for pending, inactive and unrecognised accounts is unchanged.
+- `src/pages/Login.tsx`, `src/components/foundation/Input.tsx`, `src/styles/globals.css`: explicit light and dark colours for
+  the card, heading, labels and error text. Autofill is pinned per theme. Safe-area padding gives the card margins on
+  phones. A second submit is blocked while a sign-in is in flight.
+
+No authorization or RLS change, no migration, no secret, and no deployment.
+
+**Verification (run on the committed content, `b8c0232`, in an isolated copy with its own `node_modules`).**
+
+| Check | Result |
+|---|---|
+| Regression test against the pre-fix worker (`516ef7b`), `serviceWorkerAuthRegression.test.ts` | 9 of 11 cases fail. Red as required. |
+| `serviceWorkerAuthRegression`, `pushServiceWorkerRegistration`, `legacyServiceWorkerKillSwitch` | 18 / 18 pass |
+| Full Jest (`CI=true react-scripts test`) | 55 suites passed, 1 skipped; 538 tests passed, 11 skipped |
+| `tsc --noEmit` | Exit 0 |
+| Playwright Chromium, `login-regression.spec.ts` and `auth.spec.ts` | 10 / 10 pass (dev server, mocked Supabase) |
+| Playwright Chromium, `login-regression.spec.ts` against the pre-fix `Login.tsx` (`516ef7b`) | 3 fail: the card and heading contrast checks and the card-inset check. The contrast check cannot find the `.login-card` marker in the old markup, so it does not measure the old colours. |
+| Playwright WebKit (iPhone 13 project, `webkit-iphone`) | **Configured, not run.** The WebKit browser is not installed in this environment. |
+| Real iPhone Safari | **Not tested.** Needs a manual check. |
+
+Notes on the verification:
+- Playwright on port 3100 reached another process, not this checkout, so those runs were discarded. The results above
+  come from a dedicated dev server on port 3300.
+- The service-worker regression test exercises the worker file itself, under fake ServiceWorker globals. It does not
+  exercise the browser's own service-worker handling, so it does not reproduce the iOS engine's behaviour.
+
+**Is a standalone production hotfix advisable?** Yes, once the owner approves a deployment. The defect is on `main`:
+`public/service-worker.js` there is the same handler, so every current production visitor who has that worker is exposed.
+The change is narrow (service worker, auth messages, login UI). It has no schema, RLS or deployment dependency. Recommended
+route: cut a hotfix branch from `main`, cherry-pick `b8c0232` (and `7a37752` only if its dependency changes are needed),
+re-run the Jest and Playwright checks on that branch, then deploy after approval. A visiting device that still runs the
+old worker takes the new one on its next update check, and the new `public/sw.js` removes the legacy registration.
+
+**Open items.**
+1. Run the Playwright `webkit-iphone` project on a machine with WebKit installed, and check sign-in on a real iPhone.
+2. Confirm the production deployment serves the new `service-worker.js` (cache headers on `/service-worker.js` and
+   `/sw.js`), so the update check reaches the device.
+3. Owner review of the dev-only audit result in `7a37752` (22 high findings remain, all in the dev toolchain).
+
 ## Commits
 
 | SHA | Wave | Subject |
