@@ -5,6 +5,8 @@ name: E2E mocked browsers (Chromium and WebKit)
 
 on:
   workflow_dispatch: {}
+  push:
+    branches: [remediation/blw-york-wave1-5]
 
 permissions:
   contents: read
