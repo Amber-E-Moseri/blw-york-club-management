@@ -185,9 +185,11 @@ try {
   const meetA = await mkMeeting(cellA, leader1.id);
   const meetB = await mkMeeting(cellB, leader2.id);
   const attend = (meetingId, u) => ({ meeting_id: meetingId, user_id: u.id, user_name: `Cert ${u.id.slice(0, 4)}` });
-  const m1 = await member.client.from('meeting_attendances').insert(attend(meetA, member)).select();
-  const m2 = await member2.client.from('meeting_attendances').insert(attend(meetA, member2)).select();
-  expect('B1 active member can confirm their own attendance', !m1.error && !m2.error, m1.error?.message ?? m2.error?.message);
+  // Members confirm through respond_to_meeting_invitation, the path the app uses. A direct insert with the default
+  // 'invited' status is refused by migration 046 (self-service writes may only express confirmed or excused).
+  const m1 = await member.client.rpc('respond_to_meeting_invitation', { p_meeting_id: meetA, p_response: 'confirmed' });
+  const m2 = await member2.client.rpc('respond_to_meeting_invitation', { p_meeting_id: meetA, p_response: 'confirmed' });
+  expect('B1 active member can confirm their own attendance (respond_to_meeting_invitation)', !m1.error && !m2.error, m1.error?.message ?? m2.error?.message);
   const forged = await member.client.from('meeting_attendances').insert(attend(meetA, leader2)).select();
   expect("B2 a member cannot confirm attendance for someone else", !!forged.error, 'insert accepted');
   const own = await member.client.from('meeting_attendances').select('user_id').eq('meeting_id', meetA);
@@ -250,7 +252,9 @@ try {
     expect(`C3 pending account cannot change protected field "${field}"`, !!r.error || (r.data ?? []).length === 0 || now[field] !== value, `now=${JSON.stringify(now)}`);
   }
   const aName = await profileUpdate(member, { full_name: 'Member Edited' });
-  expect('C4 (design) an active member has no direct UPDATE on profiles (self-edit is limited to pending onboarding; active edits go through user_profiles)', (aName.data ?? []).length === 0, `rows=${aName.data?.length}`);
+  // Migration 045 (profiles_self_onboarding_update) lets pending and active accounts edit ordinary columns of their own
+  // row. The guard keeps role, status, admin_role and cell_id protected, and C6 checks those.
+  expect('C4 active member can edit own ordinary profile field (045 self-update policy)', !aName.error && (aName.data ?? []).length === 1, aName.error?.message ?? `rows=${aName.data?.length}`);
   const aUp = await userProfileUpsert(member, { first_name: 'Mem', last_name: 'Ber', phone: '+14165550111', bio: 'hello' });
   expect('C5 active member can save own user_profiles details', !aUp.error, aUp.error?.message);
   for (const [field, value] of [['role', 'admin'], ['status', 'inactive'], ['cell_id', cellB]]) {
