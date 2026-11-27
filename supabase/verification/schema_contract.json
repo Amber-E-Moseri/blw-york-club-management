@@ -8,6 +8,7 @@
     "announcements",
     "attendance_imports",
     "attendance_member_matches",
+    "audience_specs",
     "books_of_month",
     "bscs",
     "cells",
@@ -42,6 +43,8 @@
     "profiles",
     "push_notification_log",
     "push_subscriptions",
+    "saved_group_members",
+    "saved_groups",
     "scheduled_emails",
     "staff_profile_edit_audit",
     "status_settings",
@@ -133,7 +136,10 @@
       "testimony_reactions"
     ],
     "SELECT": [
+      "audience_specs",
       "push_notification_log",
+      "saved_group_members",
+      "saved_groups",
       "staff_profile_edit_audit",
       "web_audit_log",
       "web_permission_catalogue",
@@ -156,6 +162,9 @@
   },
   "serviceRoleNoAccess": [
     "admin_bootstrap_audit",
+    "audience_specs",
+    "saved_group_members",
+    "saved_groups",
     "web_audit_log",
     "web_client_rate_limits",
     "web_content",
@@ -443,6 +452,13 @@
       "security": "definer",
       "execute": [
         "authenticated"
+      ]
+    },
+    "resolve_audience(uuid)": {
+      "security": "definer",
+      "execute": [
+        "authenticated",
+        "service_role"
       ]
     },
     "respond_to_meeting_invitation(uuid,text)": {
