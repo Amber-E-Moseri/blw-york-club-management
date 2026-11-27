@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Button } from '../components/foundation/Button';
 import { Input } from '../components/foundation/Input';
 import { AuthError, resetPassword, resendConfirmation, verifyEmailOtp } from '../lib/auth';
@@ -44,6 +44,8 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
   const [studentNumber, setStudentNumber] = useState('');
   const [localError, setLocalError] = useState('');
   const [signInBusy, setSignInBusy] = useState(false);
+  // A ref, not state: it changes synchronously, so a second submit that arrives before a re-render is still refused.
+  const signInInFlight = useRef(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetBusy, setResetBusy] = useState(false);
   const [resetNotice, setResetNotice] = useState<ResetNotice | null>(null);
@@ -81,12 +83,14 @@ export const Login: React.FC<LoginProps> = ({ onSignIn, onSignUp, error, loading
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     // A second tap while the request is in flight would send the password twice.
-    if (signInBusy) return;
+    if (signInInFlight.current) return;
+    signInInFlight.current = true;
     setLocalError('');
     setSignInBusy(true);
     try {
       await onSignIn(email.trim(), password);
     } finally {
+      signInInFlight.current = false;
       setSignInBusy(false);
     }
   };

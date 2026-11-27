@@ -19,6 +19,33 @@ Read-only comparison to run by the owner, against the production project (`rjtst
 
 Blocked here: no production access.
 
+### 1a. Preview ledger lineage (owner action, read-only)
+
+The Preview project `yziuhtxtznginhdpqurb` reports versions 000-099 with no gaps. That is not the unified candidate's
+history (000-059). The unified candidate has not been applied to Preview, and nothing here repairs, resets, renumbers or
+deletes a ledger row. Migrations 000-038 have the same names on every candidate frontier. From version 039 the names
+differ, so the name list identifies which lineage Preview holds. Run these read-only in the Preview SQL Editor and paste
+the output:
+
+```sql
+select version, name from supabase_migrations.schema_migrations where version between '036' and '041' order by version;
+select count(*) as n, min(version) as first_version, max(version) as last_version from supabase_migrations.schema_migrations;
+select md5(string_agg(version || ' ' || name, E'
+' order by version) filter (where version between '039' and '059')) as digest_039_059
+from supabase_migrations.schema_migrations;
+```
+
+Interpretation (the names in the ledger may carry a `.sql` suffix, which changes the digest; say so if it does):
+
+- Version 039 named `039_ror_reading_streaks`, digest `d686b8decb6740cd5429234630c7a45c`: the unified 000-059 lineage.
+- Version 039 named `039_event_audience_meeting_delete`, digest `3b7ffa203dc76f6c4437326817c3cf5f`: the 60825c0 / fada4a3 lineage.
+- Anything else: a third lineage. Stop and do not apply migrations.
+
+Digests for 000-038 are `a171a70ed15659802a6248ad2b211542` on every frontier. Then run `supabase/verification/schema_fingerprint.sql`
+read-only and compare it with `schema_fingerprint.golden.json` through `check_schema_contract.mjs`. Only a match with the
+unified golden shows the unified shape.
+
+Status: not obtained. This environment has no access to the Preview database. No migration was applied to Preview.
 ## 2. Migration rehearsal (partial)
 
 - Done locally (PGlite, in-process): the full chain 000-058 replays with no error; the CMS authorization suite (216),
@@ -76,7 +103,13 @@ Supabase are not exercised.
 Trust boundary (resolved in this candidate): the client address is read only from `cf-connecting-ip`, and only when
 `WEBSITE_TRUSTED_PROXY=cloudflare`. `x-forwarded-for` and `x-real-ip` are no longer read. Without a trusted proxy the
 per-client limits are skipped. Turnstile and the database's global per-kind limits still apply. Add `WEBSITE_TRUSTED_PROXY`
-(optional) to the inventory for `website-inquiry` and `website-rhapsody-pdf` if the public site is proxied by Cloudflare.
+(optional) to the inventory for `website-inquiry` and `website-rhapsody-pdf`.
+
+**Deployment requirement.** Leave `WEBSITE_TRUSTED_PROXY` unset. Set it to `cloudflare` only when every request reaches
+the function through Cloudflare, which overwrites `cf-connecting-ip`, and direct requests to the function URL are blocked.
+If it is set without that ingress, a caller can send any `cf-connecting-ip` value and choose its own rate-limit bucket.
+Confirm the topology before setting it. Until then the per-client limit is inactive, and Turnstile plus the database's
+per-kind limits are the abuse controls.
 
 Also check the production secrets exist before deployment: `CLIENT_HASH_SECRET`, `TURNSTILE_SECRET_KEY`,
 `WEBSITE_ALLOWED_ORIGINS`, `WEBSITE_PUBLIC_URL`.
@@ -91,11 +124,30 @@ Only rows marked "CI" or "PGlite" were executed. Everything else is NOT RUN.
 | 11 previously skipped Supabase integration tests (`quickAddRealCode`) | CI `certification` job, local Supabase stack | PASS 11/11 on `de0aa29` |
 | Storage certification (local stack) | CI `certification` job | PASS 30/30 on `de0aa29` |
 | Storage certification (hosted Preview) | `storage_certification.mjs` against the Preview project | NOT RUN: `hosted-certification.yml` is frozen (`if: false`) and the Preview project is not visible to this account |
-| Role lifecycle (migrations 058 and 059) | PGlite: `website_roles_pglite.mjs` 35/35, `website_roles059_pglite.mjs` 34/34 | PASS |
+| Role lifecycle (migrations 058 and 059) | PGlite: `website_roles_pglite.mjs` 35/35, `website_roles059_pglite.mjs` 37/37 | PASS |
 | CMS authorization | PGlite and CI | PASS 216/216 (D2) |
 | Website Edge Functions | `deno check` and `deno test` (stubbed upstream), CI `edge-functions` | PASS 30 tests |
 | Admin login, content edit, publish, image upload, events, inquiries on a hosted Preview | live | NOT RUN (no isolated Preview project reachable) |
 | Public inquiry through Turnstile | live | NOT RUN |
+
+### Hotfix 25e9673 reconciliation (candidate)
+
+The hotfix was not cherry-picked. Each item was checked against HEAD:
+
+- Duplicate-submit guard: added a synchronous ref to `Login.tsx` (the state guard stays). The double-tap browser test passes
+  on Chromium and WebKit. Because the state guard already worked after re-render, this is defence in depth, not a proven
+  bug fix.
+- Contrast, autofill, colour scheme, safe-area spacing: already present at HEAD. Verified by the rendered-contrast tests.
+- Friendly auth errors and session restore and profile error messages: already present at HEAD. The hotfix's
+  `auth.ts` and `useAuth.ts` were NOT taken: they remove HEAD's fail-closed role and status handling and revert the
+  `/hub/reset-password` redirect.
+- Hub service worker: HEAD keeps `public/service-worker.js` under `/hub/`. The hotfix's root-scope worker was NOT taken.
+- Legacy root-scope retirement: `public/sw.js` added as the hotfix kill switch (no fetch handler, deletes only
+  `blw-york-v<n>` and `cc-portal-v<n>` caches, then unregisters). HEAD's push registration already removes the `/sw.js`
+  and `/service-worker.js` root registrations. The legacy-upgrade browser test keeps other caches and the session.
+- Production-build browser tests (`playwright.production.config.ts`, `e2e/production-build.spec.ts`): 20 of 20 pass on
+  Chromium and WebKit (iPhone 13 profile). WebKit is not a real iPhone. The pre-fix negative control was not run.
+- Not device-tested on an iPhone. Not merged or deployed.
 
 ## 7. Remaining release blockers
 
