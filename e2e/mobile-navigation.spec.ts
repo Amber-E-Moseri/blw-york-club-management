@@ -105,7 +105,8 @@ test.describe('desktop sidebar keeps the same page list', () => {
   for (const role of ROLES) {
     test(`${role}: sidebar lists the role's pages`, async ({ page }) => {
       await signIn(page, role);
-      expect(await sidebarLabels(page)).toEqual(labelsOf(PAGES_BY_ROLE[role]));
+      // The sidebar fills in after the leadership lookup resolves, so wait for the full list rather than read it once.
+      await expect.poll(() => sidebarLabels(page)).toEqual(labelsOf(PAGES_BY_ROLE[role]));
     });
   }
 });
