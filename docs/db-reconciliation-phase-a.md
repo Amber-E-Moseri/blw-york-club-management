@@ -73,3 +73,25 @@ No hosted migration, ledger change, reset or deployment was made.
 
 Open release blocker, unaffected by this analysis: the desktop WebKit service-worker stall (see
 `docs/production-readiness.md` section 0a). It requires resolution or an explicit approved disposition before release.
+
+## Source lineage correction (supersedes the "no source" statement)
+
+Earlier replay work used `e315ace` as the source chain and reported six Production functions with no definition. That was
+wrong: those definitions exist in this repository's own history, in the lineage that HEAD and the unified golden (000-059)
+use. `e315ace` is not that lineage.
+
+- Lineages diverge at merge-base `a09adb8`. HEAD's 039 is `039_ror_reading_streaks.sql`. The `e315ace` 039 is
+  `039_event_audience_meeting_delete.sql`. `e315ace` contains no ROR migration.
+- The six functions are defined in HEAD's migrations:
+  - `get_ror_streak`: 039, 043 (`043_get_ror_streak_authz.sql`)
+  - `get_cell_ror_progress`: 039
+  - `get_org_ror_progress`: 039
+  - `is_member_in_my_cell`: 039, 043
+  - `is_bsc_leader_for_logger`: 042, 044
+  - `is_bsc_peer_of_logger`: 042, 044
+- Consequence: replaying `e315ace` cannot reproduce Production's ROR/BSC layer. Production matches the HEAD lineage for those
+  objects, and Preview matches the `e315ace` lineage for the audience, communication, identity and assignment objects.
+  The Phase A baseline therefore has to be built from both lineages, not from one chain. Phase B must treat the two
+  lineages as separate sources and reconcile them explicitly.
+- Open: the Production drift (20 tables, 12 columns, 80 functions) still needs its cause identified against the HEAD
+  lineage, not `e315ace`. That comparison has not been run yet.

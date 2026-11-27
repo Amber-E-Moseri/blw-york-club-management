@@ -1,182 +1,184 @@
-# Cloud development handover: BLW York unified platform, database reconciliation
+# Cloud development handover
 
-Status as of the handover checkpoint. GitHub is the authoritative record of implementation state. This document is
-written so a cloud coding agent can continue without access to the originating machine.
+Purpose: give a cloud coding agent the complete project state, so it can continue without local context. GitHub is the
+authoritative source of implementation state. This document contains no credentials and no database exports.
 
-## 1. Authority and rules that remain binding
+Status at writing: production HOLD remains in effect. The release is not approved.
 
-- **Production: HOLD.** No production writes, migrations, deployments or merges. Production is a live system.
-- **Single writer.** One agent owns the unified worktree and the database reconciliation at a time. Do not run a second
-  writer against the same branch.
-- **Preserve:** existing accounts, profiles, people, memberships, contacts, attendance, leadership assignments and
-  historical records. Preserve PR #97 (unified branch) and PR #98 (standalone login hotfix) as independent PRs.
-- **Forbidden without a fresh owner approval:** Docker, new branches or worktrees, force pushes, hosted migrations,
-  database resets, ledger repairs or edits, merges, production deployments.
-- **No secrets in the repository, in logs or in chat.** No credentials, anon or service keys, passwords, or database
-  exports are committed. Evidence files stay outside the repository (see section 7).
-- **No general audits.** Work in bounded increments, each ending in a verified checkpoint and a report.
+## 1. Repository and state
 
-## 2. Settled architectural decisions (do not reopen)
+- Repository: `Amber-E-Moseri/blw-york-club-management`
+- Working branch: `remediation/blw-york-wave1-5`
+- Open PR: #97 (draft), https://github.com/Amber-E-Moseri/blw-york-club-management/pull/97
+- Checkpoint before reconciliation: commit `5e8c6bf`, tag `checkpoint/pre-reconciliation-5e8c6bf`
+- Second local worktree: `BLW-York-Hub-hotfix` on `hotfix/p0-login-null-response` at `25e9673`. Clean, not touched by the
+  database work. Do not write to it from the cloud session.
+- Single-writer rule: only one agent writes to the unified worktree at a time. Do not run two writers on the same files.
 
-1. The full approved feature set is the target. Preview and Production must converge on it. No permanent feature
-   subsets.
-2. The 24 Preview-only tables and their approved functionality are preserved. Nothing is dropped or renamed to converge.
-3. Money is `Decimal(12,2)`. Allocation fractions are stored as `0.1000 = 10%`, and active percents sum to 1.0000 ±
-   0.0001.
-4. Debt balances are derived from payment history, never stored or edited.
-5. Attendance: preserve original values. Ambiguous or incompatible rows are flagged for manual review. Do not
-   fabricate statuses, delete records or auto-classify history. The target status set is
-   `invited, confirmed, attended, absent, excused` (Production currently lacks the five-state check).
-6. Identity: detect and report possible duplicates. No automatic merges.
-7. BSC authorization uses the least-privilege scoped model. Do not restore the broad `bscs_manage` policy where it
-   conflicts with the scoped model. Preserve the ROR and BSC helper functions and the approved contact visibility.
-8. Membership: do not adopt `organizational_member_directory` as written, because it exposes email and phone to ordinary
-   members. Preserve directory functionality without exposing private contact details. `membership_reconciliation_review`
-   is admin-only (`security_invoker`), with positive and negative authorization tests.
-9. Edge Functions must not trust `x-forwarded-for` on the hosted lineage. Use `trustedClientAddress(trustedProxy,
-   headers)` with `WEBSITE_TRUSTED_PROXY=cloudflare`. This port is not yet done (see section 6).
-10. Migrations 000–099 are preserved without modification. New work is forward-only, numbered after the existing
-    sequence, and never renumbers history.
+## 2. Architecture decisions (binding)
 
-## 3. Repository and branch state
+- Stack: Next.js 14 App Router (CRA-built hub at `/hub`), TypeScript strict, Supabase (Postgres, RLS, Edge Functions,
+  Google OAuth only), Zod on every write path, Vercel hosting, Sentry.
+- Write pipeline: Client, then Zod validation, then RLS authorization, then DB transaction, then RAF engine, then write,
+  then response. Financial mutations happen only inside a DB transaction.
+- Deterministic financial logic lives in `lib/raf/`. Import pipeline in `lib/imports/`. Merchant rules in
+  `lib/merchant-rules/`. Not in route handlers or components.
+- Money is `Decimal(12,2)`, returned as strings. Allocation percents are fractions that sum to `1.0000 ± 0.0001`. Rounding
+  remainders go to `buffer` (allocations) or `emergency_fund` (surplus).
+- Debt balances are derived from payment history, never stored.
+- `period_start_day` must not be 29, 30 or 31. A debt with payments cannot be deleted (return 422; set inactive).
+- Negative amounts are allowed only for `direction = 'credit'`.
+- Service worker: Hub worker scope is `/hub/`. `public/sw.js` is a kill switch. Legacy paths are
+  `['/sw.js', '/service-worker.js']`.
+- `WEBSITE_TRUSTED_PROXY` stays unset. Deployment requirement documented in `docs/production-readiness.md` section 5.
+- Golden fingerprint `supabase/verification/schema_fingerprint.golden.json` is regenerated only from PostgreSQL 17, never
+  from PGlite.
 
-| Item | Value |
-|---|---|
-| Unified branch | `remediation/blw-york-wave1-5` (PR #97), HEAD recorded at handover |
-| Standalone hotfix | `hotfix/p0-login-null-response` at `25e9673` (PR #98, draft, independent) |
-| CMS / audience lineage | `origin/cert/website-d2-50f8aaa` (migrations up to `110_web_media_verification.sql`) |
-| Other lineage refs | `origin/feat/website-cms-integ-106` (`e315ace`), `origin/golden/reconcile-schema-105`, `origin/integ/blwyork-unified-candidate` |
+## 3. Migration sequence and lineages
 
-Recent commits on the unified branch, newest first: `6801fd9` (Phase A gap analysis doc), `339040b` (Drive thumbnail
-fix), `9968439` (readiness doc), `ea29630` (devotional page ranges), `91d9c94` (prefix-mounted browser tests),
-`168e3d5` (desktop header grid).
+There are two migration lineages. Treat them as separate sources until reconciliation says otherwise.
 
-**Important:** the unified branch's migrations end at `059_web_role_non_empty_permissions.sql` (60 files, 000–059).
-The CMS and audience migrations (059–110) exist only on the cert lineage above. Reconciling those two lineages is
-the core open task (section 6).
+- HEAD lineage: `supabase/migrations/000` to `059`. This is what the unified golden fingerprint describes. It includes the
+  ROR and BSC objects in `039_ror_reading_streaks.sql`, `040_bscs.sql`, `041_message_audience_targeting.sql`,
+  `042_bsc_contact_visibility.sql`, `043_get_ror_streak_authz.sql` and `044_bsc_access_hardening.sql`.
+- Source lineage `e315ace` (website CMS and audience line): 000 to 116. It shares names with HEAD for 000 to 038. It
+  diverges at merge-base `a09adb8`. Its `039` is `039_event_audience_meeting_delete.sql`.
+- The two lineages must be reconciled explicitly. Replaying only one of them cannot reproduce the other's objects. Phase A
+  documentation (`docs/db-reconciliation-phase-a.md`, "Source lineage correction") records this.
 
-## 4. Migration sequence and what is proven
+Hosted state (as known from evidence, not re-verified here):
 
-- **Unified branch:** 000–059, 60 files in `supabase/migrations/`.
-- **Local PostgreSQL 17.11 replay from empty (scratch database with Supabase stubs):** 60 of 60 applied.
-- **Schema contract on that replay:** 29 of 30 checks pass. The failing check is
-  `parity: schema fingerprint equals the golden fingerprint`, section `functions`. All 84 functions match on
-  owner, EXECUTE grants, security mode, pinned search_path and volatility. 79 of 84 differ only in
-  `definition_md5`. The cause is not yet established (section 6).
-- **Not yet proven:** the Preview-only and Production-only objects, the 059–110 lineage, and any three-path
-  certification.
+- Preview: ledger 000 to 099. Schema matches the `e315ace` lineage (76 public relations, 142 non-system functions, 95
+  triggers, 160 policies). It includes 24 Preview-only tables that are approved and must be preserved.
+- Production: ledger 000 to 099 with matching names and statement hashes, but the schema differs. 55 public relations, 63
+  functions, 40 triggers, 131 policies. It contains the HEAD-lineage ROR and BSC objects, and it lacks 22 of the approved
+  Preview tables. It also has `contacts_bsc_view` (not in either lineage) and 12 columns missing on shared tables.
+- Unified golden: 64 relations, 84 functions, 000 to 059. Neither hosted database matches it.
 
-Hosted evidence (read-only, collected and accepted as preliminary structural evidence):
-- Preview: 76 public relations, 142 functions, 95 triggers.
-- Production: 55 public relations, 63 functions, 40 triggers.
-- Unified golden: 64 relations, 84 functions.
-- Both hosted ledgers record 000–099 with matching names and statement hashes, yet the schemas differ. Preview and Production
-  therefore differ from the ledgers and from each other. Do not trust a ledger entry as proof of applied SQL.
+Do not apply unified migrations to Preview or Production. Do not repair ledgers. Do not reset anything.
 
-## 5. Test results recorded in this session
+## 4. Environment setup for a cloud agent
 
-| Check | Result |
-|---|---|
-| Local PG17.11 replay of 000–059 from empty (scratch DB, stubs) | 60 of 60 applied |
-| `check_schema_contract.mjs` on the replay | 29 of 30 pass; parity fails on function body hashes |
-| Repeat of the replay through the committed script `supabase/verification/rehearsal/run-pg17-rehearsal.ps1` | Same result (60 of 60; 29 of 30) |
-| Prefix-mounted browser suite (`/hub`, Chromium and WebKit iPhone 13 profile) | 18 passed, 2 skipped at `ea29630` (not rerun at HEAD) |
-| TypeScript typecheck and devotional tests | Passed at `ea29630` |
-| Hosted Production or Preview migrations | None applied |
+Prerequisites:
 
-Outstanding failures or gaps:
-- Function-body hash parity (79 of 84 functions), unexplained.
-- Seven inherited BSC certification failures are a documented baseline defect, not a regression. They are not fixed by
-  this work.
-- Desktop WebKit service-worker stall is an **open release blocker** (see `docs/production-readiness.md` section 0a).
-- PostgreSQL 17 hosted-stack certification (`supabase db reset --local` with Docker-based Supabase) has not been run.
-  The local rehearsal above uses stubs and is not final certification.
+- Node 22.x (the local machine has v22.12.0 and npm 10.9.0).
+- Git.
+- PostgreSQL 17 for authoritative checks (CI runs PG17). PGlite is preliminary only.
+- Playwright browsers for the frontend end-to-end suites.
 
-## 6. Outstanding blockers, in dependency order
-
-1. **Function-body hash parity.** Determine whether the golden was generated in a different environment or whether a
-   function body genuinely differs. Method: regenerate the golden with a real `supabase db reset --local` in a cloud
-   environment where Docker is available, or compare each differing function's `pg_get_functiondef` text with its
-   source migration. Do not overwrite the golden to make the check pass.
-2. **Lineage reconciliation (059–110).** The audience, communication, assignments and identity objects exist only on the
-   cert lineage. Decide, with owner approval, which migration files are carried forward and how they are renumbered
-   after 059. History 000–059 is not renumbered or edited.
-3. **Preview-only DDL source.** Full definitions, including function bodies, must come from the cert lineage or
-   another authoritative source. The hosted evidence has only `body_md5`.
-4. **Production drift.** Production lacks 12 website tables from the golden, lacks the five-state attendance check and
-   the active-profile self-edit policy, and lacks the 22 Preview-only tables. The cause of drift behind matching
-   ledger hashes is not explained.
-5. **Edge Function port.** Port `trustedClientAddress` into the hosted lineage (not started).
-6. **Attendance ambiguous-record report.** Flag rows that cannot satisfy the five-state check. Preserve values. Block the
-   migration if constraint validation cannot pass.
-7. **Identity duplicate report.** Detect and report only. No merges.
-8. **Desktop WebKit service-worker stall.** Open release blocker, not approved for release until resolved or
-   explicitly dispositioned.
-
-## 7. Evidence files and secure access (not committed)
-
-These files stay outside the repository. Do not copy them into the repository, pastebins, issues or chat.
-
-- `blwyork-preview-evidence.json` and `blwyork-production-evidence.json`: consolidated read-only evidence from the
-  single-query script. Originally in `C:\Users\moser\Downloads\`. Provide them to the cloud environment through its own
-  secure file mechanism, not through git.
-- Read-only evidence scripts (safe to commit, no data): `preview_readonly_evidence.sql` and
-  `preview_evidence_single.sql` in the originating scratchpad. The repository's own equivalent is
-  `supabase/verification/schema_fingerprint.sql`.
-- Diagnostic preserved copies (not authoritative, not application code): in the scratchpad folder
-  `diag-final-20261126-232908`, with `SHA256SUMS.txt`. Do not commit them.
-
-Access rules:
-- Hosted Preview project reference: `yziuhtxtznginhdpqurb`. Hosted Production: `rjtstjmtddqhesexltbj`. Verify the project
-  reference before any read, and never use a Production reference for test accounts.
-- Database connection strings, anon keys, service keys and test-account passwords come from the cloud environment's
-  secret store. Never write them to files in the repository or print them.
-- Preview test accounts are synthetic, created only in the Preview project, and removed after use.
-
-## 8. Environment setup for a cloud coding agent
-
-Prerequisites: Node.js 22 (the local run used 22.12.0), Git, PostgreSQL 17 client and server (the local run used
-17.11). Docker is not required for the local rehearsal, but is required for the hosted-stack certification.
+Commands. Run in order from the repository root:
 
 ```powershell
-git clone <repository> BLW-York-Hub
-cd BLW-York-Hub
-git checkout remediation/blw-york-wave1-5
 npm ci
 npm --prefix site ci
+npx playwright install chromium webkit
 ```
 
-Do **not** run `npm install` inside `site/` without a lockfile check. An earlier `npm --prefix site install` added a
-self-referencing dependency (`blw-york-portal: file:..`) that had to be reverted.
+On Git Bash, prefix commands that pass `PUBLIC_URL=/` or `PROD_MOUNT=/hub` with `MSYS_NO_PATHCONV=1`. Otherwise MSYS
+rewrites them into Windows paths.
 
-Local rehearsal (scratch database, outside the repository):
+Database checks (PGlite-based, preliminary):
 
 ```powershell
-.\supabase\verification\rehearsal\run-pg17-rehearsal.ps1 -PgBin "C:\Program Files\PostgreSQL\17\bin" -Port 54317 -Scratch "<an absolute folder outside the repo>"
+npm run test:db:contract
+npm run test:db:authz
+npm run test:db:attendance
+npm run test:db:membership
+npm run test:db:website
 ```
 
-Expected: `applied=60 of 60`, then 29 of 30 checks pass with the parity failure described in section 4.
+`openReplay(migrationsDir, { lastFile })` is the replay entry point in `supabase/verification/pglite_replay.mjs`. The
+PGlite module path must be provided through `PGLITE_MODULE`.
 
-Application checks:
+Authoritative local rehearsal (PostgreSQL 17, scratch database only, no Docker):
 
 ```powershell
-npx tsc --noEmit
-npm test -- --watchAll=false
-npm run build
+.\supabase\verification\rehearsal\run-pg17-rehearsal.ps1 -PgBin "C:\Program Files\PostgreSQL\17\bin" -Port 54317 -Scratch "<path outside the repo>"
+```
+
+The script replays `000` to `059` into a scratch database and runs the schema contract against the golden. It writes to
+the scratch directory only. It does not touch hosted projects or the ledger.
+
+Frontend and browser suites:
+
+```powershell
+npm run build:hub
+npm run build:site
+npm run verify:routes
+npm run e2e:production
 npx playwright test -c playwright.prefix.config.ts
 ```
 
-## 9. Exact next actions
+`playwright.prefix.config.ts` sets `PROD_MOUNT=/hub`. Its WebKit project is the one that stalls (see section 6).
 
-1. Verify HEAD equals the commit this document records, and that `git status` is clean.
-2. Resolve blocker 1 (function-body hash parity) with a real PostgreSQL 17 Supabase replay in the cloud environment,
-   without editing the golden to force a pass.
-3. Produce a lineage map between `origin/cert/website-d2-50f8aaa` (059–110) and the unified 000–059 sequence. Report it
-   for owner approval before writing any migration.
-4. After approval, write forward-only reconciliation migrations numbered after the existing sequence. Each migration
-   gets a rollback-free replay test and a positive and negative authorization test.
-5. Run the three-path certification (fresh install, Preview-shaped upgrade, Production-shaped upgrade) and report actual
-   results.
-6. Keep PR #97 and PR #98 independent. Do not merge. Do not deploy.
+Git on Windows: do not commit `deno.lock` files. Remove stray lockfiles before committing.
 
-No step in this list authorises a hosted migration, a ledger change, a reset, or a Production action.
+## 5. Evidence files and secure access
+
+Required, and not in the repository:
+
+- `blwyork-preview-evidence.json`
+- `blwyork-production-evidence.json`
+
+These are schema exports from the hosted databases. They are kept locally in `C:\Users\moser\Downloads\`. They must never be
+committed or pasted into chat or PR text. The cloud agent needs them only if it must re-run the Phase A comparison.
+Provide them through the owner's approved channel, and load them from a path outside the repository. Store them with
+restricted access.
+
+Credentials:
+
+- Hosted Supabase access (project URL, service keys, database connection strings) is held by the owner. It is not in the
+  repository and must not be placed in it. `.env.example` lists variable names only.
+- Do not use hosted credentials from a cloud agent unless the owner grants a specific, time-limited task.
+- Google OAuth client secrets, Sentry DSNs and SMTP credentials are owner-held.
+
+## 6. Test results
+
+Results recorded in the repository (`docs/production-readiness.md`). These were not re-run for this handover unless noted:
+
+- Hotfix production-build suite: passing.
+- Migration 059 authorization suite: 37 of 37.
+- Schema contract: 29 of 29 against the golden, PG17.
+- Prefix-mounted Chromium project: passing.
+- Desktop WebKit prefix project: stalls. The Hub page with an active service worker hangs on desktop WebKit. Not a CDN problem,
+  not a fetch-handler problem, and not reproduced on a blank page. Root cause unresolved. This is a final release blocker.
+- Phase A (read-only gap analysis): complete for the evidence comparison. The source-lineage correction is recorded. The
+  Production drift cause against the HEAD lineage has not been run.
+
+## 7. Outstanding blockers
+
+1. Desktop WebKit service-worker stall on the prefix-mounted Hub. Open. Requires a fix or an explicit approved disposition.
+2. Phase A is incomplete. The Production drift (20 tables, 12 columns, about 80 functions) has not been compared against
+   the HEAD lineage replay. `contacts_bsc_view` has no source in either lineage.
+3. Phase B (forward-only reconciliation) has not started. It needs the owner's confirmation of scope and of how the two
+   lineages are combined.
+4. Phase C (certification of fresh install and of upgrades from the Preview and Production baselines) has not started.
+   PG17 CI is authoritative. The hosted-stack certification in `supabase/verification/README.md` is still to be done.
+5. Attendance records that are ambiguous, and duplicate identities, are not yet reported. Preserve original values. Do not
+   merge identities.
+6. Daily Bread mass organisation: the owner has not chosen between the three readings (bulk edit of an existing month, bulk
+   organise of the list, bulk re-run of detection). Do not build until chosen.
+7. Hosted evidence transfer is owner-held (section 5).
+
+## 8. Exact next actions
+
+1. Confirm the branch is `remediation/blw-york-wave1-5` and that HEAD equals `origin/remediation/blw-york-wave1-5`.
+2. Install dependencies (section 4) and run `npm run test:db:contract` and `npm run test:db:authz`.
+3. Run the PG17 rehearsal for `000` to `059` and confirm 29 of 29 contract checks.
+4. Replay the `e315ace` lineage (000 to 116) and the HEAD lineage (000 to 059) separately in scratch databases. Record the
+   object diff for each. Do not merge the two.
+5. Compare the Production evidence against the HEAD-lineage replay. Identify the cause of each of the 20 tables, 12 columns
+   and about 80 functions. Record the cause in `docs/db-reconciliation-phase-a.md`.
+6. Write a decision list for the owner: the lineage merge approach, `contacts_bsc_view`, the Production column gaps, and
+   the attendance and duplicate-identity reports. Stop there and wait for the owner.
+7. Investigate the desktop WebKit stall under `playwright.prefix.config.ts`. Do not weaken assertions. Document the result in
+   `docs/production-readiness.md` section 0a.
+8. Do not deploy, merge, force-push, run Docker, change hosted migrations or ledgers, or reset any database.
+
+## 9. Local process state at handover
+
+- Scratch PostgreSQL cluster from earlier replays: not running (verified with `pg_ctl status`).
+- Windows services `postgresql-x64-17` and `postgresql-x64-18` are installed and running. They are system services, not
+  started by this work. Do not stop them.
+- Two `node.exe` processes belong to the OpenAI Codex application, not this work. Left running.
+- No development servers are listening on ports 4173, 4174, 4183, 4184, 54317 or 54318.
