@@ -86,6 +86,27 @@ async function quickAdd(client, input) {
   return { contact: contactRow, personId };
 }
 
+// The live contact path since migration 073 (the app's createContact): the contact is inserted without a person id and
+// the database links it to a person by email. A cell leader cannot insert a person directly (migration 070), so the
+// leader checks use this path; quickAdd above remains the staff path that creates the person first.
+async function liveContact(client, input) {
+  const { data, error } = await client
+    .from('contacts')
+    .insert({
+      contact_name: input.fullName.trim(),
+      email: input.email?.trim() || null,
+      cell_id: input.cellId,
+      logged_by: input.loggedBy,
+      date_contacted: new Date().toISOString().split('T')[0],
+      idempotency_key: input.idempotencyKey ?? null,
+      archived: false,
+    })
+    .select('id, person_id')
+    .single();
+  if (error) return { error: error.message, stage: 'contact' };
+  return { contact: data };
+}
+
 const mintUnsubToken = (userId, notifType, ttl = 3600) => {
   const payload = Buffer.from(JSON.stringify({ userId, notifType, exp: Math.floor(Date.now() / 1000) + ttl })).toString('base64url');
   return `${payload}.${createHmac('sha256', unsubSecret).update(payload).digest('hex')}`;
@@ -168,11 +189,14 @@ try {
   const race2 = await Promise.all([randomUUID(), randomUUID()].map((k) => quickAdd(coordinator.client, { fullName: 'Race Two', email: diffKeyEmail, cellId: cellA, loggedBy: coordinator.id, idempotencyKey: k })));
   expect('A7 EXPECTED: two simultaneous first contacts with a brand-new email both succeed and share one person', race2.every((r) => !r.error) && (await personCount(diffKeyEmail)) === 1, race2.map((r) => r.error ?? 'ok').join(' | '));
 
-  const lead1Ok = await quickAdd(leader1.client, { fullName: 'Leader Contact', email: `l1.${rnd()}@example.test`, cellId: cellA, loggedBy: leader1.id, idempotencyKey: randomUUID() });
-  const lead1Bad = await quickAdd(leader1.client, { fullName: 'Wrong Cell', email: `l1b.${rnd()}@example.test`, cellId: cellB, loggedBy: leader1.id, idempotencyKey: randomUUID() });
+  // Leader checks use the live contact path. A8a is the positive control: the same call that the negatives refuse is
+  // accepted for the leader's own cell, and the database links that contact to a person.
+  const lead1Ok = await liveContact(leader1.client, { fullName: 'Leader Contact', email: `l1.${rnd()}@example.test`, cellId: cellA, loggedBy: leader1.id, idempotencyKey: randomUUID() });
+  const lead1Bad = await liveContact(leader1.client, { fullName: 'Wrong Cell', email: `l1b.${rnd()}@example.test`, cellId: cellB, loggedBy: leader1.id, idempotencyKey: randomUUID() });
   const memberTry = await quickAdd(member.client, { fullName: 'Member Try', email: `m.${rnd()}@example.test`, cellId: cellA, loggedBy: member.id, idempotencyKey: randomUUID() });
-  const spoof = await quickAdd(leader1.client, { fullName: 'Spoof', email: `sp.${rnd()}@example.test`, cellId: cellA, loggedBy: coordinator.id, idempotencyKey: randomUUID() });
-  expect('A8a cell leader can log a contact in the cell they lead', !lead1Ok.error, lead1Ok.error);
+  // Spoof: a valid own-cell contact by leader1 whose logged_by names the coordinator. Only the attribution is wrong.
+  const spoof = await liveContact(leader1.client, { fullName: 'Spoof', email: `sp.${rnd()}@example.test`, cellId: cellA, loggedBy: coordinator.id, idempotencyKey: randomUUID() });
+  expect('A8a cell leader can log a contact in the cell they lead, and the database links it to a person', !lead1Ok.error && !!lead1Ok.contact?.person_id, lead1Ok.error ?? 'not linked');
   expect('A8b cell leader cannot log a contact into another cell', !!lead1Bad.error && lead1Bad.stage === 'contact', lead1Bad.error ?? 'succeeded');
   expect('A8c ordinary member cannot log a contact', !!memberTry.error, memberTry.error ?? 'succeeded');
   expect('A8d EXPECTED: a leader cannot attribute a contact to another user (logged_by spoofing)', !!spoof.error, 'spoofed logged_by accepted');
