@@ -1,6 +1,6 @@
 import { supabase } from '../supabase';
 import type { SearchResult } from '../../types';
-import type { AuthUser } from '../auth';
+import { NO_SCOPE, type LeadershipScope } from '../leadership';
 
 function rank(result: SearchResult, query: string): number {
   const q = query.toLowerCase();
@@ -14,13 +14,12 @@ function rank(result: SearchResult, query: string): number {
 export async function globalSearch(
   query: string,
   userId: string,
-  role: AuthUser['role'],
-  cellId?: string,
+  scope: LeadershipScope = NO_SCOPE,
 ): Promise<SearchResult[]> {
   const term = query.trim();
   if (term.length < 2) return [];
   const like = `%${term}%`;
-  const isAdmin = role === 'admin' || role === 'coordinator';
+  const isAdmin = scope.isStaff;
 
   let contacts = supabase
     .from('contacts')
@@ -29,8 +28,12 @@ export async function globalSearch(
     .eq('archived', false)
     .limit(8);
 
-  if (role === 'cell_leader' && cellId) contacts = contacts.eq('cell_id', cellId);
-  if (role === 'member') contacts = contacts.eq('logged_by', userId);
+  // Staff see all contacts. A leader sees contacts in the cells they lead. Everyone else sees only what they logged.
+  if (!isAdmin) {
+    contacts = scope.ledCellIds.length > 0
+      ? contacts.in('cell_id', scope.ledCellIds)
+      : contacts.eq('logged_by', userId);
+  }
 
   const [contactRows, testimonyRows, memberRows, meetingRows] = await Promise.all([
     contacts,
@@ -56,28 +59,28 @@ export async function globalSearch(
       type: 'contact' as const,
       title: row.contact_name,
       subtitle: row.contact_phone || 'Contact',
-      href: '/contacts',
+      href: '/hub/contacts',
     })),
     ...((testimonyRows.data ?? []) as any[]).map((row) => ({
       id: row.id,
       type: 'testimony' as const,
       title: row.title,
       subtitle: `By ${row.author_name}`,
-      href: '/testimonies',
+      href: '/hub/testimonies',
     })),
     ...((memberRows.data ?? []) as any[]).map((row) => ({
       id: row.id,
       type: 'member' as const,
       title: row.full_name || row.email,
       subtitle: row.role,
-      href: `/profile?id=${row.id}`,
+      href: `/hub/profile?id=${row.id}`,
     })),
     ...((meetingRows.data ?? []) as any[]).map((row) => ({
       id: row.id,
       type: 'meeting' as const,
       title: row.title,
       subtitle: `${row.date} ${row.time}`,
-      href: '/meetings',
+      href: '/hub/meetings',
     })),
   ];
 

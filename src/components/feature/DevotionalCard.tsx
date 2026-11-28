@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, Download, Maximize, Share2 } from 'lucide-react';
 import type { DevotionalDailyPage, MonthlyDevotional } from '../../types';
+import { toDisplayImageUrl } from '../../lib/drive';
 
 interface DevotionalCardProps {
   devotional: MonthlyDevotional;
@@ -61,7 +62,7 @@ export const DevotionalCard: React.FC<DevotionalCardProps> = ({
           </div>
         ) : (
           <img
-            src={page.image_url}
+            src={toDisplayImageUrl(page.image_url)}
             alt={`${devotional.book_title} Day ${page.day_of_month}`}
             data-devotional-image
             className="block w-full aspect-[2/1] object-contain bg-white"

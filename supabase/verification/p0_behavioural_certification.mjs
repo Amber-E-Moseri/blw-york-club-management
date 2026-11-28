@@ -86,6 +86,27 @@ async function quickAdd(client, input) {
   return { contact: contactRow, personId };
 }
 
+// The live contact path since migration 073 (the app's createContact): the contact is inserted without a person id and
+// the database links it to a person by email. A cell leader cannot insert a person directly (migration 070), so the
+// leader checks use this path; quickAdd above remains the staff path that creates the person first.
+async function liveContact(client, input) {
+  const { data, error } = await client
+    .from('contacts')
+    .insert({
+      contact_name: input.fullName.trim(),
+      email: input.email?.trim() || null,
+      cell_id: input.cellId,
+      logged_by: input.loggedBy,
+      date_contacted: new Date().toISOString().split('T')[0],
+      idempotency_key: input.idempotencyKey ?? null,
+      archived: false,
+    })
+    .select('id, person_id')
+    .single();
+  if (error) return { error: error.message, stage: 'contact' };
+  return { contact: data };
+}
+
 const mintUnsubToken = (userId, notifType, ttl = 3600) => {
   const payload = Buffer.from(JSON.stringify({ userId, notifType, exp: Math.floor(Date.now() / 1000) + ttl })).toString('base64url');
   return `${payload}.${createHmac('sha256', unsubSecret).update(payload).digest('hex')}`;
@@ -168,11 +189,14 @@ try {
   const race2 = await Promise.all([randomUUID(), randomUUID()].map((k) => quickAdd(coordinator.client, { fullName: 'Race Two', email: diffKeyEmail, cellId: cellA, loggedBy: coordinator.id, idempotencyKey: k })));
   expect('A7 EXPECTED: two simultaneous first contacts with a brand-new email both succeed and share one person', race2.every((r) => !r.error) && (await personCount(diffKeyEmail)) === 1, race2.map((r) => r.error ?? 'ok').join(' | '));
 
-  const lead1Ok = await quickAdd(leader1.client, { fullName: 'Leader Contact', email: `l1.${rnd()}@example.test`, cellId: cellA, loggedBy: leader1.id, idempotencyKey: randomUUID() });
-  const lead1Bad = await quickAdd(leader1.client, { fullName: 'Wrong Cell', email: `l1b.${rnd()}@example.test`, cellId: cellB, loggedBy: leader1.id, idempotencyKey: randomUUID() });
+  // Leader checks use the live contact path. A8a is the positive control: the same call that the negatives refuse is
+  // accepted for the leader's own cell, and the database links that contact to a person.
+  const lead1Ok = await liveContact(leader1.client, { fullName: 'Leader Contact', email: `l1.${rnd()}@example.test`, cellId: cellA, loggedBy: leader1.id, idempotencyKey: randomUUID() });
+  const lead1Bad = await liveContact(leader1.client, { fullName: 'Wrong Cell', email: `l1b.${rnd()}@example.test`, cellId: cellB, loggedBy: leader1.id, idempotencyKey: randomUUID() });
   const memberTry = await quickAdd(member.client, { fullName: 'Member Try', email: `m.${rnd()}@example.test`, cellId: cellA, loggedBy: member.id, idempotencyKey: randomUUID() });
-  const spoof = await quickAdd(leader1.client, { fullName: 'Spoof', email: `sp.${rnd()}@example.test`, cellId: cellA, loggedBy: coordinator.id, idempotencyKey: randomUUID() });
-  expect('A8a cell leader can log a contact in the cell they lead', !lead1Ok.error, lead1Ok.error);
+  // Spoof: a valid own-cell contact by leader1 whose logged_by names the coordinator. Only the attribution is wrong.
+  const spoof = await liveContact(leader1.client, { fullName: 'Spoof', email: `sp.${rnd()}@example.test`, cellId: cellA, loggedBy: coordinator.id, idempotencyKey: randomUUID() });
+  expect('A8a cell leader can log a contact in the cell they lead, and the database links it to a person', !lead1Ok.error && !!lead1Ok.contact?.person_id, lead1Ok.error ?? 'not linked');
   expect('A8b cell leader cannot log a contact into another cell', !!lead1Bad.error && lead1Bad.stage === 'contact', lead1Bad.error ?? 'succeeded');
   expect('A8c ordinary member cannot log a contact', !!memberTry.error, memberTry.error ?? 'succeeded');
   expect('A8d EXPECTED: a leader cannot attribute a contact to another user (logged_by spoofing)', !!spoof.error, 'spoofed logged_by accepted');
@@ -185,9 +209,11 @@ try {
   const meetA = await mkMeeting(cellA, leader1.id);
   const meetB = await mkMeeting(cellB, leader2.id);
   const attend = (meetingId, u) => ({ meeting_id: meetingId, user_id: u.id, user_name: `Cert ${u.id.slice(0, 4)}` });
-  const m1 = await member.client.from('meeting_attendances').insert(attend(meetA, member)).select();
-  const m2 = await member2.client.from('meeting_attendances').insert(attend(meetA, member2)).select();
-  expect('B1 active member can confirm their own attendance', !m1.error && !m2.error, m1.error?.message ?? m2.error?.message);
+  // Members confirm through respond_to_meeting_invitation, the path the app uses. A direct insert with the default
+  // 'invited' status is refused by migration 046 (self-service writes may only express confirmed or excused).
+  const m1 = await member.client.rpc('respond_to_meeting_invitation', { p_meeting_id: meetA, p_response: 'confirmed' });
+  const m2 = await member2.client.rpc('respond_to_meeting_invitation', { p_meeting_id: meetA, p_response: 'confirmed' });
+  expect('B1 active member can confirm their own attendance (respond_to_meeting_invitation)', !m1.error && !m2.error, m1.error?.message ?? m2.error?.message);
   const forged = await member.client.from('meeting_attendances').insert(attend(meetA, leader2)).select();
   expect("B2 a member cannot confirm attendance for someone else", !!forged.error, 'insert accepted');
   const own = await member.client.from('meeting_attendances').select('user_id').eq('meeting_id', meetA);
@@ -206,8 +232,10 @@ try {
   expect('B7 coordinator sees every attendance row for a meeting', (coordAll.data ?? []).length === 2, `rows=${(coordAll.data ?? []).length}`);
   const fix = await coordinator.client.from('meeting_attendances').update({ attended: true }).eq('meeting_id', meetA).eq('user_id', member2.id).select();
   expect('B8 coordinator can correct (mark attended) another person', !fix.error && fix.data?.length === 1 && fix.data[0].attended === true, fix.error?.message ?? `rows=${fix.data?.length}`);
-  const unmark = await coordinator.client.from('meeting_attendances').update({ attended: false }).eq('meeting_id', meetA).eq('user_id', member2.id).select();
-  expect('B9 coordinator can reverse a correction', !unmark.error && unmark.data?.[0]?.attended === false);
+  // Migration 046: attended=false is "not verified", normalised to confirmed (attended null). The app reverses a
+  // correction by writing attendance_status (markAttendanceStatus). The reversal must clear the verified outcome.
+  const unmark = await coordinator.client.from('meeting_attendances').update({ attendance_status: 'confirmed' }).eq('meeting_id', meetA).eq('user_id', member2.id).select();
+  expect('B9 coordinator can reverse a correction (attendance_status back to confirmed, verified outcome cleared)', !unmark.error && unmark.data?.[0]?.attendance_status === 'confirmed' && unmark.data?.[0]?.attended === null, unmark.error?.message ?? JSON.stringify(unmark.data?.[0] ?? null));
   const addMissing = await coordinator.client.from('meeting_attendances').insert(attend(meetA, leader2)).select();
   expect('B10 EXPECTED: coordinator can add a person who attended but never confirmed (roster correction)', !addMissing.error, addMissing.error?.message ?? '');
   const removeWrong = await coordinator.client.from('meeting_attendances').delete().eq('meeting_id', meetA).eq('user_id', member2.id).select();
@@ -250,7 +278,9 @@ try {
     expect(`C3 pending account cannot change protected field "${field}"`, !!r.error || (r.data ?? []).length === 0 || now[field] !== value, `now=${JSON.stringify(now)}`);
   }
   const aName = await profileUpdate(member, { full_name: 'Member Edited' });
-  expect('C4 (design) an active member has no direct UPDATE on profiles (self-edit is limited to pending onboarding; active edits go through user_profiles)', (aName.data ?? []).length === 0, `rows=${aName.data?.length}`);
+  // Migration 045 (profiles_self_onboarding_update) lets pending and active accounts edit ordinary columns of their own
+  // row. The guard keeps role, status, admin_role and cell_id protected, and C6 checks those.
+  expect('C4 active member can edit own ordinary profile field (045 self-update policy)', !aName.error && (aName.data ?? []).length === 1, aName.error?.message ?? `rows=${aName.data?.length}`);
   const aUp = await userProfileUpsert(member, { first_name: 'Mem', last_name: 'Ber', phone: '+14165550111', bio: 'hello' });
   expect('C5 active member can save own user_profiles details', !aUp.error, aUp.error?.message);
   for (const [field, value] of [['role', 'admin'], ['status', 'inactive'], ['cell_id', cellB]]) {

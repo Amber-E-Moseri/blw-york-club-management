@@ -3,6 +3,9 @@ import { AnnouncementCard } from '../components/feature';
 import { Button } from '../components/foundation/Button';
 import { Input } from '../components/foundation/Input';
 import { getAnnouncements, createAnnouncement, notifyAnnouncementMembers } from '../lib/queries';
+import { useLeadership } from '../hooks/useLeadership';
+import { fetchCells } from '../lib/queries/contacts';
+import type { Cell } from '../types';
 import type { Announcement } from '../types';
 import type { AuthUser } from '../lib/auth';
 
@@ -18,17 +21,35 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
   const [postError, setPostError] = useState<string | null>(null);
   const [notify, setNotify] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
+  const [cellChoice, setCellChoice] = useState('');
+  // Staff post organization-wide. A cell leader posts to a cell they lead; the role alone grants nothing.
+  const { isStaff, ledCells, loading: leadershipLoading } = useLeadership();
+  const canPost = isStaff || ledCells.length > 0;
+  // Staff choose organization-wide (empty) or any cell. A leader posts to a cell they lead.
+  const [allCells, setAllCells] = useState<Cell[]>([]);
+  const targetCellId = isStaff ? (cellChoice || null) : (cellChoice || ledCells[0]?.id || null);
+  const pickerCells: Array<{ id: string; name: string }> = isStaff ? allCells : ledCells;
+  const targetCellName = pickerCells.find((cell) => cell.id === targetCellId)?.name ?? null;
 
   useEffect(() => {
     getAnnouncements(20).then(setItems).catch(console.error).finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!isStaff) return;
+    fetchCells().then(setAllCells).catch(() => setAllCells([]));
+  }, [isStaff]);
 
   async function handlePost() {
     if (!user || !title.trim() || !body.trim()) return;
     setSaving(true);
     setPostError(null);
     try {
-      const id = await createAnnouncement(title, body, user.id, user.name);
+      if (!isStaff && !targetCellId) {
+        setPostError('Choose the cell this announcement is for.');
+        return;
+      }
+      const id = await createAnnouncement(title, body, user.id, user.name, targetCellId);
 
       // The announcement is saved at this point. A notification failure is reported, not retried by re-posting,
       // which would create a duplicate announcement.
@@ -58,7 +79,6 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
     }
   }
 
-  const canPost = user?.role === 'admin' || user?.role === 'coordinator' || user?.role === 'cell_leader';
 
   return (
     <div className="flex-1 overflow-y-auto p-8">
@@ -76,6 +96,30 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ user }) => {
           <div className="card mb-6 space-y-3">
             <Input label="Title" value={title} onChange={setTitle} />
             <Input label="Message" type="textarea" value={body} onChange={setBody} />
+            {(isStaff || ledCells.length > 1) && (
+              <label className="block text-small text-gray-700">
+                Audience
+                <select
+                  value={isStaff ? (cellChoice) : (targetCellId ?? '')}
+                  onChange={(e) => setCellChoice(e.target.value)}
+                  className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                >
+                  {isStaff && <option value="">Organization-wide</option>}
+                  {pickerCells.map((cell) => (
+                    <option key={cell.id} value={cell.id}>{cell.name}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {!isStaff && ledCells.length === 1 && (
+              <p className="text-small text-gray-600">Posting to {ledCells[0].name}.</p>
+            )}
+            {isStaff && (
+              <p className="text-small text-gray-600">
+                {targetCellName ? `Posting to ${targetCellName} only.` : 'Posting organization-wide to every active member.'}
+              </p>
+            )}
+            {!isStaff && leadershipLoading && <p className="text-small text-gray-600">Checking your cell assignment…</p>}
             <label className="flex items-center gap-2 text-small text-gray-700">
               <input
                 type="checkbox"

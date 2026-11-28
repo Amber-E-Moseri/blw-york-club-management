@@ -19,12 +19,24 @@ describe('Supabase migration architecture', () => {
     expect(new Set(prefixes).size).toBe(prefixes.length);
   });
 
+  // Comments are ignored. A trigger that BLOCKS truncation ("before truncate on <table>", used on the website audit and
+  // version tables) is not a truncation, so only that trigger-event form is exempt. Real drops and truncations still fail.
+  const executableSql = (sql: string) => sql
+    .replace(/--[^\n]*/g, '')
+    .replace(/\bbefore\s+truncate\s+on\b/gi, 'before on');
+
   test('canonical migrations do not destructively drop tables or schemas', () => {
     const destructive = migrationFiles()
-      .map((file) => [file, fs.readFileSync(path.join(migrationsDir, file), 'utf8')] as const)
+      .map((file) => [file, executableSql(fs.readFileSync(path.join(migrationsDir, file), 'utf8'))] as const)
       .filter(([, sql]) => /\b(drop\s+table|drop\s+schema|truncate)\b/i.test(sql));
 
     expect(destructive).toEqual([]);
+  });
+
+  test('the destructive-statement rule still flags a real truncation or drop', () => {
+    expect(/\b(drop\s+table|drop\s+schema|truncate)\b/i.test(executableSql('truncate public.web_audit_log;'))).toBe(true);
+    expect(/\b(drop\s+table|drop\s+schema|truncate)\b/i.test(executableSql('drop table public.x;'))).toBe(true);
+    expect(/\b(drop\s+table|drop\s+schema|truncate)\b/i.test(executableSql('create trigger t before truncate on public.x for each statement execute function f();'))).toBe(false);
   });
 
   test('verification scripts are kept outside executable migration history', () => {

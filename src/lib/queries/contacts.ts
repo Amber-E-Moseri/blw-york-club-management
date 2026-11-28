@@ -1,10 +1,10 @@
 import { supabase } from '../supabase';
-import { resolvePersonId } from './people';
 import type {
   Contact, ContactInput, ContactFilters, ContactTag, ContactStatus,
   Cell, ContactTagRelation, ContactFollowUp, ContactAuditLogEntry,
   BulkImportRow, ImportResult,
 } from '../../types';
+import { toLocalDateKey } from '../dates';
 
 export async function fetchContacts(filters: ContactFilters = {}): Promise<Contact[]> {
   let q = supabase
@@ -51,15 +51,11 @@ function withNullableCellId<T extends { cell_id?: string }>(input: T): T {
 export async function createContact(
   input: ContactInput & { logged_by: string }
 ): Promise<Contact> {
-  // contacts.person_id is NOT NULL. Resolve or create the person first, the same way Quick Add does,
-  // so every Outreach contact is linked to a person record.
-  const person_id = await resolvePersonId({
-    fullName: input.contact_name,
-    email: input.email,
-    phone: input.contact_phone,
-  });
+  // The database links every contact to its person, from the contact's email, in the same write (migration 073).
+  // The browser never looks a person up or supplies a person id.
   const { data, error } = await supabase
-    .from('contacts').insert(withNullableCellId({ ...input, person_id })).select().single();
+    // A client-supplied person id is dropped: the database decides the link.
+    .from('contacts').insert(withNullableCellId({ ...input, person_id: undefined })).select().single();
   if (error && input.idempotency_key && /duplicate key|unique/i.test(error.message ?? '')) {
     const { data: existing, error: existingError } = await supabase
       .from('contacts')
@@ -233,6 +229,24 @@ export async function reassignFollowUp(
   });
 }
 
+/**
+ * Reassigns a follow-up by member key, for a cell leader or any caller the database authorises. The database resolves the
+ * key to the member, checks authority and cell eligibility, and writes the follow-up, the contact and the audit entry in
+ * one transaction. No auth user id is sent or returned.
+ */
+export async function reassignFollowUpByMemberKey(
+  contactId: string,
+  memberKey: string,
+  notes?: string,
+): Promise<void> {
+  const { error } = await supabase.rpc('reassign_contact_follow_up', {
+    p_contact_id: contactId,
+    p_member_key: memberKey,
+    p_notes: notes ?? null,
+  });
+  if (error) throw new Error(error.message ?? 'Could not reassign this follow-up.');
+}
+
 export async function moveContactToCell(
   contactId: string,
   newCellId: string,
@@ -307,7 +321,7 @@ export async function bulkImportContacts(
         email: row.email || undefined,
         tag: '',
         follow_up_status: 'new',
-        date_contacted: new Date().toISOString().split('T')[0],
+        date_contacted: toLocalDateKey(),
         notes: row.notes || undefined,
         is_member: false,
         logged_by: importedBy,

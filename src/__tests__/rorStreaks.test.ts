@@ -26,7 +26,8 @@ function deriveStatus(row: CellMemberRorRow, today: Date): ProgressStatus {
 
 function makeRow(partial: Partial<CellMemberRorRow>): CellMemberRorRow {
   return {
-    member_id: 'uuid-1',
+    member_key: 'roster-key-1',
+  member_id: 'uuid-1',
     full_name: 'Alice',
     cell_id: 'cell-1',
     cell_name: 'Cell A',

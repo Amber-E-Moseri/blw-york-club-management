@@ -45,6 +45,7 @@ maybe('createContactPerson (real code, real database)', () => {
   const userIds: string[] = [];
   const personIds = new Set<string>();
   let createContactPerson: typeof import('../lib/queries/people').createContactPerson;
+  let createContact: typeof import('../lib/queries/contacts').createContact;
 
   async function makeUser(label: string, role: string) {
     const email = `cert.qa.${label}.${rnd()}@example.test`;
@@ -85,6 +86,7 @@ maybe('createContactPerson (real code, real database)', () => {
     cellId = data!.id;
     use(coordinator);
     ({ createContactPerson } = await import('../lib/queries/people'));
+    ({ createContact } = await import('../lib/queries/contacts'));
   }, 90000);
 
   afterAll(async () => {
@@ -189,12 +191,25 @@ maybe('createContactPerson (real code, real database)', () => {
     await expect(log(leader, { email: `spoof.${rnd()}@example.test`, loggedBy: coordinator.id })).rejects.toThrow();
   });
 
+  // The live Quick Add and Outreach path is createContact (the database links the person, migration 073). This test
+  // exercises that path. createContactPerson, used by the other tests above, has no app callers.
+  const logLive = async (u: { id: string; client: SupabaseClient }, over: { email: string; cellId?: string }) => {
+    use(u);
+    return createContact({
+      contact_name: 'Cert Person',
+      email: over.email,
+      cell_id: over.cellId ?? cellId,
+      logged_by: u.id,
+      idempotency_key: randomUUID(),
+    } as Parameters<typeof createContact>[0]);
+  };
+
   test('a cell leader can log in their own cell only', async () => {
-    const ok = await log(leader, { email: `lead.${rnd()}@example.test` });
-    expect(ok.contact.id).toBeTruthy();
+    const ok = await logLive(leader, { email: `lead.${rnd()}@example.test` });
+    expect(ok.id).toBeTruthy();
     const { data: other } = await admin.from('cells').insert({ name: `Cert QA other ${rnd()}` }).select('id').single();
     try {
-      await expect(log(leader, { email: `lead2.${rnd()}@example.test`, cellId: other!.id })).rejects.toThrow();
+      await expect(logLive(leader, { email: `lead2.${rnd()}@example.test`, cellId: other!.id })).rejects.toThrow();
     } finally {
       await admin.from('cells').delete().eq('id', other!.id);
     }

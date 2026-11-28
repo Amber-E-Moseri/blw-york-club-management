@@ -6,30 +6,27 @@ import {
 
 import { cn } from '../../lib/utils';
 import type { AuthUser } from '../../lib/auth';
-
-const ROLE_LEVEL: Record<AuthUser['role'], number> = {
-  member: 0, cell_leader: 1, admin: 2, coordinator: 3,
-};
+import { useLeadership } from '../../hooks/useLeadership';
 
 interface TabItem {
   label: string;
   path: string;
   icon: React.FC<{ className?: string }>;
-  minRole: number;
 }
 
+/** Shown to staff and assigned cell leaders. Chosen by the leadership capability, never by the profile role. */
 const LEADER_TABS: TabItem[] = [
-  { label: 'Home',     path: '/',         icon: LayoutGrid,    minRole: 0 },
-  { label: 'Outreach', path: '/contacts', icon: ClipboardList, minRole: 1 },
-  { label: 'Meetings', path: '/meetings', icon: Calendar,      minRole: 0 },
-  { label: 'Growth',   path: '/growth',   icon: Sparkles,      minRole: 0 },
+  { label: 'Home',     path: '/hub',      icon: LayoutGrid },
+  { label: 'Outreach', path: '/hub/contacts', icon: ClipboardList },
+  { label: 'Meetings', path: '/hub/meetings', icon: Calendar },
+  { label: 'Growth',   path: '/hub/growth',   icon: Sparkles },
 ];
 
 const MEMBER_TABS: TabItem[] = [
-  { label: 'Home',     path: '/',         icon: LayoutGrid,    minRole: 0 },
-  { label: 'Meetings', path: '/meetings', icon: Calendar,      minRole: 0 },
-  { label: 'Events',   path: '/events',   icon: CalendarDays,  minRole: 0 },
-  { label: 'Growth',   path: '/growth',   icon: Sparkles,      minRole: 0 },
+  { label: 'Home',     path: '/hub',      icon: LayoutGrid },
+  { label: 'Meetings', path: '/hub/meetings', icon: Calendar },
+  { label: 'Events',   path: '/hub/events',   icon: CalendarDays },
+  { label: 'Growth',   path: '/hub/growth',   icon: Sparkles },
 ];
 
 export interface NavigationProps {
@@ -47,12 +44,12 @@ const tabClass = (active: boolean) => cn(
     : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200',
 );
 
-export const Navigation: React.FC<NavigationProps> = ({ userRole = 'member', onMore, moreOpen = false }) => {
+export const Navigation: React.FC<NavigationProps> = ({ onMore, moreOpen = false }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const level = ROLE_LEVEL[userRole] ?? 0;
+  const { canUseLeaderPages } = useLeadership();
 
-  const tabs = level >= 1 ? LEADER_TABS.filter((t) => level >= t.minRole) : MEMBER_TABS;
+  const tabs = canUseLeaderPages ? LEADER_TABS : MEMBER_TABS;
 
   return (
     <nav

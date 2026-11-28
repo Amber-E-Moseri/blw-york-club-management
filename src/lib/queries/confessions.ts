@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
 import type { Affirmation as Confession, AffirmationDeclaration as ConfessionDeclaration } from '../../types';
+import { shiftDateKey, toLocalDateKey } from '../dates';
 
 export async function fetchConfessionsForDate(date: string): Promise<Confession[]> {
   const userId = (await supabase.auth.getUser()).data.user?.id;
@@ -24,8 +25,8 @@ export async function fetchConfessionsForDate(date: string): Promise<Confession[
 }
 
 export async function fetchUpcomingConfessions(days = 7): Promise<Confession[]> {
-  const today = new Date().toISOString().split('T')[0];
-  const until = new Date(Date.now() + days * 86400000).toISOString().split('T')[0];
+  const today = toLocalDateKey();
+  const until = shiftDateKey(today, days);
   const userId = (await supabase.auth.getUser()).data.user?.id;
 
   const { data, error } = await supabase

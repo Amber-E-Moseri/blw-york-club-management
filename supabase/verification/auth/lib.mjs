@@ -73,10 +73,14 @@ export function randomPassword() {
   return `${randomBytes(18).toString('base64url')}aA1!`;
 }
 
-// Project references that no certification run may ever target. The production reference is denied by name here,
-// so a mistyped secret or variable cannot point a hosted run at it. The Preview certification project is approved.
+// Project references that no certification run may target. Both BLW York refs are denied by name, so a mistyped secret
+// or variable cannot point a hosted run at either one. Neither ref is approved for automated mutation until its
+// authorized use is verified; the Preview ref is therefore denied here as well.
+//   rjtstjmtddqhesexltbj  Production (Vercel Production environment and live bundle).
+//   yziuhtxtznginhdpqurb  Preview (Vercel Preview environment).
 export const DENIED_PROJECT_REFS = [
-  'rjtstjmtddqhesexltbj', // protected production project
+  'rjtstjmtddqhesexltbj',
+  'yziuhtxtznginhdpqurb',
 ];
 
 /** The certification project reference for hosted runs. Must be set explicitly; there is no default. */

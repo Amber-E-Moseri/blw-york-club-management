@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import { rorMonthYear, rorToday } from '../rorDates';
 
 export interface RorStreak {
   current_streak: number;
@@ -9,7 +10,9 @@ export interface RorStreak {
 }
 
 export interface CellMemberRorRow {
-  member_id: string;
+  member_key: string;
+  /** The auth user id. Present for staff only; null for a cell leader. */
+  member_id: string | null;
   full_name: string;
   cell_id: string;
   cell_name: string;
@@ -20,15 +23,9 @@ export interface CellMemberRorRow {
   last_completed: string | null;
 }
 
-function todayIso(): string {
-  return new Date().toISOString().split('T')[0];
-}
-
-function monthYearIso(date = new Date()): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  return `${y}-${m}`;
-}
+// Reporting dates are the Toronto calendar day (src/lib/rorDates.ts), not the UTC day or the browser's local day.
+const todayIso = (): string => rorToday();
+const monthYearIso = (): string => rorMonthYear();
 
 export async function fetchRorStreak(
   memberId: string,
@@ -89,4 +86,17 @@ export async function fetchMemberReadDates(
 
   if (error) throw new Error(error.message);
   return (data ?? []).map((r) => r.viewed_date as string);
+}
+
+/**
+ * Reading dates for one member of a cell the caller leads, by member key (migration 071). Returns only the dates; an
+ * unknown or unauthorised key returns no dates.
+ */
+export async function fetchCellMemberReadDates(memberKey: string, devotionalId: string): Promise<string[]> {
+  const { data, error } = await supabase.rpc('get_cell_member_read_dates', {
+    p_member_key: memberKey,
+    p_devotional_id: devotionalId,
+  });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as Array<{ viewed_date: string }>).map((r) => r.viewed_date);
 }

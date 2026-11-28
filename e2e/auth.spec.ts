@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('shows the sign-in screen for signed-out visitors', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/hub');
 
   await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
   await expect(page.getByLabel('Email')).toBeVisible();
@@ -14,7 +14,7 @@ test('shows the sign-in screen for signed-out visitors', async ({ page }) => {
 });
 
 test('validates request access before submitting', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/hub');
 
   await page.getByRole('button', { name: 'Request access' }).click();
   await page.getByRole('button', { name: 'Submit Request' }).click();
@@ -23,7 +23,7 @@ test('validates request access before submitting', async ({ page }) => {
 });
 
 test('submits an access request', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/hub');
 
   await page.getByRole('button', { name: 'Request access' }).click();
   await page.getByLabel('Full Name').fill('New Member');
@@ -32,11 +32,12 @@ test('submits an access request', async ({ page }) => {
   await page.getByLabel('Confirm Password').fill('secret1');
   await page.getByRole('button', { name: 'Submit Request' }).click();
 
-  await expect(page.getByRole('heading', { name: 'Application submitted!' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
+  await expect(page.getByText(/6-digit code/)).toBeVisible();
 });
 
 test('signs in and reaches the dashboard', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/hub');
 
   await page.getByLabel('Email').fill('leader@yorku.ca');
   await page.getByLabel('Password').fill('secret1');
@@ -49,7 +50,7 @@ test('signs in and reaches the dashboard', async ({ page }) => {
 });
 
 test('toggles between dark and light mode', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/hub');
 
   await page.getByLabel('Email').fill('leader@yorku.ca');
   await page.getByLabel('Password').fill('secret1');

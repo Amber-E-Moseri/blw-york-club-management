@@ -9,7 +9,15 @@ import {
   buildProfile,
   AuthUser,
   AuthError,
+  GENERIC_AUTH_ERROR_MESSAGE,
 } from '../lib/auth';
+
+export const SESSION_RESTORE_ERROR_MESSAGE =
+  'We could not check your saved session. Check your connection and sign in again.';
+export const PROFILE_LOAD_ERROR_MESSAGE =
+  'We could not load your account. Check your connection and sign in again.';
+export const PROFILE_NOT_FOUND_MESSAGE =
+  'Your account profile is not set up yet. Please contact a BLW York leader.';
 
 interface AuthState {
   user: AuthUser | null;
@@ -21,14 +29,19 @@ export function useAuth() {
   const [state, setState] = useState<AuthState>({ user: null, loading: true, error: null });
 
   useEffect(() => {
-    // Hydrate from existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        loadProfile(session.user.id);
-      } else {
-        setState({ user: null, loading: false, error: null });
-      }
-    });
+    // Hydrate from existing session. A failure here must end the loading state, never leave the spinner running.
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        if (session?.user) {
+          loadProfile(session.user.id);
+        } else {
+          setState({ user: null, loading: false, error: null });
+        }
+      })
+      .catch(() => {
+        setState({ user: null, loading: false, error: SESSION_RESTORE_ERROR_MESSAGE });
+      });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) loadProfile(session.user.id);
@@ -48,7 +61,11 @@ export function useAuth() {
       if (error) throw error;
       setState({ user: buildProfile(data), loading: false, error: null });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Failed to load profile.';
+      // Fail closed with a message a person can act on. The raw exception stays out of the UI.
+      console.warn('[auth] profile load failed:', e instanceof Error ? e.name : 'unknown');
+      const msg = e instanceof AuthError && e.message === 'Profile not found.'
+        ? PROFILE_NOT_FOUND_MESSAGE
+        : PROFILE_LOAD_ERROR_MESSAGE;
       setState({ user: null, loading: false, error: msg });
     }
   }
@@ -59,7 +76,7 @@ export function useAuth() {
       await signInWithEmail(email, password);
       // onAuthStateChange will call loadProfile
     } catch (e) {
-      const msg = e instanceof AuthError ? e.message : 'Sign-in failed.';
+      const msg = e instanceof AuthError ? e.message : GENERIC_AUTH_ERROR_MESSAGE;
       setState((s) => ({ ...s, loading: false, error: msg }));
     }
   }, []);

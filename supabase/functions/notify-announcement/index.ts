@@ -2,18 +2,19 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import webpush from 'npm:web-push@3.6.7';
 import { classifyPushError, type DeliveryOutcome } from '../_shared/event-notification.ts';
 import {
-  announcementTargetUrl,
   buildAnnouncementDeliveryLogRows,
   buildAnnouncementPushPayload,
 } from '../_shared/announcement-notification.ts';
 
-// Sends one Web Push notification per active subscription to every active member.
-// Called by the client right after an announcement is posted.
+// Sends one Web Push notification per active device of the announcement's recipients.
 //
-// Who may send: the announcement's author, or an admin or coordinator. Authors can be admins, coordinators or
-// cell leaders, matching who may post in the first place.
-//
-// Sent at most once per announcement: a delivery log row keyed by the announcement's route is the marker.
+// Authority and recipients are decided by the database (migration 069), never by this function or by the request:
+//  - The caller is identified from a verified JWT. Role labels are not read here.
+//  - claim_announcement_dispatch checks authority from live state (staff for organization-wide; an active leader of
+//    the announcement's cell for a cell announcement) and atomically claims the announcement. A claim that already
+//    exists means the announcement was dispatched: the request is refused and nothing is sent.
+//  - resolve_announcement_recipients returns only devices the scope allows. Any recipient list in the body is ignored.
+//  - A claim is released only if the failure happened before the first push. After a push starts, a claim is kept.
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -30,6 +31,7 @@ const vapidSubject = Deno.env.get('VAPID_SUBJECT') ?? '';
 const supabase = createClient(supabaseUrl, serviceRoleKey);
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const NOT_AUTHORISED = 'Not authorised to notify members';
 
 class HttpError extends Error {
   constructor(message: string, readonly status: number) {
@@ -44,32 +46,33 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-const POSTING_ROLES = ['admin', 'coordinator', 'cell_leader'];
-const MANAGING_ROLES = ['admin', 'coordinator'];
-
-async function requireCaller(req: Request): Promise<{ userId: string; role: string }> {
+async function callerUserId(req: Request): Promise<string> {
   const authHeader = req.headers.get('Authorization') ?? '';
   const jwt = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
   if (!jwt) throw new HttpError('Authentication required', 401);
 
   const { data: userData, error: userError } = await supabase.auth.getUser(jwt);
   if (userError || !userData?.user) throw new HttpError('Invalid authentication token', 401);
+  return userData.user.id;
+}
 
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('role, status')
-    .eq('id', userData.user.id)
-    .single();
-  if (profileError || !profile) throw new HttpError('Profile not found', 403);
-  if (profile.status !== 'active' || !POSTING_ROLES.includes(profile.role)) {
-    throw new HttpError('Not authorised to notify members', 403);
-  }
-  return { userId: userData.user.id, role: profile.role };
+/** Maps a database refusal to the HTTP status: 42501 is an authority refusal, anything else is a server error. */
+function refusal(error: { code?: string; message: string }, fallback: string): HttpError {
+  if (error.code === '42501') return new HttpError(NOT_AUTHORISED, 403);
+  console.error(fallback, error.message);
+  return new HttpError('Could not send announcement notifications', 500);
 }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+
+  // Set once the first push is attempted. Before that point a failure may release the claim; after it, never.
+  let pushStarted = false;
+  // True only when this request created the claim. A 409 for an existing claim must never release it.
+  let claimedHere = false;
+  let actorId = '';
+  let announcementId = '';
 
   try {
     if (!vapidPublicKey || !vapidPrivateKey || !vapidSubject) {
@@ -77,58 +80,56 @@ Deno.serve(async (req) => {
     }
     webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 
-    const caller = await requireCaller(req);
+    actorId = await callerUserId(req);
 
     const body = await req.json().catch(() => null);
-    const announcementId = typeof body?.announcement_id === 'string' ? body.announcement_id : '';
+    announcementId = typeof body?.announcement_id === 'string' ? body.announcement_id : '';
     if (!UUID.test(announcementId)) throw new HttpError('announcement_id must be a UUID', 400);
 
     const { data: announcement, error: announcementError } = await supabase
       .from('announcements')
-      .select('id, title, body, author_id')
+      .select('id, title, body')
       .eq('id', announcementId)
       .maybeSingle();
-    if (announcementError) throw new HttpError(announcementError.message, 500);
+    if (announcementError) throw new HttpError('Could not load the announcement', 500);
     if (!announcement) throw new HttpError('Announcement not found', 404);
 
-    if (!MANAGING_ROLES.includes(caller.role) && announcement.author_id !== caller.userId) {
-      throw new HttpError('Not authorised to notify members', 403);
-    }
+    // Atomic: authority is checked and the dispatch claimed in one database call.
+    const { data: claimed, error: claimError } = await supabase.rpc('claim_announcement_dispatch', {
+      p_announcement_id: announcementId,
+      p_actor: actorId,
+    });
+    if (claimError) throw refusal(claimError, 'claim_announcement_dispatch failed');
+    if (claimed !== true) throw new HttpError('Announcement already notified', 409);
+    claimedHere = true;
 
-    // Already sent? The delivery log row for this announcement's route is the marker.
-    const { data: existing, error: existingError } = await supabase
-      .from('push_notification_log')
-      .select('id')
-      .eq('notification_type', 'announcement')
-      .eq('target_url', announcementTargetUrl(announcement.id))
-      .limit(1);
-    if (existingError) throw new HttpError(existingError.message, 500);
-    if ((existing ?? []).length > 0) throw new HttpError('Announcement already notified', 409);
+    const { data: recipients, error: resolveError } = await supabase.rpc('resolve_announcement_recipients', {
+      p_announcement_id: announcementId,
+      p_actor: actorId,
+    });
+    if (resolveError) throw refusal(resolveError, 'resolve_announcement_recipients failed');
 
-    const { data: members, error: membersError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('status', 'active');
-    if (membersError) throw new HttpError(membersError.message, 500);
-    const memberIds = (members ?? []).map((row: { id: string }) => row.id);
-
-    const subscriptions: Array<{ id: string; user_id: string; endpoint: string; p256dh: string; auth: string }> = [];
-    if (memberIds.length > 0) {
-      const { data, error } = await supabase
-        .from('push_subscriptions')
-        .select('id, user_id, endpoint, p256dh, auth')
-        .in('user_id', memberIds)
-        .eq('is_active', true);
-      if (error) throw new HttpError(error.message, 500);
-      subscriptions.push(...(data ?? []));
-    }
-
+    const subscriptions = (recipients ?? []) as Array<{
+      user_id: string;
+      subscription_id: string;
+      endpoint: string;
+      p256dh: string;
+      auth: string;
+    }>;
     const recipientCount = new Set(subscriptions.map((sub) => sub.user_id)).size;
     if (subscriptions.length === 0) {
       return json({ announcement_id: announcementId, recipients: 0, devices: 0, sent: 0, failed: 0, expired: 0 });
     }
 
     const payload = buildAnnouncementPushPayload(announcement);
+    // Record that delivery has begun before the first push. From here on the claim is never released, so a crash or a
+    // partial failure cannot lead to a second broadcast.
+    const { data: began, error: beginError } = await supabase.rpc('begin_announcement_send', {
+      p_announcement_id: announcementId,
+      p_actor: actorId,
+    });
+    if (beginError || began !== true) throw new HttpError('Could not start notification delivery', 500);
+    pushStarted = true;
     const outcomes: Array<DeliveryOutcome & { endpointId: string }> = await Promise.all(
       subscriptions.map(async (sub) => {
         try {
@@ -137,18 +138,29 @@ Deno.serve(async (req) => {
             payload,
             { TTL: 60 * 60 * 24 }
           );
-          return { endpointId: sub.id, userId: sub.user_id, status: 'sent' as const, error: null };
+          return { endpointId: sub.subscription_id, userId: sub.user_id, status: 'sent' as const, error: null };
         } catch (err) {
           const statusCode = (err as { statusCode?: number }).statusCode;
           const message = err instanceof Error ? err.message : String(err);
           const { status, error } = classifyPushError(statusCode, message);
           if (status === 'expired') {
-            await supabase.from('push_subscriptions').update({ is_active: false }).eq('id', sub.id);
+            await supabase.from('push_subscriptions').update({ is_active: false }).eq('id', sub.subscription_id);
           }
-          return { endpointId: sub.id, userId: sub.user_id, status, error };
+          return { endpointId: sub.subscription_id, userId: sub.user_id, status, error };
         }
       })
     );
+
+    const sentCount = outcomes.filter((o) => o.status === 'sent').length;
+    const failedCount = outcomes.filter((o) => o.status === 'failed').length;
+    // Partial delivery is recorded as partial, never as complete. A partial dispatch is not retried automatically.
+    const { error: completeError } = await supabase.rpc('complete_announcement_dispatch', {
+      p_announcement_id: announcementId,
+      p_actor: actorId,
+      p_sent: sentCount,
+      p_failed: failedCount,
+    });
+    if (completeError) console.error('complete_announcement_dispatch failed', completeError.message);
 
     const logRows = buildAnnouncementDeliveryLogRows(announcement, outcomes);
     if (logRows.length > 0) {
@@ -160,11 +172,19 @@ Deno.serve(async (req) => {
       announcement_id: announcementId,
       recipients: recipientCount,
       devices: subscriptions.length,
-      sent: outcomes.filter((o) => o.status === 'sent').length,
-      failed: outcomes.filter((o) => o.status === 'failed').length,
+      sent: sentCount,
+      failed: failedCount,
       expired: outcomes.filter((o) => o.status === 'expired').length,
     });
   } catch (err) {
+    // A failure before any push leaves nothing sent, so the claim is released and a retry is possible.
+    if (claimedHere && !pushStarted && announcementId && actorId) {
+      const { error: releaseError } = await supabase.rpc('release_announcement_dispatch', {
+        p_announcement_id: announcementId,
+        p_actor: actorId,
+      });
+      if (releaseError) console.error('release_announcement_dispatch failed', releaseError.message);
+    }
     if (err instanceof HttpError) return json({ error: err.message }, err.status);
     console.error('notify-announcement failed', err instanceof Error ? err.message : err);
     return json({ error: 'Could not send announcement notifications' }, 500);

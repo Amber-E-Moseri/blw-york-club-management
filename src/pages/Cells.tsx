@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { BookOpen, ChevronDown, ChevronUp, Plus, Users, UserPlus } from 'lucide-react';
-import { fetchMembersFiltered, assignMemberToCell } from '../lib/queries/members';
+import { fetchMembersFiltered, assignMemberToCell, fetchCellMemberDirectory, fetchCellLeaderNames, cellMemberRowToMember } from '../lib/queries/members';
 import { createCell, fetchCells, assignCellLeader } from '../lib/queries/contacts';
 import { fetchBscsByCell, createBsc, assignMemberToBsc, assignBscLeader } from '../lib/queries/bscs';
 import { summarizeCells, validateCellName, type CellSummary } from '../lib/cells';
@@ -13,27 +13,26 @@ import { RorProgressTable } from '../components/feature/RorProgressTable';
 import { RorMemberDetailModal } from '../components/feature/RorMemberDetailModal';
 import { useCellRorProgress, useOrgRorProgress } from '../hooks/useRorStreak';
 import type { CellMemberRorRow } from '../lib/queries/rorStreaks';
-
-const ROLE_LEVEL: Record<AuthUser['role'], number> = {
-  member: 0, cell_leader: 1, admin: 2, coordinator: 3,
-};
+import { useLeadership } from '../hooks/useLeadership';
 
 interface Props { user: AuthUser | null; }
 
 /** List of cells, their leaders and members. Visible to cell leaders, admins and coordinators; only coordinators can add a cell. */
 export const Cells: React.FC<Props> = ({ user }) => {
-  const level = ROLE_LEVEL[user?.role ?? 'member'] ?? 0;
+  // Cells this user leads, from the leadership capability. The role alone grants no cell controls.
+  const { canUseLeaderPages, ledCells, isStaff } = useLeadership();
   const canCreate = user?.role === 'coordinator';
   const [cells, setCells] = useState<Cell[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [leaderNames, setLeaderNames] = useState<Map<string, string | null>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // ROR progress state
-  const isLeader = user?.role === 'cell_leader';
+  const isLeader = ledCells.length > 0;
   const isCoordinator = user?.role === 'coordinator' || user?.role === 'admin';
   const { rows: rorRows, loading: rorLoading } = useCellRorProgress();
-  const { rows: orgRows, loading: orgLoading } = useOrgRorProgress();
+  const { rows: orgRows, loading: orgLoading } = useOrgRorProgress(isStaff);
   const [rorSelectedMember, setRorSelectedMember] = useState<CellMemberRorRow | null>(null);
   const [currentDevotional, setCurrentDevotional] = useState<MonthlyDevotional | null>(null);
 
@@ -192,14 +191,22 @@ export const Cells: React.FC<Props> = ({ user }) => {
   };
 
   useEffect(() => {
-    if (level < 1) return;
+    if (!canUseLeaderPages) return;
     let cancelled = false;
     setLoading(true);
-    Promise.all([fetchCells(), fetchMembersFiltered()])
-      .then(([cellRows, memberRows]) => {
+    // Staff read the organization. A cell leader reads the members of their own cells, and every cell's leader name.
+    Promise.all([
+      fetchCells(),
+      isStaff
+        ? fetchMembersFiltered()
+        : fetchCellMemberDirectory().then((rows) => rows.map(cellMemberRowToMember)),
+      isStaff ? Promise.resolve(new Map<string, string | null>()) : fetchCellLeaderNames(),
+    ])
+      .then(([cellRows, memberRows, names]) => {
         if (cancelled) return;
         setCells(cellRows);
         setMembers(memberRows);
+        setLeaderNames(names);
         setError(null);
       })
       .catch((e: unknown) => {
@@ -211,7 +218,7 @@ export const Cells: React.FC<Props> = ({ user }) => {
     return () => {
       cancelled = true;
     };
-  }, [level]);
+  }, [canUseLeaderPages, isStaff]);
 
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -235,23 +242,14 @@ export const Cells: React.FC<Props> = ({ user }) => {
     }
   };
 
-  const summaries = useMemo<CellSummary[]>(() => summarizeCells(cells, members), [cells, members]);
+  const summaries = useMemo<CellSummary[]>(() => summarizeCells(cells, members, leaderNames), [cells, members, leaderNames]);
 
   // Cell leaders can manage BSCs only in cells they personally lead; coordinators manage all.
   const bscManageableCells = useMemo(() => {
     if (user?.role === 'coordinator') return new Set(cells.map((c) => c.id));
-    if (user?.role === 'cell_leader') return new Set(cells.filter((c) => c.leader_id === user.id).map((c) => c.id));
-    return new Set<string>();
-  }, [cells, user]);
+    return new Set(ledCells.map((c) => c.id));
+  }, [cells, user, ledCells]);
   const unassigned = members.filter((m) => !m.cell_id).length;
-
-  if (level < 1) {
-    return (
-      <div className="p-6 text-sm text-gray-600 dark:text-slate-400">
-        Cells are visible to cell leaders, admins and coordinators.
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">

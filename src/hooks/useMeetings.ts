@@ -50,6 +50,7 @@ export function useMeetings(upcoming = true) {
           ? {
               ...m,
               user_confirmed: true,
+              user_attendance_status: 'confirmed',
               attendance_count:
                 typeof m.attendance_count === 'number' ? m.attendance_count + 1 : m.attendance_count,
             }
@@ -66,6 +67,7 @@ export function useMeetings(upcoming = true) {
           ? {
               ...m,
               user_confirmed: false,
+              user_attendance_status: 'excused',
               attendance_count:
                 typeof m.attendance_count === 'number'
                   ? Math.max(0, m.attendance_count - 1)

@@ -31,7 +31,9 @@ env:
   # Supersedes 87bf96d and 93555f3. Change only by a reviewed edit to this file.
   RELEASE_SHA: fada4a3af3416d9c8943ffa6fb68e377157f9c99
   # The golden fingerprint blob at the candidate commit. The workflow fails if the golden differs.
-  GOLDEN_BLOB: 6bb7075efc276c2fd99a09361ec5cd76ac12ab73
+  # Updated with the golden regenerated on PostgreSQL 17 (update-golden-fingerprint run 45914315436). The previous pin
+  # 6bb7075 matched no committed golden.
+  GOLDEN_BLOB: 8dc3943c64d57393c713bc2032ed2866c3997ce3
   EXPECTED_MIGRATIONS: "104"
   LAST_MIGRATION: "103"
   EXPECTED_MEMBERSHIP_CHECKS: "68"

@@ -4,6 +4,7 @@ import { Button } from '../foundation/Button';
 import { Input } from '../foundation/Input';
 import { Tag } from '../foundation/Tag';
 import type { Contact, ContactInput, ContactTag, ContactStatus } from '../../types';
+import { toLocalDateKey } from '../../lib/dates';
 
 interface AssignableUser { id: string; email: string; full_name: string; }
 
@@ -25,7 +26,7 @@ const EMPTY: ContactInput = {
   phone_hidden: false,
   tag: '',
   follow_up_status: '',
-  date_contacted: new Date().toISOString().split('T')[0],
+  date_contacted: toLocalDateKey(),
   notes: '',
   is_member: false,
 };
@@ -42,7 +43,7 @@ function validate(form: ContactInput): Errors {
     e.follow_up_status = 'Please select a status.';
   if (!form.date_contacted)
     e.date_contacted = 'Date is required.';
-  else if (form.date_contacted > new Date().toISOString().split('T')[0])
+  else if (form.date_contacted > toLocalDateKey())
     e.date_contacted = 'Date cannot be in the future.';
   if (form.contact_phone) {
     const clean = form.contact_phone.replace(/\D/g, '');

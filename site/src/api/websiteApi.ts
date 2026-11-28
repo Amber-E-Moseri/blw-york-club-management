@@ -104,9 +104,8 @@ export interface RoleRow {
   id: string;
   name: string;
   description: string;
-  isBuiltin: boolean;
-  status: 'active' | 'archived';
-  version: number;
+  /** Website permission keys (website.*) held by the role. */
+  permissions: string[];
 }
 
 export interface AssignmentRow {
@@ -114,8 +113,6 @@ export interface AssignmentRow {
   roleId: string;
   profileId: string;
   assignedAt: string;
-  reason: string;
-  revokedAt: string | null;
 }
 
 export interface PublicContentRow {
@@ -333,28 +330,40 @@ export function createWebsiteApi(config: ApiConfig) {
     },
 
     // ---- roles (core administrators)
+    // Website staff roles. The backend reuses the Hub's admin_roles tables (migration 047); these calls map to its RPCs.
     async listRoles(): Promise<RoleRow[]> {
-      const rows = await call<Array<Record<string, unknown>>>('/rest/v1/web_roles?select=id,name,description,is_builtin,status,version&order=name', {});
-      return rows.map((r) => ({ id: r.id as string, name: r.name as string, description: r.description as string, isBuiltin: r.is_builtin as boolean, status: r.status as RoleRow['status'], version: r.version as number }));
+      const rows = await rpc<Array<Record<string, unknown>>>('web_list_website_roles', {});
+      return rows.map((r) => ({
+        id: r.id as string,
+        name: r.name as string,
+        description: (r.description as string) ?? '',
+        permissions: (r.permissions as string[]) ?? [],
+      }));
     },
     async listAssignments(): Promise<AssignmentRow[]> {
-      const rows = await call<Array<Record<string, unknown>>>('/rest/v1/web_role_assignments?select=id,role_id,profile_id,assigned_at,reason,revoked_at&order=assigned_at.desc', {});
-      return rows.map((r) => ({ id: r.id as string, roleId: r.role_id as string, profileId: r.profile_id as string, assignedAt: r.assigned_at as string, reason: r.reason as string, revokedAt: (r.revoked_at as string) ?? null }));
+      const rows = await rpc<Array<Record<string, unknown>>>('web_list_website_assignments', {});
+      return rows.map((r) => ({
+        id: r.id as string,
+        roleId: r.role_id as string,
+        profileId: r.profile_id as string,
+        assignedAt: r.assigned_at as string,
+      }));
     },
-    createRole(name: string, description: string, permissions: string[]): Promise<string> {
-      return rpc<string>('web_create_role', { p_name: name, p_description: description, p_permissions: permissions });
+    createRole(name: string, description: string, permissions: string[], reason: string): Promise<string> {
+      return rpc<string>('web_create_website_role', { p_name: name, p_description: description, p_permissions: permissions, p_reason: reason });
     },
-    setRolePermissions(roleId: string, permissions: string[], expectedVersion: number): Promise<number> {
-      return rpc<number>('web_set_role_permissions', { p_role_id: roleId, p_permissions: permissions, p_expected_version: expectedVersion });
+    /** Sets the role's complete website permission set in one transaction (migration 058). */
+    setRolePermissions(roleId: string, permissions: string[], reason: string): Promise<void> {
+      return rpc<void>('web_set_website_role_permissions', { p_role_id: roleId, p_permissions: permissions, p_reason: reason });
     },
-    archiveRole(roleId: string, reason: string): Promise<void> {
-      return rpc<void>('web_archive_role', { p_role_id: roleId, p_reason: reason });
+    retireRole(roleId: string, reason: string): Promise<void> {
+      return rpc<void>('web_retire_website_role', { p_role_id: roleId, p_reason: reason });
     },
     assignRole(profileId: string, roleId: string, reason: string): Promise<string> {
-      return rpc<string>('web_assign_role', { p_profile_id: profileId, p_role_id: roleId, p_reason: reason });
+      return rpc<string>('web_assign_website_role', { p_profile_id: profileId, p_role_id: roleId, p_reason: reason });
     },
     revokeAssignment(assignmentId: string, reason: string): Promise<void> {
-      return rpc<void>('web_revoke_assignment', { p_assignment_id: assignmentId, p_reason: reason });
+      return rpc<void>('web_unassign_website_role', { p_assignment_id: assignmentId, p_reason: reason });
     },
 
     // ---- Rhapsody (staff)

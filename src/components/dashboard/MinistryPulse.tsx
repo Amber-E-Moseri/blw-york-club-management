@@ -3,11 +3,9 @@ import { Users, ClipboardList, AlertCircle, Calendar } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { EnhancedDashboardStats } from '../../types';
 import type { AuthUser } from '../../lib/auth';
+import { useLeadership } from '../../hooks/useLeadership';
 import { Skeleton } from './DashboardCard';
 
-const ROLE_LEVEL: Record<AuthUser['role'], number> = {
-  member: 0, cell_leader: 1, admin: 2, coordinator: 3,
-};
 
 interface PulseMetric {
   label: string;
@@ -31,12 +29,12 @@ interface MinistryPulseProps {
 export const MinistryPulse: React.FC<MinistryPulseProps> = ({
   stats, attentionCount, role, loading, onNavigate,
 }) => {
-  const level = ROLE_LEVEL[role] ?? 0;
+  const { canUseLeaderPages: isLeader } = useLeadership();
 
   if (loading) {
     return (
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        {Array.from({ length: level >= 1 ? 4 : 2 }).map((_, i) => (
+        {Array.from({ length: isLeader ? 4 : 2 }).map((_, i) => (
           <Skeleton key={i} className="h-24 rounded-2xl" />
         ))}
       </div>
@@ -46,21 +44,27 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
   const leaderMetrics: PulseMetric[] = [
     {
       label: 'Members',
-      value: stats?.member_count ?? 0,
-      sub: stats?.member_growth ? `+${stats.member_growth} this month` : 'Total registered',
+      value: stats ? stats.member_count : '—',
+      sub: !stats
+        ? 'Unavailable'
+        : stats.pending_member_count !== null && stats.pending_member_count > 0
+          ? `${stats.pending_member_count} pending approval`
+          : stats.member_growth !== null && stats.member_growth > 0
+            ? `+${stats.member_growth} this month`
+            : 'Active members',
       icon: Users,
       iconBg: 'bg-blue-50 dark:bg-blue-900/20',
       iconColor: 'text-blue-600',
-      onClick: () => onNavigate('/members'),
+      onClick: () => onNavigate('/hub/members'),
     },
     {
       label: 'Outreach contacts',
-      value: stats?.contacts_this_week ?? 0,
+      value: stats ? stats.contacts_this_week : '—',
       sub: 'Logged this week',
       icon: ClipboardList,
       iconBg: 'bg-emerald-50 dark:bg-emerald-900/20',
       iconColor: 'text-emerald-600',
-      onClick: () => onNavigate('/contacts'),
+      onClick: () => onNavigate('/hub/contacts'),
     },
     {
       label: 'Needs follow-up',
@@ -69,33 +73,33 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
       icon: AlertCircle,
       iconBg: attentionCount > 0 ? 'bg-york-50 dark:bg-york-900/20' : 'bg-gray-50 dark:bg-slate-700',
       iconColor: attentionCount > 0 ? 'text-york-600' : 'text-gray-400',
-      onClick: () => onNavigate('/contacts'),
+      onClick: () => onNavigate('/hub/contacts'),
       urgent: attentionCount > 0,
     },
     {
       label: 'Meetings',
-      value: stats?.meetings_this_month ?? 0,
+      value: stats ? stats.meetings_this_month : '—',
       sub: 'This month',
       icon: Calendar,
       iconBg: 'bg-purple-50 dark:bg-purple-900/20',
       iconColor: 'text-purple-600',
-      onClick: () => onNavigate('/meetings'),
+      onClick: () => onNavigate('/hub/meetings'),
     },
   ];
 
   const memberMetrics: PulseMetric[] = [
     {
       label: 'Meetings',
-      value: stats?.meetings_this_month ?? 0,
+      value: stats ? stats.meetings_this_month : '—',
       sub: 'This month',
       icon: Calendar,
       iconBg: 'bg-purple-50 dark:bg-purple-900/20',
       iconColor: 'text-purple-600',
-      onClick: () => onNavigate('/meetings'),
+      onClick: () => onNavigate('/hub/meetings'),
     },
     {
       label: 'Habit completion',
-      value: stats?.habit_streak_avg ? `${stats.habit_streak_avg}%` : '—',
+      value: stats?.habit_streak_avg == null ? '—' : `${stats.habit_streak_avg}%`,
       sub: '7-day average',
       icon: ({ className }) => (
         <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -104,14 +108,14 @@ export const MinistryPulse: React.FC<MinistryPulseProps> = ({
       ),
       iconBg: 'bg-emerald-50 dark:bg-emerald-900/20',
       iconColor: 'text-emerald-600',
-      onClick: () => onNavigate('/habits'),
+      onClick: () => onNavigate('/hub/habits'),
     },
   ];
 
-  const metrics = level >= 1 ? leaderMetrics : memberMetrics;
+  const metrics = isLeader ? leaderMetrics : memberMetrics;
 
   return (
-    <div className={cn('grid grid-cols-2 gap-3 sm:gap-4', level >= 1 ? 'xl:grid-cols-4' : 'sm:grid-cols-2 max-w-sm')}>
+    <div className={cn('grid grid-cols-2 gap-3 sm:gap-4', isLeader ? 'xl:grid-cols-4' : 'sm:grid-cols-2 max-w-sm')}>
       {metrics.map((m) => {
         const Icon = m.icon;
         return (

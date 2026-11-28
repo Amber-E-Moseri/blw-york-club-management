@@ -21,7 +21,11 @@ export interface CellSummary {
  * Joins cells to their leader and members. Members are sorted by name. A leader who is not in the member list
  * still gets a name when the leader_id matches a directory entry; otherwise leaderName is null.
  */
-export function summarizeCells(cells: Cell[], members: Member[]): CellSummary[] {
+export function summarizeCells(
+  cells: Cell[],
+  members: Member[],
+  leaderNames?: Map<string, string | null>,
+): CellSummary[] {
   const byId = new Map(members.map((m) => [m.id, m]));
   const membersByCell = new Map<string, Member[]>();
   for (const member of members) {
@@ -34,7 +38,10 @@ export function summarizeCells(cells: Cell[], members: Member[]): CellSummary[] 
   return cells.map((cell) => ({
     id: cell.id,
     name: cell.name,
-    leaderName: cell.leader_id ? byId.get(cell.leader_id)?.full_name ?? null : null,
+    // A cell the viewer cannot see the members of still shows its leader, from the leader-name list when one is supplied.
+    leaderName: leaderNames?.has(cell.id)
+      ? leaderNames.get(cell.id) ?? null
+      : cell.leader_id ? byId.get(cell.leader_id)?.full_name ?? null : null,
     members: (membersByCell.get(cell.id) ?? []).sort((a, b) => a.full_name.localeCompare(b.full_name)),
   }));
 }

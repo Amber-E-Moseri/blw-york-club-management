@@ -133,15 +133,48 @@ describe('attendance states', () => {
     expect(fake.log.find((e) => e.target === 'meeting_attendances' && e.op === 'select')!.args[0]).toBe('meeting_id, attendance_status');
   });
 
+  test('a failed attendance read reports the status as unavailable, not as not confirmed', async () => {
+    fake.queue('meetings', {
+      data: [{ id: 'm1', title: 'A', date: '2026-11-01', time: '18:00', visibility: 'public' }],
+      error: null,
+    });
+    fake.queue('meeting_attendances', {
+      data: null,
+      error: { message: 'column meeting_attendances.attendance_status does not exist' },
+    });
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      const result = await meetings.fetchMeetings(true);
+      expect(result[0]).toMatchObject({ id: 'm1', user_confirmed: false, attendance_status_unavailable: true });
+      expect(result[0].user_attendance_status).toBeNull();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  test('a readable attendance status is not marked unavailable', async () => {
+    fake.queue('meetings', {
+      data: [{ id: 'm1', title: 'A', date: '2026-11-01', time: '18:00', visibility: 'public' }],
+      error: null,
+    });
+    fake.queue('meeting_attendances', { data: [{ meeting_id: 'm1', attendance_status: 'confirmed' }], error: null });
+    const result = await meetings.fetchMeetings(true);
+    expect(result[0].attendance_status_unavailable).toBeUndefined();
+    expect(result[0]).toMatchObject({ user_confirmed: true });
+  });
+
   test('staff outcomes are written as a status, and the boolean form maps onto it', async () => {
+    fake.queue('meeting_attendances', { data: { id: 'attendance-1' }, error: null });
     await meetings.markAttendanceStatus(MEETING_ID, USER_ID, 'excused');
     expect(fake.log.find((e) => e.op === 'update')!.args[0]).toEqual({ attendance_status: 'excused' });
 
     fake.reset();
+    fake.queue('meeting_attendances', { data: { id: 'attendance-1' }, error: null });
     await meetings.markAttended(MEETING_ID, USER_ID, true);
     expect(fake.log.find((e) => e.op === 'update')!.args[0]).toEqual({ attendance_status: 'attended' });
 
     fake.reset();
+    fake.queue('meeting_attendances', { data: { id: 'attendance-1' }, error: null });
     await meetings.markAttended(MEETING_ID, USER_ID, false);
     expect(fake.log.find((e) => e.op === 'update')!.args[0]).toEqual({ attendance_status: 'absent' });
   });

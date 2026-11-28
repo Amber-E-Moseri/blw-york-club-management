@@ -5,7 +5,8 @@ import { PeopleFilters } from '../components/people/PeopleFilters';
 import { PersonCard } from '../components/people/PersonCard';
 import { PersonDetailPanel } from '../components/people/PersonDetailPanel';
 import { Skeleton } from '../components/dashboard/DashboardCard';
-import { fetchMembersFiltered } from '../lib/queries/members';
+import { fetchMembersFiltered, fetchMembershipAuthoritySummary, fetchCellMemberDirectory, cellMemberRowToMember, type MembershipAuthoritySummary } from '../lib/queries/members';
+import { useLeadership } from '../hooks/useLeadership';
 import { fetchCells } from '../lib/queries/contacts';
 import type { AuthUser } from '../lib/auth';
 import type { Cell, Member } from '../types';
@@ -30,11 +31,14 @@ function useDebouncedValue<T>(value: T, delay: number): T {
 export const Members: React.FC<Props> = ({ user }) => {
   const level = ROLE_LEVEL[user?.role ?? 'member'] ?? 0;
   const isAdmin = level >= 2;
+  // Staff read the organization directory. A cell leader reads only the members of the cells they lead.
+  const { isStaff } = useLeadership();
 
   const [members, setMembers] = useState<Member[]>([]);
   const [cells, setCells] = useState<Cell[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [authoritySummary, setAuthoritySummary] = useState<MembershipAuthoritySummary | null>(null);
 
   // Filters (live state — debounced before fetching)
   const [search, setSearch] = useState('');
@@ -61,20 +65,36 @@ export const Members: React.FC<Props> = ({ user }) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchMembersFiltered({
-        search: debouncedSearch || undefined,
-        role: roleFilter || undefined,
-        cellId: cellFilter || undefined,
-      });
-      setMembers(data);
+      if (isStaff) {
+        const data = await fetchMembersFiltered({
+          search: debouncedSearch || undefined,
+          role: roleFilter || undefined,
+          cellId: cellFilter || undefined,
+        });
+        setMembers(data);
+      } else {
+        // Leader view: the cell directory, filtered here. The role is not part of this view, so the role filter does not apply.
+        const needle = debouncedSearch.trim().toLowerCase();
+        const rows = (await fetchCellMemberDirectory())
+          .filter((row) => !cellFilter || row.cell_id === cellFilter)
+          .filter((row) => !needle || (row.full_name ?? '').toLowerCase().includes(needle) || (row.email ?? '').toLowerCase().includes(needle));
+        setMembers(rows.map(cellMemberRowToMember));
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load people.');
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, roleFilter, cellFilter]);
+  }, [debouncedSearch, roleFilter, cellFilter, isStaff]);
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetchMembershipAuthoritySummary().then(setAuthoritySummary).catch(() => {
+      setAuthoritySummary({ approvedHubAccounts: 0, verifiedOrganizationalMembers: null, reconciliationIssues: null });
+    });
+  }, [isAdmin]);
 
   // Load cells once
   const cellsLoaded = useRef(false);
@@ -84,17 +104,8 @@ export const Members: React.FC<Props> = ({ user }) => {
     fetchCells().then(setCells).catch(console.error);
   }, []);
 
-  // Access gate: cell_leader+
-  if (level < 1) {
-    return (
-      <div className="flex-1 p-8 flex items-center justify-center">
-        <p className="text-sm text-york-600 font-medium">Leaders only — access denied.</p>
-      </div>
-    );
-  }
-
   const totalMembers = members.length;
-  const leaderCount = members.filter((m) => m.role !== 'member').length;
+  const leaderCount = isStaff ? members.filter((m) => m.role !== 'member').length : 0;
   const canSeeContact = isAdmin;
 
   return (
@@ -104,17 +115,24 @@ export const Members: React.FC<Props> = ({ user }) => {
         <p className="text-[11px] font-bold text-york-600 uppercase tracking-wider">Community</p>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-1">People</h1>
         <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
-          Your ministry directory: members, leaders and cells.
+          Approved Hub accounts are shown below. Organizational membership is tracked separately.
         </p>
       </div>
 
       {/* Stats strip */}
       {!loading && (
-        <div className="grid grid-cols-3 gap-2.5">
-          <StatChip label="Members" value={totalMembers} />
-          <StatChip label="Leaders" value={leaderCount} />
+        <div className={`grid gap-2.5 ${isAdmin ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
+          <StatChip label="Approved accounts shown" value={totalMembers} />
+          {isStaff && <StatChip label="Leaders" value={leaderCount} />}
           <StatChip label="Cells" value={cells.length} />
+          {isAdmin && <StatChip label="Verified org members" value={authoritySummary?.verifiedOrganizationalMembers ?? '—'} />}
         </div>
+      )}
+
+      {isAdmin && authoritySummary?.reconciliationIssues !== null && authoritySummary?.reconciliationIssues !== undefined && authoritySummary.reconciliationIssues > 0 && (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
+          {authoritySummary.reconciliationIssues} account/membership {authoritySummary.reconciliationIssues === 1 ? 'difference needs' : 'differences need'} administrative review. No records were changed automatically.
+        </p>
       )}
 
       {error && (
@@ -126,7 +144,7 @@ export const Members: React.FC<Props> = ({ user }) => {
       {/* Filters */}
       <PeopleFilters
         search={search} onSearch={setSearch}
-        role={roleFilter} onRole={setRoleFilter}
+        role={roleFilter} onRole={setRoleFilter} showRole={isStaff}
         cellId={cellFilter} onCellId={setCellFilter}
         cells={cells}
       />
@@ -197,7 +215,7 @@ export const Members: React.FC<Props> = ({ user }) => {
                         </div>
                       </td>
                       <td className="px-5 py-3.5">
-                        <PersonStatusBadge role={m.role} size="xs" />
+                        {isStaff && <PersonStatusBadge role={m.role} size="xs" />}
                       </td>
                       <td className="px-5 py-3.5 text-sm text-gray-500 dark:text-slate-400">
                         {m.cellName ?? <span className="text-gray-300 dark:text-slate-600">—</span>}
@@ -236,13 +254,14 @@ export const Members: React.FC<Props> = ({ user }) => {
           onClose={() => setSelectedId(null)}
           currentUser={user}
           onSaved={fetchMembers}
+          leaderView={!isStaff}
         />
       )}
     </div>
   );
 };
 
-const StatChip: React.FC<{ label: string; value: number }> = ({ label, value }) => (
+const StatChip: React.FC<{ label: string; value: number | string }> = ({ label, value }) => (
   <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm px-3.5 py-3">
     <p className="text-xs text-gray-500 dark:text-slate-400">{label}</p>
     <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-1">{value}</p>

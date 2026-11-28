@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
+import { useLeadership } from '../hooks/useLeadership';
 import { LayoutList, Building2, BookOpen, Users, Star, Calendar, type LucideIcon } from 'lucide-react';
 import { Button } from '../components/foundation/Button';
 import { MeetingCard } from '../components/feature/MeetingCard';
 import { MeetingForm } from '../components/feature/MeetingForm';
 import { useMeetings } from '../hooks/useMeetings';
+import { formatMonthHeading, groupByMonth } from '../lib/dates';
 import type { AuthUser } from '../lib/auth';
 import type { Meeting, MeetingInput, MeetingCategory } from '../types';
 
 interface Props { user: AuthUser | null; }
 
-const canManage = (role: string) => ['coordinator', 'admin', 'cell_leader'].includes(role);
 
 const CATEGORY_TABS: { value: MeetingCategory | 'all'; label: string; icon: LucideIcon }[] = [
   { value: 'all',         label: 'All',        icon: LayoutList },
@@ -27,8 +28,10 @@ export const MeetingsHub: React.FC<Props> = ({ user }) => {
 
   const { meetings, loading, error, save, remove, confirm, cancel } = useMeetings(!showPast);
 
-  const isManager = canManage(user?.role ?? 'member');
-  const isLeader  = ['coordinator', 'admin', 'cell_leader'].includes(user?.role ?? '');
+  // Meeting managers and leadership-only meetings follow the leadership capability, not the role label.
+  const { canUseLeaderPages } = useLeadership();
+  const isManager = canUseLeaderPages;
+  const isLeader = canUseLeaderPages;
 
   const handleEdit = (m: Meeting) => { setEditing(m); setFormOpen(true); };
   const handleAdd  = () => { setEditing(null); setFormOpen(true); };
@@ -57,15 +60,7 @@ export const MeetingsHub: React.FC<Props> = ({ user }) => {
 
   const confirmedCount = filtered.filter((m) => m.user_confirmed).length;
 
-  const grouped = filtered.reduce<Record<string, Meeting[]>>((acc, m) => {
-    const key = m.date.slice(0, 7);
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(m);
-    return acc;
-  }, {});
-
-  const monthLabel = (ym: string) =>
-    new Date(ym + '-01').toLocaleDateString('en-CA', { month: 'long', year: 'numeric' });
+  const grouped = groupByMonth(filtered);
 
   return (
     <div className="space-y-5 pb-4">
@@ -157,7 +152,7 @@ export const MeetingsHub: React.FC<Props> = ({ user }) => {
       {!loading && Object.entries(grouped).map(([month, items]) => (
         <div key={month} className="space-y-3">
           <h2 className="text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-            {monthLabel(month)}
+            {formatMonthHeading(month)}
           </h2>
           {items.map((m) => (
             <MeetingCard

@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useLeadership } from './useLeadership';
+import { fetchCellMemberDirectory } from '../lib/queries/members';
 import type { Contact, ContactFilters, ContactTag, ContactStatus, Cell, ContactTagRelation, ContactFollowUp } from '../types';
 import {
   fetchContacts, fetchContact, createContact, updateContact,
   archiveContact, deleteContact, bulkArchiveContacts, bulkDeleteContacts,
   fetchTags, fetchStatuses, fetchCells, fetchContactTags, fetchContactFollowUps,
-  fetchContactAuditLog, fetchAssignableUsers, reassignFollowUp, moveContactToCell,
+  fetchContactAuditLog, fetchAssignableUsers, reassignFollowUp, reassignFollowUpByMemberKey, moveContactToCell,
   bulkImportContacts,
 } from '../lib/queries/contacts';
 import type { BulkImportRow, ContactAuditLogEntry, ContactInput, ImportResult, User } from '../types';
@@ -97,6 +99,8 @@ export function useContactMutations(onSuccess?: () => void) {
   const bulkRemove  = (ids: string[]) => run(() => bulkDeleteContacts(ids));
   const reassign = (contactId: string, assigneeId: string, assignedBy: string, notes?: string) =>
     run(() => reassignFollowUp(contactId, assigneeId, assignedBy, notes));
+  const reassignByMemberKey = (contactId: string, memberKey: string, notes?: string) =>
+    run(() => reassignFollowUpByMemberKey(contactId, memberKey, notes));
   const moveToCell = (
     contactId: string,
     newCellId: string,
@@ -115,7 +119,7 @@ export function useContactMutations(onSuccess?: () => void) {
       return result;
     });
 
-  return { save, archive, remove, bulkArchive, bulkRemove, reassign, moveToCell, bulkImport, saving, error };
+  return { save, archive, remove, bulkArchive, bulkRemove, reassign, reassignByMemberKey, moveToCell, bulkImport, saving, error };
 }
 
 function makeIdempotencyKey() {
@@ -210,19 +214,29 @@ export function useContactAuditLog(contactId: string | null) {
   return { log, loading, refetch: load };
 }
 
+/**
+ * People a follow-up can be assigned to. Staff get the organization list. A cell leader gets the active members of the
+ * cells they lead, identified by member key (never an auth user id), which is what the reassign path accepts.
+ */
 export function useAssignableUsers() {
+  const { isStaff } = useLeadership();
   const [users, setUsers] = useState<Pick<User, 'id' | 'email' | 'full_name'>[]>([]);
   const [loading, setLoading] = useState(true);
-  const loaded = useRef(false);
 
   useEffect(() => {
-    if (loaded.current) return;
-    loaded.current = true;
-    fetchAssignableUsers()
-      .then(setUsers)
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
+    let cancelled = false;
+    setLoading(true);
+    const source: Promise<Pick<User, 'id' | 'email' | 'full_name'>[]> = isStaff
+      ? fetchAssignableUsers()
+      : fetchCellMemberDirectory().then((rows) =>
+          rows.map((row) => ({ id: row.member_key, email: row.email ?? '', full_name: row.full_name ?? '' })),
+        );
+    source
+      .then((list) => { if (!cancelled) setUsers(list); })
+      .catch((e: unknown) => { console.error(e); if (!cancelled) setUsers([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [isStaff]);
 
   return { users, loading };
 }

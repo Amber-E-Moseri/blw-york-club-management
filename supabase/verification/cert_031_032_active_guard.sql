@@ -84,11 +84,19 @@ begin
   -- BLOCK A: announcements_manage — migration 031
   --------------------------------------------------------------------------
 
-  -- A1: active cell leader CAN manage announcements
+  -- Each leader leads its own cell. The role label alone grants no announcement authority (migration 066), so every
+  -- insert below names the cell that the account leads. Status, not the missing cell, must be what refuses A2 and A3.
+  perform pg_temp.as_postgres();
+  insert into public.cells (id, name, leader_id) values
+    ('30000000-0000-0000-0000-000000000041', 'Cert 031 Active Cell', active_leader_id),
+    ('30000000-0000-0000-0000-000000000042', 'Cert 031 Rejected Cell', rejected_leader_id),
+    ('30000000-0000-0000-0000-000000000043', 'Cert 031 Inactive Cell', inactive_leader_id);
+
+  -- A1: active cell leader CAN manage announcements in a cell it leads
   perform pg_temp.as_auth(active_leader_id);
   begin
-    insert into public.announcements (id, title, body, author_id, author_name, created_at)
-    values ('30000000-0000-0000-0000-000000000021'::uuid, 'Cell Leader Insert Test', 'test body', active_leader_id, 'Cert Active Leader', now());
+    insert into public.announcements (id, title, body, author_id, author_name, created_at, cell_id)
+    values ('30000000-0000-0000-0000-000000000021'::uuid, 'Cell Leader Insert Test', 'test body', active_leader_id, 'Cert Active Leader', now(), '30000000-0000-0000-0000-000000000041'::uuid);
     get diagnostics row_count = row_count;
     if row_count = 1 then
       perform pg_temp.cert_pass('031 announcements', 'active cell_leader can insert announcement', row_count::text);
@@ -104,8 +112,8 @@ begin
   -- A2: rejected cell leader CANNOT manage announcements (the 031 fix)
   perform pg_temp.as_auth(rejected_leader_id);
   begin
-    insert into public.announcements (id, title, body, author_id, author_name, created_at)
-    values ('30000000-0000-0000-0000-000000000022'::uuid, 'Rejected Leader Insert', 'test body', rejected_leader_id, 'Cert Rejected Leader', now());
+    insert into public.announcements (id, title, body, author_id, author_name, created_at, cell_id)
+    values ('30000000-0000-0000-0000-000000000022'::uuid, 'Rejected Leader Insert', 'test body', rejected_leader_id, 'Cert Rejected Leader', now(), '30000000-0000-0000-0000-000000000042'::uuid);
     perform pg_temp.cert_fail('031 announcements', 'rejected cell_leader cannot insert announcement', 'insert succeeded unexpectedly');
   exception when others then
     perform pg_temp.cert_pass('031 announcements', 'rejected cell_leader cannot insert announcement', sqlerrm);
@@ -116,8 +124,8 @@ begin
   -- A3: inactive cell leader CANNOT manage announcements (the 031 fix)
   perform pg_temp.as_auth(inactive_leader_id);
   begin
-    insert into public.announcements (id, title, body, author_id, author_name, created_at)
-    values ('30000000-0000-0000-0000-000000000023'::uuid, 'Inactive Leader Insert', 'test body', inactive_leader_id, 'Cert Inactive Leader', now());
+    insert into public.announcements (id, title, body, author_id, author_name, created_at, cell_id)
+    values ('30000000-0000-0000-0000-000000000023'::uuid, 'Inactive Leader Insert', 'test body', inactive_leader_id, 'Cert Inactive Leader', now(), '30000000-0000-0000-0000-000000000043'::uuid);
     perform pg_temp.cert_fail('031 announcements', 'inactive cell_leader cannot insert announcement', 'insert succeeded unexpectedly');
   exception when others then
     perform pg_temp.cert_pass('031 announcements', 'inactive cell_leader cannot insert announcement', sqlerrm);

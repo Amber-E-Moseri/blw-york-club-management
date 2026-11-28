@@ -64,7 +64,8 @@ jobs:
   # ---------------------------------------------------------------------------------------------------------------
   hosted:
     name: hosted (real GoTrue, PostgREST and OTP; certification project only)
-    if: ${{ inputs.run_hosted || inputs.delivery_only }}
+    # FROZEN. Both BLW York refs are denied for automated use until verified. Disabled, so no hosted run can start.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     environment: Preview

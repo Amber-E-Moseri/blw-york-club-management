@@ -4,6 +4,7 @@ import type {
   ContactRelationship,
   CreatePersonInput,
 } from '../../types/person';
+import { toLocalDateKey } from '../dates';
 
 // ─── Email identity matching ──────────────────────────────────────────────────
 
@@ -140,7 +141,7 @@ export async function createContactPerson(input: {
       logged_by: input.loggedBy,
       tag: input.tag ?? null,
       notes: input.notes ?? null,
-      date_contacted: input.dateContacted ?? new Date().toISOString().split('T')[0],
+      date_contacted: input.dateContacted ?? toLocalDateKey(),
       idempotency_key: input.idempotencyKey ?? null,
     })
     .select(
@@ -182,7 +183,7 @@ export async function createContactPerson(input: {
 
       // Fallback recovery: same person + logger + date (no idempotency key supplied).
       const dateContacted =
-        input.dateContacted ?? new Date().toISOString().split('T')[0];
+        input.dateContacted ?? toLocalDateKey();
       const { data: existingByPerson, error: personLookupErr } = await supabase
         .from('contacts')
         .select(selectFields)

@@ -75,7 +75,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Logo + Title — centred in the middle column so it never runs under the hamburger */}
       <div className="flex items-center gap-2.5 justify-self-center min-w-0">
-        <img src="/logo.png" alt="BLW York" className="w-8 h-8 rounded-md shrink-0" />
+        <img src={`${process.env.PUBLIC_URL}/logo.png`} alt="BLW York" className="w-8 h-8 rounded-md shrink-0" />
         <span className="text-lg font-bold text-gray-900 dark:text-slate-100 leading-tight hidden sm:block truncate">
           BLW York Hub
         </span>
@@ -171,17 +171,23 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   type="button"
                   className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors dark:text-slate-200 dark:hover:bg-slate-800"
-                  onClick={() => { setMenuOpen(false); navigate('/profile'); }}
+                  onClick={() => { setMenuOpen(false); navigate('/hub/profile'); }}
                 >
                   My Profile
                 </button>
                 <button
                   type="button"
                   className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors dark:text-slate-200 dark:hover:bg-slate-800"
-                  onClick={() => { setMenuOpen(false); navigate('/email-preferences'); }}
+                  onClick={() => { setMenuOpen(false); navigate('/hub/email-preferences'); }}
                 >
                   Settings
                 </button>
+                <a
+                  href="/"
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors no-underline dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  BLW York website
+                </a>
                 <div className="border-t border-gray-100 mt-1 dark:border-slate-700">
                   <button
                     type="button"

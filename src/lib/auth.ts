@@ -30,7 +30,8 @@ export class AuthError extends Error {
 const ROLE_PERMISSIONS: Record<AuthUser['role'], string[]> = {
   coordinator: ['*'],
   admin: ['manage_members', 'manage_events', 'manage_announcements', 'view_reports', 'manage_cells'],
-  cell_leader: ['manage_cell_members', 'create_events', 'post_announcements', 'view_cell_reports'],
+  // Cell-leader rights come from an active cell assignment (cells.leader_id), not from this role label. See lib/leadership.ts.
+  cell_leader: [],
   member: ['view_events', 'rsvp_events', 'view_announcements', 'submit_prayer_requests'],
 };
 
@@ -47,36 +48,44 @@ export async function signUpWithEmail(
     password,
     options: { data: { full_name: fullName, student_number: studentNumber ?? null } },
   });
-  if (error) throw new AuthError(friendlyMessage(error.message), error.message);
-  if (!data.user) throw new AuthError('Sign-up succeeded but no user was returned.');
+  if (error) throw authErrorFrom(error);
+  if (!data.user) throw new AuthError(GENERIC_AUTH_ERROR_MESSAGE, 'no-user');
   console.debug('[auth] signUp:', data.user.id);
 }
 
 export async function signInWithEmail(email: string, password: string): Promise<AuthUser> {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw new AuthError(friendlyMessage(error.message), error.message);
-  if (!data.user) throw new AuthError('Sign-in succeeded but no user was returned.');
+  if (isOffline()) throw new AuthError(NETWORK_ERROR_MESSAGE, 'offline');
+  let result: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>;
+  try {
+    result = await supabase.auth.signInWithPassword({ email, password });
+  } catch (err) {
+    // A thrown fetch failure (for example "Load failed" on iOS Safari) is a connectivity problem, not a raw exception.
+    throw thrownAuthError(err);
+  }
+  const { data, error } = result;
+  if (error) throw authErrorFrom(error);
+  if (!data.user) throw new AuthError(GENERIC_AUTH_ERROR_MESSAGE, 'no-user');
   console.debug('[auth] signIn:', data.user.id);
   return buildAuthUser(data.user);
 }
 
 export async function signOut(): Promise<void> {
   const { error } = await supabase.auth.signOut();
-  if (error) throw new AuthError(friendlyMessage(error.message), error.message);
+  if (error) throw authErrorFrom(error);
   console.debug('[auth] signed out');
 }
 
 export async function resetPassword(email: string): Promise<void> {
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}/reset-password`,
+    redirectTo: `${window.location.origin}/hub/reset-password`,
   });
-  if (error) throw new AuthError(friendlyMessage(error.message), error.message);
+  if (error) throw authErrorFrom(error);
   console.debug('[auth] reset password email sent to', email);
 }
 
 export async function changePassword(newPassword: string): Promise<void> {
   const { error } = await supabase.auth.updateUser({ password: newPassword });
-  if (error) throw new AuthError(friendlyMessage(error.message), error.message);
+  if (error) throw authErrorFrom(error);
   console.debug('[auth] password changed');
 }
 
@@ -116,7 +125,7 @@ export async function establishRecoverySession(link: RecoveryLink): Promise<Reco
 
 export async function resendConfirmation(email: string): Promise<void> {
   const { error } = await supabase.auth.resend({ type: 'signup', email });
-  if (error) throw new AuthError(friendlyMessage(error.message), error.message);
+  if (error) throw authErrorFrom(error);
   console.debug('[auth] confirmation resent to', email);
 }
 
@@ -125,7 +134,7 @@ export async function resendConfirmation(email: string): Promise<void> {
  */
 export async function verifyEmailOtp(email: string, token: string): Promise<void> {
   const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
-  if (error) throw new AuthError(friendlyMessage(error.message), error.message);
+  if (error) throw authErrorFrom(error);
   console.debug('[auth] email OTP verified');
 }
 
@@ -163,7 +172,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 
 export async function verifyEmail(token: string): Promise<void> {
   const { error } = await supabase.auth.verifyOtp({ token_hash: token, type: 'email' });
-  if (error) throw new AuthError(friendlyMessage(error.message), error.message);
+  if (error) throw authErrorFrom(error);
   console.debug('[auth] email verified');
 }
 
@@ -176,16 +185,38 @@ export async function getUserRole(userId: string): Promise<AuthUser['role']> {
     .eq('id', userId)
     .single();
   if (error) throw new AuthError('Could not fetch role.', error.message);
-  return data.role as AuthUser['role'];
+  // An unrecognised role label grants the least privilege, never the label's nominal rights.
+  return isKnownRole(data?.role) ? data.role : 'member';
 }
 
+const KNOWN_ROLES: readonly AuthUser['role'][] = ['coordinator', 'admin', 'cell_leader', 'member'];
+const KNOWN_STATUSES: readonly AuthUser['status'][] = ['pending', 'active', 'inactive', 'rejected'];
+
+function isKnownRole(value: unknown): value is AuthUser['role'] {
+  return typeof value === 'string' && (KNOWN_ROLES as readonly string[]).includes(value);
+}
+
+function isKnownStatus(value: unknown): value is AuthUser['status'] {
+  return typeof value === 'string' && (KNOWN_STATUSES as readonly string[]).includes(value);
+}
+
+/** Only a recognised role has permissions. Unknown labels, including prototype names such as "constructor", get none. */
 export function getUserPermissions(role: AuthUser['role']): string[] {
-  return ROLE_PERMISSIONS[role] ?? [];
+  return isKnownRole(role) ? ROLE_PERMISSIONS[role] : [];
 }
 
 export function hasPermission(role: AuthUser['role'], permission: string): boolean {
-  const perms = ROLE_PERMISSIONS[role] ?? [];
+  const perms = getUserPermissions(role);
   return perms.includes('*') || perms.includes(permission);
+}
+
+/**
+ * The only approval state that may enter the Hub. It is an allowlist: a pending, rejected or inactive account, and any
+ * missing or unrecognised status, is unapproved. The database applies the same rule through is_active_member()
+ * (migration 022), so this is a UI gate, not the authority.
+ */
+export function canUseApp(user: Pick<AuthUser, 'status'> | null | undefined): boolean {
+  return user?.status === 'active';
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -206,27 +237,63 @@ function buildAuthUser(supabaseUser: { id: string; email?: string; user_metadata
   };
 }
 
-/** Build an AuthUser from a Supabase `profiles` table row. */
-export function buildProfile(row: Record<string, unknown>): AuthUser {
+/**
+ * Build an AuthUser from a Supabase `profiles` table row. Fails closed:
+ *  - a missing row throws, so no profile means no access;
+ *  - a missing or unrecognised status becomes 'pending', so the account stays unapproved;
+ *  - an unrecognised role becomes 'member', the least-privileged role.
+ */
+export function buildProfile(row: Record<string, unknown> | null | undefined): AuthUser {
+  if (!row || typeof row['id'] !== 'string' || row['id'] === '') {
+    throw new AuthError('Profile not found.');
+  }
   return {
-    id: row['id'] as string,
+    id: row['id'],
     email: (row['email'] as string) ?? '',
     name: (row['full_name'] as string) ?? '',
-    role: (row['role'] as AuthUser['role']) ?? 'member',
-    status: (row['status'] as AuthUser['status']) ?? 'active',
+    role: isKnownRole(row['role']) ? row['role'] : 'member',
+    status: isKnownStatus(row['status']) ? row['status'] : 'pending',
     cellId: row['cell_id'] as string | undefined,
     adminRole: row['admin_role'] as string | undefined,
     createdAt: new Date((row['joined_at'] as string) ?? Date.now()),
   };
 }
 
-function friendlyMessage(raw: string): string {
-  const map: Record<string, string> = {
-    'Invalid login credentials': 'Incorrect email or password. Please try again.',
-    'Email not confirmed': 'Please confirm your email address before signing in.',
-    'User already registered': 'An account with this email already exists.',
-    'Password should be at least 6 characters': 'Password must be at least 6 characters long.',
-    'Rate limit exceeded': 'Too many attempts. Please wait a moment and try again.',
-  };
-  return map[raw] ?? raw;
+export const NETWORK_ERROR_MESSAGE =
+  'We could not reach the sign-in service. Check your connection and try again.';
+export const GENERIC_AUTH_ERROR_MESSAGE = 'Something went wrong. Please try again in a moment.';
+
+// Network failures as surfaced by supabase-js and the browser engines (Chromium, Firefox, Safari/WebKit).
+const NETWORK_ERROR_PATTERN =
+  /failed to fetch|load failed|networkerror|network request failed|internet connection|fetch resource|network error/i;
+const RATE_LIMIT_PATTERN = /rate limit|too many|security purposes/i;
+
+const FRIENDLY_MESSAGES: Record<string, string> = {
+  'Invalid login credentials': 'Incorrect email or password. Please try again.',
+  'Email not confirmed': 'Please confirm your email address before signing in.',
+  'User already registered': 'An account with this email already exists.',
+  'Password should be at least 6 characters': 'Password must be at least 6 characters long.',
+};
+
+/** Turns a Supabase error into an AuthError whose message is safe to show. The raw text is kept in `code` only. */
+function authErrorFrom(error: { message: string; status?: number }): AuthError {
+  return new AuthError(friendlyMessage(error.message, error.status), error.message);
+}
+
+/** Maps an exception thrown by the auth client (not a Supabase error object) to a user-facing AuthError. */
+function thrownAuthError(err: unknown): AuthError {
+  if (err instanceof AuthError) return err;
+  const raw = err instanceof Error ? err.message : '';
+  return new AuthError(friendlyMessage(raw, 0), raw || 'unknown');
+}
+
+function isOffline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
+function friendlyMessage(raw: string, status?: number): string {
+  // status 0 is supabase-js's marker for a request that never got a response.
+  if (status === 0 || NETWORK_ERROR_PATTERN.test(raw)) return NETWORK_ERROR_MESSAGE;
+  if (RATE_LIMIT_PATTERN.test(raw)) return 'Too many attempts. Please wait a moment and try again.';
+  return FRIENDLY_MESSAGES[raw] ?? GENERIC_AUTH_ERROR_MESSAGE;
 }

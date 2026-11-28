@@ -59,9 +59,13 @@ try {
   const count = async (meetingId, userId) => (await admin.from('meeting_attendances').select('id', { count: 'exact', head: true }).eq('meeting_id', meetingId).eq('user_id', userId)).count;
 
   // ==== A. Attendance INSERT scope =====================================================================================
-  const selfPublic = await member.client.from('meeting_attendances').insert(row(mPublicA, member)).select();
-  expect('A1 an active member can register themselves for a visible meeting', !selfPublic.error, selfPublic.error?.message);
-  const selfHidden = await member.client.from('meeting_attendances').insert(row(mLeadersA, member)).select();
+  // Members register through respond_to_meeting_invitation (the app's path). Migration 046 refuses a direct insert with the
+  // default 'invited' status.
+  const selfPublic = await member.client.rpc('respond_to_meeting_invitation', { p_meeting_id: mPublicA, p_response: 'confirmed' });
+  expect('A1 an active member can register themselves for a visible meeting (respond_to_meeting_invitation)', !selfPublic.error, selfPublic.error?.message);
+  // Visibility is enforced by the meetings RLS that the insert policy's EXISTS check runs under, so a direct confirmed
+  // insert into a hidden meeting is refused for that reason, not because of its status.
+  const selfHidden = await member.client.from('meeting_attendances').insert({ ...row(mLeadersA, member), attendance_status: 'confirmed' }).select();
   expect("A2 a member cannot register for a meeting they cannot see ('leaders' visibility)", !!selfHidden.error && (await count(mLeadersA, member.id)) === 0, selfHidden.error?.message ?? 'inserted');
   const forge = await member.client.from('meeting_attendances').insert(row(mPublicA, member2)).select();
   expect('A3 a member cannot register someone else', !!forge.error && (await count(mPublicA, member2.id)) === 0);

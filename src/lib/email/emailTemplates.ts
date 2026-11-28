@@ -1,5 +1,6 @@
 import { buildUnsubscribeUrl, getAppOrigin } from './emailService';
 import type { EmailTemplateType } from '../../types';
+import { toLocalDateKey } from '../dates';
 
 interface TemplateOutput {
   subject: string;
@@ -45,7 +46,7 @@ function wrap(
           You're receiving this because you're a member of BLW York Hub at York University.<br/>
           <a href="${unsubUrl}" style="color:#E31837;text-decoration:none;">Unsubscribe from this type of notification</a>
           &nbsp;·&nbsp;
-          <a href="${origin}/email-preferences" style="color:#999;text-decoration:none;">Manage preferences</a>
+          <a href="${origin}/hub/email-preferences" style="color:#999;text-decoration:none;">Manage preferences</a>
         </p>
       </td></tr>
     </table>
@@ -298,22 +299,22 @@ export function renderSampleEmailTemplate(type: EmailTemplateType): TemplateOutp
         memberId: 'preview',
         memberName: 'Member',
         meetingName: 'Cell Fellowship',
-        date: new Date().toISOString().split('T')[0],
+        date: toLocalDateKey(),
         time: '6:00 PM',
         endTime: '8:00 PM',
         location: 'York Lanes',
-        meetingUrl: `${origin}/meetings`,
+        meetingUrl: `${origin}/hub/meetings`,
       });
     case 'meeting_reminder_1hr':
       return meetingReminderHourTemplate({
         memberId: 'preview',
         memberName: 'Member',
         meetingName: 'Cell Fellowship',
-        date: new Date().toISOString().split('T')[0],
+        date: toLocalDateKey(),
         time: '6:00 PM',
         endTime: '8:00 PM',
         location: 'York Lanes',
-        meetingUrl: `${origin}/meetings`,
+        meetingUrl: `${origin}/hub/meetings`,
       });
     case 'message_notification':
       return messageOfWeekTemplate({
@@ -322,7 +323,7 @@ export function renderSampleEmailTemplate(type: EmailTemplateType): TemplateOutp
         messageTitle: 'The Power of Fellowship',
         authorName: 'Pastor Chris',
         preview: 'A new message has been posted for this week',
-        messageUrl: `${origin}/messages`,
+        messageUrl: `${origin}/hub/messages`,
       });
     case 'habit_milestone':
       return habitStreakTemplate({
@@ -331,7 +332,7 @@ export function renderSampleEmailTemplate(type: EmailTemplateType): TemplateOutp
         habitName: 'Daily Prayer',
         streak: 7,
         bestStreak: 14,
-        habitUrl: `${origin}/habits`,
+        habitUrl: `${origin}/hub/habits`,
       });
     case 'devotional_reminder':
       return devotionalReminderTemplate({
@@ -339,7 +340,7 @@ export function renderSampleEmailTemplate(type: EmailTemplateType): TemplateOutp
         memberName: 'Member',
         title: 'Rhapsody of Realities',
         pages: '12-13',
-        devotionalUrl: `${origin}/devotionals`,
+        devotionalUrl: `${origin}/hub/devotionals`,
       });
     case 'testimony_approved':
       return testimonyApprovedTemplate({
@@ -347,7 +348,7 @@ export function renderSampleEmailTemplate(type: EmailTemplateType): TemplateOutp
         memberName: 'Member',
         testimonyTitle: 'God did it',
         visibility: 'members',
-        testimonyUrl: `${origin}/testimonies`,
+        testimonyUrl: `${origin}/hub/testimonies`,
       });
     case 'weekly_digest':
       return genericTemplate({
@@ -360,7 +361,7 @@ export function renderSampleEmailTemplate(type: EmailTemplateType): TemplateOutp
       return accountApprovedTemplate({
         memberId: 'preview',
         memberName: 'Member',
-        loginUrl: `${origin}/`,
+        loginUrl: `${origin}/hub`,
       });
     case 'generic':
     default:

@@ -93,6 +93,9 @@ export function SiteLayout() {
           </nav>
 
           <div className="flex items-center gap-3">
+            <a href="/hub/login" className="hidden whitespace-nowrap text-sm font-medium text-ink no-underline hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand xl:inline-flex">
+              Member sign-in
+            </a>
             <Link to="/new-here" className={`${buttonClass('primary')} hidden !min-h-[40px] !py-2.5 xl:inline-flex`}>
               Plan Your Visit
             </Link>
@@ -128,6 +131,9 @@ export function SiteLayout() {
                 </li>
               ))}
             </ul>
+            <a href="/hub/login" className="mt-3 flex min-h-[44px] w-full items-center justify-center rounded-lg border border-brand px-3 py-3 text-base font-bold text-brand no-underline">
+              Member sign-in
+            </a>
             <Link to="/new-here" className={`${buttonClass('primary')} mt-4 w-full`}>
               Plan Your Visit
             </Link>

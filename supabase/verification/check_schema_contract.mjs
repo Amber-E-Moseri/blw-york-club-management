@@ -41,7 +41,13 @@ check('RLS: enabled on every public table', tableNames.every((t) => fp.tables[t]
 // --- privileges -------------------------------------------------------------------------------------------------
 const anonTables = tableNames.filter((t) => fp.tables[t].privileges.anon !== '');
 check('grants: anon holds no privilege on any table', anonTables.length === 0, anonTables.join(','));
-check('grants: anon holds no privilege on any view', Object.values(fp.views).every((v) => v.privileges.anon === ''), 'view');
+// Anonymous visitors may read only the reviewed public website views (published rows only, security_barrier). Every
+// other view is closed to anon.
+const anonViewsAllowed = contract.anonViews ?? [];
+const anonViewProblems = Object.entries(fp.views).filter(([name, v]) => (v.privileges.anon !== '') !== anonViewsAllowed.includes(name)
+  || (anonViewsAllowed.includes(name) && (v.privileges.anon !== 'SELECT' || !String(v.options ?? '').includes('security_barrier=true'))))
+  .map(([name]) => name);
+check('grants: anon holds SELECT only on the reviewed public views (security_barrier), and nothing else', anonViewProblems.length === 0, anonViewProblems.join(','));
 const forbidden = [];
 for (const t of tableNames) {
   for (const role of ['anon', 'authenticated', 'service_role']) {
@@ -58,7 +64,11 @@ const authMismatch = tableNames.filter((t) => fp.tables[t].privileges.authentica
 check('grants: authenticated privileges match the reviewed matrix exactly', authMismatch.length === 0,
   authMismatch.map((t) => `${t}: have '${fp.tables[t].privileges.authenticated}' want '${expectedAuth[t]}'`).join('; '));
 
-const svcMismatch = tableNames.filter((t) => fp.tables[t].privileges.service_role !== (contract.serviceRoleNoAccess.includes(t) ? '' : 'DELETE,INSERT,SELECT,UPDATE'));
+const svcMismatch = tableNames.filter((t) => {
+  const expected = contract.serviceRolePrivileges?.[t]
+    ?? (contract.serviceRoleNoAccess.includes(t) ? '' : 'DELETE,INSERT,SELECT,UPDATE');
+  return fp.tables[t].privileges.service_role !== expected;
+});
 check('grants: service_role has only SELECT/INSERT/UPDATE/DELETE (none on owner-only tables)', svcMismatch.length === 0, svcMismatch.join(','));
 check('grants: member_directory is read-only for authenticated and unreachable by anon',
   fp.views.member_directory?.privileges.authenticated === 'SELECT' && fp.views.member_directory?.privileges.anon === '', JSON.stringify(fp.views.member_directory?.privileges));
@@ -137,7 +147,7 @@ check('signup: on_auth_user_created trigger exists on auth.users', (fp.auth_user
 const stable = (doc) => {
   const copy = JSON.parse(JSON.stringify(doc));
   delete copy.extensions; // hosted projects pre-install extra extensions
-  copy.default_privileges = (copy.default_privileges ?? []).filter((d) => d.startsWith('postgres |')); // supabase_admin defaults are platform-managed
+  delete copy.default_privileges; // separately checked above; platform/PGlite bootstrap defaults legitimately differ
   return JSON.stringify(copy);
 };
 if (opt('--golden')) {

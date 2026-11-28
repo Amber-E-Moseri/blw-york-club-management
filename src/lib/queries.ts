@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import type { Event, EventAudience, EventCategory, Member, Announcement, PrayerRequest, DashboardStats } from '../types';
+import { APPROVED_STATUS } from './membership';
 
 // ─── Events ──────────────────────────────────────────────────────────────────
 
@@ -121,16 +122,21 @@ export async function getAnnouncements(limit = 5): Promise<Announcement[]> {
   return data ?? [];
 }
 
-/** Saves an announcement and returns its id. Nothing is pushed here; see notifyAnnouncementMembers. */
+/**
+ * Saves an announcement and returns its id. Nothing is pushed here; see notifyAnnouncementMembers.
+ * `cellId` is null for an organization-wide announcement (staff only). A cell leader must pass a cell they lead; the
+ * database refuses anything else (migration 066).
+ */
 export async function createAnnouncement(
   title: string,
   body: string,
   authorId: string,
-  authorName: string
+  authorName: string,
+  cellId: string | null = null
 ): Promise<string> {
   const { data, error } = await supabase
     .from('announcements')
-    .insert({ title, body, author_id: authorId, author_name: authorName })
+    .insert({ title, body, author_id: authorId, author_name: authorName, cell_id: cellId })
     .select('id')
     .single();
   if (error) throw new Error(error.message);
@@ -162,14 +168,30 @@ export async function notifyAnnouncementMembers(announcementId: string): Promise
 
 // ─── Prayer Requests ─────────────────────────────────────────────────────────
 
-export async function getPrayerRequests(): Promise<PrayerRequest[]> {
-  const { data, error } = await supabase
-    .from('prayer_requests')
-    .select('*')
-    .eq('is_active', true)
-    .order('created_at', { ascending: false });
-  if (error) throw new Error(error.message);
-  return data ?? [];
+/**
+ * Staff read the request table. Everyone else reads v_prayer_requests_visible (shared requests, and leadership requests
+ * of their led cells, with an anonymous author never exposed), plus their own requests from the table.
+ */
+export async function getPrayerRequests(userId: string, isStaff: boolean): Promise<PrayerRequest[]> {
+  const order = { ascending: false } as const;
+  if (isStaff) {
+    const { data, error } = await supabase
+      .from('prayer_requests')
+      .select('*')
+      .eq('is_active', true)
+      .order('created_at', order);
+    if (error) throw new Error(error.message);
+    return (data ?? []) as PrayerRequest[];
+  }
+  const [visible, own] = await Promise.all([
+    supabase.from('v_prayer_requests_visible').select('*').order('created_at', order),
+    supabase.from('prayer_requests').select('*').eq('author_id', userId).eq('is_active', true).order('created_at', order),
+  ]);
+  if (visible.error) throw new Error(visible.error.message);
+  if (own.error) throw new Error(own.error.message);
+  const byId = new Map<string, PrayerRequest>();
+  for (const row of [...((own.data ?? []) as PrayerRequest[]), ...((visible.data ?? []) as PrayerRequest[])]) byId.set(row.id, row);
+  return Array.from(byId.values()).sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
 }
 
 // ─── Dashboard Stats ─────────────────────────────────────────────────────────
@@ -180,14 +202,15 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
   const [members, newMembers, events, announcements, prayers] = await Promise.all([
-    supabase.from('profiles').select('id', { count: 'exact', head: true }),
-    supabase.from('profiles').select('id', { count: 'exact', head: true }).gte('joined_at', monthAgo),
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', APPROVED_STATUS),
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', APPROVED_STATUS).gte('joined_at', monthAgo),
     supabase.from('events').select('id', { count: 'exact', head: true }).gte('date', today).lte('date', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]),
     supabase.from('announcements').select('id', { count: 'exact', head: true }),
     supabase.from('prayer_requests').select('id', { count: 'exact', head: true }).eq('is_active', true).gte('created_at', weekAgo),
   ]);
 
   return {
+    // Approved members only, to match the dashboard (dashboardStats.ts) and the member directory.
     member_count: members.count ?? 0,
     member_growth: newMembers.count ?? 0,
     upcoming_events: events.count ?? 0,

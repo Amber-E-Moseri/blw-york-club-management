@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
 import type { ContactActivityReport, DevotionalReportDay, DevotionalViewerRow } from '../../types';
+import { APPROVED_STATUS } from '../membership';
 
 interface ProfileRow {
   id: string;
@@ -48,8 +49,10 @@ export async function fetchDevotionalMonthReport(
   devotionalId: string,
   totalDays: number
 ): Promise<DevotionalReportDay[]> {
+  // The denominator is approved members only. Registered but unapproved accounts never read devotionals on the
+  // member's behalf, so counting them understated every percentage.
   const [profilesResult, viewsResult] = await Promise.all([
-    supabase.from('profiles').select('id', { count: 'exact', head: true }),
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', APPROVED_STATUS),
     supabase
       .from('devotional_views')
       .select('member_id, day_of_month')

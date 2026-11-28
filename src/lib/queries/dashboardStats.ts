@@ -1,6 +1,8 @@
 import { supabase } from '../supabase';
-import type { AuthUser } from '../auth';
+import { NO_SCOPE, type LeadershipScope } from '../leadership';
 import type { ActivityItem, EnhancedDashboardStats, Meeting } from '../../types';
+import { localMonthInstants, localMonthRange, shiftLocalDays, toLocalDateKey } from '../dates';
+import { APPROVED_STATUS } from '../membership';
 
 export interface AttentionContact {
   id: string;
@@ -10,40 +12,33 @@ export interface AttentionContact {
   follow_up_assignee?: string;
 }
 
-function toDate(d: Date): string {
-  return d.toISOString().split('T')[0];
-}
-
-function monthStart(date = new Date()): string {
-  return toDate(new Date(date.getFullYear(), date.getMonth(), 1));
-}
-
-function monthEnd(date = new Date()): string {
-  return toDate(new Date(date.getFullYear(), date.getMonth() + 1, 0));
-}
-
 function sevenDays(): string[] {
-  return Array.from({ length: 7 }, (_, index) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (6 - index));
-    return toDate(d);
-  });
+  return Array.from({ length: 7 }, (_, index) => toLocalDateKey(shiftLocalDays(index - 6)));
+}
+
+// An optional query that failed is unavailable (null), not zero. A query that succeeded with no rows is a real zero.
+function countOrNull(result: { count: number | null; error: unknown }): number | null {
+  if (result.error) return null;
+  return result.count ?? 0;
 }
 
 export async function getEnhancedDashboardStats(
   userId: string,
-  role: AuthUser['role'],
-  cellId?: string,
+  scope: LeadershipScope = NO_SCOPE,
 ): Promise<EnhancedDashboardStats> {
-  const today = toDate(new Date());
-  const weekAgo = toDate(new Date(Date.now() - 6 * 86400000));
-  const start = monthStart();
-  const end = monthEnd();
+  // A leader is someone with led cells and no staff authority. The role label alone does not count.
+  const leadsCells = !scope.isStaff && scope.ledCellIds.length > 0;
+  const today = toLocalDateKey();
+  const weekAgo = toLocalDateKey(shiftLocalDays(-6));
+  const month = localMonthRange();
+  const monthTime = localMonthInstants();
 
   const [
-    members,
+    activeMembers,
+    pendingMembers,
     newMembers,
-    meetings,
+    meetingsThisMonth,
+    upcomingMeetings,
     announcements,
     prayers,
     testimonies,
@@ -51,21 +46,33 @@ export async function getEnhancedDashboardStats(
     personalHabits,
     devotionalViews,
   ] = await Promise.all([
-    supabase.from('profiles').select('id', { count: 'exact', head: true }),
-    supabase.from('profiles').select('id', { count: 'exact', head: true }).gte('joined_at', start),
-    supabase.from('meetings').select('id', { count: 'exact', head: true }).gte('date', today).lte('date', end),
+    leadsCells
+      ? supabase.from('v_cell_member_directory').select('member_key', { count: 'exact', head: true })
+      : supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', APPROVED_STATUS),
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', APPROVED_STATUS)
+      .gte('joined_at', monthTime.start).lt('joined_at', monthTime.nextStart),
+    // Every meeting on the local calendar month, past and future alike.
+    supabase.from('meetings').select('id', { count: 'exact', head: true }).gte('date', month.start).lte('date', month.end),
+    // Meetings from today onward, used for the upcoming count.
+    supabase.from('meetings').select('id', { count: 'exact', head: true }).gte('date', today),
     supabase.from('announcements').select('id', { count: 'exact', head: true }),
-    supabase.from('prayer_requests').select('id', { count: 'exact', head: true }).eq('is_active', true).gte('created_at', weekAgo),
-    supabase.from('testimonies').select('id', { count: 'exact', head: true }).gte('created_at', start).lte('created_at', `${end}T23:59:59`),
+    // Staff count the table. Everyone else counts what they may see (v_prayer_requests_visible, migration 070).
+    scope.isStaff
+      ? supabase.from('prayer_requests').select('id', { count: 'exact', head: true }).eq('is_active', true).gte('created_at', weekAgo)
+      : supabase.from('v_prayer_requests_visible').select('id', { count: 'exact', head: true }).gte('created_at', weekAgo),
+    supabase.from('testimonies').select('id', { count: 'exact', head: true })
+      .gte('created_at', monthTime.start).lt('created_at', monthTime.nextStart),
     supabase.from('contacts').select('id,date_contacted,cell_id', { count: 'exact' }).gte('date_contacted', weekAgo).lte('date_contacted', today).eq('archived', false),
     supabase.from('habit_entries').select('template_id,entry_date,status').eq('user_id', userId).gte('entry_date', weekAgo).lte('entry_date', today),
-    supabase.from('devotional_views').select('id', { count: 'exact', head: true }).eq('member_id', userId).gte('viewed_date', start).lte('viewed_date', end),
+    supabase.from('devotional_views').select('id', { count: 'exact', head: true }).eq('member_id', userId).gte('viewed_date', month.start).lte('viewed_date', month.end),
   ]);
 
-  // Only throw for errors on tables we know must exist (profiles, meetings, contacts, testimonies).
-  // Optional tables (announcements, habit_entries, devotional_views) may not be migrated yet —
-  // those queries return null data which falls back to 0 below.
-  [members.error, newMembers.error, meetings.error, testimonies.error, contacts.error].forEach((error) => {
+  // Required tables: a failed query must fail the whole load rather than show a partial dashboard.
+  // Optional tables (announcements, prayer_requests, habit_entries, devotional_views) may not be migrated yet;
+  // their failures are reported as null so the UI can show "unavailable" instead of 0.
+  [activeMembers.error, pendingMembers.error, newMembers.error, meetingsThisMonth.error, upcomingMeetings.error,
+    testimonies.error, contacts.error].forEach((error) => {
     if (error) throw new Error(error.message);
   });
 
@@ -75,35 +82,42 @@ export async function getEnhancedDashboardStats(
     contactsByDate.set(row.date_contacted, (contactsByDate.get(row.date_contacted) ?? 0) + 1);
   });
 
-  const doneHabits = (personalHabits.data ?? []).filter((entry) => entry.status === 'done').length;
-  const habitStreakAvg = personalHabits.data?.length ? Math.round((doneHabits / personalHabits.data.length) * 7) : 0;
+  const habitRows = personalHabits.error ? null : (personalHabits.data ?? []);
+  const habitStreakAvg = habitRows === null
+    ? null
+    : habitRows.length
+      ? Math.round((habitRows.filter((entry) => entry.status === 'done').length / habitRows.length) * 7)
+      : 0;
 
   return {
-    member_count: members.count ?? 0,
-    member_growth: newMembers.count ?? 0,
-    upcoming_events: meetings.count ?? 0,
-    announcement_count: announcements.count ?? 0,
-    unread_announcements: 0,
-    active_prayer_requests: prayers.count ?? 0,
-    meetings_this_month: meetings.count ?? 0,
+    member_count: activeMembers.count ?? 0,
+    // A cell leader cannot count the organization's new members. Unavailable is reported as null, never as zero.
+    member_growth: leadsCells ? null : (newMembers.count ?? 0),
+    pending_member_count: leadsCells ? null : (pendingMembers.count ?? 0),
+    upcoming_events: upcomingMeetings.count ?? 0,
+    announcement_count: countOrNull(announcements),
+    unread_announcements: null,
+    active_prayer_requests: countOrNull(prayers),
+    meetings_this_month: meetingsThisMonth.count ?? 0,
     testimonies_this_month: testimonies.count ?? 0,
     contacts_this_week: contacts.count ?? 0,
-    cell_contacts_this_week: role === 'cell_leader'
-      ? contactRows.filter((row) => row.cell_id === cellId).length
+    cell_contacts_this_week: leadsCells
+      ? contactRows.filter((row) => row.cell_id !== null && scope.ledCellIds.includes(row.cell_id)).length
       : undefined,
-    cell_meeting_attendance_rate: role === 'cell_leader' ? 0 : undefined,
+    // Not computed yet for any role, so it is reported as unavailable rather than as a measured 0%.
+    cell_meeting_attendance_rate: leadsCells ? null : undefined,
     habit_streak_avg: habitStreakAvg,
-    devotional_views_this_month: devotionalViews.count ?? 0,
+    devotional_views_this_month: countOrNull(devotionalViews),
     contacts_last_7_days: Array.from(contactsByDate, ([date, count]) => ({ date, count })),
   };
 }
 
 export async function getRecentActivity(
   userId: string,
-  role: AuthUser['role'],
+  scope: LeadershipScope = NO_SCOPE,
   limit = 10,
 ): Promise<ActivityItem[]> {
-  const isAdmin = role === 'admin' || role === 'coordinator';
+  const isAdmin = scope.isStaff;
   const [announcements, testimonies, meetings, contacts] = await Promise.all([
     supabase.from('announcements').select('id,title,author_name,created_at').order('created_at', { ascending: false }).limit(limit),
     supabase.from('testimonies').select('id,title,author_name,created_at,status').neq('status', 'archived').order('created_at', { ascending: false }).limit(limit),
@@ -125,7 +139,7 @@ export async function getRecentActivity(
       title: row.title,
       actor: row.author_name,
       timestamp: row.created_at,
-      href: '/announcements',
+      href: '/hub/announcements',
     })),
     ...(testimonies.data ?? []).map((row) => ({
       id: `testimony-${row.id}`,
@@ -133,21 +147,21 @@ export async function getRecentActivity(
       title: row.title,
       actor: row.author_name,
       timestamp: row.created_at,
-      href: '/testimonies',
+      href: '/hub/testimonies',
     })),
     ...(meetings.data ?? []).map((row) => ({
       id: `meeting-${row.id}`,
       type: 'meeting' as const,
       title: row.title,
       timestamp: row.created_at,
-      href: '/meetings',
+      href: '/hub/meetings',
     })),
     ...(contacts.data ?? []).map((row) => ({
       id: `contact-${row.id}`,
       type: 'contact' as const,
       title: row.contact_name,
       timestamp: row.created_at,
-      href: '/contacts',
+      href: '/hub/contacts',
     })),
   ]
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
@@ -155,12 +169,11 @@ export async function getRecentActivity(
 }
 
 export async function getContactsNeedingAttention(
-  role: AuthUser['role'],
-  userId: string,
-  cellId?: string,
+  scope: LeadershipScope = NO_SCOPE,
   limit = 6,
 ): Promise<AttentionContact[]> {
-  if (role === 'member') return [];
+  // Staff see all; a leader sees their led cells; everyone else sees nothing here, as before for members.
+  if (!scope.isStaff && scope.ledCellIds.length === 0) return [];
 
   let query = supabase
     .from('contacts')
@@ -170,8 +183,8 @@ export async function getContactsNeedingAttention(
     .order('date_contacted', { ascending: true })
     .limit(limit);
 
-  if (role === 'cell_leader' && cellId) {
-    query = query.eq('cell_id', cellId);
+  if (!scope.isStaff) {
+    query = query.in('cell_id', scope.ledCellIds);
   }
 
   const { data } = await query;
@@ -183,7 +196,7 @@ export async function getUpcomingMeetings(
   cellId?: string,
   limit = 3,
 ): Promise<Meeting[]> {
-  const today = toDate(new Date());
+  const today = toLocalDateKey();
   let query = supabase
     .from('meetings')
     .select('*')

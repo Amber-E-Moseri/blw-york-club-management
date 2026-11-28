@@ -1,11 +1,12 @@
 // Shared helpers for the website Edge Functions (inquiries, Rhapsody PDF delivery, media upload, media cleanup).
-// Validation uses Zod (AGENTS.md: Zod on every write path), pinned to 3.23.8. Deno fetches the exact version from esm.sh;
-// the Node tests and the type checker map the same URL to site/node_modules/zod.
+// Validation uses Zod (AGENTS.md: Zod on every write path), pinned to 4.6.7. Zod below 4.6.6 has a high-severity advisory
+// (npm audit, GHSA-mrhx-c7xc-m3w5). Deno fetches the exact version from esm.sh; the Node tests and the type checker map
+// the same URL to site/node_modules/zod, which is also 4.6.7.
 //
 // Privacy rules: raw network addresses and user agents never leave these helpers. Only keyed hashes are stored or
 // sent to the database, and the secret that keys them is server-side only.
 
-import { z } from 'https://esm.sh/zod@3.23.8';
+import { z } from 'https://esm.sh/zod@4.6.7';
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -17,21 +18,16 @@ const IPV4 = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]
 const IPV6 = /^[0-9a-fA-F:]{2,45}$/;
 
 /**
- * The caller's address as the edge sees it. Cloudflare's header is trusted first because the functions sit behind
- * Cloudflare. Anything that is not a plain IP address is rejected, so a malformed header cannot become a rate-limit key.
+ * The caller's address, but only when the deployment declares that it sits behind Cloudflare
+ * (WEBSITE_TRUSTED_PROXY=cloudflare). Cloudflare overwrites cf-connecting-ip on every request it proxies. Nothing else is
+ * read: x-forwarded-for and x-real-ip are client-controlled on a direct connection, so they are never used for abuse
+ * prevention. Without a trusted proxy this returns null and the per-client limits are skipped. Turnstile (single-use,
+ * verified server-side) and the database's global per-kind limits still apply.
  */
-export function clientAddress(headers: Headers): string | null {
-  const candidates = [
-    headers.get('cf-connecting-ip'),
-    headers.get('x-real-ip'),
-    (headers.get('x-forwarded-for') ?? '').split(',')[0],
-  ];
-  for (const raw of candidates) {
-    const ip = (raw ?? '').trim();
-    if (!ip) continue;
-    if (IPV4.test(ip) || (IPV6.test(ip) && ip.includes(':'))) return ip;
-  }
-  return null;
+export function trustedClientAddress(trustedProxy: string | undefined, headers: Headers): string | null {
+  if (trustedProxy !== 'cloudflare') return null;
+  const ip = (headers.get('cf-connecting-ip') ?? '').trim();
+  return IPV4.test(ip) || (IPV6.test(ip) && ip.includes(':')) ? ip : null;
 }
 
 /** HMAC-SHA256 as lowercase hex. The key is a server secret; the output is what the database stores. */
@@ -104,7 +100,7 @@ function firstMessage(error: z.ZodError, friendly: Record<string, string>, fallb
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// Media upload rules. These mirror the storage bucket limits and the web_media constraints in migration 107.
+// Media upload rules. These mirror the storage bucket limits and the web_media constraints in migrations 050 to 058.
 // ---------------------------------------------------------------------------------------------------------------------
 
 export type MediaBucket = 'site-media' | 'rhapsody-pdfs';

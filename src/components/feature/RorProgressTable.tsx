@@ -2,14 +2,15 @@ import React, { useState } from 'react';
 import { Search, ChevronUp, ChevronDown, Flame, Trophy, Calendar, Clock } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { CellMemberRorRow } from '../../lib/queries/rorStreaks';
+import { ROR_SELF_REPORTED_NOTE, dateKeyOf, daysBetweenKeys, formatRorDay, rorToday } from '../../lib/rorDates';
 
 export type ProgressStatus = 'Consistent' | 'Improving' | 'Needs Follow-up';
 
-function deriveStatus(row: CellMemberRorRow, today: Date): ProgressStatus {
-  const lastDone = row.last_completed ? new Date(row.last_completed) : null;
-  const daysSinceLast = lastDone
-    ? Math.floor((today.getTime() - lastDone.getTime()) / 86_400_000)
-    : Infinity;
+// todayKey is the Toronto reporting day (YYYY-MM-DD). Both days are calendar days, so the gap is a whole-day count.
+function deriveStatus(row: CellMemberRorRow, todayKey: string): ProgressStatus {
+  const lastKey = dateKeyOf(row.last_completed);
+  const gap = lastKey ? daysBetweenKeys(lastKey, todayKey) : null;
+  const daysSinceLast = gap ?? Infinity;
   const pct = row.monthly_total > 0
     ? Math.round((row.monthly_completed / row.monthly_total) * 100)
     : 0;
@@ -46,7 +47,7 @@ export const RorProgressTable: React.FC<Props> = ({
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('full_name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-  const today = new Date();
+  const todayKey = rorToday();
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -56,7 +57,7 @@ export const RorProgressTable: React.FC<Props> = ({
   const filtered = rows
     .filter((r) => r.full_name.toLowerCase().includes(search.toLowerCase()) ||
       (showCell && r.cell_name?.toLowerCase().includes(search.toLowerCase())))
-    .map((r) => ({ ...r, status: deriveStatus(r, today) as ProgressStatus,
+    .map((r) => ({ ...r, status: deriveStatus(r, todayKey) as ProgressStatus,
       monthly_pct: r.monthly_total > 0 ? Math.round((r.monthly_completed / r.monthly_total) * 100) : 0 }))
     .sort((a, b) => {
       let cmp = 0;
@@ -130,7 +131,7 @@ export const RorProgressTable: React.FC<Props> = ({
                 </td>
               </tr>
             ) : filtered.map((r) => (
-              <tr key={r.member_id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+              <tr key={r.member_key} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
                 <td className="px-4 py-3 font-medium text-gray-900 dark:text-white whitespace-nowrap">{r.full_name}</td>
                 {showCell && <td className="px-4 py-3 text-gray-500 dark:text-slate-400 whitespace-nowrap">{r.cell_name ?? '—'}</td>}
                 <td className="px-4 py-3 text-orange-600 font-semibold">{r.current_streak}d</td>
@@ -140,9 +141,7 @@ export const RorProgressTable: React.FC<Props> = ({
                   <span className="ml-1 text-xs text-gray-400">({r.monthly_completed}/{r.monthly_total})</span>
                 </td>
                 <td className="px-4 py-3 text-gray-500 dark:text-slate-400 text-xs whitespace-nowrap">
-                  {r.last_completed
-                    ? new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' }).format(new Date(r.last_completed))
-                    : '—'}
+                  {formatRorDay(dateKeyOf(r.last_completed))}
                 </td>
                 <td className="px-4 py-3">
                   <span
@@ -171,7 +170,7 @@ export const RorProgressTable: React.FC<Props> = ({
         </table>
       </div>
       <p className="px-4 py-2 text-[11px] text-gray-400 dark:text-slate-500 border-t border-gray-100 dark:border-slate-700">
-        Status indicators reflect self-reported reading activity. They are not verified attendance records.
+        {ROR_SELF_REPORTED_NOTE} Status indicators are derived from it.
       </p>
     </div>
   );

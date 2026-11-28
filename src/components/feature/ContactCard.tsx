@@ -90,7 +90,7 @@ export const ContactCard: React.FC<Props> = ({
           <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 mb-2">Follow-up</h3>
           {activeFollowUp ? (
             <p className="text-sm text-gray-600">
-              Current assignee: <span className="font-semibold text-gray-900">{activeFollowUp.assignee?.full_name ?? activeFollowUp.assignee?.email ?? activeFollowUp.assigned_to}</span>
+              Current assignee: <span className="font-semibold text-gray-900">{activeFollowUp.assignee?.full_name ?? activeFollowUp.assignee?.email ?? 'Assigned'}</span>
             </p>
           ) : (
             <p className="text-sm text-gray-500">No active follow-up history.</p>
@@ -100,7 +100,7 @@ export const ContactCard: React.FC<Props> = ({
               {followUps.map((item) => (
                 <div key={item.id} className="p-3 text-sm dark:bg-slate-800">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium text-gray-800">{item.assignee?.full_name ?? item.assignee?.email ?? item.assigned_to}</span>
+                    <span className="font-medium text-gray-800">{item.assignee?.full_name ?? item.assignee?.email ?? 'Assigned'}</span>
                     <span className="text-xs text-gray-400">{new Date(item.assigned_on).toLocaleDateString()}</span>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">{item.status}{item.notes ? ` - ${item.notes}` : ''}</p>

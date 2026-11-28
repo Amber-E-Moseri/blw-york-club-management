@@ -1,4 +1,4 @@
-import { validateRequest, sendViaGmail, SendResult } from '../../api/email-relay';
+import { validateRequest, sendViaGmail, secretsMatch, SendResult } from '../../api/email-relay';
 import nodemailer from 'nodemailer';
 
 jest.mock('nodemailer');
@@ -109,6 +109,60 @@ describe('validateRequest', () => {
 });
 
 // ─── sendViaGmail ─────────────────────────────────────────────────────────────
+
+describe('secretsMatch (constant-time relay token comparison)', () => {
+  it('accepts the exact secret', () => {
+    expect(secretsMatch(SECRET, SECRET)).toBe(true);
+  });
+
+  it('rejects a same-length wrong secret', () => {
+    const wrong = SECRET.slice(0, -1) + (SECRET.endsWith('x') ? 'y' : 'x');
+    expect(wrong).toHaveLength(SECRET.length);
+    expect(secretsMatch(wrong, SECRET)).toBe(false);
+  });
+
+  it('rejects a prefix of the secret', () => {
+    expect(secretsMatch(SECRET.slice(0, 10), SECRET)).toBe(false);
+  });
+
+  it('rejects the secret with extra characters appended', () => {
+    expect(secretsMatch(SECRET + ' ', SECRET)).toBe(false);
+  });
+
+  it('rejects an empty presented value and an unconfigured secret', () => {
+    expect(secretsMatch('', SECRET)).toBe(false);
+    expect(secretsMatch(SECRET, '')).toBe(false);
+    expect(secretsMatch('', '')).toBe(false);
+  });
+
+  it('compares case-sensitively', () => {
+    expect(secretsMatch(SECRET.toUpperCase(), SECRET)).toBe(false);
+  });
+
+  it('handles non-ASCII secrets', () => {
+    expect(secretsMatch('clé-secrète', 'clé-secrète')).toBe(true);
+    expect(secretsMatch('clé-secrete', 'clé-secrète')).toBe(false);
+  });
+});
+
+describe('validateRequest token check uses the constant-time comparison', () => {
+  it('rejects a near-miss Bearer token', () => {
+    const nearMiss = SECRET.slice(0, -1) + (SECRET.endsWith('x') ? 'y' : 'x');
+    const err = validateRequest(
+      { method: 'POST', headers: { authorization: `Bearer ${nearMiss}` }, body: validBody },
+      validConfig,
+    );
+    expect(err?.status).toBe(401);
+  });
+
+  it('still accepts the exact Bearer token', () => {
+    const err = validateRequest(
+      { method: 'POST', headers: { authorization: `Bearer ${SECRET}` }, body: validBody },
+      validConfig,
+    );
+    expect(err).toBeNull();
+  });
+});
 
 describe('sendViaGmail', () => {
   it('returns a messageId on success', async () => {

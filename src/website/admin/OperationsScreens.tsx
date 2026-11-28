@@ -263,7 +263,7 @@ export function PeopleScreen({ api, perms, isCore }: Ctx & { isCore: boolean }) 
   const [roles, setRoles] = useState<RoleRow[]>([]);
   const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
   const [msg, setMsg] = useState<Msg>(null);
-  const [newRole, setNewRole] = useState({ name: '', description: '', perms: [] as string[] });
+  const [newRole, setNewRole] = useState({ name: '', description: '', perms: [] as string[], reason: '' });
   const [assign, setAssign] = useState({ profileId: '', roleId: '', reason: '' });
   const refresh = async () => {
     try { setRoles(await api.listRoles()); setAssignments(await api.listAssignments()); }
@@ -276,7 +276,7 @@ export function PeopleScreen({ api, perms, isCore }: Ctx & { isCore: boolean }) 
 
   const togglePerm = (k: string) => setNewRole({ ...newRole, perms: newRole.perms.includes(k) ? newRole.perms.filter((x) => x !== k) : [...newRole.perms, k] });
   const createRole = async () => {
-    try { await api.createRole(newRole.name.trim(), newRole.description.trim(), newRole.perms); setMsg({ tone: 'ok', text: 'Role created.' }); setNewRole({ name: '', description: '', perms: [] }); await refresh(); }
+    try { await api.createRole(newRole.name.trim(), newRole.description.trim(), newRole.perms, newRole.reason.trim()); setMsg({ tone: 'ok', text: 'Role created.' }); setNewRole({ name: '', description: '', perms: [], reason: '' }); await refresh(); }
     catch (e) { setMsg({ tone: 'error', text: errorMessage(e) }); }
   };
   const doAssign = async () => {
@@ -287,8 +287,13 @@ export function PeopleScreen({ api, perms, isCore }: Ctx & { isCore: boolean }) 
     try { await api.revokeAssignment(a.id, reason.trim()); setMsg({ tone: 'ok', text: 'Role revoked.' }); await refresh(); }
     catch (e) { setMsg({ tone: 'error', text: errorMessage(e) }); }
   };
-  const archive = async (r: RoleRow, reason: string) => {
-    try { await api.archiveRole(r.id, reason.trim()); setMsg({ tone: 'ok', text: 'Role archived and its assignments revoked.' }); await refresh(); }
+  const retire = async (r: RoleRow, reason: string) => {
+    try { await api.retireRole(r.id, reason.trim()); setMsg({ tone: 'ok', text: 'Role retired.' }); await refresh(); }
+    catch (e) { setMsg({ tone: 'error', text: errorMessage(e) }); }
+  };
+  const savePermissions = async (r: RoleRow, permissions: string[], reason: string) => {
+    if (permissions.length === 0) { setMsg({ tone: 'error', text: 'A role needs at least one permission. Retire the role instead.' }); return; }
+    try { await api.setRolePermissions(r.id, permissions, reason.trim()); setMsg({ tone: 'ok', text: 'Permissions saved.' }); await refresh(); }
     catch (e) { setMsg({ tone: 'error', text: errorMessage(e) }); }
   };
 
@@ -297,13 +302,14 @@ export function PeopleScreen({ api, perms, isCore }: Ctx & { isCore: boolean }) 
       {msg && <Notice tone={msg.tone}>{msg.text}</Notice>}
       <Card title="Website roles">
         <ul className="grid gap-3">
-          {roles.map((r) => <RoleRowView key={r.id} role={r} onArchive={archive} />)}
+          {roles.map((r) => <RoleRowView key={r.id} role={r} onRetire={retire} onSavePermissions={savePermissions} />)}
         </ul>
       </Card>
-      <Card title="Create a custom role" actions={<span className="text-sm text-ink-muted">Up to 16 permissions</span>}>
+      <Card title="Create a custom role" actions={<span className="text-sm text-ink-muted">Choose 1 to 15 permissions</span>}>
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="Role name">{(p) => <input {...p} className={inputClass} value={newRole.name} onChange={(e) => setNewRole({ ...newRole, name: e.target.value })} />}</Field>
           <Field label="Description">{(p) => <input {...p} className={inputClass} value={newRole.description} onChange={(e) => setNewRole({ ...newRole, description: e.target.value })} />}</Field>
+          <Field label="Reason (recorded in the audit log)" hint="At least 5 characters.">{(p) => <input {...p} className={inputClass} value={newRole.reason} onChange={(e) => setNewRole({ ...newRole, reason: e.target.value })} />}</Field>
         </div>
         <fieldset className="mt-5">
           <legend className="mb-2 text-sm font-bold">Permissions</legend>
@@ -321,7 +327,7 @@ export function PeopleScreen({ api, perms, isCore }: Ctx & { isCore: boolean }) 
             ))}
           </div>
         </fieldset>
-        <div className="mt-5"><Button onClick={createRole} disabled={!newRole.name.trim()}>Create role</Button></div>
+        <div className="mt-5"><Button onClick={createRole} disabled={!newRole.name.trim() || newRole.perms.length === 0 || newRole.reason.trim().length < 5}>Create role</Button></div>
       </Card>
       <Card title="Assign a role">
         <div className="grid gap-4 md:grid-cols-3">
@@ -329,7 +335,7 @@ export function PeopleScreen({ api, perms, isCore }: Ctx & { isCore: boolean }) 
           <Field label="Role">{(p) => (
             <select {...p} className={inputClass} value={assign.roleId} onChange={(e) => setAssign({ ...assign, roleId: e.target.value })}>
               <option value="">Choose a role</option>
-              {roles.filter((r) => r.status === 'active').map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
             </select>
           )}</Field>
           <Field label="Reason" hint="At least 5 characters. Recorded in the audit trail.">{(p) => <input {...p} className={inputClass} value={assign.reason} onChange={(e) => setAssign({ ...assign, reason: e.target.value })} />}</Field>
@@ -352,18 +358,40 @@ export function PeopleScreen({ api, perms, isCore }: Ctx & { isCore: boolean }) 
   );
 }
 
-function RoleRowView({ role, onArchive }: { role: RoleRow; onArchive: (r: RoleRow, reason: string) => void }) {
+function RoleRowView({ role, onRetire, onSavePermissions }: { role: RoleRow; onRetire: (r: RoleRow, reason: string) => void; onSavePermissions: (r: RoleRow, permissions: string[], reason: string) => void }) {
   const [reason, setReason] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [perms, setPerms] = useState<string[]>(role.permissions);
+  const toggle = (k: string) => setPerms(perms.includes(k) ? perms.filter((x) => x !== k) : [...perms, k]);
+  const labels = PERMISSION_LABELS as Record<string, string>;
   return (
-    <li className="grid gap-2 rounded-xl border border-paper-edge p-4 md:grid-cols-[1fr_auto] md:items-end">
+    <li className="grid gap-3 rounded-xl border border-paper-edge p-4">
       <div>
-        <p className="font-bold">{role.name} {role.isBuiltin && <span className="text-xs font-normal text-ink-muted">· built in</span>} {role.status === 'archived' && <span className="text-xs text-brand">· archived</span>}</p>
+        <p className="font-bold">{role.name}</p>
         <p className="text-sm text-ink-soft">{role.description}</p>
+        <p className="mt-1 text-xs text-ink-muted">Permissions: {role.permissions.map((k) => labels[k] ?? k).join(', ') || 'none'}</p>
       </div>
-      {role.status === 'active' && (
+      {editing ? (
+        <div className="grid gap-3">
+          <div className="grid gap-2 md:grid-cols-2">
+            {Object.values(PERMISSION_GROUPS).flat().map((k) => (
+              <label key={k} className="flex min-h-[44px] items-center gap-3 text-sm">
+                <input type="checkbox" className="h-5 w-5 accent-brand" checked={perms.includes(k)} onChange={() => toggle(k)} />
+                <span>{PERMISSION_LABELS[k]}</span>
+              </label>
+            ))}
+          </div>
+          <Field label="Reason for the change (recorded in the audit log)">{(p) => <input {...p} className={inputClass} value={reason} onChange={(e) => setReason(e.target.value)} />}</Field>
+          <div className="flex flex-wrap gap-2">
+            <Button disabled={perms.length === 0 || reason.trim().length < 5} onClick={() => { onSavePermissions(role, perms, reason); setEditing(false); setReason(''); }}>Save permissions</Button>
+            <Button variant="secondary" onClick={() => { setEditing(false); setPerms(role.permissions); setReason(''); }}>Cancel</Button>
+          </div>
+        </div>
+      ) : (
         <div className="flex flex-wrap items-end gap-2">
-          <Field label="Reason to archive">{(p) => <input {...p} className={inputClass + ' md:w-64'} value={reason} onChange={(e) => setReason(e.target.value)} />}</Field>
-          <Button variant="secondary" disabled={reason.trim().length < 5} onClick={() => onArchive(role, reason)}>Archive</Button>
+          <Button variant="secondary" onClick={() => { setPerms(role.permissions); setEditing(true); }}>Edit permissions</Button>
+          <Field label="Reason to retire">{(p) => <input {...p} className={inputClass + ' md:w-64'} value={reason} onChange={(e) => setReason(e.target.value)} />}</Field>
+          <Button variant="secondary" disabled={reason.trim().length < 5} onClick={() => onRetire(role, reason)}>Retire</Button>
         </div>
       )}
     </li>
@@ -377,14 +405,12 @@ function AssignmentView({ a, roles, onRevoke }: { a: AssignmentRow; roles: RoleR
     <li className="grid gap-2 rounded-xl border border-paper-edge p-4 md:grid-cols-[1fr_auto] md:items-end">
       <div className="text-sm">
         <p className="font-bold">{role?.name ?? 'Role'} · profile {a.profileId}</p>
-        <p className="text-ink-soft">Assigned {new Date(a.assignedAt).toLocaleString('en-CA')} · {a.reason}{a.revokedAt ? ` · revoked ${new Date(a.revokedAt).toLocaleString('en-CA')}` : ''}</p>
+        <p className="text-ink-soft">Assigned {new Date(a.assignedAt).toLocaleString('en-CA')}</p>
       </div>
-      {!a.revokedAt && (
-        <div className="flex flex-wrap items-end gap-2">
-          <Field label="Reason to revoke">{(p) => <input {...p} className={inputClass + ' md:w-64'} value={reason} onChange={(e) => setReason(e.target.value)} />}</Field>
-          <Button variant="secondary" disabled={reason.trim().length < 5} onClick={() => onRevoke(a, reason)}>Revoke</Button>
-        </div>
-      )}
+      <div className="flex flex-wrap items-end gap-2">
+        <Field label="Reason to revoke">{(p) => <input {...p} className={inputClass + ' md:w-64'} value={reason} onChange={(e) => setReason(e.target.value)} />}</Field>
+        <Button variant="secondary" disabled={reason.trim().length < 5} onClick={() => onRevoke(a, reason)}>Revoke</Button>
+      </div>
     </li>
   );
 }

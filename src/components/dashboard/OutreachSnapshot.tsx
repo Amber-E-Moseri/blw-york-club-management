@@ -21,7 +21,7 @@ export const OutreachSnapshot: React.FC<OutreachSnapshotProps> = ({
   return (
     <DashboardCard
       title="Outreach Snapshot"
-      action={{ label: 'Open CRM', onClick: () => navigate('/contacts') }}
+      action={{ label: 'Open CRM', onClick: () => navigate('/hub/contacts') }}
     >
       {loading ? (
         <div className="space-y-3">

@@ -3,6 +3,7 @@ import { Modal } from '../foundation/Modal';
 import { Button } from '../foundation/Button';
 import { Input } from '../foundation/Input';
 import type { Meeting, MeetingInput, MeetingVisibility, MeetingCategory } from '../../types';
+import { toLocalDateKey } from '../../lib/dates';
 
 interface Props {
   isOpen: boolean;
@@ -45,7 +46,7 @@ const CATEGORIES: { value: MeetingCategory; label: string; desc: string; icon: s
 const EMPTY: MeetingInput = {
   title: '',
   description: '',
-  date: new Date().toISOString().split('T')[0],
+  date: toLocalDateKey(),
   time: '18:00',
   end_time: '',
   location: '',

@@ -15,6 +15,8 @@ interface PeopleFiltersProps {
   onSearch: (s: string) => void;
   role: string;
   onRole: (r: string) => void;
+  /** Role filtering is meaningful only where roles are visible (staff). Leaders do not see roles. */
+  showRole?: boolean;
   cellId: string;
   onCellId: (id: string) => void;
   cells: Cell[];
@@ -24,7 +26,7 @@ const CONTROL_CLASS =
   'h-11 w-full px-3 text-sm border border-gray-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-york-500';
 
 export const PeopleFilters: React.FC<PeopleFiltersProps> = ({
-  search, onSearch, role, onRole, cellId, onCellId, cells,
+  search, onSearch, role, onRole, showRole = true, cellId, onCellId, cells,
 }) => {
   const hasFilters = search || role || cellId;
 
@@ -44,16 +46,18 @@ export const PeopleFilters: React.FC<PeopleFiltersProps> = ({
 
       {/* Role + cell filters */}
       <div className="grid grid-cols-2 gap-2.5">
-        <select
-          value={role}
-          onChange={(e) => onRole(e.target.value)}
-          aria-label="Filter by role"
-          className={CONTROL_CLASS}
-        >
-          {ROLE_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
+        {showRole && (
+          <select
+            value={role}
+            onChange={(e) => onRole(e.target.value)}
+            aria-label="Filter by role"
+            className={CONTROL_CLASS}
+          >
+            {ROLE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        )}
 
         {cells.length > 0 && (
           <select

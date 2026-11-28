@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { X, Mail, Phone, Calendar, Building2, ExternalLink, Edit3, AlertCircle, CheckCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useUserProfile } from '../../hooks/useUserProfile';
+import { useCellMemberProfile } from '../../hooks/useCellMemberProfile';
 import { Button } from '../foundation/Button';
 import { Input } from '../foundation/Input';
 import { PersonStatusBadge } from './PersonStatusBadge';
@@ -16,6 +17,8 @@ interface PersonDetailPanelProps {
   onClose: () => void;
   currentUser: AuthUser;
   onSaved?: () => void;
+  /** True when a cell leader opens a member of a cell they lead. memberId is then a member_key, read-only. */
+  leaderView?: boolean;
 }
 
 function maskPhone(phone?: string): string {
@@ -31,9 +34,11 @@ function safeFormat(dateStr?: string): string {
 }
 
 export const PersonDetailPanel: React.FC<PersonDetailPanelProps> = ({
-  memberId, onClose, currentUser, onSaved,
+  memberId, onClose, currentUser, onSaved, leaderView = false,
 }) => {
-  const { profile, loading, saving, error, notFound, updateProfile } = useUserProfile(memberId ?? undefined);
+  const staffRead = useUserProfile(leaderView ? undefined : memberId ?? undefined);
+  const leaderRead = useCellMemberProfile(leaderView ? memberId ?? undefined : undefined);
+  const { profile, loading, saving, error, notFound, updateProfile } = leaderView ? leaderRead : staffRead;
   const level = ROLE_LEVEL[currentUser.role] ?? 0;
   const isAdmin = level >= 2;
   const isCoordinator = currentUser.role === 'coordinator';
@@ -145,10 +150,10 @@ export const PersonDetailPanel: React.FC<PersonDetailPanelProps> = ({
                 <div className="flex-1 min-w-0">
                   <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 truncate">{displayName}</h3>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    <PersonStatusBadge role={profile.role} size="xs" />
-                    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-slate-300 capitalize">
+                    {!leaderView && <PersonStatusBadge role={profile.role} size="xs" />}
+                    {!leaderView && (<span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-slate-300 capitalize">
                       {profile.status}
-                    </span>
+                    </span>)}
                   </div>
                   <div className="mt-2">
                     <span className="text-xs text-gray-400 dark:text-slate-500">
@@ -220,9 +225,9 @@ export const PersonDetailPanel: React.FC<PersonDetailPanelProps> = ({
                   {profile.cellName && (
                     <Detail icon={<Building2 className="w-3.5 h-3.5" />} label="Cell" value={profile.cellName} />
                   )}
-                  <Detail icon={<Building2 className="w-3.5 h-3.5" />} label="Role" value={profile.role.replace('_', ' ')} />
-                  <Detail icon={<Building2 className="w-3.5 h-3.5" />} label="Status" value={profile.status} />
-                  <Detail icon={<Calendar className="w-3.5 h-3.5" />} label="Joined" value={safeFormat(profile.joinedAt)} />
+                  {!leaderView && <Detail icon={<Building2 className="w-3.5 h-3.5" />} label="Role" value={profile.role.replace('_', ' ')} />}
+                  {!leaderView && <Detail icon={<Building2 className="w-3.5 h-3.5" />} label="Status" value={profile.status} />}
+                  {!leaderView && <Detail icon={<Calendar className="w-3.5 h-3.5" />} label="Joined" value={safeFormat(profile.joinedAt)} />}
                   {isAdmin && profile.studentNumber && (
                     <Detail icon={<ExternalLink className="w-3.5 h-3.5" />} label="Student #" value={profile.studentNumber} />
                   )}
@@ -241,7 +246,7 @@ export const PersonDetailPanel: React.FC<PersonDetailPanelProps> = ({
               {isAdmin && !isOwnProfile && (
                 <section className="pt-2 border-t border-gray-100 dark:border-slate-700">
                   <a
-                    href="/contacts"
+                    href="/hub/contacts"
                     className="flex items-center gap-2 text-xs font-semibold text-york-600 dark:text-york-400 hover:underline"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />

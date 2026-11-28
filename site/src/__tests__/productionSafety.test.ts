@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 // The shared Edge Function helpers import Zod from the pinned esm.sh URL. Tests use the installed package.
-vi.mock('https://esm.sh/zod@3.23.8', async () => await import('zod'));
+vi.mock('https://esm.sh/zod@4.6.7', async () => await import('zod'));
 
 import { applyBrandVariables, brandPalette, contrastRatio, DEFAULT_BRAND, isHexColour, resolveBrand } from '../lib/brand';
 import { applyPublishedContent, editionsToSiteContent, unpublishedBase } from '../content/published';
 import { sampleContent } from '../content/sample-data';
 import { postProtectedInquiry, type ProtectedInquiry } from '../api/inquiryFunction';
 import {
-  buildStorageUrl, cleanLabel, clientAddress, corsHeaders, isUuid, keyedHash, turnstilePassed,
-  uploadObjectPath, validateInquiry, validateUploadRequest,
+  buildStorageUrl, cleanLabel, corsHeaders, isUuid, keyedHash, turnstilePassed,
+  trustedClientAddress, uploadObjectPath, validateInquiry, validateUploadRequest,
 } from '../../../supabase/functions/_shared/website-guards';
 
 const HASH64 = 'a'.repeat(64);
@@ -120,11 +120,12 @@ describe('protected inquiry client', () => {
 });
 
 describe('edge guards (shared with the Edge Functions)', () => {
-  it('reads the client address from the edge header first and rejects malformed values', () => {
-    expect(clientAddress(new Headers({ 'cf-connecting-ip': '203.0.113.7', 'x-forwarded-for': '198.51.100.2' }))).toBe('203.0.113.7');
-    expect(clientAddress(new Headers({ 'x-forwarded-for': '198.51.100.2, 10.0.0.1' }))).toBe('198.51.100.2');
-    expect(clientAddress(new Headers({ 'cf-connecting-ip': 'not-an-ip; drop table' }))).toBeNull();
-    expect(clientAddress(new Headers())).toBeNull();
+  it('trusts only cf-connecting-ip behind a declared Cloudflare proxy, and rejects malformed values', () => {
+    expect(trustedClientAddress('cloudflare', new Headers({ 'cf-connecting-ip': '203.0.113.7', 'x-forwarded-for': '198.51.100.2' }))).toBe('203.0.113.7');
+    expect(trustedClientAddress('cloudflare', new Headers({ 'x-forwarded-for': '198.51.100.2, 10.0.0.1' }))).toBeNull();
+    expect(trustedClientAddress(undefined, new Headers({ 'cf-connecting-ip': '203.0.113.7' }))).toBeNull();
+    expect(trustedClientAddress('cloudflare', new Headers({ 'cf-connecting-ip': 'not-an-ip; drop table' }))).toBeNull();
+    expect(trustedClientAddress('cloudflare', new Headers())).toBeNull();
   });
 
   it('keys client identifiers with HMAC-SHA256 (RFC 4231 vector) and never returns the raw value', async () => {

@@ -45,6 +45,7 @@ declare
   owner_id  uuid := '20000000-0000-0000-0000-000000000008';
   second_id uuid := '20000000-0000-0000-0000-000000000009';
   visible integer;
+  others integer;
   observed text;
   state text;
   cert_cell uuid;
@@ -75,6 +76,10 @@ begin
   update public.profiles set cell_id = cert_cell where id in (leader_id, member_id, pending_id);
 
   -- ===== DEFENCE IN DEPTH: a permissive rogue policy must not be enough =====================================================
+  -- The rogue read policy models a permissive read path. Since migration 070 narrowed profile reads to self and staff,
+  -- an UPDATE can reach the guard only through a readable row, so the controls below grant that read explicitly.
+  -- The guard trigger must still refuse every protected change.
+  create policy cert_rogue_select on public.profiles for select to authenticated using (true);
   create policy cert_rogue_update on public.profiles for update to authenticated using (true) with check (true);
 
   perform pg_temp.as_auth(member_id);
@@ -142,25 +147,35 @@ begin
   else perform pg_temp.cert_fail('Guard', 'the guard is column-specific: ordinary columns are unaffected', state); end if;
 
   drop policy cert_rogue_update on public.profiles;
+  drop policy cert_rogue_select on public.profiles;
 
   -- ===== APPROVAL IS ENFORCED BY THE DATABASE =========================================================================
+  -- Migration 070 closed people to staff and the person's own linked account. The seeded person (line 71) is not
+  -- linked to this member, so any row the member can see from another person is a regression.
   perform pg_temp.as_auth(member_id);
-  select count(*) into visible from public.people;
+  select count(*) into others from public.people p
+    where p.id is distinct from (select pr.person_id from public.profiles pr where pr.id = member_id);
   perform pg_temp.as_postgres();
-  if visible >= 1 then perform pg_temp.cert_pass('Approval', 'an active member can read the people directory', visible::text);
-  else perform pg_temp.cert_fail('Approval', 'an active member can read the people directory', visible::text); end if;
+  if others = 0 then perform pg_temp.cert_pass('Approval', 'an active member cannot read another person''s people record (migration 070 closure)', others::text);
+  else perform pg_temp.cert_fail('Approval', 'an active member cannot read another person''s people record (migration 070 closure)', others::text); end if;
 
+  -- Migration 045 lets any signed-in account read its OWN linked person row (people_read: p.person_id = people.id).
+  -- Pending and rejected accounts therefore see at most that one row, and never any other person's row.
   perform pg_temp.as_auth(pending_id);
   select count(*) into visible from public.people;
+  select count(*) into others from public.people p
+    where p.id is distinct from (select pr.person_id from public.profiles pr where pr.id = pending_id);
   perform pg_temp.as_postgres();
-  if visible = 0 then perform pg_temp.cert_pass('Approval', 'a pending account cannot read the people directory', visible::text);
-  else perform pg_temp.cert_fail('Approval', 'a pending account cannot read the people directory', visible::text); end if;
+  if visible <= 1 and others = 0 then perform pg_temp.cert_pass('Approval', 'a pending account reads no other person record (own linked row only)', visible::text);
+  else perform pg_temp.cert_fail('Approval', 'a pending account reads no other person record (own linked row only)', visible::text || '/' || others::text); end if;
 
   perform pg_temp.as_auth(rejected_id);
   select count(*) into visible from public.people;
+  select count(*) into others from public.people p
+    where p.id is distinct from (select pr.person_id from public.profiles pr where pr.id = rejected_id);
   perform pg_temp.as_postgres();
-  if visible = 0 then perform pg_temp.cert_pass('Approval', 'a rejected account cannot read the people directory', visible::text);
-  else perform pg_temp.cert_fail('Approval', 'a rejected account cannot read the people directory', visible::text); end if;
+  if visible <= 1 and others = 0 then perform pg_temp.cert_pass('Approval', 'a rejected account reads no other person record (own linked row only)', visible::text);
+  else perform pg_temp.cert_fail('Approval', 'a rejected account reads no other person record (own linked row only)', visible::text || '/' || others::text); end if;
 
   perform pg_temp.as_auth(pending_id);
   begin insert into public.people (full_name) values ('Written By Pending');
@@ -227,8 +242,9 @@ begin
   -- Regression: active cell leader must still be able to insert announcements.
   perform pg_temp.as_auth(leader_id);
   begin
-    insert into public.announcements (title, body, author_id, author_name)
-      values ('Cert Active Insert', 'cert body', leader_id, 'Cert Leader');
+    -- A cell leader posts within a cell they lead (migration 066). Organization-wide posts are staff only.
+    insert into public.announcements (title, body, author_id, author_name, cell_id)
+      values ('Cert Active Insert', 'cert body', leader_id, 'Cert Leader', cert_cell);
     perform pg_temp.as_postgres();
     perform pg_temp.cert_pass('Announcements', 'active cell leader can still insert announcement (F-1 regression)', 'insert succeeded');
   exception when others then

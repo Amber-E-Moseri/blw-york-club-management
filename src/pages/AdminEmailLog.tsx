@@ -8,6 +8,7 @@ import { useEmailLog } from '../hooks/useEmailNotifications';
 import { renderComposerEmail, validateEmailPlaceholders, ALLOWED_EMAIL_PLACEHOLDERS } from '../lib/email/emailComposer';
 import { resendEmail, sendEmail } from '../lib/email/emailService';
 import { evaluateResend } from '../lib/email/resendPolicy';
+import { formatRate, summarizeDelivery } from '../lib/email/emailStats';
 import {
   fetchEmailComposerRecipients,
   fetchEmailDrafts,
@@ -113,19 +114,8 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
   }, [loadComposerData, user?.role]);
 
   const fixedPreview = useMemo(() => renderSampleEmailTemplate(templateType), [templateType]);
-  const stats = useMemo(() => {
-    const total = logs.length || 1;
-    const sent = logs.filter((log) => log.status === 'sent').length;
-    const failed = logs.filter((log) => log.status === 'failed').length;
-    const opened = logs.filter((log) => log.opened_at).length;
-    const clicked = logs.filter((log) => log.clicked_at).length;
-    return {
-      sent,
-      failed,
-      openRate: Math.round((opened / total) * 100),
-      clickRate: Math.round((clicked / total) * 100),
-    };
-  }, [logs]);
+  // Rates use sent messages as the denominator (see src/lib/email/emailStats.ts). Null means no message was sent.
+  const stats = useMemo(() => summarizeDelivery(logs), [logs]);
 
   // The per-row action, shared by the phone card list and the tablet/desktop table.
   const resendActionFor = (log: EmailLog) => {
@@ -178,11 +168,19 @@ export const AdminEmailLog: React.FC<Props> = ({ user }) => {
           <p className="text-small text-gray-400 mt-1">Compose editable member communications and review delivery status.</p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Card><Metric label="Sent" value={stats.sent} /></Card>
-          <Card><Metric label="Failed" value={stats.failed} /></Card>
-          <Card><Metric label="Open Rate" value={`${stats.openRate}%`} /></Card>
-          <Card><Metric label="Click Rate" value={`${stats.clickRate}%`} /></Card>
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Card><Metric label="Provider accepted" value={stats.sent} /></Card>
+            <Card><Metric label="Verified failures" value={stats.failed} /></Card>
+            <Card><Metric label="Recorded opens" value={stats.opened} /></Card>
+            <Card><Metric label="Recorded clicks" value={stats.clicked} /></Card>
+          </div>
+          <p className="text-xs text-gray-400" data-testid="delivery-stats-caption">
+            Figures cover the {stats.windowSize} most recent messages shown below (at most 200, after any status filter).
+            Recorded-event rates are {formatRate(stats.openRate)} opens and {formatRate(stats.clickRate)} clicks among provider-accepted sends.
+            Tracking is {stats.trackingStatus === 'unavailable' ? 'unavailable for this window' : 'event-only'}: no event does not prove a message was unopened.
+            Delivery status is unavailable; provider acceptance is not verified inbox delivery. Only rows explicitly marked failed are verified failures.
+          </p>
         </div>
 
         <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">

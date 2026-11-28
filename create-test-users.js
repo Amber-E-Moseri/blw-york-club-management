@@ -11,6 +11,15 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !TEST_USER_PASSWORD) {
   process.exit(1);
 }
 
+// Fail closed: these accounts are created active with privileged roles. See scripts/seed-guard.cjs.
+const { assertSafeSeedTarget } = require('./scripts/seed-guard.cjs');
+const guard = assertSafeSeedTarget(process.env);
+if (!guard.ok) {
+  console.error('Refusing to create test accounts:');
+  for (const message of guard.errors) console.error(`  - ${message}`);
+  process.exit(1);
+}
+
 const TEST_USERS = [
   { email: 'test.coordinator@example.com', fullName: 'Test Coordinator', role: 'coordinator' },
   { email: 'test.cell-leader@example.com', fullName: 'Test Cell Leader', role: 'cell_leader' },

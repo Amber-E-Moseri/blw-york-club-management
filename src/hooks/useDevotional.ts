@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import {
+  devotionalDateKey,
   getAllPages,
   getDevotionalByDay,
   getDevotionalByMonth,
@@ -10,6 +11,7 @@ import {
   logView,
   markAsRead as markAsReadQuery,
 } from '../lib/queries/devotionals';
+import { toLocalDateKey } from '../lib/dates';
 import type {
   DevotionalDailyPage,
   DevotionalEngagementStats,
@@ -35,13 +37,16 @@ interface MonthState {
   error: string | null;
 }
 
+// Today on the Toronto reporting calendar, so the page and the recorded read agree with the member's day.
 function currentParts() {
-  const now = new Date();
-  return {
-    month: now.getMonth() + 1,
-    day: now.getDate(),
-    year: now.getFullYear(),
-  };
+  const [year, month, day] = toLocalDateKey().split('-').map(Number);
+  return { month, day, year };
+}
+
+// The calendar date of the page being shown. Views are recorded and read back against this date, never against the
+// time of the click, so reading an earlier page does not count for today.
+function pageDateFor(month: number, day: number, year?: number): string | null {
+  return devotionalDateKey(year ?? currentParts().year, month, day);
 }
 
 function messageFromError(error: unknown): string {
@@ -95,11 +100,12 @@ export function useDevotionalByDay(
         let view: DevotionalView | null = null;
         const { data: auth } = await supabase.auth.getUser();
         const userId = auth.user?.id;
+        const pageDate = pageDateFor(month, day, year);
 
-        if (userId) {
+        if (userId && pageDate) {
           view = shouldLogView
-            ? await logView(userId, result.devotional.id, result.page.day_of_month)
-            : await getViewForDay(userId, result.devotional.id, result.page.day_of_month);
+            ? await logView(userId, result.devotional.id, result.page.day_of_month, pageDate)
+            : await getViewForDay(userId, result.devotional.id, result.page.day_of_month, pageDate);
         }
 
         const stats = await getEngagementStats(result.devotional.id, result.page.day_of_month);
@@ -135,15 +141,16 @@ export function useDevotionalByDay(
   const markAsRead = useCallback(async () => {
     const { data: auth } = await supabase.auth.getUser();
     const userId = auth.user?.id;
-    if (!userId || !state.devotional || !state.page) return;
+    const pageDate = pageDateFor(month, day, year);
+    if (!userId || !state.devotional || !state.page || !pageDate) return;
     setMarking(true);
     try {
-      const view = await markAsReadQuery(userId, state.devotional.id, state.page.day_of_month);
+      const view = await markAsReadQuery(userId, state.devotional.id, state.page.day_of_month, pageDate);
       setState((s) => ({ ...s, view }));
     } finally {
       setMarking(false);
     }
-  }, [state.devotional, state.page]);
+  }, [state.devotional, state.page, month, day, year]);
 
   return { ...state, markAsRead, marking };
 }

@@ -131,7 +131,10 @@ try {
   const seeded = await admin.from('people').insert({ full_name: `Cert Person ${h.run}`, email: `cert.person.${h.run}@example.test` }).select('id').single();
   const rejectedUser = await h.createUser('rejected', { role: 'member', status: 'rejected' });
   const seenBy = async (client) => (await client.from('people').select('id').eq('id', seeded.data.id)).data?.length ?? -1;
-  expect('an active member can read the people directory', (await seenBy(member.client)) === 1);
+  // Migration 070 closed people to staff and the person's own linked account. The seeded person is not the member's,
+  // so an active member must see none of it. The staff positive control proves the row exists and is readable.
+  expect('an active member cannot read another person\'s people record (migration 070 closure)', (await seenBy(member.client)) === 0);
+  expect('staff can read the people directory (positive control)', (await seenBy(adminUser.client)) === 1);
   expect('a pending account cannot read the people directory', (await seenBy(pending.client)) === 0);
   expect('a rejected account cannot read the people directory', (await seenBy(rejectedUser.client)) === 0);
   const pendingWrite = await pending.client.from('people').insert({ full_name: 'Written By Pending' }).select();
